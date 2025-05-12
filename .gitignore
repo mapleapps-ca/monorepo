@@ -166,9 +166,6 @@ env
 *.cfg
 env/pip-selfcheck.json
 *.csv#
-.env.production
-.env.prod
-.env.qa
 
 #—————————
 # GOLANG

@@ -1,0 +1,54 @@
+version: "3"
+
+tasks:
+  # Development task to start the local development server
+  dev:
+    desc: "Start the development server with hot module replacement"
+    cmds:
+      - npm run dev
+
+  # Production build task
+  build:
+    desc: "Build the production version of the project"
+    cmds:
+      # Build the project using Vite's build command
+      - npm run build
+
+  # Deployment task (similar to the original, but adapted for Vite)
+  deploy:
+    desc: "Build and deploy the production version to a static site repository"
+    cmds:
+      # Build the project
+      - npm run build
+
+      # Checkout prod branch in the target repo
+      - git -C ../../../papercloud-frontend-static checkout -B prod
+
+      # Copy build files (Vite generates the "dist" directory by default)
+      - cp -Rf ./dist/* ../../../papercloud-frontend-static
+
+      # Remove build directory
+      - rm -Rf ./dist
+
+      # Commit and push changes
+      - git -C ../../../papercloud-frontend-static add --all
+      - git -C ../../../papercloud-frontend-static commit -m 'Latest production deployment.'
+      - git -C ../../../papercloud-frontend-static push origin prod
+
+  # Optional: Lint and type-check task
+  lint:
+    desc: "Run ESLint and TypeScript type checking"
+    cmds:
+      - npm run lint
+      - npm run typecheck
+
+  # Optional: Run tests
+  test:
+    desc: "Run project tests"
+    cmds:
+      - npm run test
+
+  undelast:
+    desc: Undue last commit which was not pushed. Special thanks to https://www.nobledesktop.com/learn/git/undo-changes.
+    cmds:
+      - git reset --soft HEAD~
