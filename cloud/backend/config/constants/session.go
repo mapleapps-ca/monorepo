@@ -1,0 +1,24 @@
+package constants
+
+type key int
+
+const (
+	SessionIsAuthorized key = iota
+	SessionSkipAuthorization
+	SessionID
+	SessionIPAddress
+	SessionProxies
+	SessionFederatedUser
+	SessionFederatedUserCompanyName
+	SessionFederatedUserRole
+	SessionFederatedUserID
+	SessionFederatedUserUUID
+	SessionFederatedUserTimezone
+	SessionFederatedUserName
+	SessionFederatedUserFirstName
+	SessionFederatedUserLastName
+	SessionFederatedUserStoreID
+	SessionFederatedUserStoreName
+	SessionFederatedUserStoreLevel
+	SessionFederatedUserStoreTimezone
+)

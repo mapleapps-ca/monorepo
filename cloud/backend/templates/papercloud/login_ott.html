@@ -1,0 +1,92 @@
+<!-- templates/iam/login_ott.html -->
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Your Login Verification Code</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                margin: 0;
+                padding: 0;
+            }
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .header {
+                background-color: #4a86e8;
+                color: white;
+                padding: 20px;
+                text-align: center;
+            }
+            .content {
+                padding: 20px;
+                background-color: #f8f9fa;
+            }
+            .verification-code {
+                font-size: 24px;
+                font-weight: bold;
+                text-align: center;
+                padding: 15px;
+                margin: 20px 0;
+                background-color: #e9ecef;
+                border-radius: 5px;
+            }
+            .footer {
+                margin-top: 20px;
+                font-size: 12px;
+                color: #6c757d;
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Login Verification</h1>
+            </div>
+            <div class="content">
+                <p>Hello {{.FirstName}},</p>
+
+                <p>
+                    We received a login request for your account. To protect
+                    your account security, please verify your identity by
+                    entering the following code:
+                </p>
+
+                <div class="verification-code">{{.OTT}}</div>
+
+                <p>
+                    This code will expire in 10 minutes. If you did not attempt
+                    to log in, please ignore this email or contact support
+                    immediately as your account may be at risk.
+                </p>
+
+                <p>
+                    For security reasons, never share this code with anyone,
+                    including our support team. Our staff will never ask for
+                    your verification code.
+                </p>
+
+                <p>Thank you for helping us keep your account secure!</p>
+
+                <p>
+                    Best regards,<br />
+                    The Maple Open Tech Team
+                </p>
+            </div>
+            <div class="footer">
+                <p>
+                    This is an automated message. Please do not reply to this
+                    email.
+                </p>
+                <p>If you need assistance, please contact our support team.</p>
+            </div>
+        </div>
+    </body>
+</html>

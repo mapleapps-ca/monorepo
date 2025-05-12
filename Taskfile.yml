@@ -1,0 +1,22 @@
+version: "3"
+
+tasks:
+  backend-dev:
+    desc: Start the cloud services backend in developer mode
+    cmds:
+      - go work use ./cloud/backend
+      - docker-compose -p backend -f ./cloud/backend/dev.docker-compose.yml up
+
+  backend-console:
+    desc: Open console in (developer mode) running cloud services backend
+    cmds:
+      - docker exec -it backend bash
+  initworkspace:
+    desc: (Do not run) Init the go workspace
+    cmds:
+      - go work init
+
+  updateworkspace:
+    desc: Update the go workspace for this project
+    cmds:
+      - go work use -r .
