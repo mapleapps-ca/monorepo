@@ -7,13 +7,13 @@
 # This is docker-compose is used for developers only.
 #
 # ------------------------------------------------------------------------------
-# $ docker-compose -p mot_backend -f dev.docker-compose.yml up --watch  #
+# $ docker-compose -p mapleapps_backend -f dev.docker-compose.yml up --watch  #
 # ------------------------------------------------------------------------------
 #
 
 services:
   db1:
-    container_name: mot_backend_db1
+    container_name: mapleapps_backend_db1
     image: mongo
     command:
       [
@@ -43,7 +43,7 @@ services:
       - "./data/db1/configdb:/data/configdb"
 
   db2:
-    container_name: mot_backend_db2
+    container_name: mapleapps_backend_db2
     image: mongo
     command:
       [
@@ -66,7 +66,7 @@ services:
       - "./data/db2/configdb:/data/configdb"
 
   db3:
-    container_name: mot_backend_db3
+    container_name: mapleapps_backend_db3
     image: mongo
     command:
       [
@@ -90,7 +90,7 @@ services:
 
   cache:
     # https://pimylifeup.com/redis-docker/
-    container_name: mot_backend_cache
+    container_name: mapleapps_backend_cache
     image: redis:alpine
     command: "redis-server --save 60 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81 --protected-mode yes"
     ports:
@@ -103,7 +103,7 @@ services:
 
   # The main application.
   app:
-    container_name: mot_backend
+    container_name: mapleapps_backend
     stdin_open: true
     environment:
       ### Common
@@ -116,7 +116,7 @@ services:
       BACKEND_APP_BANNED_COUNTRIES: ${BACKEND_APP_BANNED_COUNTRIES}
       BACKEND_APP_BETA_ACCESS_CODE: ${BACKEND_APP_BETA_ACCESS_CODE}
       BACKEND_DB_URI: mongodb://db1:27017,db2:27018,db3:27019/?replicaSet=rs0 # This is dependent on the configuration in our docker-compose file (see above).
-      BACKEND_DB_MAPLEAUTH_NAME: ${BACKEND_DB_MAPLEAUTH_NAME}
+      BACKEND_DB_IAM_NAME: ${BACKEND_DB_IAM_NAME}
       BACKEND_DB_VAULT_NAME: ${BACKEND_DB_VAULT_NAME}
       BACKEND_DB_PAPERCLOUD_NAME_NAME: ${BACKEND_DB_PAPERCLOUD_NAME_NAME}
       BACKEND_CACHE_URI: ${BACKEND_CACHE_URI}

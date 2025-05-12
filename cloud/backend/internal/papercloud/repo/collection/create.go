@@ -8,8 +8,8 @@ import (
 
 	"go.uber.org/zap"
 
-	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/papercloud/domain/collection"
 	"github.com/google/uuid"
+	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/papercloud/domain/collection"
 )
 
 func (impl collectionRepositoryImpl) Create(collection *dom_collection.Collection) error {

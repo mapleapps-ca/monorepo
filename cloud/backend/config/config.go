@@ -35,7 +35,7 @@ type AppConfig struct {
 
 type DBConfig struct {
 	URI            string
-	MapleAuthName  string
+	IAMName        string
 	VaultName      string
 	PaperCloudName string
 }
@@ -74,7 +74,7 @@ func NewProvider() *Configuration {
 
 	// --- Database section ---
 	c.DB.URI = getEnv("BACKEND_DB_URI", true)
-	c.DB.MapleAuthName = getEnv("BACKEND_DB_MAPLEAUTH_NAME", true)
+	c.DB.IAMName = getEnv("BACKEND_DB_IAM_NAME", true)
 	c.DB.VaultName = getEnv("BACKEND_DB_VAULT_NAME", true)
 	c.DB.PaperCloudName = getEnv("BACKEND_DB_PAPERCLOUD_NAME_NAME", true)
 

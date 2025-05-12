@@ -22,7 +22,7 @@ type bannedIPAddressImpl struct {
 
 func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mongo.Client) dom_banip.Repository {
 	// ctx := context.Background()
-	uc := client.Database(appCfg.DB.MapleAuthName).Collection("banned_ip_addresses")
+	uc := client.Database(appCfg.DB.IAMName).Collection("banned_ip_addresses")
 
 	// // For debugging purposes only or if you are going to recreate new indexes.
 	// if _, err := uc.Indexes().DropAll(context.TODO()); err != nil {
