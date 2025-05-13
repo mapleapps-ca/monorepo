@@ -3,9 +3,6 @@ package register
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +14,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/keys"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/pkg/crypto"
 )
 
 // RegisterRequest represents the data structure needed for user registration
@@ -43,67 +41,6 @@ type RegisterRequest struct {
 	EncryptedRecoveryKey              string `json:"encryptedRecoveryKey"`
 	MasterKeyEncryptedWithRecoveryKey string `json:"masterKeyEncryptedWithRecoveryKey"`
 	VerificationID                    string `json:"verificationID"`
-}
-
-// generateRandomBytes creates cryptographically secure random bytes
-func generateRandomBytes(n int) ([]byte, error) {
-	b := make([]byte, n)
-	_, err := rand.Read(b)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-// generateE2EEFields generates values for E2EE fields
-func generateE2EEFields() (map[string]string, []byte, error) {
-	result := make(map[string]string)
-
-	// Generate a verification ID (using UUID format)
-	verificationID := fmt.Sprintf("%x-%x-%x-%x-%x",
-		time.Now().UnixNano()&0xffffffff,
-		time.Now().UnixNano()>>32&0xffff,
-		time.Now().UnixNano()>>48&0xffff,
-		time.Now().UnixNano()&0xffff,
-		time.Now().UnixNano()>>16&0xffffffffffff)
-
-	// Generate random bytes for various fields
-	salt, err := generateRandomBytes(16)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	masterKey, err := generateRandomBytes(32)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	privateKey, err := generateRandomBytes(32)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	recoveryKey, err := generateRandomBytes(32)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Create SHA-256 hashes and encode them as base64 to simulate encryption
-	masterKeyHash := sha256.Sum256(masterKey)
-	privateKeyHash := sha256.Sum256(privateKey)
-	recoveryKeyHash := sha256.Sum256(recoveryKey)
-	masterWithRecoveryHash := sha256.Sum256(append(masterKey, recoveryKey...))
-
-	// Store the encoded values
-	result["salt"] = base64.RawURLEncoding.EncodeToString(salt)
-	result["publicKey"] = base64.RawURLEncoding.EncodeToString(privateKeyHash[:])
-	result["encryptedMasterKey"] = base64.RawURLEncoding.EncodeToString(masterKeyHash[:])
-	result["encryptedPrivateKey"] = base64.RawURLEncoding.EncodeToString(privateKeyHash[:])
-	result["encryptedRecoveryKey"] = base64.RawURLEncoding.EncodeToString(recoveryKeyHash[:])
-	result["masterKeyEncryptedWithRecoveryKey"] = base64.RawURLEncoding.EncodeToString(masterWithRecoveryHash[:])
-	result["verificationID"] = verificationID
-
-	return result, salt, nil
 }
 
 func RegisterCmd(configService config.ConfigService) *cobra.Command {
@@ -154,14 +91,91 @@ Examples:
 				module = 1 // Default to module 1 (PaperCloud)
 			}
 
-			// Generate E2EE fields
-			e2eeFields, saltBytes, err := generateE2EEFields()
+			// Generate E2EE fields - using our pkg/crypto library
+			fmt.Println("Generating secure cryptographic keys...")
+
+			// Generate salt for key derivation
+			salt, err := crypto.GenerateRandomBytes(crypto.SaltSize)
 			if err != nil {
-				fmt.Printf("Error generating encryption fields: %v\n", err)
+				fmt.Printf("Error generating salt: %v\n", err)
 				return
 			}
 
-			// Save information to local config first
+			// Derive key from password
+			params := crypto.DefaultParams()
+			keyEncryptionKey, err := crypto.DeriveKeyFromPassword(password, salt, params)
+			if err != nil {
+				fmt.Printf("Error deriving key from password: %v\n", err)
+				return
+			}
+
+			// Generate master key
+			masterKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
+			if err != nil {
+				fmt.Printf("Error generating master key: %v\n", err)
+				return
+			}
+
+			// Generate key pair
+			publicKey, privateKey, err := crypto.GenerateKeyPair()
+			if err != nil {
+				fmt.Printf("Error generating key pair: %v\n", err)
+				return
+			}
+
+			// Generate recovery key
+			recoveryKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
+			if err != nil {
+				fmt.Printf("Error generating recovery key: %v\n", err)
+				return
+			}
+
+			// Encrypt master key with key encryption key
+			encryptedMasterKeyCiphertext, encryptedMasterKeyNonce, err := crypto.EncryptWithSecretBox(masterKey, keyEncryptionKey)
+			if err != nil {
+				fmt.Printf("Error encrypting master key: %v\n", err)
+				return
+			}
+
+			// Encrypt private key with master key
+			encryptedPrivateKeyCiphertext, encryptedPrivateKeyNonce, err := crypto.EncryptWithSecretBox(privateKey[:], masterKey)
+			if err != nil {
+				fmt.Printf("Error encrypting private key: %v\n", err)
+				return
+			}
+
+			// Encrypt recovery key with master key
+			encryptedRecoveryKeyCiphertext, encryptedRecoveryKeyNonce, err := crypto.EncryptWithSecretBox(recoveryKey, masterKey)
+			if err != nil {
+				fmt.Printf("Error encrypting recovery key: %v\n", err)
+				return
+			}
+
+			// Encrypt master key with recovery key
+			masterKeyEncryptedWithRecoveryKeyCiphertext, masterKeyEncryptedWithRecoveryKeyNonce, err := crypto.EncryptWithSecretBox(masterKey, recoveryKey)
+			if err != nil {
+				fmt.Printf("Error encrypting master key with recovery key: %v\n", err)
+				return
+			}
+
+			// Create verification ID from public key
+			verificationID := crypto.ToBase64(publicKey[:])[:12]
+
+			// Combine nonce and ciphertext for server format
+			encryptedMasterKey := crypto.CombineNonceAndCiphertext(encryptedMasterKeyNonce, encryptedMasterKeyCiphertext)
+			encryptedPrivateKey := crypto.CombineNonceAndCiphertext(encryptedPrivateKeyNonce, encryptedPrivateKeyCiphertext)
+			encryptedRecoveryKey := crypto.CombineNonceAndCiphertext(encryptedRecoveryKeyNonce, encryptedRecoveryKeyCiphertext)
+			masterKeyEncryptedWithRecoveryKey := crypto.CombineNonceAndCiphertext(masterKeyEncryptedWithRecoveryKeyNonce, masterKeyEncryptedWithRecoveryKeyCiphertext)
+
+			// Convert to base64 for API
+			saltBase64 := crypto.ToBase64(salt)
+			publicKeyBase64 := crypto.ToBase64(publicKey[:])
+			encryptedMasterKeyBase64 := crypto.ToBase64(encryptedMasterKey)
+			encryptedPrivateKeyBase64 := crypto.ToBase64(encryptedPrivateKey)
+			encryptedRecoveryKeyBase64 := crypto.ToBase64(encryptedRecoveryKey)
+			masterKeyEncryptedWithRecoveryKeyBase64 := crypto.ToBase64(masterKeyEncryptedWithRecoveryKey)
+
+			// Save information to local config
 			fmt.Println("Saving registration information locally...")
 
 			// Save email to config
@@ -171,23 +185,23 @@ Examples:
 			}
 
 			// Save password salt to config
-			if err := configService.Set(ctx, "password_salt", saltBytes); err != nil {
+			if err := configService.Set(ctx, "password_salt", salt); err != nil {
 				fmt.Printf("Error saving password salt to config: %v\n", err)
 				return
 			}
 
 			// Save verification ID to config
-			if err := configService.Set(ctx, "verification_id", e2eeFields["verificationID"]); err != nil {
+			if err := configService.Set(ctx, "verification_id", verificationID); err != nil {
 				fmt.Printf("Error saving verification ID to config: %v\n", err)
 				return
 			}
 
 			// Save encrypted master key
-			encryptedMasterKey := keys.EncryptedMasterKey{
-				Ciphertext: []byte(e2eeFields["encryptedMasterKey"]),
-				Nonce:      []byte{}, // In a real implementation, we'd have proper nonce
+			encryptedMasterKeyObj := keys.EncryptedMasterKey{
+				Ciphertext: encryptedMasterKeyCiphertext,
+				Nonce:      encryptedMasterKeyNonce,
 			}
-			if err := configService.SetEncryptedMasterKey(ctx, encryptedMasterKey); err != nil {
+			if err := configService.SetEncryptedMasterKey(ctx, encryptedMasterKeyObj); err != nil {
 				fmt.Printf("Error saving encrypted master key to config: %v\n", err)
 				return
 			}
@@ -227,13 +241,13 @@ Examples:
 					AgreeToTrackingAcrossThirdPartyAppsAndServices: agreeTracking,
 
 					// Add E2EE fields
-					Salt:                              e2eeFields["salt"],
-					PublicKey:                         e2eeFields["publicKey"],
-					EncryptedMasterKey:                e2eeFields["encryptedMasterKey"],
-					EncryptedPrivateKey:               e2eeFields["encryptedPrivateKey"],
-					EncryptedRecoveryKey:              e2eeFields["encryptedRecoveryKey"],
-					MasterKeyEncryptedWithRecoveryKey: e2eeFields["masterKeyEncryptedWithRecoveryKey"],
-					VerificationID:                    e2eeFields["verificationID"],
+					Salt:                              saltBase64,
+					PublicKey:                         publicKeyBase64,
+					EncryptedMasterKey:                encryptedMasterKeyBase64,
+					EncryptedPrivateKey:               encryptedPrivateKeyBase64,
+					EncryptedRecoveryKey:              encryptedRecoveryKeyBase64,
+					MasterKeyEncryptedWithRecoveryKey: masterKeyEncryptedWithRecoveryKeyBase64,
+					VerificationID:                    verificationID,
 				}
 
 				// Convert request to JSON

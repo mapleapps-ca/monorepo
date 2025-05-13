@@ -21,6 +21,8 @@ const (
 	BoxPublicKeySize = 32
 	// BoxSecretKeySize is the size of a NaCl box secret key (32 bytes)
 	BoxSecretKeySize = 32
+	// BoxNonceSize is the size of a NaCl box nonce (24 bytes)
+	BoxNonceSize = 24
 	// SaltSize is the size of the salt for password hashing (16 bytes)
 	SaltSize = 16
 )
@@ -125,33 +127,70 @@ func DecryptWithSecretBox(ciphertext, nonce, key []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// EncryptWithBoxSeal encrypts data with a recipient's public key (matches crypto_box_seal)
-func EncryptWithBoxSeal(data []byte, publicKey []byte) ([]byte, error) {
-	if len(publicKey) != BoxPublicKeySize {
-		return nil, errors.New("public key must be 32 bytes")
+// EncryptWithBoxSeal encrypts data with a recipient's public key
+// This implements the functionality of libsodium's crypto_box_seal
+func EncryptWithBoxSeal(data []byte, recipientPK []byte) ([]byte, error) {
+	if len(recipientPK) != BoxPublicKeySize {
+		return nil, errors.New("recipient public key must be 32 bytes")
 	}
 
-	var pubKeyArray [BoxPublicKeySize]byte
-	copy(pubKeyArray[:], publicKey)
+	// Create a fixed-size array for the recipient's public key
+	var recipientPKArray [BoxPublicKeySize]byte
+	copy(recipientPKArray[:], recipientPK)
 
-	return box.Seal(nil, data, &pubKeyArray, rand.Reader), nil
+	// Generate an ephemeral keypair
+	ephemeralPK, ephemeralSK, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate a random nonce
+	var nonce [BoxNonceSize]byte
+	if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
+		return nil, err
+	}
+
+	// Encrypt the message
+	ciphertext := box.Seal(nil, data, &nonce, &recipientPKArray, ephemeralSK)
+
+	// Return the ephemeral public key + nonce + ciphertext
+	result := make([]byte, BoxPublicKeySize+BoxNonceSize+len(ciphertext))
+	copy(result[:BoxPublicKeySize], ephemeralPK[:])
+	copy(result[BoxPublicKeySize:BoxPublicKeySize+BoxNonceSize], nonce[:])
+	copy(result[BoxPublicKeySize+BoxNonceSize:], ciphertext)
+
+	return result, nil
 }
 
-// DecryptWithBoxSealOpen decrypts data sealed with box.Seal (matches crypto_box_seal_open)
-func DecryptWithBoxSealOpen(ciphertext, publicKey, privateKey []byte) ([]byte, error) {
+// DecryptWithBoxSealOpen decrypts data sealed with EncryptWithBoxSeal
+func DecryptWithBoxSealOpen(sealedData, publicKey, privateKey []byte) ([]byte, error) {
 	if len(publicKey) != BoxPublicKeySize {
 		return nil, errors.New("public key must be 32 bytes")
 	}
 	if len(privateKey) != BoxSecretKeySize {
 		return nil, errors.New("private key must be 32 bytes")
 	}
+	if len(sealedData) < BoxPublicKeySize+BoxNonceSize {
+		return nil, errors.New("sealed data too short")
+	}
 
-	var pubKeyArray [BoxPublicKeySize]byte
+	// Extract components
+	ephemeralPK := sealedData[:BoxPublicKeySize]
+	nonce := sealedData[BoxPublicKeySize : BoxPublicKeySize+BoxNonceSize]
+	ciphertext := sealedData[BoxPublicKeySize+BoxNonceSize:]
+
+	// Convert to fixed-size arrays
+	var pubKeyArray, ephemeralPKArray [BoxPublicKeySize]byte
 	var privKeyArray [BoxSecretKeySize]byte
+	var nonceArray [BoxNonceSize]byte
+
 	copy(pubKeyArray[:], publicKey)
 	copy(privKeyArray[:], privateKey)
+	copy(ephemeralPKArray[:], ephemeralPK)
+	copy(nonceArray[:], nonce)
 
-	plaintext, ok := box.Open(nil, ciphertext, &pubKeyArray, &privKeyArray)
+	// Decrypt
+	plaintext, ok := box.Open(nil, ciphertext, &nonceArray, &ephemeralPKArray, &privKeyArray)
 	if !ok {
 		return nil, errors.New("decryption failed, invalid keys or ciphertext")
 	}
