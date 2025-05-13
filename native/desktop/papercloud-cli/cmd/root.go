@@ -7,6 +7,7 @@ import (
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/remote"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/verifyemail"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/version"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 )
@@ -28,6 +29,7 @@ func NewRootCmd(configService config.ConfigService) *cobra.Command {
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
 	rootCmd.AddCommand(remote.RemoteCmd(configService))
 	rootCmd.AddCommand(register.RegisterCmd(configService))
+	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(configService))
 
 	return rootCmd
 }
