@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/remote"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/version"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
@@ -26,6 +27,7 @@ func NewRootCmd(configService config.ConfigService) *cobra.Command {
 	rootCmd.AddCommand(version.VersionCmd())
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
 	rootCmd.AddCommand(remote.RemoteCmd(configService))
+	rootCmd.AddCommand(register.RegisterCmd(configService))
 
 	return rootCmd
 }

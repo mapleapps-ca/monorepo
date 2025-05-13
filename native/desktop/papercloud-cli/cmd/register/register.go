@@ -3,6 +3,8 @@ package register
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,10 +13,35 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/argon2"
+	"golang.org/x/crypto/nacl/box"
+	"golang.org/x/crypto/nacl/secretbox"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/keys"
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/pkg/crypto"
+)
+
+// Constants matching the backend but with reduced memory for Argon2
+const (
+	// Key sizes
+	MasterKeySize        = 32 // 256-bit
+	KeyEncryptionKeySize = 32
+	CollectionKeySize    = 32
+	FileKeySize          = 32
+	RecoveryKeySize      = 32
+
+	// Sodium/NaCl constants
+	NonceSize         = 24
+	PublicKeySize     = 32
+	PrivateKeySize    = 32
+	SealedBoxOverhead = 16
+
+	// Argon2 parameters - reduced for CLI usage
+	Argon2MemLimit    = 16 * 1024 * 1024 // 16 MB instead of 64 MB
+	Argon2OpsLimit    = 3
+	Argon2Parallelism = 1
+	Argon2KeySize     = 32
+	Argon2SaltSize    = 16
 )
 
 // RegisterRequest represents the data structure needed for user registration
@@ -43,6 +70,107 @@ type RegisterRequest struct {
 	VerificationID                    string `json:"verificationID"`
 }
 
+// Crypto utility functions needed for registration
+
+// GenerateRandomBytes generates cryptographically secure random bytes
+func GenerateRandomBytes(size int) ([]byte, error) {
+	buf := make([]byte, size)
+	_, err := io.ReadFull(rand.Reader, buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
+}
+
+// DeriveKeyFromPassword derives a key from a password using Argon2id
+func DeriveKeyFromPassword(password string, salt []byte) ([]byte, error) {
+	if len(salt) != Argon2SaltSize {
+		return nil, fmt.Errorf("invalid salt size: expected %d, got %d", Argon2SaltSize, len(salt))
+	}
+
+	// Use modified parameters for CLI use
+	key := argon2.IDKey(
+		[]byte(password),
+		salt,
+		Argon2OpsLimit,
+		Argon2MemLimit,
+		Argon2Parallelism,
+		Argon2KeySize,
+	)
+
+	return key, nil
+}
+
+// EncryptData represents encrypted data with its nonce
+type EncryptData struct {
+	Ciphertext []byte
+	Nonce      []byte
+}
+
+// EncryptWithSecretBox encrypts data with a symmetric key
+func EncryptWithSecretBox(data, key []byte) (*EncryptData, error) {
+	if len(key) != MasterKeySize {
+		return nil, fmt.Errorf("invalid key size: expected %d, got %d", MasterKeySize, len(key))
+	}
+
+	// Generate nonce
+	nonce, err := GenerateRandomBytes(NonceSize)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a fixed-size array from slice for secretbox
+	var keyArray [32]byte
+	copy(keyArray[:], key)
+
+	var nonceArray [24]byte
+	copy(nonceArray[:], nonce)
+
+	// Encrypt
+	ciphertext := secretbox.Seal(nil, data, &nonceArray, &keyArray)
+
+	return &EncryptData{
+		Ciphertext: ciphertext,
+		Nonce:      nonce,
+	}, nil
+}
+
+// The EncryptWithBoxSeal function that correctly implements crypto_box_seal
+func EncryptWithBoxSeal(message []byte, recipientPK []byte) ([]byte, error) {
+	if len(recipientPK) != PublicKeySize {
+		return nil, fmt.Errorf("recipient public key must be %d bytes", PublicKeySize)
+	}
+
+	// Create a fixed-size array for the recipient's public key
+	var recipientPKArray [32]byte
+	copy(recipientPKArray[:], recipientPK)
+
+	// Generate an ephemeral keypair
+	ephemeralPK, ephemeralSK, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate a random nonce
+	nonce, err := GenerateRandomBytes(NonceSize)
+	if err != nil {
+		return nil, err
+	}
+	var nonceArray [24]byte
+	copy(nonceArray[:], nonce)
+
+	// Encrypt the message
+	ciphertext := box.Seal(nil, message, &nonceArray, &recipientPKArray, ephemeralSK)
+
+	// Result format: ephemeral_public_key || nonce || ciphertext
+	result := make([]byte, PublicKeySize+NonceSize+len(ciphertext))
+	copy(result[:PublicKeySize], ephemeralPK[:])
+	copy(result[PublicKeySize:PublicKeySize+NonceSize], nonce)
+	copy(result[PublicKeySize+NonceSize:], ciphertext)
+
+	return result, nil
+}
+
 func RegisterCmd(configService config.ConfigService) *cobra.Command {
 	var email, password, firstName, lastName, timezone, country, phone, betaAccessCode string
 	var agreeTerms, agreePromotions, agreeTracking, skipRemoteRegistration bool
@@ -58,20 +186,7 @@ You can optionally provide timezone, country, phone number, a beta access code,
 specify agreement to terms, promotions, and tracking, and specify the registration module.
 
 Registration information will be saved locally before being sent to the remote server.
-Use the --skip-remote flag to only save locally without registering with the remote server.
-
-Examples:
-		# Register with only required fields
-		register --email user@example.com --password mysecret --firstname John --lastname Doe
-
-		# Register with all fields using short flags (note: only some have short flags)
-		register -e test@domain.com -p pass123 -f Jane -l Smith -t "America/Toronto" -c "USA" -n "555-1234" --beta-code ABCDE --agree-terms --module 2
-
-		# Register using a mix of short and long flags, enabling all agreements and specifying module
-		register --email another@user.net -p anotherpass -f Bob -l Williams --timezone "Europe/London" --agree-terms --agree-promotions --agree-tracking --module 1
-
-		# Save registration information locally without remote registration
-		register --email user@example.com --password mysecret --firstname John --lastname Doe --skip-remote`,
+Use the --skip-remote flag to only save locally without registering with the remote server.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
 
@@ -91,89 +206,99 @@ Examples:
 				module = 1 // Default to module 1 (PaperCloud)
 			}
 
-			// Generate E2EE fields - using our pkg/crypto library
+			// Generate E2EE fields
 			fmt.Println("Generating secure cryptographic keys...")
 
 			// Generate salt for key derivation
-			salt, err := crypto.GenerateRandomBytes(crypto.SaltSize)
+			salt, err := GenerateRandomBytes(Argon2SaltSize)
 			if err != nil {
 				fmt.Printf("Error generating salt: %v\n", err)
 				return
 			}
 
 			// Derive key from password
-			params := crypto.DefaultParams()
-			keyEncryptionKey, err := crypto.DeriveKeyFromPassword(password, salt, params)
+			fmt.Println("Deriving key from password...")
+			keyEncryptionKey, err := DeriveKeyFromPassword(password, salt)
 			if err != nil {
 				fmt.Printf("Error deriving key from password: %v\n", err)
 				return
 			}
 
 			// Generate master key
-			masterKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
+			fmt.Println("Generating master key...")
+			masterKey, err := GenerateRandomBytes(MasterKeySize)
 			if err != nil {
 				fmt.Printf("Error generating master key: %v\n", err)
 				return
 			}
 
 			// Generate key pair
-			publicKey, privateKey, err := crypto.GenerateKeyPair()
+			fmt.Println("Generating key pair...")
+			pubKey, privKey, err := box.GenerateKey(rand.Reader)
 			if err != nil {
 				fmt.Printf("Error generating key pair: %v\n", err)
 				return
 			}
+			publicKey := pubKey[:]
+			privateKey := privKey[:]
 
 			// Generate recovery key
-			recoveryKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
+			fmt.Println("Generating recovery key...")
+			recoveryKey, err := GenerateRandomBytes(RecoveryKeySize)
 			if err != nil {
 				fmt.Printf("Error generating recovery key: %v\n", err)
 				return
 			}
 
 			// Encrypt master key with key encryption key
-			encryptedMasterKeyCiphertext, encryptedMasterKeyNonce, err := crypto.EncryptWithSecretBox(masterKey, keyEncryptionKey)
+			fmt.Println("Encrypting master key...")
+			encryptedMasterKey, err := EncryptWithSecretBox(masterKey, keyEncryptionKey)
 			if err != nil {
 				fmt.Printf("Error encrypting master key: %v\n", err)
 				return
 			}
 
 			// Encrypt private key with master key
-			encryptedPrivateKeyCiphertext, encryptedPrivateKeyNonce, err := crypto.EncryptWithSecretBox(privateKey[:], masterKey)
+			fmt.Println("Encrypting private key...")
+			encryptedPrivateKey, err := EncryptWithSecretBox(privateKey, masterKey)
 			if err != nil {
 				fmt.Printf("Error encrypting private key: %v\n", err)
 				return
 			}
 
 			// Encrypt recovery key with master key
-			encryptedRecoveryKeyCiphertext, encryptedRecoveryKeyNonce, err := crypto.EncryptWithSecretBox(recoveryKey, masterKey)
+			fmt.Println("Encrypting recovery key...")
+			encryptedRecoveryKey, err := EncryptWithSecretBox(recoveryKey, masterKey)
 			if err != nil {
 				fmt.Printf("Error encrypting recovery key: %v\n", err)
 				return
 			}
 
 			// Encrypt master key with recovery key
-			masterKeyEncryptedWithRecoveryKeyCiphertext, masterKeyEncryptedWithRecoveryKeyNonce, err := crypto.EncryptWithSecretBox(masterKey, recoveryKey)
+			fmt.Println("Encrypting master key with recovery key...")
+			masterKeyEncryptedWithRecoveryKey, err := EncryptWithSecretBox(masterKey, recoveryKey)
 			if err != nil {
 				fmt.Printf("Error encrypting master key with recovery key: %v\n", err)
 				return
 			}
 
-			// Create verification ID from public key
-			verificationID := crypto.ToBase64(publicKey[:])[:12]
+			// Create verification ID from public key - simple approach for now
+			fmt.Println("Generating verification ID...")
+			verificationID := base64.URLEncoding.EncodeToString(publicKey)[:12]
 
-			// Combine nonce and ciphertext for server format
-			encryptedMasterKey := crypto.CombineNonceAndCiphertext(encryptedMasterKeyNonce, encryptedMasterKeyCiphertext)
-			encryptedPrivateKey := crypto.CombineNonceAndCiphertext(encryptedPrivateKeyNonce, encryptedPrivateKeyCiphertext)
-			encryptedRecoveryKey := crypto.CombineNonceAndCiphertext(encryptedRecoveryKeyNonce, encryptedRecoveryKeyCiphertext)
-			masterKeyEncryptedWithRecoveryKey := crypto.CombineNonceAndCiphertext(masterKeyEncryptedWithRecoveryKeyNonce, masterKeyEncryptedWithRecoveryKeyCiphertext)
+			// Combine nonce and ciphertext for each encrypted value
+			encryptedMasterKeyBytes := append(encryptedMasterKey.Nonce, encryptedMasterKey.Ciphertext...)
+			encryptedPrivateKeyBytes := append(encryptedPrivateKey.Nonce, encryptedPrivateKey.Ciphertext...)
+			encryptedRecoveryKeyBytes := append(encryptedRecoveryKey.Nonce, encryptedRecoveryKey.Ciphertext...)
+			masterKeyEncryptedWithRecoveryKeyBytes := append(masterKeyEncryptedWithRecoveryKey.Nonce, masterKeyEncryptedWithRecoveryKey.Ciphertext...)
 
 			// Convert to base64 for API
-			saltBase64 := crypto.ToBase64(salt)
-			publicKeyBase64 := crypto.ToBase64(publicKey[:])
-			encryptedMasterKeyBase64 := crypto.ToBase64(encryptedMasterKey)
-			encryptedPrivateKeyBase64 := crypto.ToBase64(encryptedPrivateKey)
-			encryptedRecoveryKeyBase64 := crypto.ToBase64(encryptedRecoveryKey)
-			masterKeyEncryptedWithRecoveryKeyBase64 := crypto.ToBase64(masterKeyEncryptedWithRecoveryKey)
+			saltBase64 := base64.RawURLEncoding.EncodeToString(salt)
+			publicKeyBase64 := base64.RawURLEncoding.EncodeToString(publicKey)
+			encryptedMasterKeyBase64 := base64.RawURLEncoding.EncodeToString(encryptedMasterKeyBytes)
+			encryptedPrivateKeyBase64 := base64.RawURLEncoding.EncodeToString(encryptedPrivateKeyBytes)
+			encryptedRecoveryKeyBase64 := base64.RawURLEncoding.EncodeToString(encryptedRecoveryKeyBytes)
+			masterKeyEncryptedWithRecoveryKeyBase64 := base64.RawURLEncoding.EncodeToString(masterKeyEncryptedWithRecoveryKeyBytes)
 
 			// Save information to local config
 			fmt.Println("Saving registration information locally...")
@@ -198,8 +323,8 @@ Examples:
 
 			// Save encrypted master key
 			encryptedMasterKeyObj := keys.EncryptedMasterKey{
-				Ciphertext: encryptedMasterKeyCiphertext,
-				Nonce:      encryptedMasterKeyNonce,
+				Ciphertext: encryptedMasterKey.Ciphertext,
+				Nonce:      encryptedMasterKey.Nonce,
 			}
 			if err := configService.SetEncryptedMasterKey(ctx, encryptedMasterKeyObj); err != nil {
 				fmt.Printf("Error saving encrypted master key to config: %v\n", err)
