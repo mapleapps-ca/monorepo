@@ -19,6 +19,7 @@ func RemoteCmd(configUseCase config.ConfigUseCase) *cobra.Command {
 	// Add Remote-related commands
 	cmd.AddCommand(HealthCheckCmd(configUseCase))
 	cmd.AddCommand(RegisterUserCmd(configUseCase))
+	cmd.AddCommand(VerifyEmailCmd(configUseCase))
 	cmd.AddCommand(ConfigCmd(configUseCase))
 
 	return cmd
