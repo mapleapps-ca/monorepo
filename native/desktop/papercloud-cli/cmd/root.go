@@ -2,10 +2,12 @@
 package cmd
 
 import (
+	"github.com/spf13/cobra"
+
+	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/remote"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/version"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/config"
-	"github.com/spf13/cobra"
 )
 
 // NewRootCmd creates a new root command with all dependencies injected
@@ -22,6 +24,7 @@ func NewRootCmd(configUseCase config.ConfigUseCase) *cobra.Command {
 
 	// Attach sub-commands to our main root
 	rootCmd.AddCommand(version.VersionCmd())
+	rootCmd.AddCommand(config_cmd.ConfigCmd(configUseCase))
 	rootCmd.AddCommand(remote.RemoteCmd(configUseCase))
 
 	return rootCmd
