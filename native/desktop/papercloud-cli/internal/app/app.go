@@ -1,4 +1,4 @@
-// app/app.go
+// monorepo/native/desktop/papercloud-cli/internal/app/app.go
 package app
 
 import (

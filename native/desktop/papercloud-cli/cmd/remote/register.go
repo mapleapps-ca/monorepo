@@ -1,4 +1,4 @@
-// cmd/remote/register.go
+// monorepo/native/desktop/papercloud-cli/cmd/remote/register.go
 package remote
 
 import (

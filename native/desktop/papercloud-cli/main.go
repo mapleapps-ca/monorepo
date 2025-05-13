@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/app"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/app"
 )
 
 func main() {
