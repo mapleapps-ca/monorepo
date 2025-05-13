@@ -24,17 +24,10 @@ const (
 type Config struct {
 	CloudProviderAddress string `json:"cloud_provider_address"`
 
-	FirstName                                      string `json:"first_name"`
-	LastName                                       string `json:"last_name"`
-	Email                                          string `json:"email"`
-	Phone                                          string `json:"phone,omitempty"`
-	Country                                        string `json:"country,omitempty"`
-	CountryOther                                   string `json:"country_other,omitempty"`
-	Timezone                                       string `bson:"timezone" json:"timezone"`
-	AgreeTermsOfService                            bool   `json:"agree_terms_of_service,omitempty"`
-	AgreePromotions                                bool   `json:"agree_promotions,omitempty"`
-	AgreeToTrackingAcrossThirdPartyAppsAndServices bool   `json:"agree_to_tracking_across_third_party_apps_and_services,omitempty"`
-
+	Email                             string                                 `json:"email" bson:"email"`
+	FirstName                         string                                 `json:"first_name" bson:"first_name"`
+	LastName                          string                                 `json:"last_name" bson:"last_name"`
+	Timezone                          string                                 `json:"timezone" bson:"timezone"`
 	PasswordSalt                      []byte                                 `json:"password_salt" bson:"password_salt"`
 	EncryptedMasterKey                keys.EncryptedMasterKey                `json:"encrypted_master_key" bson:"encrypted_master_key"`
 	PublicKey                         keys.PublicKey                         `json:"public_key" bson:"public_key"`
@@ -65,6 +58,12 @@ type ConfigService interface {
 	SetRefreshTokenWithExpiry(ctx context.Context, token string, expiryTime time.Time) error
 	GetEncryptedMasterKey(ctx context.Context) (keys.EncryptedMasterKey, error)
 	SetEncryptedMasterKey(ctx context.Context, encryptedMasterKey keys.EncryptedMasterKey) error
+
+	// New methods for cryptographic keys
+	SetPublicKey(ctx context.Context, publicKey keys.PublicKey) error
+	SetEncryptedPrivateKey(ctx context.Context, encryptedPrivateKey keys.EncryptedPrivateKey) error
+	SetEncryptedRecoveryKey(ctx context.Context, encryptedRecoveryKey keys.EncryptedRecoveryKey) error
+	SetMasterKeyEncryptedWithRecoveryKey(ctx context.Context, masterKeyEncryptedWithRecoveryKey keys.MasterKeyEncryptedWithRecoveryKey) error
 
 	// Generic access
 	Get(ctx context.Context, key string) (interface{}, error)
@@ -321,6 +320,50 @@ func (s *configService) GetEncryptedMasterKey(ctx context.Context) (keys.Encrypt
 	return config.EncryptedMasterKey, nil
 }
 
+// SetPublicKey updates the public key
+func (s *configService) SetPublicKey(ctx context.Context, publicKey keys.PublicKey) error {
+	config, err := s.getConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	config.PublicKey = publicKey
+	return s.saveConfig(ctx, config)
+}
+
+// SetEncryptedPrivateKey updates the encrypted private key
+func (s *configService) SetEncryptedPrivateKey(ctx context.Context, encryptedPrivateKey keys.EncryptedPrivateKey) error {
+	config, err := s.getConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	config.EncryptedPrivateKey = encryptedPrivateKey
+	return s.saveConfig(ctx, config)
+}
+
+// SetEncryptedRecoveryKey updates the encrypted recovery key
+func (s *configService) SetEncryptedRecoveryKey(ctx context.Context, encryptedRecoveryKey keys.EncryptedRecoveryKey) error {
+	config, err := s.getConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	config.EncryptedRecoveryKey = encryptedRecoveryKey
+	return s.saveConfig(ctx, config)
+}
+
+// SetMasterKeyEncryptedWithRecoveryKey updates the master key encrypted with recovery key
+func (s *configService) SetMasterKeyEncryptedWithRecoveryKey(ctx context.Context, masterKeyEncryptedWithRecoveryKey keys.MasterKeyEncryptedWithRecoveryKey) error {
+	config, err := s.getConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	config.MasterKeyEncryptedWithRecoveryKey = masterKeyEncryptedWithRecoveryKey
+	return s.saveConfig(ctx, config)
+}
+
 // Get retrieves a specific configuration value by key
 func (s *configService) Get(ctx context.Context, key string) (interface{}, error) {
 	config, err := s.getConfig(ctx)
@@ -333,6 +376,14 @@ func (s *configService) Get(ctx context.Context, key string) (interface{}, error
 		return config.CloudProviderAddress, nil
 	case "email":
 		return config.Email, nil
+	case "first_name":
+		return config.FirstName, nil
+	case "last_name":
+		return config.LastName, nil
+	case "timezone":
+		return config.Timezone, nil
+	case "password_salt":
+		return config.PasswordSalt, nil
 	case "access_token":
 		return config.AccessToken, nil
 	case "refresh_token":
@@ -376,6 +427,12 @@ func (s *configService) Set(ctx context.Context, key string, value interface{}) 
 			return fmt.Errorf("value for %s must be a string", key)
 		}
 		config.LastName = strValue
+	case "timezone":
+		strValue, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("value for %s must be a string", key)
+		}
+		config.Timezone = strValue
 	case "password_salt":
 		byteValue, ok := value.([]byte)
 		if !ok {

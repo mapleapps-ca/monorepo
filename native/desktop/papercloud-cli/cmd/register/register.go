@@ -331,6 +331,46 @@ Use the --skip-remote flag to only save locally without registering with the rem
 				return
 			}
 
+			// Save public key
+			publicKeyObj := keys.PublicKey{
+				Key:            publicKey,
+				VerificationID: verificationID,
+			}
+			if err := configService.SetPublicKey(ctx, publicKeyObj); err != nil {
+				fmt.Printf("Error saving public key to config: %v\n", err)
+				return
+			}
+
+			// Save encrypted private key
+			encryptedPrivateKeyObj := keys.EncryptedPrivateKey{
+				Ciphertext: encryptedPrivateKey.Ciphertext,
+				Nonce:      encryptedPrivateKey.Nonce,
+			}
+			if err := configService.SetEncryptedPrivateKey(ctx, encryptedPrivateKeyObj); err != nil {
+				fmt.Printf("Error saving encrypted private key to config: %v\n", err)
+				return
+			}
+
+			// Save encrypted recovery key
+			encryptedRecoveryKeyObj := keys.EncryptedRecoveryKey{
+				Ciphertext: encryptedRecoveryKey.Ciphertext,
+				Nonce:      encryptedRecoveryKey.Nonce,
+			}
+			if err := configService.SetEncryptedRecoveryKey(ctx, encryptedRecoveryKeyObj); err != nil {
+				fmt.Printf("Error saving encrypted recovery key to config: %v\n", err)
+				return
+			}
+
+			// Save master key encrypted with recovery key
+			masterKeyEncryptedWithRecoveryKeyObj := keys.MasterKeyEncryptedWithRecoveryKey{
+				Ciphertext: masterKeyEncryptedWithRecoveryKey.Ciphertext,
+				Nonce:      masterKeyEncryptedWithRecoveryKey.Nonce,
+			}
+			if err := configService.SetMasterKeyEncryptedWithRecoveryKey(ctx, masterKeyEncryptedWithRecoveryKeyObj); err != nil {
+				fmt.Printf("Error saving master key encrypted with recovery key to config: %v\n", err)
+				return
+			}
+
 			// Save other user info
 			if err := configService.Set(ctx, "first_name", firstName); err != nil {
 				fmt.Printf("Error saving first name to config: %v\n", err)
@@ -339,6 +379,12 @@ Use the --skip-remote flag to only save locally without registering with the rem
 
 			if err := configService.Set(ctx, "last_name", lastName); err != nil {
 				fmt.Printf("Error saving last name to config: %v\n", err)
+				return
+			}
+
+			// Save timezone
+			if err := configService.Set(ctx, "timezone", timezone); err != nil {
+				fmt.Printf("Error saving timezone to config: %v\n", err)
 				return
 			}
 
@@ -418,7 +464,7 @@ Use the --skip-remote flag to only save locally without registering with the rem
 				}
 
 				// Parse and display the response
-				var responseData map[string]interface{}
+				var responseData map[string]any
 				if err := json.Unmarshal(body, &responseData); err != nil {
 					fmt.Printf("Error parsing response: %v\n", err)
 					fmt.Printf("Raw response: %s\n", string(body))
