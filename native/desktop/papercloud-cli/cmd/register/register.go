@@ -37,8 +37,8 @@ const (
 	SealedBoxOverhead = 16
 
 	// Argon2 parameters - reduced for CLI usage
-	Argon2MemLimit    = 16 * 1024 * 1024 // 16 MB instead of 64 MB
-	Argon2OpsLimit    = 3
+	Argon2MemLimit    = 4 * 1024 * 1024 // 4 MB instead of 16 MB
+	Argon2OpsLimit    = 1               // 1 iteration instead of 3
 	Argon2Parallelism = 1
 	Argon2KeySize     = 32
 	Argon2SaltSize    = 16

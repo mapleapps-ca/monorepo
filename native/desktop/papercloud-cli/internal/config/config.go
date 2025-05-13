@@ -24,7 +24,17 @@ const (
 type Config struct {
 	CloudProviderAddress string `json:"cloud_provider_address"`
 
-	Email                             string                                 `json:"email" bson:"email"`
+	FirstName                                      string `json:"first_name"`
+	LastName                                       string `json:"last_name"`
+	Email                                          string `json:"email"`
+	Phone                                          string `json:"phone,omitempty"`
+	Country                                        string `json:"country,omitempty"`
+	CountryOther                                   string `json:"country_other,omitempty"`
+	Timezone                                       string `bson:"timezone" json:"timezone"`
+	AgreeTermsOfService                            bool   `json:"agree_terms_of_service,omitempty"`
+	AgreePromotions                                bool   `json:"agree_promotions,omitempty"`
+	AgreeToTrackingAcrossThirdPartyAppsAndServices bool   `json:"agree_to_tracking_across_third_party_apps_and_services,omitempty"`
+
 	PasswordSalt                      []byte                                 `json:"password_salt" bson:"password_salt"`
 	EncryptedMasterKey                keys.EncryptedMasterKey                `json:"encrypted_master_key" bson:"encrypted_master_key"`
 	PublicKey                         keys.PublicKey                         `json:"public_key" bson:"public_key"`
@@ -354,6 +364,24 @@ func (s *configService) Set(ctx context.Context, key string, value interface{}) 
 			return fmt.Errorf("value for %s must be a string", key)
 		}
 		config.Email = strValue
+	case "first_name":
+		strValue, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("value for %s must be a string", key)
+		}
+		config.FirstName = strValue
+	case "last_name":
+		strValue, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("value for %s must be a string", key)
+		}
+		config.LastName = strValue
+	case "password_salt":
+		byteValue, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("value for %s must be a byte slice", key)
+		}
+		config.PasswordSalt = byteValue
 	case "access_token":
 		strValue, ok := value.(string)
 		if !ok {
