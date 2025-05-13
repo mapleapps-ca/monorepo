@@ -23,16 +23,22 @@ type storageImpl struct {
 
 // NewDiskStorage creates a new instance of the storageImpl.
 // It opens the database file at the specified path and returns an error if it fails.
-func NewDiskStorage(dbPath string, dbName string, logger *zap.Logger) storage.Storage {
-	if dbPath == "" {
+func NewDiskStorage(provider LevelDBConfigurationProvider, logger *zap.Logger) storage.Storage {
+	if provider == nil {
+		log.Fatal("NewDiskStorage: missing LevelDB configuration provider\n")
+	}
+	if provider.GetDBPath() == "" {
 		log.Fatal("NewDiskStorage: cannot have empty filepath for the database\n")
+	}
+	if provider.GetDBName() == "" {
+		log.Fatal("NewDiskStorage: cannot have empty db name for the database\n")
 	}
 
 	o := &opt.Options{
 		Filter: filter.NewBloomFilter(10),
 	}
 
-	filePath := dbPath + "/" + dbName
+	filePath := provider.GetDBPath() + "/" + provider.GetDBName()
 
 	db, err := leveldb.OpenFile(filePath, o)
 	if err != nil {
