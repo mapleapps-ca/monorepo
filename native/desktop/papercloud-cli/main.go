@@ -1,9 +1,13 @@
 package main
 
 import (
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/app"
 )
 
 func main() {
-	cmd.Execute()
+	// Create and initialize the application with dependency injection
+	application := app.NewApp()
+
+	// Execute the CLI application
+	application.Execute()
 }

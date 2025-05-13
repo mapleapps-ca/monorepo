@@ -1,16 +1,18 @@
-// native/desktop/papercloud-cli/cmd/remote/healthcheck.go
+// cmd/remote/healthcheck.go
 package remote
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/config"
 	"github.com/spf13/cobra"
 )
 
-func HealthCheckCmd() *cobra.Command {
+func HealthCheckCmd(configUseCase config.ConfigUseCase) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "healthcheck",
 		Short: "Check server status",
@@ -18,7 +20,13 @@ func HealthCheckCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println("Performing health check...")
 
-			serverURL := "http://localhost:8000" // TODO: Replace with code that takes it from preference file.
+			// Get the server URL from configuration
+			ctx := context.Background()
+			serverURL, err := configUseCase.GetCloudProviderAddress(ctx)
+			if err != nil {
+				fmt.Printf("Error loading configuration: %v\n", err)
+				return
+			}
 
 			// Make a GET request to the healthcheck endpoint
 			healthCheckURL := fmt.Sprintf("%s/healthcheck", serverURL)
@@ -38,7 +46,7 @@ func HealthCheckCmd() *cobra.Command {
 			}
 
 			// Read and display the response
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				fmt.Printf("Error reading response: %v\n", err)
 				return

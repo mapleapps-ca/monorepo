@@ -1,13 +1,14 @@
-// native/desktop/papercloud-cli/cmd/remote/register.go
+// cmd/remote/register.go
 package remote
 
 import (
 	"fmt"
 
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/config"
 	"github.com/spf13/cobra"
 )
 
-func RegisterUserCmd() *cobra.Command {
+func RegisterUserCmd(configUseCase config.ConfigUseCase) *cobra.Command {
 	var email, password, firstName, lastName, timezone, country, phone, betaAccessCode string
 	var agreeTerms, agreePromotions, agreeTracking bool
 	var module int
@@ -32,7 +33,7 @@ Examples:
 		register --email another@user.net -p anotherpass -f Bob -l Williams --timezone "Europe/London" --agree-terms --agree-promotions --agree-tracking --module 1`,
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println("Registering...")
-			//TODO: IMPLEMENT THIS STUB.
+			//TODO: IMPLEMENT THIS STUB using configUseCase to get the server address.
 		},
 	}
 

@@ -1,22 +1,25 @@
-// native/desktop/papercloud-cli/cmd/remote/remote.go
+// cmd/remote/remote.go
 package remote
 
 import (
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/config"
 	"github.com/spf13/cobra"
 )
 
-func RemoteCmd() *cobra.Command {
+func RemoteCmd(configUseCase config.ConfigUseCase) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "remote",
 		Short: "Execute commands related to making remote API calls",
 		Run: func(cmd *cobra.Command, args []string) {
-			// Do nothing...
+			// Show help when no subcommand is specified
+			cmd.Help()
 		},
 	}
 
 	// Add Remote-related commands
-	cmd.AddCommand(HealthCheckCmd())
-	cmd.AddCommand(RegisterUserCmd())
+	cmd.AddCommand(HealthCheckCmd(configUseCase))
+	cmd.AddCommand(RegisterUserCmd(configUseCase))
+	cmd.AddCommand(ConfigCmd(configUseCase))
 
 	return cmd
 }

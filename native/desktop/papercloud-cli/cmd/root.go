@@ -1,29 +1,28 @@
+// cmd/root.go
 package cmd
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/spf13/cobra"
-
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/remote"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/version"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/config"
+	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "papercloud-cli",
-	Short: "PaperCloud CLI",
-	Long:  `PaperCloud Command Line Interface`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// Do nothing.
-	},
-}
-
-func Execute() {
-	// Attach sub-commands to our main root.
-	rootCmd.AddCommand(version.VersionCmd())
-
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+// NewRootCmd creates a new root command with all dependencies injected
+func NewRootCmd(configUseCase config.ConfigUseCase) *cobra.Command {
+	var rootCmd = &cobra.Command{
+		Use:   "papercloud-cli",
+		Short: "PaperCloud CLI",
+		Long:  `PaperCloud Command Line Interface`,
+		Run: func(cmd *cobra.Command, args []string) {
+			// Root command does nothing by default
+			cmd.Help()
+		},
 	}
+
+	// Attach sub-commands to our main root
+	rootCmd.AddCommand(version.VersionCmd())
+	rootCmd.AddCommand(remote.RemoteCmd(configUseCase))
+
+	return rootCmd
 }
