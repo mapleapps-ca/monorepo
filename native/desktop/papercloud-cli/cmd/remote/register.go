@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 

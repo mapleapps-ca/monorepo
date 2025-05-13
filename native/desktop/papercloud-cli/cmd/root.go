@@ -7,7 +7,7 @@ import (
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/remote"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/version"
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 )
 
 // NewRootCmd creates a new root command with all dependencies injected

@@ -10,7 +10,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd"
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/pkg/storage/leveldb"
 )
 

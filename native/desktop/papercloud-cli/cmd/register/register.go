@@ -3,7 +3,7 @@ package register
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 )
 
 func RegisterCmd(configUseCase config.ConfigUseCase) *cobra.Command {
