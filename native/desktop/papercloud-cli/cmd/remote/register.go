@@ -1,4 +1,3 @@
-// monorepo/native/desktop/papercloud-cli/cmd/remote/register.go
 package remote
 
 import (
@@ -13,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/spf13/cobra"
+
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 )
 
 // RegisterRequest represents the data structure needed for user registration
@@ -105,7 +105,7 @@ func generateDummyE2EEFields() (map[string]string, error) {
 	return result, nil
 }
 
-func RegisterUserCmd(configUseCase config.ConfigUseCase) *cobra.Command {
+func RegisterUserCmd(configService config.ConfigService) *cobra.Command {
 	var email, password, firstName, lastName, timezone, country, phone, betaAccessCode string
 	var agreeTerms, agreePromotions, agreeTracking bool
 	var module int
@@ -131,7 +131,7 @@ Examples:
 		Run: func(cmd *cobra.Command, args []string) {
 			// Get the server URL from configuration
 			ctx := cmd.Context()
-			serverURL, err := configUseCase.GetCloudProviderAddress(ctx)
+			serverURL, err := configService.GetCloudProviderAddress(ctx)
 			if err != nil {
 				fmt.Printf("Error loading configuration: %v\n", err)
 				return
@@ -239,9 +239,6 @@ Examples:
 			fmt.Println("Please check your email for verification instructions.")
 			fmt.Println("\nIMPORTANT: Please ensure you have saved your password securely.")
 			fmt.Println("You will need it to log in to your account.")
-
-			// Store the recovery key (in a real application, this would be displayed to the user)
-			// fmt.Printf("\nYour recovery key: %s\n", recoveryKey)
 		},
 	}
 

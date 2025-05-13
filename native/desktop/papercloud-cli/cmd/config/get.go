@@ -9,13 +9,13 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 )
 
-func getConfigCmd(configUseCase config.ConfigUseCase) *cobra.Command {
+func getConfigCmd(configService config.ConfigService) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get",
 		Short: "Get current cloud provider address",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
-			address, err := configUseCase.GetCloudProviderAddress(ctx)
+			address, err := configService.GetCloudProviderAddress(ctx)
 			if err != nil {
 				fmt.Printf("Error getting cloud provider address: %v\n", err)
 				return

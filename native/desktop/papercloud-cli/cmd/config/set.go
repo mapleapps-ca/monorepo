@@ -9,7 +9,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 )
 
-func setConfigCmd(configUseCase config.ConfigUseCase) *cobra.Command {
+func setConfigCmd(configService config.ConfigService) *cobra.Command {
 	return &cobra.Command{
 		Use:   "set [address]",
 		Short: "Set cloud provider address",
@@ -17,7 +17,7 @@ func setConfigCmd(configUseCase config.ConfigUseCase) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
 			address := args[0]
-			if err := configUseCase.SetCloudProviderAddress(ctx, address); err != nil {
+			if err := configService.SetCloudProviderAddress(ctx, address); err != nil {
 				fmt.Printf("Error setting cloud provider address: %v\n", err)
 				return
 			}

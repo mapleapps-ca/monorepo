@@ -1,4 +1,3 @@
-// cmd/remote/healthcheck.go
 package remote
 
 import (
@@ -8,11 +7,12 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/spf13/cobra"
+
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 )
 
-func HealthCheckCmd(configUseCase config.ConfigUseCase) *cobra.Command {
+func HealthCheckCmd(configService config.ConfigService) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "healthcheck",
 		Short: "Check server status",
@@ -22,7 +22,7 @@ func HealthCheckCmd(configUseCase config.ConfigUseCase) *cobra.Command {
 
 			// Get the server URL from configuration
 			ctx := context.Background()
-			serverURL, err := configUseCase.GetCloudProviderAddress(ctx)
+			serverURL, err := configService.GetCloudProviderAddress(ctx)
 			if err != nil {
 				fmt.Printf("Error loading configuration: %v\n", err)
 				return

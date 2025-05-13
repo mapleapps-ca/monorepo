@@ -6,7 +6,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 )
 
-func RegisterCmd(configUseCase config.ConfigUseCase) *cobra.Command {
+func RegisterCmd(configService config.ConfigService) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "register",
 		Short: "Execute commands related to registering an account on papercloud",

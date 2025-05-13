@@ -1,4 +1,4 @@
-// monorepo/native/desktop/papercloud-cli/internal/app/app.go
+// Package app provides application initialization and dependency injection
 package app
 
 import (
@@ -8,14 +8,12 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/pkg/storage/leveldb"
 )
-
-// Application name constant
-const AppName = "papercloud-cli"
 
 // App represents the CLI application
 type App struct {
@@ -26,27 +24,29 @@ type App struct {
 func NewApp() *App {
 	var app App
 
-	fxApp := fx.New(
-		// Provide configuration repository
-		fx.Provide(func() (config.ConfigRepository, error) {
-			return config.NewFileConfigRepository(AppName)
-		}),
+	logger, _ := zap.NewDevelopment()
 
-		// Provide configuration use case
-		fx.Provide(config.NewConfigUseCase),
+	fxApp := fx.New(
+		// Provide logger
+		fx.Provide(
+			func() *zap.Logger {
+				return logger
+			},
+		),
+
+		// Provide the configuration service (new approach)
+		config.Module(),
 
 		// Provide named LevelDB configuration providers
 		fx.Provide(
 			fx.Annotate(
 				config.NewLevelDBConfigurationProviderForUser,
-				// Assuming the return type is config.LevelDBConfigurationProvider or similar interface
 				fx.ResultTags(`name:"user_db_provider"`),
 			),
 		),
 		fx.Provide(
 			fx.Annotate(
 				config.NewLevelDBConfigurationProviderForCollection,
-				// Assuming the return type is config.LevelDBConfigurationProvider or similar interface
 				fx.ResultTags(`name:"collection_db_provider"`),
 			),
 		),
@@ -80,11 +80,6 @@ func NewApp() *App {
 		fmt.Fprintf(os.Stderr, "Failed to start application: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Stop the application gracefully on exit (optional but good practice)
-	// Consider adding fx.StopTimeout(5*time.Second) to fx.New options
-	// and calling fxApp.Stop(context.Background()) in a deferred function
-	// or signal handler if resources need cleanup.
 
 	return &app
 }

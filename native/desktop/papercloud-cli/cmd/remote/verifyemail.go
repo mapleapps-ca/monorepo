@@ -1,16 +1,17 @@
-// cmd/remote/verifyemail.go
 package remote
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/spf13/cobra"
+
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 )
 
 // VerifyEmailRequest represents the data needed to verify an email
@@ -25,7 +26,7 @@ type VerifyEmailResponse struct {
 	Status   int    `json:"profile_verification_status,omitempty"`
 }
 
-func VerifyEmailCmd(configUseCase config.ConfigUseCase) *cobra.Command {
+func VerifyEmailCmd(configService config.ConfigService) *cobra.Command {
 	var verificationCode string
 
 	var cmd = &cobra.Command{
@@ -57,8 +58,8 @@ Example:
 			}
 
 			// Get the server URL from configuration
-			ctx := cmd.Context()
-			serverURL, err := configUseCase.GetCloudProviderAddress(ctx)
+			ctx := context.Background()
+			serverURL, err := configService.GetCloudProviderAddress(ctx)
 			if err != nil {
 				fmt.Printf("Error loading configuration: %v\n", err)
 				return

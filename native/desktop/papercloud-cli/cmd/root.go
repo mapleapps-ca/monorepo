@@ -1,4 +1,4 @@
-// cmd/root.go
+// Package cmd provides the CLI commands
 package cmd
 
 import (
@@ -11,7 +11,7 @@ import (
 )
 
 // NewRootCmd creates a new root command with all dependencies injected
-func NewRootCmd(configUseCase config.ConfigUseCase) *cobra.Command {
+func NewRootCmd(configService config.ConfigService) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "papercloud-cli",
 		Short: "PaperCloud CLI",
@@ -24,8 +24,8 @@ func NewRootCmd(configUseCase config.ConfigUseCase) *cobra.Command {
 
 	// Attach sub-commands to our main root
 	rootCmd.AddCommand(version.VersionCmd())
-	rootCmd.AddCommand(config_cmd.ConfigCmd(configUseCase))
-	rootCmd.AddCommand(remote.RemoteCmd(configUseCase))
+	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
+	rootCmd.AddCommand(remote.RemoteCmd(configService))
 
 	return rootCmd
 }

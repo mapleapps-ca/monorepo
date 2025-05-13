@@ -6,7 +6,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 )
 
-func ConfigCmd(configUseCase config.ConfigUseCase) *cobra.Command {
+func ConfigCmd(configService config.ConfigService) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "config",
 		Short: "Execute commands related to configuring the local papercloud-cli",
@@ -16,9 +16,9 @@ func ConfigCmd(configUseCase config.ConfigUseCase) *cobra.Command {
 		},
 	}
 
-	// Add Remote-related commands
-	cmd.AddCommand(getConfigCmd(configUseCase))
-	cmd.AddCommand(setConfigCmd(configUseCase))
+	// Add configuration-related commands
+	cmd.AddCommand(getConfigCmd(configService))
+	cmd.AddCommand(setConfigCmd(configService))
 
 	return cmd
 }
