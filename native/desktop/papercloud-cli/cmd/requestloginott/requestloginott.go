@@ -2,15 +2,28 @@
 package requestloginott
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 )
 
-func RequestLoginOneTimeTokenUserCmd() *cobra.Command {
-	var email, password string
+// RequestOTTPayload represents the data structure sent to the request-ott endpoint
+type RequestOTTPayload struct {
+	Email string `json:"email"`
+}
+
+func RequestLoginOneTimeTokenUserCmd(configService config.ConfigService) *cobra.Command {
+	var email string
 
 	var cmd = &cobra.Command{
 		Use:   "requestloginott",
@@ -21,12 +34,11 @@ Command will execute login command and user will get credentials to make API cal
 After registration and email verification, use this command to log in to your account.
 
 Examples:
-  # Login with email and password
-  go run main.go requestloginott --email user@example.com
-
+  # Request login OTT with email
+  papercloud-cli requestloginott --email user@example.com
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Logging in...")
+			fmt.Println("Requesting login one-time token...")
 
 			if email == "" {
 				log.Fatal("Email is required")
@@ -35,21 +47,79 @@ Examples:
 			// Sanitize inputs
 			email = strings.ToLower(strings.TrimSpace(email))
 
-			// client := createE2EEClient()
+			// Get the server URL from configuration
+			ctx := context.Background()
+			serverURL, err := configService.GetCloudProviderAddress(ctx)
+			if err != nil {
+				log.Fatalf("Error loading cloud provider address: %v", err)
+				return
+			}
 
-			// // Call the Login method
-			// err := client.RequestLoginOTT(email)
-			// if err != nil {
-			// 	log.Fatalf("Failed to login: %v", err)
-			// }
+			// Create the request payload
+			requestPayload := RequestOTTPayload{
+				Email: email,
+			}
 
-			fmt.Println("Please check your email for a one-time token and enter it when prompted via the `verifyloginott` command.")
+			// Convert request to JSON
+			jsonData, err := json.Marshal(requestPayload)
+			if err != nil {
+				log.Fatalf("Error creating request: %v", err)
+				return
+			}
+
+			// Make HTTP request to server
+			requestURL := fmt.Sprintf("%s/iam/api/v1/request-ott", serverURL)
+			fmt.Printf("Connecting to: %s\n", requestURL)
+
+			// Create and execute the HTTP request
+			req, err := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonData))
+			if err != nil {
+				log.Fatalf("Error creating HTTP request: %v", err)
+				return
+			}
+
+			req.Header.Set("Content-Type", "application/json")
+
+			client := &http.Client{Timeout: 30 * time.Second}
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Fatalf("Error connecting to server: %v", err)
+				return
+			}
+			defer resp.Body.Close()
+
+			// Read and process the response
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				log.Fatalf("Error reading response: %v", err)
+				return
+			}
+
+			// Check response status code
+			if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+				// Try to parse error message if available
+				var errorResponse map[string]any
+				if err := json.Unmarshal(body, &errorResponse); err == nil {
+					if errMsg, ok := errorResponse["message"].(string); ok {
+						log.Fatalf("Server error: %s", errMsg)
+					} else {
+						log.Fatalf("Server returned error status: %s\nResponse body: %s", resp.Status, string(body))
+					}
+				} else {
+					log.Fatalf("Server returned error status: %s\nResponse body: %s", resp.Status, string(body))
+				}
+				return
+			}
+
+			fmt.Println("\n✅ One-time login token request successful!")
+			fmt.Println("Please check your email for a one-time token.")
+			fmt.Println("\nOnce you receive the token, run the following command to verify it:")
+			fmt.Printf("papercloud-cli verifyloginott --email %s --ott YOUR_TOKEN\n", email)
 		},
 	}
 
 	// Define command flags
 	cmd.Flags().StringVarP(&email, "email", "e", "", "Email address for the user (required)")
-	cmd.Flags().StringVarP(&password, "password", "p", "", "Password for the user (will prompt if not provided)")
 
 	// Mark required flags
 	cmd.MarkFlagRequired("email")
