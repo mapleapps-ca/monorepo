@@ -413,10 +413,15 @@ Examples:
 						log.Fatalf("Failed to commit transaction: %v", err)
 					}
 
+					// For debugging purposes only.
 					fmt.Println("\n✅ Login successful!")
 					fmt.Printf("Access Token: %s\n", tokenResp.AccessToken)
 					fmt.Printf("Access Token Expires: %s\n", tokenResp.AccessTokenExpiryTime.Format(time.RFC3339))
 					fmt.Printf("Refresh Token Expires: %s\n", tokenResp.RefreshTokenExpiryTime.Format(time.RFC3339))
+
+					// Save our authenticated email.
+					configService.SetEmail(ctx, email)
+					fmt.Println("\n✅ Saved email to our local configuration!")
 
 					break
 				} else if i == 0 {

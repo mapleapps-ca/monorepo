@@ -26,6 +26,9 @@ type Config struct {
 
 	// CloudProviderAddress is the URI backend to make all calls to from this application.= for E2EE cloud operations.
 	CloudProviderAddress string `json:"cloud_provider_address"`
+
+	// Email is the unique registered email of the user whom successfully logged into the system.
+	Email string `json:"email"`
 }
 
 // ConfigService defines the unified interface for all configuration operations
@@ -33,6 +36,8 @@ type ConfigService interface {
 	GetAppDirPath(ctx context.Context) (string, error)
 	GetCloudProviderAddress(ctx context.Context) (string, error)
 	SetCloudProviderAddress(ctx context.Context, address string) error
+	GetEmail(ctx context.Context) (string, error)
+	SetEmail(ctx context.Context, email string) error
 	Set(ctx context.Context, key string, value any) error
 	Get(ctx context.Context, key string) (any, error)
 }
@@ -159,6 +164,7 @@ func getDefaultConfig() *Config {
 	return &Config{
 		CloudProviderAddress: "http://localhost:8000",
 		AppDirPath:           appConfigDir,
+		Email:                "", // Leave blank because no user was authenticated.
 	}
 }
 
@@ -201,6 +207,26 @@ func (s *configService) GetAppDirPath(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return config.AppDirPath, nil
+}
+
+// SetEmail updates the authenticated users email.
+func (s *configService) SetEmail(ctx context.Context, email string) error {
+	config, err := s.getConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	config.Email = email
+	return s.saveConfig(ctx, config)
+}
+
+// GetEmail returns the authenticated users email.
+func (s *configService) GetEmail(ctx context.Context) (string, error) {
+	config, err := s.getConfig(ctx)
+	if err != nil {
+		return "", err
+	}
+	return config.Email, nil
 }
 
 // Set saves a value to the config by key
