@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
+	"github.com/mapleapps-ca/monorepo/cloud/backend/config/constants"
 	uc_emailer "github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/usecase/emailer"
 	uc_user "github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/usecase/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
@@ -128,8 +129,7 @@ func (s *gatewayRequestLoginOTTServiceImpl) Execute(sessCtx context.Context, req
 	}
 
 	// Send OTT via email
-	// 1=PAPERCLOUD
-	if err := s.sendOTTEmailUseCase.Execute(sessCtx, 1, user.Email, ott, user.FirstName); err != nil {
+	if err := s.sendOTTEmailUseCase.Execute(sessCtx, int(constants.MonolithModulePaperCloud), user.Email, ott, user.FirstName); err != nil {
 		s.logger.Error("Failed to send OTT email", zap.Error(err))
 		return nil, fmt.Errorf("failed to send login code: %w", err)
 	}
