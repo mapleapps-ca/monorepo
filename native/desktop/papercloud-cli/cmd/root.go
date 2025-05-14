@@ -7,6 +7,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/completelogin"
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/remote"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/requestloginott"
@@ -39,6 +40,7 @@ func NewRootCmd(configService config.ConfigService, userRepo user.Repository) *c
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(configService))
 	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(configService, userRepo))
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(configService, userRepo))
+	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd())
 	rootCmd.AddCommand(uploadfile.UploadFileCmd())
 
 	return rootCmd
