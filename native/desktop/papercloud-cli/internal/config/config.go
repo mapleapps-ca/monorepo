@@ -5,14 +5,11 @@ package config
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
 	"go.uber.org/fx"
-
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/pkg/storage/leveldb"
 )
 
 const (
@@ -39,8 +36,6 @@ type ConfigService interface {
 	SetCloudProviderAddress(ctx context.Context, address string) error
 	GetEmail(ctx context.Context) (string, error)
 	SetEmail(ctx context.Context, email string) error
-	Set(ctx context.Context, key string, value any) error
-	Get(ctx context.Context, key string) (any, error)
 }
 
 // repository defines the interface for loading and saving configuration
@@ -168,114 +163,3 @@ func getDefaultConfig() *Config {
 		Email:                "", // Leave blank because no user was authenticated.
 	}
 }
-
-// Implementation of ConfigService methods
-
-// getConfig is an internal method to get the current configuration
-func (s *configService) getConfig(ctx context.Context) (*Config, error) {
-	return s.repo.LoadConfig(ctx)
-}
-
-// saveConfig is an internal method to save the configuration
-func (s *configService) saveConfig(ctx context.Context, config *Config) error {
-	return s.repo.SaveConfig(ctx, config)
-}
-
-func (s *configService) GetAppDirPath(ctx context.Context) (string, error) {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", fmt.Errorf("Failed getting user config directory with error: %v\n", err)
-	}
-
-	// Use the app directory for storing the LevelDB database
-	return filepath.Join(configDir, AppName), nil
-}
-
-// GetCloudProviderAddress returns the cloud provider address
-func (s *configService) GetCloudProviderAddress(ctx context.Context) (string, error) {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return "", err
-	}
-	return config.CloudProviderAddress, nil
-}
-
-// SetCloudProviderAddress updates the cloud provider address
-func (s *configService) SetCloudProviderAddress(ctx context.Context, address string) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.CloudProviderAddress = address
-	return s.saveConfig(ctx, config)
-}
-
-// SetEmail updates the authenticated users email.
-func (s *configService) SetEmail(ctx context.Context, email string) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.Email = email
-	return s.saveConfig(ctx, config)
-}
-
-// GetEmail returns the authenticated users email.
-func (s *configService) GetEmail(ctx context.Context) (string, error) {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return "", err
-	}
-	return config.Email, nil
-}
-
-// Set saves a value to the config by key
-func (s *configService) Set(ctx context.Context, key string, value any) error {
-	// This method is a stub to implement the interface
-	// It will be updated in a future version to save values to a key-value store
-	return nil
-}
-
-// Get retrieves a value from the config by key
-func (s *configService) Get(ctx context.Context, key string) (any, error) {
-	// This method is a stub to implement the interface
-	// It will be updated in a future version to retrieve values from a key-value store
-	return nil, nil
-}
-
-// LevelDB support functions - updated to use app directory path
-
-// NewLevelDBConfigurationProviderForUser returns a LevelDB configuration provider for users
-func NewLevelDBConfigurationProviderForUser() leveldb.LevelDBConfigurationProvider {
-	// The proper way to do this would be to use the ConfigService's GetAppDirPath,
-	// but since this is a static function, we'll use the default path directly
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		log.Fatalf("Failed getting user config directory with error: %v\n", err)
-	}
-
-	// Use the app directory for storing the LevelDB database
-	appDir := filepath.Join(configDir, AppName)
-
-	return leveldb.NewLevelDBConfigurationProvider(appDir, "users")
-}
-
-// NewLevelDBConfigurationProviderForCollection returns a LevelDB configuration provider for collections
-func NewLevelDBConfigurationProviderForCollection() leveldb.LevelDBConfigurationProvider {
-	// The proper way to do this would be to use the ConfigService's GetAppDirPath,
-	// but since this is a static function, we'll use the default path directly
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		log.Fatalf("Failed getting user config directory with error: %v\n", err)
-	}
-
-	// Use the app directory for storing the LevelDB database
-	appDir := filepath.Join(configDir, AppName)
-
-	return leveldb.NewLevelDBConfigurationProvider(appDir, "collections")
-}
-
-// Ensure our implementation satisfies the interface
-var _ ConfigService = (*configService)(nil)
