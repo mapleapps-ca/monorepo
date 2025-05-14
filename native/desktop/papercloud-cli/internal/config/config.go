@@ -4,14 +4,12 @@ package config
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log"
 	"os"
 	"path/filepath"
-	"time"
 
 	"go.uber.org/fx"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/keys"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/pkg/storage/leveldb"
 )
 
@@ -22,52 +20,18 @@ const (
 
 // Config holds all application configuration in a flat structure
 type Config struct {
-	CloudProviderAddress string `json:"cloud_provider_address"`
+	// AppDirPath is the path to the directory where all files for this application are saved.
+	AppDirPath string `json:"app_dir_path"`
 
-	Email                             string                                 `json:"email" bson:"email"`
-	FirstName                         string                                 `json:"first_name" bson:"first_name"`
-	LastName                          string                                 `json:"last_name" bson:"last_name"`
-	Timezone                          string                                 `json:"timezone" bson:"timezone"`
-	PasswordSalt                      []byte                                 `json:"password_salt" bson:"password_salt"`
-	EncryptedMasterKey                keys.EncryptedMasterKey                `json:"encrypted_master_key" bson:"encrypted_master_key"`
-	PublicKey                         keys.PublicKey                         `json:"public_key" bson:"public_key"`
-	EncryptedPrivateKey               keys.EncryptedPrivateKey               `json:"encrypted_private_key" bson:"encrypted_private_key"`
-	EncryptedRecoveryKey              keys.EncryptedRecoveryKey              `json:"encrypted_recovery_key" bson:"encrypted_recovery_key"`
-	MasterKeyEncryptedWithRecoveryKey keys.MasterKeyEncryptedWithRecoveryKey `json:"master_key_encrypted_with_recovery_key" bson:"master_key_encrypted_with_recovery_key"`
-	VerificationID                    string                                 `json:"verificationID"`
-	AccessToken                       string                                 `json:"access_token"`
-	AccessTokenExpiryTime             time.Time                              `json:"access_token_expiry_time"`
-	RefreshToken                      string                                 `json:"refresh_token"`
-	RefreshTokenExpiryTime            time.Time                              `json:"refresh_token_expiry_time"`
+	// CloudProviderAddress is the URI backend to make all calls to from this application.= for E2EE cloud operations.
+	CloudProviderAddress string `json:"cloud_provider_address"`
 }
 
 // ConfigService defines the unified interface for all configuration operations
 type ConfigService interface {
-	// Application settings
+	GetAppDirPath(ctx context.Context) (string, error)
 	GetCloudProviderAddress(ctx context.Context) (string, error)
 	SetCloudProviderAddress(ctx context.Context, address string) error
-
-	// Account settings
-	GetEmail(ctx context.Context) (string, error)
-	SetEmail(ctx context.Context, email string) error
-	GetAccessToken(ctx context.Context) (string, error)
-	SetAccessToken(ctx context.Context, token string) error
-	SetAccessTokenWithExpiry(ctx context.Context, token string, expiryTime time.Time) error
-	GetRefreshToken(ctx context.Context) (string, error)
-	SetRefreshToken(ctx context.Context, token string) error
-	SetRefreshTokenWithExpiry(ctx context.Context, token string, expiryTime time.Time) error
-	GetEncryptedMasterKey(ctx context.Context) (keys.EncryptedMasterKey, error)
-	SetEncryptedMasterKey(ctx context.Context, encryptedMasterKey keys.EncryptedMasterKey) error
-
-	// New methods for cryptographic keys
-	SetPublicKey(ctx context.Context, publicKey keys.PublicKey) error
-	SetEncryptedPrivateKey(ctx context.Context, encryptedPrivateKey keys.EncryptedPrivateKey) error
-	SetEncryptedRecoveryKey(ctx context.Context, encryptedRecoveryKey keys.EncryptedRecoveryKey) error
-	SetMasterKeyEncryptedWithRecoveryKey(ctx context.Context, masterKeyEncryptedWithRecoveryKey keys.MasterKeyEncryptedWithRecoveryKey) error
-
-	// Generic access
-	Get(ctx context.Context, key string) (interface{}, error)
-	Set(ctx context.Context, key string, value interface{}) error
 }
 
 // repository defines the interface for loading and saving configuration
@@ -178,9 +142,20 @@ func (r *fileRepository) SaveConfig(ctx context.Context, config *Config) error {
 
 // getDefaultConfig returns the default configuration values
 func getDefaultConfig() *Config {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		log.Fatalf("Failed getting user home directory with error: %v\n", err)
+	}
+
+	// Create app-specific config directory
+	appConfigDir := filepath.Join(configDir, AppName)
+	if err := os.MkdirAll(appConfigDir, 0755); err != nil {
+		log.Fatalf("Failed getting user home directory with error: %v\n", err)
+	}
+
 	return &Config{
 		CloudProviderAddress: "http://localhost:8000",
-		// All other fields default to zero values
+		AppDirPath:           appConfigDir,
 	}
 }
 
@@ -216,252 +191,13 @@ func (s *configService) SetCloudProviderAddress(ctx context.Context, address str
 	return s.saveConfig(ctx, config)
 }
 
-// GetEmail returns the account email
-func (s *configService) GetEmail(ctx context.Context) (string, error) {
+// GetAppDirPath returns the location our applications data directory is located at.
+func (s *configService) GetAppDirPath(ctx context.Context) (string, error) {
 	config, err := s.getConfig(ctx)
 	if err != nil {
 		return "", err
 	}
-	return config.Email, nil
-}
-
-// SetEmail updates the account email
-func (s *configService) SetEmail(ctx context.Context, email string) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.Email = email
-	return s.saveConfig(ctx, config)
-}
-
-// GetAccessToken returns the account access token
-func (s *configService) GetAccessToken(ctx context.Context) (string, error) {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return "", err
-	}
-	return config.AccessToken, nil
-}
-
-// SetAccessToken updates the account access token
-func (s *configService) SetAccessToken(ctx context.Context, token string) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.AccessToken = token
-	return s.saveConfig(ctx, config)
-}
-
-// SetAccessTokenWithExpiry updates the access token and its expiry time
-func (s *configService) SetAccessTokenWithExpiry(ctx context.Context, token string, expiryTime time.Time) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.AccessToken = token
-	config.AccessTokenExpiryTime = expiryTime
-	return s.saveConfig(ctx, config)
-}
-
-// GetRefreshToken returns the account refresh token
-func (s *configService) GetRefreshToken(ctx context.Context) (string, error) {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return "", err
-	}
-	return config.RefreshToken, nil
-}
-
-// SetRefreshToken updates the account refresh token
-func (s *configService) SetRefreshToken(ctx context.Context, token string) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.RefreshToken = token
-	return s.saveConfig(ctx, config)
-}
-
-// SetRefreshTokenWithExpiry updates the refresh token and its expiry time
-func (s *configService) SetRefreshTokenWithExpiry(ctx context.Context, token string, expiryTime time.Time) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.RefreshToken = token
-	config.RefreshTokenExpiryTime = expiryTime
-	return s.saveConfig(ctx, config)
-}
-
-// SetEncryptedMasterKey updates the encrypted master key
-func (s *configService) SetEncryptedMasterKey(ctx context.Context, encryptedMasterKey keys.EncryptedMasterKey) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.EncryptedMasterKey = encryptedMasterKey
-	return s.saveConfig(ctx, config)
-}
-
-// GetEncryptedMasterKey returns the encrypted master key
-func (s *configService) GetEncryptedMasterKey(ctx context.Context) (keys.EncryptedMasterKey, error) {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return keys.EncryptedMasterKey{}, err
-	}
-	return config.EncryptedMasterKey, nil
-}
-
-// SetPublicKey updates the public key
-func (s *configService) SetPublicKey(ctx context.Context, publicKey keys.PublicKey) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.PublicKey = publicKey
-	return s.saveConfig(ctx, config)
-}
-
-// SetEncryptedPrivateKey updates the encrypted private key
-func (s *configService) SetEncryptedPrivateKey(ctx context.Context, encryptedPrivateKey keys.EncryptedPrivateKey) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.EncryptedPrivateKey = encryptedPrivateKey
-	return s.saveConfig(ctx, config)
-}
-
-// SetEncryptedRecoveryKey updates the encrypted recovery key
-func (s *configService) SetEncryptedRecoveryKey(ctx context.Context, encryptedRecoveryKey keys.EncryptedRecoveryKey) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.EncryptedRecoveryKey = encryptedRecoveryKey
-	return s.saveConfig(ctx, config)
-}
-
-// SetMasterKeyEncryptedWithRecoveryKey updates the master key encrypted with recovery key
-func (s *configService) SetMasterKeyEncryptedWithRecoveryKey(ctx context.Context, masterKeyEncryptedWithRecoveryKey keys.MasterKeyEncryptedWithRecoveryKey) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	config.MasterKeyEncryptedWithRecoveryKey = masterKeyEncryptedWithRecoveryKey
-	return s.saveConfig(ctx, config)
-}
-
-// Get retrieves a specific configuration value by key
-func (s *configService) Get(ctx context.Context, key string) (interface{}, error) {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	switch key {
-	case "cloud_provider_address":
-		return config.CloudProviderAddress, nil
-	case "email":
-		return config.Email, nil
-	case "first_name":
-		return config.FirstName, nil
-	case "last_name":
-		return config.LastName, nil
-	case "timezone":
-		return config.Timezone, nil
-	case "password_salt":
-		return config.PasswordSalt, nil
-	case "access_token":
-		return config.AccessToken, nil
-	case "refresh_token":
-		return config.RefreshToken, nil
-	case "verification_id":
-		return config.VerificationID, nil
-	default:
-		return nil, fmt.Errorf("unknown configuration key: %s", key)
-	}
-}
-
-// Set updates a specific configuration value by key
-func (s *configService) Set(ctx context.Context, key string, value interface{}) error {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return err
-	}
-
-	switch key {
-	case "cloud_provider_address":
-		strValue, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("value for %s must be a string", key)
-		}
-		config.CloudProviderAddress = strValue
-	case "email":
-		strValue, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("value for %s must be a string", key)
-		}
-		config.Email = strValue
-	case "first_name":
-		strValue, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("value for %s must be a string", key)
-		}
-		config.FirstName = strValue
-	case "last_name":
-		strValue, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("value for %s must be a string", key)
-		}
-		config.LastName = strValue
-	case "timezone":
-		strValue, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("value for %s must be a string", key)
-		}
-		config.Timezone = strValue
-	case "password_salt":
-		byteValue, ok := value.([]byte)
-		if !ok {
-			return fmt.Errorf("value for %s must be a byte slice", key)
-		}
-		config.PasswordSalt = byteValue
-	case "access_token":
-		strValue, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("value for %s must be a string", key)
-		}
-		config.AccessToken = strValue
-	case "refresh_token":
-		strValue, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("value for %s must be a string", key)
-		}
-		config.RefreshToken = strValue
-	case "verification_id":
-		strValue, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("value for %s must be a string", key)
-		}
-		config.VerificationID = strValue
-	default:
-		return fmt.Errorf("unknown configuration key: %s", key)
-	}
-
-	return s.saveConfig(ctx, config)
+	return config.AppDirPath, nil
 }
 
 // LevelDB support functions - exported to maintain compatibility
