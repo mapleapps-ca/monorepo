@@ -195,6 +195,12 @@ func updateUserWithVerificationData(user *user.User, resp VerifyOTTResponsePaylo
 	// In a real implementation, we would likely have dedicated fields for these
 	// but for now, let's use the available fields or add what's needed
 
+	// Store Encrypted Challenge
+	encryptedChallengeBytes, err := base64.RawURLEncoding.DecodeString(resp.EncryptedChallenge)
+	if err == nil {
+		user.EncryptedChallenge = encryptedChallengeBytes
+	}
+
 	// Store Salt (decode from base64 if needed)
 	salt, err := base64.RawURLEncoding.DecodeString(resp.Salt)
 	if err == nil {

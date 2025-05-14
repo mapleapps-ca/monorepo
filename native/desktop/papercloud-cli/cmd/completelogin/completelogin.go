@@ -137,34 +137,13 @@ Examples:
 			}
 
 			// Get challenge data directly from the API again
-			ottVerifyData, err := getOTTVerificationData(ctx, serverURL, email, "123456") // Using dummy OTT
-			if err != nil {
-				fmt.Printf("WARNING: Could not get fresh OTT verification data: %v\n", err)
-				fmt.Println("WARNING: Will attempt to reconstruct from user data, but this may fail")
-
-				// Fall back to reconstructing from user data
-				ottVerifyData = &OTTVerifyResponse{
-					Salt:        base64.StdEncoding.EncodeToString(userData.PasswordSalt),
-					PublicKey:   base64.StdEncoding.EncodeToString(userData.PublicKey.Key),
-					ChallengeID: userData.VerificationID,
-				}
-
-				// Combine nonce and ciphertext for encrypted keys
-				encMasterKeyBytes := make([]byte, len(userData.EncryptedMasterKey.Nonce)+len(userData.EncryptedMasterKey.Ciphertext))
-				copy(encMasterKeyBytes, userData.EncryptedMasterKey.Nonce)
-				copy(encMasterKeyBytes[len(userData.EncryptedMasterKey.Nonce):], userData.EncryptedMasterKey.Ciphertext)
-				ottVerifyData.EncryptedMasterKey = base64.StdEncoding.EncodeToString(encMasterKeyBytes)
-
-				encPrivateKeyBytes := make([]byte, len(userData.EncryptedPrivateKey.Nonce)+len(userData.EncryptedPrivateKey.Ciphertext))
-				copy(encPrivateKeyBytes, userData.EncryptedPrivateKey.Nonce)
-				copy(encPrivateKeyBytes[len(userData.EncryptedPrivateKey.Nonce):], userData.EncryptedPrivateKey.Ciphertext)
-				ottVerifyData.EncryptedPrivateKey = base64.StdEncoding.EncodeToString(encPrivateKeyBytes)
-
-				// We need to simulate an encrypted challenge
-				// This is a critical issue - we don't have the actual encrypted challenge from the server
-				fmt.Println("ERROR: We don't have the actual encrypted challenge from the server")
-				fmt.Println("Please run verifyloginott first and ensure it completes successfully")
-				log.Fatal("Cannot proceed without a valid encrypted challenge")
+			ottVerifyData := &OTTVerifyResponse{
+				Salt:                base64.StdEncoding.EncodeToString(userData.PasswordSalt),
+				PublicKey:           base64.StdEncoding.EncodeToString(userData.PublicKey.Key),
+				EncryptedMasterKey:  base64.StdEncoding.EncodeToString(append(userData.EncryptedMasterKey.Nonce, userData.EncryptedMasterKey.Ciphertext...)),
+				EncryptedPrivateKey: base64.StdEncoding.EncodeToString(append(userData.EncryptedPrivateKey.Nonce, userData.EncryptedPrivateKey.Ciphertext...)),
+				EncryptedChallenge:  base64.StdEncoding.EncodeToString(userData.EncryptedChallenge),
+				ChallengeID:         userData.VerificationID,
 			}
 
 			// Get the challenge ID
