@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/crypto/nacl/secretbox"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
@@ -38,8 +37,10 @@ type TokenResponse struct {
 
 // Constants for cryptographic operations
 const (
-	NonceSize = 24
-	KeySize   = 32
+	NonceSize     = 24
+	KeySize       = 32
+	PublicKeySize = 32
+	SecretKeySize = 32
 )
 
 func CompleteLoginCmd(configService config.ConfigService, userRepo user.Repository) *cobra.Command {
@@ -147,12 +148,12 @@ Examples:
 
 			// 7. Decrypt Challenge using Public and Private Keys
 			publicKey := userData.PublicKey.Key
-			if len(publicKey) != box.PublicKeySize {
-				log.Fatalf("Invalid public key size: expected %d, got %d", box.PublicKeySize, len(publicKey))
+			if len(publicKey) != PublicKeySize {
+				log.Fatalf("Invalid public key size: expected %d, got %d", PublicKeySize, len(publicKey))
 			}
 
-			if len(privateKey) != box.SecretKeySize {
-				log.Fatalf("Invalid private key size: expected %d, got %d", box.SecretKeySize, len(privateKey))
+			if len(privateKey) != SecretKeySize {
+				log.Fatalf("Invalid private key size: expected %d, got %d", SecretKeySize, len(privateKey))
 			}
 
 			var pubKeyArray, privKeyArray [32]byte
