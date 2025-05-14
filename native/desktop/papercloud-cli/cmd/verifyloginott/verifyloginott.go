@@ -208,32 +208,44 @@ func updateUserWithVerificationData(user *user.User, resp VerifyOTTResponsePaylo
 	fmt.Printf("DEBUG: Encrypted Challenge length after decoding: %d bytes\n", len(encryptedChallengeBytes))
 
 	// Store Salt (decode from base64 if needed)
-	salt, err := base64.RawURLEncoding.DecodeString(resp.Salt)
-	if err == nil {
-		user.PasswordSalt = salt
+	salt, err := base64.StdEncoding.DecodeString(resp.Salt)
+	if err != nil {
+		salt, err = base64.RawURLEncoding.DecodeString(resp.Salt)
+		if err != nil {
+			log.Fatalf("Error decoding password salt: %v\n", err)
+		}
 	}
+	user.PasswordSalt = salt
 
 	// Store Public Key
-	publicKeyBytes, err := base64.RawURLEncoding.DecodeString(resp.PublicKey)
-	if err == nil {
-		user.PublicKey.Key = publicKeyBytes
+	publicKeyBytes, err := base64.StdEncoding.DecodeString(resp.PublicKey)
+	if err != nil {
+		publicKeyBytes, err = base64.RawURLEncoding.DecodeString(resp.PublicKey)
+		if err != nil {
+			log.Fatalf("Error decoding public key: %v\n", err)
+		}
 	}
+	user.PublicKey.Key = publicKeyBytes
 
 	// Store Encrypted Master Key
-	encMasterKeyBytes, err := base64.RawURLEncoding.DecodeString(resp.EncryptedMasterKey)
+	encMasterKeyBytes, err := base64.StdEncoding.DecodeString(resp.EncryptedMasterKey)
 	if err == nil && len(encMasterKeyBytes) >= 24 { // Make sure there's enough for nonce and ciphertext
 		// Assuming the first 24 bytes are the nonce
 		nonceSize := 24 // sodium.crypto_secretbox_NONCEBYTES
 		user.EncryptedMasterKey.Nonce = encMasterKeyBytes[:nonceSize]
 		user.EncryptedMasterKey.Ciphertext = encMasterKeyBytes[nonceSize:]
+	} else {
+		log.Fatalf("Error decoding encrypted master key: %v\n", err)
 	}
 
 	// Store Encrypted Private Key
-	encPrivateKeyBytes, err := base64.RawURLEncoding.DecodeString(resp.EncryptedPrivateKey)
+	encPrivateKeyBytes, err := base64.StdEncoding.DecodeString(resp.EncryptedPrivateKey)
 	if err == nil && len(encPrivateKeyBytes) >= 24 {
 		nonceSize := 24 // sodium.crypto_secretbox_NONCEBYTES
 		user.EncryptedPrivateKey.Nonce = encPrivateKeyBytes[:nonceSize]
 		user.EncryptedPrivateKey.Ciphertext = encPrivateKeyBytes[nonceSize:]
+	} else {
+		log.Fatalf("Error decoding encrypted private key: %v\n", err)
 	}
 
 	// Store ChallengeID - no direct field in User model, so we could use a temporary field
