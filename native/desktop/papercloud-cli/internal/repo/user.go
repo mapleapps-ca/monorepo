@@ -1,3 +1,4 @@
+// Location: monorepo/native/desktop/papercloud-cli/internal/repo/user.go
 package repo
 
 import (
