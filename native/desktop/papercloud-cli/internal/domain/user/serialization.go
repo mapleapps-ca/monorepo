@@ -1,4 +1,4 @@
-// monorepo/native/desktop/papercloud-cli/internal/domain/user/model.go
+// monorepo/native/desktop/papercloud-cli/internal/domain/user/serialization.go
 package user
 
 import (
