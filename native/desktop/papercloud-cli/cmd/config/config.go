@@ -1,3 +1,4 @@
+// monorepo/native/desktop/papercloud-cli/cmd/config/config.go
 package config
 
 import (

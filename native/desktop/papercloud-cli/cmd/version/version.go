@@ -1,3 +1,4 @@
+// monorepo/native/desktop/papercloud-cli/cmd/version/version.go
 package version
 
 import (

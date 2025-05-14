@@ -1,3 +1,4 @@
+// monorepo/native/desktop/papercloud-cli/cmd/verifyemail/verifyemail.go
 package verifyemail
 
 import (
