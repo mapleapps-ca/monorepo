@@ -1,3 +1,4 @@
+// monorepo/native/desktop/papercloud-cli/internal/cmd/register/register.go
 package register
 
 import (

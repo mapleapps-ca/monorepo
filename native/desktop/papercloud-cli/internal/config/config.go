@@ -1,4 +1,5 @@
 // Package config provides a unified API for managing application configuration
+// Location: monorepo/native/desktop/papercloud-cli/internal/config/config.go
 package config
 
 import (
