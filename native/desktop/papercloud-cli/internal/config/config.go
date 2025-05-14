@@ -33,7 +33,6 @@ type Config struct {
 
 // ConfigService defines the unified interface for all configuration operations
 type ConfigService interface {
-	GetAppDirPath(ctx context.Context) (string, error)
 	GetCloudProviderAddress(ctx context.Context) (string, error)
 	SetCloudProviderAddress(ctx context.Context, address string) error
 	GetEmail(ctx context.Context) (string, error)
@@ -198,15 +197,6 @@ func (s *configService) SetCloudProviderAddress(ctx context.Context, address str
 
 	config.CloudProviderAddress = address
 	return s.saveConfig(ctx, config)
-}
-
-// GetAppDirPath returns the location our applications data directory is located at.
-func (s *configService) GetAppDirPath(ctx context.Context) (string, error) {
-	config, err := s.getConfig(ctx)
-	if err != nil {
-		return "", err
-	}
-	return config.AppDirPath, nil
 }
 
 // SetEmail updates the authenticated users email.
