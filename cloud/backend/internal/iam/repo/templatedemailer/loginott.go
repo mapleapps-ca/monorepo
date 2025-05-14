@@ -42,9 +42,9 @@ func (impl *templatedEmailer) SendPaperCloudPropertyEvaluatorModuleUserLoginOneT
 	}
 	body := processed.String() // DEVELOPERS NOTE: Convert our long sequence of data into a string.
 
-	if err := impl.incomePropertyEmailer.Send(ctx, impl.incomePropertyEmailer.GetSenderEmail(), "Login token", email, body); err != nil {
-		return fmt.Errorf("sending income property evaluator login one-time token verification error: %w", err)
+	if err := impl.papercloudEmailer.Send(ctx, impl.papercloudEmailer.GetSenderEmail(), "Login token", email, body); err != nil {
+		return fmt.Errorf("sending papercloud login one-time token verification error: %w", err)
 	}
-	log.Println("success in sending income property evaluator login one-time token email")
+	log.Println("success in sending papercloud login one-time token email")
 	return nil
 }

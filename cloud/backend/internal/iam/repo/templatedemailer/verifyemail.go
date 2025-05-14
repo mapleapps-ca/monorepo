@@ -44,7 +44,7 @@ func (impl *templatedEmailer) SendPaperCloudPropertyEvaluatorModuleUserVerificat
 	}
 	body := processed.String() // DEVELOPERS NOTE: Convert our long sequence of data into a string.
 
-	if err := impl.incomePropertyEmailer.Send(ctx, impl.incomePropertyEmailer.GetSenderEmail(), "Activate your PaperCloud Account", email, body); err != nil {
+	if err := impl.papercloudEmailer.Send(ctx, impl.papercloudEmailer.GetSenderEmail(), "Activate your PaperCloud Account", email, body); err != nil {
 		return fmt.Errorf("sending papercloud user verification error: %w", err)
 	}
 	log.Println("success in sending papercloud user verification email")

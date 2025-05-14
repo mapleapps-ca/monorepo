@@ -42,7 +42,7 @@ func (impl *templatedEmailer) SendPaperCloudPropertyEvaluatorUserPasswordResetEm
 	}
 	body := processed.String() // DEVELOPERS NOTE: Convert our long sequence of data into a string.
 
-	if err := impl.incomePropertyEmailer.Send(ctx, impl.incomePropertyEmailer.GetSenderEmail(), "Password Reset", email, body); err != nil {
+	if err := impl.papercloudEmailer.Send(ctx, impl.papercloudEmailer.GetSenderEmail(), "Password Reset", email, body); err != nil {
 		return err
 	}
 	return nil
