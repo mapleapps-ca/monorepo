@@ -37,8 +37,8 @@ func NewRootCmd(configService config.ConfigService, userRepo user.Repository) *c
 	rootCmd.AddCommand(register.RegisterCmd(configService, userRepo))
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(configService, userRepo))
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(configService))
-	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd())
-	rootCmd.AddCommand(completelogin.CompleteLoginCmd())
+	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(configService, userRepo))
+	rootCmd.AddCommand(completelogin.CompleteLoginCmd(configService, userRepo))
 	rootCmd.AddCommand(uploadfile.UploadFileCmd())
 
 	return rootCmd
