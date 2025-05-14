@@ -395,6 +395,11 @@ Examples:
 
 					// Update user with authentication data
 					userData.LastLoginAt = time.Now()
+					userData.ModifiedAt = time.Now()
+					userData.AccessToken = tokenResp.AccessToken
+					userData.AccessTokenExpiryTime = tokenResp.AccessTokenExpiryTime
+					userData.RefreshToken = tokenResp.RefreshToken
+					userData.RefreshTokenExpiryTime = tokenResp.RefreshTokenExpiryTime
 
 					// Save the updated user
 					if err := userRepo.UpsertByEmail(ctx, userData); err != nil {
@@ -408,7 +413,7 @@ Examples:
 						log.Fatalf("Failed to commit transaction: %v", err)
 					}
 
-					fmt.Println("Login successful!")
+					fmt.Println("\n✅ Login successful!")
 					fmt.Printf("Access Token: %s\n", tokenResp.AccessToken)
 					fmt.Printf("Access Token Expires: %s\n", tokenResp.AccessTokenExpiryTime.Format(time.RFC3339))
 					fmt.Printf("Refresh Token Expires: %s\n", tokenResp.RefreshTokenExpiryTime.Format(time.RFC3339))
