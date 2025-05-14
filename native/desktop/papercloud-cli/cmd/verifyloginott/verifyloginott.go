@@ -4,12 +4,13 @@ package verifyloginott
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -37,6 +38,7 @@ type VerifyOTTResponsePayload struct {
 
 func VerifyLoginOneTimeTokenUserCmd(configService config.ConfigService, userRepo user.Repository) *cobra.Command {
 	var email, ott string
+	var debugMode bool
 
 	var cmd = &cobra.Command{
 		Use:   "verifyloginott",
@@ -86,6 +88,11 @@ Examples:
 				return
 			}
 
+			if debugMode {
+				fmt.Printf("DEBUG: Sending request to %s/iam/api/v1/verify-ott\n", serverURL)
+				fmt.Printf("DEBUG: Request payload: %s\n", string(jsonData))
+			}
+
 			// Make HTTP request to server
 			verifyURL := fmt.Sprintf("%s/iam/api/v1/verify-ott", serverURL)
 			fmt.Printf("Connecting to: %s\n", verifyURL)
@@ -114,6 +121,11 @@ Examples:
 				return
 			}
 
+			if debugMode {
+				fmt.Printf("DEBUG: Server response code: %d\n", resp.StatusCode)
+				fmt.Printf("DEBUG: Response body: %s\n", string(body))
+			}
+
 			// Check response status code
 			if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 				// Try to parse error message if available
@@ -137,50 +149,52 @@ Examples:
 				return
 			}
 
-			// Retrieve the user by email
-			existingUser, err := userRepo.GetByEmail(ctx, email)
+			if debugMode {
+				fmt.Println("DEBUG: Successfully parsed verify response")
+				fmt.Printf("DEBUG: Challenge ID: %s\n", verifyResponse.ChallengeID)
+				fmt.Printf("DEBUG: Salt length: %d\n", len(verifyResponse.Salt))
+				fmt.Printf("DEBUG: Encrypted Challenge length: %d\n", len(verifyResponse.EncryptedChallenge))
+			}
+
+			// Create data directory if it doesn't exist
+			appDirPath, err := configService.GetAppDirPath(ctx)
 			if err != nil {
-				log.Fatalf("Error retrieving user: %v", err)
+				log.Fatalf("Error getting app directory path: %v", err)
 				return
 			}
 
-			if existingUser == nil {
-				log.Fatalf("User with email %s not found. Please register first.", email)
+			dataDir := filepath.Join(appDirPath, "auth_data")
+			if err := os.MkdirAll(dataDir, 0755); err != nil {
+				log.Fatalf("Failed to create data directory: %v", err)
 				return
 			}
 
-			// Start a transaction to update the user with the verification data
-			if err := userRepo.OpenTransaction(); err != nil {
-				log.Fatalf("Error opening transaction: %v", err)
+			// Save the verification data to a file that completelogin can access
+			// Using email as part of the filename for user-specific data
+			emailHash := hashEmail(email)
+			dataFile := filepath.Join(dataDir, fmt.Sprintf("verify_data_%s.json", emailHash))
+
+			dataJSON, err := json.Marshal(verifyResponse)
+			if err != nil {
+				log.Fatalf("Failed to serialize verification data: %v", err)
 				return
 			}
 
-			// Update the user with the verification response data
-			updateUserWithVerificationData(existingUser, verifyResponse)
-
-			// Update the user in the repository
-			if err := userRepo.UpsertByEmail(ctx, existingUser); err != nil {
-				userRepo.DiscardTransaction()
-				log.Fatalf("Error updating user with verification data: %v", err)
+			if err := os.WriteFile(dataFile, dataJSON, 0600); err != nil {
+				log.Fatalf("Failed to save verification data: %v", err)
 				return
 			}
 
-			// Commit the transaction
-			if err := userRepo.CommitTransaction(); err != nil {
-				userRepo.DiscardTransaction()
-				log.Fatalf("Error committing transaction: %v", err)
-				return
-			}
-
-			fmt.Println("\n✅ One-time token verified successfully!")
+			fmt.Println("\n✅ Login verification successful!")
 			fmt.Println("You can now proceed to complete the login process with:")
-			fmt.Printf("papercloud-cli completelogin --email %s\n", email)
+			fmt.Printf("papercloud-cli completelogin --email %s --password YOUR_PASSWORD\n", email)
 		},
 	}
 
 	// Define command flags
 	cmd.Flags().StringVarP(&email, "email", "e", "", "Email address for the user (required)")
 	cmd.Flags().StringVarP(&ott, "ott", "o", "", "One-time token sent by the backend")
+	cmd.Flags().BoolVarP(&debugMode, "debug", "d", false, "Enable debug output")
 
 	// Mark required flags
 	cmd.MarkFlagRequired("email")
@@ -189,47 +203,14 @@ Examples:
 	return cmd
 }
 
-// updateUserWithVerificationData updates the user model with verification data
-func updateUserWithVerificationData(user *user.User, resp VerifyOTTResponsePayload) {
-	// Store the verification data temporarily in the user model
-	// In a real implementation, we would likely have dedicated fields for these
-	// but for now, let's use the available fields or add what's needed
-
-	// Store Salt (decode from base64 if needed)
-	salt, err := base64.RawURLEncoding.DecodeString(resp.Salt)
-	if err == nil {
-		user.PasswordSalt = salt
+// Simple helper function to create a deterministic string from email for filename purposes
+func hashEmail(email string) string {
+	// This is a simple approach for demonstration purposes
+	// In a real app, consider using a proper hashing function
+	email = strings.ToLower(strings.TrimSpace(email))
+	hash := 0
+	for i := 0; i < len(email); i++ {
+		hash = hash*31 + int(email[i])
 	}
-
-	// Store Public Key
-	publicKeyBytes, err := base64.RawURLEncoding.DecodeString(resp.PublicKey)
-	if err == nil {
-		user.PublicKey.Key = publicKeyBytes
-	}
-
-	// Store Encrypted Master Key
-	encMasterKeyBytes, err := base64.RawURLEncoding.DecodeString(resp.EncryptedMasterKey)
-	if err == nil && len(encMasterKeyBytes) >= 24 { // Make sure there's enough for nonce and ciphertext
-		// Assuming the first 24 bytes are the nonce
-		nonceSize := 24 // sodium.crypto_secretbox_NONCEBYTES
-		user.EncryptedMasterKey.Nonce = encMasterKeyBytes[:nonceSize]
-		user.EncryptedMasterKey.Ciphertext = encMasterKeyBytes[nonceSize:]
-	}
-
-	// Store Encrypted Private Key
-	encPrivateKeyBytes, err := base64.RawURLEncoding.DecodeString(resp.EncryptedPrivateKey)
-	if err == nil && len(encPrivateKeyBytes) >= 24 {
-		nonceSize := 24 // sodium.crypto_secretbox_NONCEBYTES
-		user.EncryptedPrivateKey.Nonce = encPrivateKeyBytes[:nonceSize]
-		user.EncryptedPrivateKey.Ciphertext = encPrivateKeyBytes[nonceSize:]
-	}
-
-	// Store ChallengeID - no direct field in User model, so we could use a temporary field
-	// For this example, we'll store it in the VerificationID field which seems related
-	user.VerificationID = resp.ChallengeID
-
-	// Store the full response in a safe field for use by completelogin
-	// This is a simplified approach - in a production system, we'd have a proper preferences store
-	// We're using ModifiedAt to update the timestamp
-	user.ModifiedAt = time.Now()
+	return fmt.Sprintf("%x", hash)
 }
