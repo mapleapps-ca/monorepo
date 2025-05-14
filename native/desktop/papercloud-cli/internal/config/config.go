@@ -5,6 +5,7 @@ package config
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -33,6 +34,7 @@ type Config struct {
 
 // ConfigService defines the unified interface for all configuration operations
 type ConfigService interface {
+	GetAppDirPath(ctx context.Context) (string, error)
 	GetCloudProviderAddress(ctx context.Context) (string, error)
 	SetCloudProviderAddress(ctx context.Context, address string) error
 	GetEmail(ctx context.Context) (string, error)
@@ -177,6 +179,16 @@ func (s *configService) getConfig(ctx context.Context) (*Config, error) {
 // saveConfig is an internal method to save the configuration
 func (s *configService) saveConfig(ctx context.Context, config *Config) error {
 	return s.repo.SaveConfig(ctx, config)
+}
+
+func (s *configService) GetAppDirPath(ctx context.Context) (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("Failed getting user config directory with error: %v\n", err)
+	}
+
+	// Use the app directory for storing the LevelDB database
+	return filepath.Join(configDir, AppName), nil
 }
 
 // GetCloudProviderAddress returns the cloud provider address
