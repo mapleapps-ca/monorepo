@@ -1,4 +1,3 @@
-// monorepo/native/desktop/papercloud-cli/internal/cmd/register/register.go
 package register
 
 import (
@@ -14,12 +13,14 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/crypto/nacl/secretbox"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/keys"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/user"
 )
 
 // Constants matching the backend but with reduced memory for Argon2
@@ -172,7 +173,7 @@ func EncryptWithBoxSeal(message []byte, recipientPK []byte) ([]byte, error) {
 	return result, nil
 }
 
-func RegisterCmd(configService config.ConfigService) *cobra.Command {
+func RegisterCmd(configService config.ConfigService, userRepo user.Repository) *cobra.Command {
 	var email, password, firstName, lastName, timezone, country, phone, betaAccessCode string
 	var agreeTerms, agreePromotions, agreeTracking, skipRemoteRegistration bool
 	var module int
@@ -301,91 +302,74 @@ Use the --skip-remote flag to only save locally without registering with the rem
 			encryptedRecoveryKeyBase64 := base64.RawURLEncoding.EncodeToString(encryptedRecoveryKeyBytes)
 			masterKeyEncryptedWithRecoveryKeyBase64 := base64.RawURLEncoding.EncodeToString(masterKeyEncryptedWithRecoveryKeyBytes)
 
-			// Save information to local config
+			// Create a new User object
 			fmt.Println("Saving registration information locally...")
 
-			// Save email to config
-			if err := configService.SetEmail(ctx, email); err != nil {
-				fmt.Printf("Error saving email to config: %v\n", err)
+			// Start a transaction for all operations
+			if err := userRepo.OpenTransaction(); err != nil {
+				fmt.Printf("Error opening transaction: %v\n", err)
 				return
 			}
 
-			// Save password salt to config
-			if err := configService.Set(ctx, "password_salt", salt); err != nil {
-				fmt.Printf("Error saving password salt to config: %v\n", err)
-				return
-			}
+			// Create a new user object with all the fields
+			newUser := &user.User{
+				ID:               primitive.NewObjectID(),
+				Email:            strings.ToLower(email),
+				FirstName:        firstName,
+				LastName:         lastName,
+				Name:             firstName + " " + lastName,
+				LexicalName:      lastName + ", " + firstName,
+				Role:             user.UserRoleIndividual, // Default to individual user
+				Status:           user.UserStatusActive,   // Default to active
+				WasEmailVerified: false,
+				Phone:            phone,
+				Country:          country,
+				Timezone:         timezone,
 
-			// Save verification ID to config
-			if err := configService.Set(ctx, "verification_id", verificationID); err != nil {
-				fmt.Printf("Error saving verification ID to config: %v\n", err)
-				return
-			}
-
-			// Save encrypted master key
-			encryptedMasterKeyObj := keys.EncryptedMasterKey{
-				Ciphertext: encryptedMasterKey.Ciphertext,
-				Nonce:      encryptedMasterKey.Nonce,
-			}
-			if err := configService.SetEncryptedMasterKey(ctx, encryptedMasterKeyObj); err != nil {
-				fmt.Printf("Error saving encrypted master key to config: %v\n", err)
-				return
-			}
-
-			// Save public key
-			publicKeyObj := keys.PublicKey{
-				Key:            publicKey,
+				// E2EE related fields
+				PasswordSalt: salt,
+				EncryptedMasterKey: keys.EncryptedMasterKey{
+					Ciphertext: encryptedMasterKey.Ciphertext,
+					Nonce:      encryptedMasterKey.Nonce,
+				},
+				PublicKey: keys.PublicKey{
+					Key:            publicKey,
+					VerificationID: verificationID,
+				},
+				EncryptedPrivateKey: keys.EncryptedPrivateKey{
+					Ciphertext: encryptedPrivateKey.Ciphertext,
+					Nonce:      encryptedPrivateKey.Nonce,
+				},
+				EncryptedRecoveryKey: keys.EncryptedRecoveryKey{
+					Ciphertext: encryptedRecoveryKey.Ciphertext,
+					Nonce:      encryptedRecoveryKey.Nonce,
+				},
+				MasterKeyEncryptedWithRecoveryKey: keys.MasterKeyEncryptedWithRecoveryKey{
+					Ciphertext: masterKeyEncryptedWithRecoveryKey.Ciphertext,
+					Nonce:      masterKeyEncryptedWithRecoveryKey.Nonce,
+				},
 				VerificationID: verificationID,
+
+				// Terms agreements
+				AgreeTermsOfService: agreeTerms,
+				AgreePromotions:     agreePromotions,
+				AgreeToTrackingAcrossThirdPartyAppsAndServices: agreeTracking,
+
+				// Metadata
+				CreatedAt: time.Now(),
 			}
-			if err := configService.SetPublicKey(ctx, publicKeyObj); err != nil {
-				fmt.Printf("Error saving public key to config: %v\n", err)
+
+			// Save the user to the repository
+			if err := userRepo.UpsertByEmail(ctx, newUser); err != nil {
+				fmt.Printf("Error saving user data: %v\n", err)
+				userRepo.DiscardTransaction()
 				return
 			}
 
-			// Save encrypted private key
-			encryptedPrivateKeyObj := keys.EncryptedPrivateKey{
-				Ciphertext: encryptedPrivateKey.Ciphertext,
-				Nonce:      encryptedPrivateKey.Nonce,
-			}
-			if err := configService.SetEncryptedPrivateKey(ctx, encryptedPrivateKeyObj); err != nil {
-				fmt.Printf("Error saving encrypted private key to config: %v\n", err)
-				return
-			}
-
-			// Save encrypted recovery key
-			encryptedRecoveryKeyObj := keys.EncryptedRecoveryKey{
-				Ciphertext: encryptedRecoveryKey.Ciphertext,
-				Nonce:      encryptedRecoveryKey.Nonce,
-			}
-			if err := configService.SetEncryptedRecoveryKey(ctx, encryptedRecoveryKeyObj); err != nil {
-				fmt.Printf("Error saving encrypted recovery key to config: %v\n", err)
-				return
-			}
-
-			// Save master key encrypted with recovery key
-			masterKeyEncryptedWithRecoveryKeyObj := keys.MasterKeyEncryptedWithRecoveryKey{
-				Ciphertext: masterKeyEncryptedWithRecoveryKey.Ciphertext,
-				Nonce:      masterKeyEncryptedWithRecoveryKey.Nonce,
-			}
-			if err := configService.SetMasterKeyEncryptedWithRecoveryKey(ctx, masterKeyEncryptedWithRecoveryKeyObj); err != nil {
-				fmt.Printf("Error saving master key encrypted with recovery key to config: %v\n", err)
-				return
-			}
-
-			// Save other user info
-			if err := configService.Set(ctx, "first_name", firstName); err != nil {
-				fmt.Printf("Error saving first name to config: %v\n", err)
-				return
-			}
-
-			if err := configService.Set(ctx, "last_name", lastName); err != nil {
-				fmt.Printf("Error saving last name to config: %v\n", err)
-				return
-			}
-
-			// Save timezone
-			if err := configService.Set(ctx, "timezone", timezone); err != nil {
-				fmt.Printf("Error saving timezone to config: %v\n", err)
+			// Commit all the changes
+			if err := userRepo.CommitTransaction(); err != nil {
+				fmt.Printf("Error committing transaction: %v\n", err)
+				userRepo.DiscardTransaction()
 				return
 			}
 

@@ -4,18 +4,19 @@ package repo
 import (
 	"context"
 	"fmt"
-	"log/slog"
+
+	"go.uber.org/zap"
 
 	domain "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/user"
 	disk "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/pkg/storage"
 )
 
 type UserRepo struct {
-	logger   *slog.Logger
+	logger   *zap.Logger
 	dbClient disk.Storage
 }
 
-func NewUserRepo(logger *slog.Logger, db disk.Storage) domain.Repository {
+func NewUserRepo(logger *zap.Logger, db disk.Storage) domain.Repository {
 	return &UserRepo{logger, db}
 }
 
@@ -38,9 +39,9 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, 
 	b, err := domain.NewUserFromDeserialize(bBytes)
 	if err != nil {
 		r.logger.Error("failed to deserialize",
-			slog.Any("email", email),
-			slog.String("bin", string(bBytes)),
-			slog.Any("error", err))
+			zap.Any("email", email),
+			zap.String("bin", string(bBytes)),
+			zap.Any("error", err))
 		return nil, err
 	}
 	return b, nil
@@ -60,9 +61,9 @@ func (r *UserRepo) ListAll(ctx context.Context) ([]*domain.User, error) {
 		account, err := domain.NewUserFromDeserialize(value)
 		if err != nil {
 			r.logger.Error("failed to deserialize",
-				slog.String("key", string(key)),
-				slog.String("value", string(value)),
-				slog.Any("error", err))
+				zap.String("key", string(key)),
+				zap.String("value", string(value)),
+				zap.Any("error", err))
 			return err
 		}
 

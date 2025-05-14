@@ -12,6 +12,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/repo"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/pkg/storage/leveldb"
 )
 
@@ -34,20 +35,20 @@ func NewApp() *App {
 			},
 		),
 
-		// Provide the configuration service (new approach)
+		// Provide the configuration service
 		config.Module(),
 
 		// Provide named LevelDB configuration providers
 		fx.Provide(
 			fx.Annotate(
 				config.NewLevelDBConfigurationProviderForUser,
-				fx.ResultTags(`name:"user_db_provider"`),
+				fx.ResultTags(`name:"user_db_config_provider"`),
 			),
 		),
 		fx.Provide(
 			fx.Annotate(
 				config.NewLevelDBConfigurationProviderForCollection,
-				fx.ResultTags(`name:"collection_db_provider"`),
+				fx.ResultTags(`name:"collection_db_config_provider"`),
 			),
 		),
 
@@ -55,15 +56,23 @@ func NewApp() *App {
 		fx.Provide(
 			fx.Annotate(
 				leveldb.NewDiskStorage,
-				fx.ParamTags(`name:"user_db_provider"`), // Map `NewLevelDBConfigurationProviderForUser` to this `NewDiskStorage`.
-				fx.ResultTags(`name:"user_db"`),         // To access this `NewDiskStorage` using key `user_db`.
+				fx.ParamTags(`name:"user_db_config_provider"`), // Map `NewLevelDBConfigurationProviderForUser` to this `NewDiskStorage`.
+				fx.ResultTags(`name:"user_db"`),                // To access this `NewDiskStorage` using key `user_db`.
 			),
 		),
 		fx.Provide(
 			fx.Annotate(
 				leveldb.NewDiskStorage,
-				fx.ParamTags(`name:"collection_db_provider"`), // Map `NewLevelDBConfigurationProviderForCollection` to this `NewDiskStorage`.
-				fx.ResultTags(`name:"collection_db"`),         // To access this `NewDiskStorage` using key `collection_db`.
+				fx.ParamTags(`name:"collection_db_config_provider"`), // Map `NewLevelDBConfigurationProviderForCollection` to this `NewDiskStorage`.
+				fx.ResultTags(`name:"collection_db"`),                // To access this `NewDiskStorage` using key `collection_db`.
+			),
+		),
+
+		// Provide user repository
+		fx.Provide(
+			fx.Annotate(
+				repo.NewUserRepo,
+				fx.ParamTags(``, `name:"user_db"`), // Use the user_db storage for the user repository
 			),
 		),
 

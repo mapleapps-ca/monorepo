@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/user"
 )
 
 // VerifyEmailRequest represents the data needed to verify an email
@@ -26,7 +27,7 @@ type VerifyEmailResponse struct {
 	Status   int    `json:"profile_verification_status,omitempty"`
 }
 
-func VerifyEmailCmd(configService config.ConfigService) *cobra.Command {
+func VerifyEmailCmd(configService config.ConfigService, userRepo user.Repository) *cobra.Command {
 	var verificationCode string
 
 	var cmd = &cobra.Command{
@@ -44,6 +45,8 @@ Example:
   # Verify email with a code provided as a flag
   verify-email --code 123456`,
 		Run: func(cmd *cobra.Command, args []string) {
+			ctx := context.Background()
+
 			// Check if code was provided as an argument
 			if len(args) > 0 && verificationCode == "" {
 				verificationCode = args[0]
@@ -57,8 +60,19 @@ Example:
 				return
 			}
 
+			// List all users to find a registered one
+			users, err := userRepo.ListAll(ctx)
+			if err != nil || len(users) == 0 {
+				fmt.Println("Error: No registered user found.")
+				fmt.Println("Please register first using the 'register' command.")
+				return
+			}
+
+			// Get the first user - this is simple but in a real app
+			// we might want to allow the user to select which account to verify
+			currentUser := users[0]
+
 			// Get the server URL from configuration
-			ctx := context.Background()
 			serverURL, err := configService.GetCloudProviderAddress(ctx)
 			if err != nil {
 				fmt.Printf("Error loading configuration: %v\n", err)
@@ -130,6 +144,32 @@ Example:
 			if err := json.Unmarshal(body, &responseData); err != nil {
 				fmt.Printf("Error parsing response: %v\n", err)
 				fmt.Printf("Raw response: %s\n", string(body))
+				return
+			}
+
+			// Update user with verified status
+			if err := userRepo.OpenTransaction(); err != nil {
+				fmt.Printf("Error opening transaction: %v\n", err)
+				return
+			}
+
+			// Update user's verification status
+			currentUser.WasEmailVerified = true
+			currentUser.Role = int8(responseData.UserRole)
+			currentUser.Status = user.UserStatusActive
+			currentUser.ModifiedAt = time.Now()
+
+			// Save updated user
+			if err := userRepo.UpsertByEmail(ctx, currentUser); err != nil {
+				fmt.Printf("Error updating user verification status: %v\n", err)
+				userRepo.DiscardTransaction()
+				return
+			}
+
+			// Commit transaction
+			if err := userRepo.CommitTransaction(); err != nil {
+				fmt.Printf("Error committing transaction: %v\n", err)
+				userRepo.DiscardTransaction()
 				return
 			}
 

@@ -10,10 +10,11 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/verifyemail"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/version"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/user"
 )
 
 // NewRootCmd creates a new root command with all dependencies injected
-func NewRootCmd(configService config.ConfigService) *cobra.Command {
+func NewRootCmd(configService config.ConfigService, userRepo user.Repository) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "papercloud-cli",
 		Short: "PaperCloud CLI",
@@ -28,8 +29,8 @@ func NewRootCmd(configService config.ConfigService) *cobra.Command {
 	rootCmd.AddCommand(version.VersionCmd())
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
 	rootCmd.AddCommand(remote.RemoteCmd(configService))
-	rootCmd.AddCommand(register.RegisterCmd(configService))
-	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(configService))
+	rootCmd.AddCommand(register.RegisterCmd(configService, userRepo))
+	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(configService, userRepo))
 
 	return rootCmd
 }
