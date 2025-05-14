@@ -196,10 +196,16 @@ func updateUserWithVerificationData(user *user.User, resp VerifyOTTResponsePaylo
 	// but for now, let's use the available fields or add what's needed
 
 	// Store Encrypted Challenge
-	encryptedChallengeBytes, err := base64.RawURLEncoding.DecodeString(resp.EncryptedChallenge)
-	if err == nil {
-		user.EncryptedChallenge = encryptedChallengeBytes
+	fmt.Printf("DEBUG: Encrypted Challenge from server (b64): %s\n", resp.EncryptedChallenge)
+	encryptedChallengeBytes, err := base64.StdEncoding.DecodeString(resp.EncryptedChallenge)
+	if err != nil {
+		encryptedChallengeBytes, err = base64.RawURLEncoding.DecodeString(resp.EncryptedChallenge)
+		if err != nil {
+			log.Fatalf("Error decoding encrypted challenge: %v\n", err)
+		}
 	}
+	user.EncryptedChallenge = encryptedChallengeBytes
+	fmt.Printf("DEBUG: Encrypted Challenge length after decoding: %d bytes\n", len(encryptedChallengeBytes))
 
 	// Store Salt (decode from base64 if needed)
 	salt, err := base64.RawURLEncoding.DecodeString(resp.Salt)

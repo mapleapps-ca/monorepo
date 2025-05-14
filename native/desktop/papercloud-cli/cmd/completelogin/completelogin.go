@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/crypto/nacl/secretbox"
 
@@ -135,6 +136,8 @@ Examples:
 			if debugMode {
 				fmt.Printf("DEBUG: Server URL: %s\n", serverURL)
 			}
+
+			fmt.Printf("DEBUG: Retrieved Encrypted Challenge length: %d bytes\n", len(userData.EncryptedChallenge))
 
 			// Get challenge data directly from the API again
 			ottVerifyData := &OTTVerifyResponse{
@@ -491,29 +494,17 @@ func deriveKeyFromPassword(password string, salt []byte) ([]byte, error) {
 		return nil, fmt.Errorf("salt must be 16 bytes, got %d", len(salt))
 	}
 
-	// This is a very naive implementation - replace with proper Argon2id in production
-	// It hashes the password+salt multiple times to create a deterministic key
-	data := []byte(password)
-	for i := 0; i < 10000; i++ {
-		data = append(data, salt...)
-		// Simple hashing approach for demonstration
-		h := make([]byte, 32)
-		for j := range data {
-			h[j%32] ^= data[j]
-		}
-		data = h
-	}
+	// Use the same Argon2id implementation used in registration
+	key := argon2.IDKey(
+		[]byte(password),
+		salt,
+		1,           // Argon2OpsLimit (1 iteration as defined in register.go)
+		4*1024*1024, // Argon2MemLimit (4 MB as defined in register.go)
+		1,           // Argon2Parallelism
+		32,          // Argon2KeySize
+	)
 
-	// Ensure we have a 32-byte key
-	if len(data) > KeySize {
-		data = data[:KeySize]
-	} else if len(data) < KeySize {
-		paddedData := make([]byte, KeySize)
-		copy(paddedData, data)
-		data = paddedData
-	}
-
-	return data, nil
+	return key, nil
 }
 
 // decryptWithSecretBox decrypts data using NaCl secretbox
