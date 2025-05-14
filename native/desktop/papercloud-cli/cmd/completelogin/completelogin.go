@@ -306,9 +306,9 @@ Examples:
 			copy(privKeyArray[:], privateKey)
 
 			// Decrypt the sealed box challenge
-			decryptedChallenge, err := decryptSealedBox(encryptedChallengeBytes, pubKeyArray, privKeyArray)
-			if err != nil {
-				log.Fatalf("Failed to decrypt challenge: %v", err)
+			decryptedChallenge, ok := box.OpenAnonymous(nil, encryptedChallengeBytes, &pubKeyArray, &privKeyArray)
+			if !ok {
+				log.Fatal("Failed to decrypt challenge: invalid keys or corrupted challenge")
 			}
 			fmt.Println("Challenge decrypted successfully")
 
