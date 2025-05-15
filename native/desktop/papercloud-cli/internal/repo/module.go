@@ -53,6 +53,7 @@ func RepoModule() fx.Option {
 
 		fx.Provide(auth.NewEmailVerificationRepository),
 		fx.Provide(auth.NewLoginOTTRepository),
+		fx.Provide(auth.NewLoginOTTVerificationRepository),
 
 		// Transaction manager
 		fx.Provide(transaction.NewTransactionManager),

@@ -15,6 +15,7 @@ func UseCaseModule() fx.Option {
 		// Auth use cases
 		fx.Provide(authUseCase.NewEmailVerificationUseCase),
 		fx.Provide(authUseCase.NewLoginOTTUseCase),
+		fx.Provide(authUseCase.NewLoginOTTVerificationUseCase),
 
 		// User repository use cases
 		fx.Provide(userUseCase.NewGetByEmailUseCase),

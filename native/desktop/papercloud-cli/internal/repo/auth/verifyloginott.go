@@ -1,4 +1,4 @@
-// monorepo/native/desktop/papercloud-cli/internal/repo/auth/verifyemail.go
+// monorepo/native/desktop/papercloud-cli/internal/repo/auth/verifyloginott.go
 package auth
 
 import (
@@ -17,45 +17,40 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/auth"
 )
 
-// emailVerificationRepository implements EmailVerificationRepository interface
-type emailVerificationRepository struct {
+// loginOTTVerificationRepository implements LoginOTTVerificationRepository interface
+type loginOTTVerificationRepository struct {
 	logger        *zap.Logger
 	configService config.ConfigService
 	httpClient    *http.Client
 }
 
-// NewEmailVerificationRepository creates a new repository for email verification
-func NewEmailVerificationRepository(logger *zap.Logger, configService config.ConfigService) auth.EmailVerificationRepository {
-	return &emailVerificationRepository{
+// NewLoginOTTVerificationRepository creates a new repository for login OTT verification
+func NewLoginOTTVerificationRepository(logger *zap.Logger, configService config.ConfigService) auth.LoginOTTVerificationRepository {
+	return &loginOTTVerificationRepository{
 		logger:        logger,
 		configService: configService,
 		httpClient:    &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
-// VerifyEmail sends a verification request to the server
-func (r *emailVerificationRepository) VerifyEmail(ctx context.Context, code string) (*auth.VerifyEmailResponse, error) {
-	// Get server URL from config
+// VerifyLoginOTT verifies a login one-time token with the server
+func (r *loginOTTVerificationRepository) VerifyLoginOTT(ctx context.Context, request *auth.VerifyLoginOTTRequest) (*auth.VerifyLoginOTTResponse, error) {
+	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
 		return nil, errors.NewAppError("failed to get cloud provider address", err)
 	}
 
-	// Create the request payload
-	verifyReq := auth.VerifyEmailRequest{
-		Code: code,
-	}
-
 	// Convert request to JSON
-	jsonData, err := json.Marshal(verifyReq)
+	jsonData, err := json.Marshal(request)
 	if err != nil {
 		return nil, errors.NewAppError("failed to create request", err)
 	}
 
-	// Construct the URL
-	verifyURL := fmt.Sprintf("%s/iam/api/v1/verify-email-code", serverURL)
+	// Make HTTP request to server
+	verifyURL := fmt.Sprintf("%s/iam/api/v1/verify-ott", serverURL)
+	r.logger.Debug("Making HTTP request", zap.String("url", verifyURL))
 
-	// Create the HTTP request
 	req, err := http.NewRequestWithContext(ctx, "POST", verifyURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, errors.NewAppError("failed to create HTTP request", err)
@@ -70,7 +65,7 @@ func (r *emailVerificationRepository) VerifyEmail(ctx context.Context, code stri
 	}
 	defer resp.Body.Close()
 
-	// Read the response body
+	// Read response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.NewAppError("failed to read response", err)
@@ -82,18 +77,16 @@ func (r *emailVerificationRepository) VerifyEmail(ctx context.Context, code stri
 		if err := json.Unmarshal(body, &errorResponse); err == nil {
 			if errMsg, ok := errorResponse["message"].(string); ok {
 				return nil, errors.NewAppError(fmt.Sprintf("server error: %s", errMsg), nil)
-			} else if errField, ok := errorResponse["code"].(string); ok {
-				return nil, errors.NewAppError(fmt.Sprintf("server error: %s", errField), nil)
 			}
 		}
 		return nil, errors.NewAppError(fmt.Sprintf("server returned error status: %s", resp.Status), nil)
 	}
 
 	// Parse the response
-	var response auth.VerifyEmailResponse
-	if err := json.Unmarshal(body, &response); err != nil {
+	var verifyResponse auth.VerifyLoginOTTResponse
+	if err := json.Unmarshal(body, &verifyResponse); err != nil {
 		return nil, errors.NewAppError("failed to parse response", err)
 	}
 
-	return &response, nil
+	return &verifyResponse, nil
 }

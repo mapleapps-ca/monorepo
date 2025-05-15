@@ -15,7 +15,8 @@ func ServiceModule() fx.Option {
 		fx.Provide(register.NewRegisterService),
 
 		// Auth service
-		fx.Provide(auth.NewLoginOTTService),
 		fx.Provide(auth.NewEmailVerificationService),
+		fx.Provide(auth.NewLoginOTTService),
+		fx.Provide(auth.NewLoginOTTVerificationService),
 	)
 }
