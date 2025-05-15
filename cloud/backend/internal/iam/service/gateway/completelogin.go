@@ -138,24 +138,36 @@ func (s *gatewayCompleteLoginServiceImpl) Execute(sessCtx context.Context, req *
 	// Decode the stored challenge (standard Base64)
 	storedChallengeBytes, err := base64.StdEncoding.DecodeString(storedChallengeBase64)
 	if err != nil {
-		s.logger.Error("Failed to decode stored challenge from cache (should be standard Base64)",
-			zap.String("challenge_id", challengeData.ChallengeID),
-			zap.String("base64_value", storedChallengeBase64),
-			zap.Error(err))
-		// This indicates an issue with data integrity in the cache or how it was stored.
-		return nil, httperror.NewForInternalServerError("Failed to process challenge due to internal data error")
+		// Try with RawURLEncoding as fallback
+		storedChallengeBytes, err = base64.RawURLEncoding.DecodeString(storedChallengeBase64)
+		if err != nil {
+			s.logger.Error("Failed to decode stored challenge after trying multiple encodings",
+				zap.String("challenge_id", challengeData.ChallengeID),
+				zap.String("base64_value", storedChallengeBase64),
+				zap.Error(err))
+			return nil, httperror.NewForInternalServerError("Failed to process challenge due to internal data error")
+		}
 	}
 
-	// Decode the received challenge (URL-safe Base64, no padding)
+	// Try both standard and URL-safe decoding if needed
 	receivedChallengeBytes, err := base64.RawURLEncoding.DecodeString(receivedChallengeBase64)
 	if err != nil {
-		s.logger.Warn("Failed to decode received challenge from client (expected URL-safe Base64 no padding)",
-			zap.String("challenge_id", req.ChallengeID),
-			zap.String("base64_value", receivedChallengeBase64),
-			zap.Error(err))
-		// This could be a malformed request from the client.
-		return nil, httperror.NewForBadRequestWithSingleField("decryptedData", "Invalid format for decrypted challenge")
+		// Try with StdEncoding as fallback
+		receivedChallengeBytes, err = base64.StdEncoding.DecodeString(receivedChallengeBase64)
+		if err != nil {
+			s.logger.Warn("Failed to decode received challenge after trying multiple encodings",
+				zap.String("challenge_id", req.ChallengeID),
+				zap.String("base64_value", receivedChallengeBase64),
+				zap.Error(err))
+			return nil, httperror.NewForBadRequestWithSingleField("decryptedData", "Invalid format for decrypted challenge")
+		}
 	}
+
+	s.logger.Info("Challenge decoding results",
+		zap.String("challenge_id", req.ChallengeID),
+		zap.Int("stored_challenge_length", len(storedChallengeBytes)),
+		zap.Int("received_challenge_length", len(receivedChallengeBytes)),
+		zap.Bool("bytes_equal", bytes.Equal(storedChallengeBytes, receivedChallengeBytes)))
 
 	// Compare the raw byte slices
 	if !bytes.Equal(storedChallengeBytes, receivedChallengeBytes) {
