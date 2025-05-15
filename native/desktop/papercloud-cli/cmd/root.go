@@ -20,6 +20,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/service/auth"
 	registerService "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/service/register"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/service/tokenservice"
 )
 
 // NewRootCmd creates a new root command with all dependencies injected
@@ -32,6 +33,7 @@ func NewRootCmd(
 	loginOTTService auth.LoginOTTService,
 	loginOTTVerificationService auth.LoginOTTVerificationService,
 	completeLoginService auth.CompleteLoginService,
+	tokenRefreshSvc tokenservice.TokenRefreshService,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "papercloud-cli",
@@ -52,7 +54,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
 	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(loginOTTVerificationService, logger))
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
-	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(configService, userRepo))
+	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, userRepo, tokenRefreshSvc))
 	rootCmd.AddCommand(uploadfile.UploadFileCmd())
 
 	return rootCmd

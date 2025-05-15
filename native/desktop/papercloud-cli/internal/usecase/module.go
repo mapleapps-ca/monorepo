@@ -6,6 +6,7 @@ import (
 
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/usecase/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/usecase/crypto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/usecase/refreshtoken"
 	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/usecase/register"
 	userUseCase "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/usecase/user"
 )
@@ -32,5 +33,8 @@ func UseCaseModule() fx.Option {
 		fx.Provide(registerUseCase.NewGenerateCredentialsUseCase),
 		fx.Provide(registerUseCase.NewCreateLocalUserUseCase),
 		fx.Provide(registerUseCase.NewSendRegistrationToServerUseCase),
+
+		// Token refresh usecase
+		fx.Provide(refreshtoken.NewRefreshTokenUseCase),
 	)
 }
