@@ -99,6 +99,7 @@ func (svc *getCollectionServiceImpl) Execute(sessCtx context.Context, collection
 	// STEP 5: Map domain model to response DTO
 	//
 	response := &CollectionResponseDTO{
+		ParentID:               collection.ParentID,
 		ID:                     collection.ID,
 		OwnerID:                collection.OwnerID,
 		Name:                   collection.Name,

@@ -17,6 +17,7 @@ import (
 )
 
 type UpdateCollectionRequestDTO struct {
+	ParentID               *string                     `bson:"parent_id,omitempty" json:"parent_id,omitempty"`
 	ID                     string                      `json:"id"`
 	Name                   string                      `json:"name"`
 	Path                   string                      `json:"path,omitempty"`
@@ -152,6 +153,7 @@ func (svc *updateCollectionServiceImpl) Execute(sessCtx context.Context, req *Up
 	// STEP 7: Map domain model to response DTO
 	//
 	response := &CollectionResponseDTO{
+		ParentID:  collection.ParentID,
 		ID:        collection.ID,
 		OwnerID:   collection.OwnerID,
 		Name:      collection.Name,
