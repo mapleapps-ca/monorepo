@@ -5,6 +5,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/service/auth"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/service/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/service/register"
 )
 
@@ -14,9 +15,13 @@ func ServiceModule() fx.Option {
 		// Registration service
 		fx.Provide(register.NewRegisterService),
 
+		// Crypto Service
+		fx.Provide(crypto.NewCryptoService),
+
 		// Auth service
 		fx.Provide(auth.NewEmailVerificationService),
 		fx.Provide(auth.NewLoginOTTService),
 		fx.Provide(auth.NewLoginOTTVerificationService),
+		fx.Provide(auth.NewCompleteLoginService),
 	)
 }

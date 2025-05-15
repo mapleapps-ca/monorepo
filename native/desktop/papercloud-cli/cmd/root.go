@@ -31,6 +31,7 @@ func NewRootCmd(
 	emailVerificationService auth.EmailVerificationService,
 	loginOTTService auth.LoginOTTService,
 	loginOTTVerificationService auth.LoginOTTVerificationService,
+	completeLoginService auth.CompleteLoginService,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "papercloud-cli",
@@ -50,7 +51,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(emailVerificationService, logger))
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
 	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(loginOTTVerificationService, logger))
-	rootCmd.AddCommand(completelogin.CompleteLoginCmd(configService, userRepo))
+	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd())
 	rootCmd.AddCommand(uploadfile.UploadFileCmd())
 
