@@ -13,7 +13,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/repo"
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/pkg/storage/leveldb"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/service"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/usecase"
 )
 
 // App represents the CLI application
@@ -38,46 +39,10 @@ func NewApp() *App {
 		// Provide the configuration service
 		config.Module(),
 
-		// Provide named LevelDB configuration providers
-		fx.Provide(
-			fx.Annotate(
-				config.NewLevelDBConfigurationProviderForUser,
-				fx.ResultTags(`name:"user_db_config_provider"`),
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				config.NewLevelDBConfigurationProviderForCollection,
-				fx.ResultTags(`name:"collection_db_config_provider"`),
-			),
-		),
-
-		// Provide specific disk storage for our app.
-		fx.Provide(
-			fx.Annotate(
-				leveldb.NewDiskStorage,
-				fx.ParamTags(`name:"user_db_config_provider"`), // Map `NewLevelDBConfigurationProviderForUser` to this `NewDiskStorage`.
-				fx.ResultTags(`name:"user_db"`),                // To access this `NewDiskStorage` using key `user_db`.
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				leveldb.NewDiskStorage,
-				fx.ParamTags(`name:"collection_db_config_provider"`), // Map `NewLevelDBConfigurationProviderForCollection` to this `NewDiskStorage`.
-				fx.ResultTags(`name:"collection_db"`),                // To access this `NewDiskStorage` using key `collection_db`.
-			),
-		),
-
-		// Provide user repository
-		fx.Provide(
-			fx.Annotate(
-				repo.NewUserRepo,
-				fx.ParamTags(``, `name:"user_db"`), // Use the user_db storage for the user repository
-			),
-		),
-
-		// Include registration module
-		RegisterModule(),
+		// Include app modules
+		repo.RepoModule(),
+		service.ServiceModule(),
+		usecase.UseCaseModule(),
 
 		// Provide root command
 		fx.Provide(cmd.NewRootCmd),
