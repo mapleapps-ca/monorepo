@@ -2,5 +2,6 @@ go 1.24.1
 
 use (
 	./cloud/backend
+	./native/desktop/maplefile-cli
 	./native/desktop/papercloud-cli
 )
