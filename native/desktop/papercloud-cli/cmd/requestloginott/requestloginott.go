@@ -2,27 +2,17 @@
 package requestloginott
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
-	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/service/auth"
 )
 
-// RequestOTTPayload represents the data structure sent to the request-ott endpoint
-type RequestOTTPayload struct {
-	Email string `json:"email"`
-}
-
-func RequestLoginOneTimeTokenUserCmd(configService config.ConfigService) *cobra.Command {
+func RequestLoginOneTimeTokenUserCmd(loginOTTService auth.LoginOTTService, logger *zap.Logger) *cobra.Command {
 	var email string
 
 	var cmd = &cobra.Command{
@@ -44,73 +34,17 @@ Examples:
 				log.Fatal("Email is required")
 			}
 
-			// Sanitize inputs
-			email = strings.ToLower(strings.TrimSpace(email))
-
-			// Get the server URL from configuration
+			// Create context
 			ctx := context.Background()
-			serverURL, err := configService.GetCloudProviderAddress(ctx)
+
+			// Call our service
+			err := loginOTTService.RequestLoginOTT(ctx, email)
 			if err != nil {
-				log.Fatalf("Error loading cloud provider address: %v", err)
+				log.Fatalf("Error: %v", err)
 				return
 			}
 
-			// Create the request payload
-			requestPayload := RequestOTTPayload{
-				Email: email,
-			}
-
-			// Convert request to JSON
-			jsonData, err := json.Marshal(requestPayload)
-			if err != nil {
-				log.Fatalf("Error creating request: %v", err)
-				return
-			}
-
-			// Make HTTP request to server
-			requestURL := fmt.Sprintf("%s/iam/api/v1/request-ott", serverURL)
-			fmt.Printf("Connecting to: %s\n", requestURL)
-
-			// Create and execute the HTTP request
-			req, err := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonData))
-			if err != nil {
-				log.Fatalf("Error creating HTTP request: %v", err)
-				return
-			}
-
-			req.Header.Set("Content-Type", "application/json")
-
-			client := &http.Client{Timeout: 30 * time.Second}
-			resp, err := client.Do(req)
-			if err != nil {
-				log.Fatalf("Error connecting to server: %v", err)
-				return
-			}
-			defer resp.Body.Close()
-
-			// Read and process the response
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				log.Fatalf("Error reading response: %v", err)
-				return
-			}
-
-			// Check response status code
-			if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-				// Try to parse error message if available
-				var errorResponse map[string]any
-				if err := json.Unmarshal(body, &errorResponse); err == nil {
-					if errMsg, ok := errorResponse["message"].(string); ok {
-						log.Fatalf("Server error: %s", errMsg)
-					} else {
-						log.Fatalf("Server returned error status: %s\nResponse body: %s", resp.Status, string(body))
-					}
-				} else {
-					log.Fatalf("Server returned error status: %s\nResponse body: %s", resp.Status, string(body))
-				}
-				return
-			}
-
+			// Success message
 			fmt.Println("\n✅ One-time login token request successful!")
 			fmt.Println("Please check your email for a one-time token.")
 			fmt.Println("\nOnce you receive the token, run the following command to verify it:")

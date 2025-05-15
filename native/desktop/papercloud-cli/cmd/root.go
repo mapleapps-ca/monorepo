@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/completelogin"
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/config"
@@ -17,13 +18,16 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/version"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/user"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/service/auth"
 	registerService "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/service/register"
 )
 
 // NewRootCmd creates a new root command with all dependencies injected
 func NewRootCmd(
+	logger *zap.Logger,
 	configService config.ConfigService,
 	userRepo user.Repository,
+	loginOTTService auth.LoginOTTService, // Add this new dependency
 	regService registerService.RegisterService,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
@@ -40,12 +44,12 @@ func NewRootCmd(
 	rootCmd.AddCommand(version.VersionCmd())
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
 	rootCmd.AddCommand(remote.RemoteCmd(configService))
-
-	// Use the register service instead of directly passing repository
 	rootCmd.AddCommand(register.RegisterCmd(regService))
-
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(configService, userRepo))
-	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(configService))
+
+	// Updated to use our new service
+	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
+
 	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(configService, userRepo))
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(configService, userRepo))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd())

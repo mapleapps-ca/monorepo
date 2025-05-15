@@ -5,6 +5,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/repo/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/repo/transaction"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/pkg/storage/leveldb"
 )
@@ -49,6 +50,8 @@ func RepoModule() fx.Option {
 				fx.ParamTags(``, `name:"user_db"`), // Use the user_db storage for the user repository
 			),
 		),
+
+		fx.Provide(auth.NewLoginOTTRepository),
 
 		// Transaction manager
 		fx.Provide(transaction.NewTransactionManager),
