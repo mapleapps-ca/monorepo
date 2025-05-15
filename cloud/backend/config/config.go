@@ -15,7 +15,8 @@ type Configuration struct {
 	Cache             CacheConf
 	DB                DBConfig
 	AWS               AWSConfig
-	PAPERCLOUDMailgun MailgunConfig
+	MapleFileMailgun  MailgunConfig
+	PaperCloudMailgun MailgunConfig
 }
 
 type CacheConf struct {
@@ -36,7 +37,7 @@ type AppConfig struct {
 type DBConfig struct {
 	URI            string
 	IAMName        string
-	VaultName      string
+	MapleFileName  string
 	PaperCloudName string
 }
 
@@ -61,7 +62,10 @@ type AWSConfig struct {
 func NewProvider() *Configuration {
 	var c Configuration
 
+	//
 	// --------- SHARED ------------
+	//
+
 	// --- Application section ---
 	c.App.DataDirectory = getEnv("BACKEND_APP_DATA_DIRECTORY", true)
 	c.App.Port = getEnv("BACKEND_PORT", true)
@@ -75,7 +79,7 @@ func NewProvider() *Configuration {
 	// --- Database section ---
 	c.DB.URI = getEnv("BACKEND_DB_URI", true)
 	c.DB.IAMName = getEnv("BACKEND_DB_IAM_NAME", true)
-	c.DB.VaultName = getEnv("BACKEND_DB_VAULT_NAME", true)
+	c.DB.MapleFileName = getEnv("BACKEND_DB_MAPLEFILE_NAME", true)
 	c.DB.PaperCloudName = getEnv("BACKEND_DB_PAPERCLOUD_NAME_NAME", true)
 
 	// --- Cache ---
@@ -88,15 +92,31 @@ func NewProvider() *Configuration {
 	c.AWS.Region = getEnv("BACKEND_AWS_REGION", true)
 	c.AWS.BucketName = getEnv("BACKEND_AWS_BUCKET_NAME", true)
 
-	// --------- PaperCloud ------------
+	//
+	// --------- MapleFile ------------
+	//
+
 	// --- Mailgun ---
-	c.PAPERCLOUDMailgun.APIKey = getEnv("BACKEND_PAPERCLOUD_MAILGUN_API_KEY", true)
-	c.PAPERCLOUDMailgun.Domain = getEnv("BACKEND_PAPERCLOUD_MAILGUN_DOMAIN", true)
-	c.PAPERCLOUDMailgun.APIBase = getEnv("BACKEND_PAPERCLOUD_MAILGUN_API_BASE", true)
-	c.PAPERCLOUDMailgun.SenderEmail = getEnv("BACKEND_PAPERCLOUD_MAILGUN_SENDER_EMAIL", true)
-	c.PAPERCLOUDMailgun.MaintenanceEmail = getEnv("BACKEND_PAPERCLOUD_MAILGUN_MAINTENANCE_EMAIL", true)
-	c.PAPERCLOUDMailgun.FrontendDomain = getEnv("BACKEND_PAPERCLOUD_MAILGUN_FRONTEND_DOMAIN", true)
-	c.PAPERCLOUDMailgun.BackendDomain = getEnv("BACKEND_PAPERCLOUD_MAILGUN_BACKEND_DOMAIN", true)
+	c.MapleFileMailgun.APIKey = getEnv("BACKEND_MAPLEFILE_MAILGUN_API_KEY", true)
+	c.MapleFileMailgun.Domain = getEnv("BACKEND_MAPLEFILE_MAILGUN_DOMAIN", true)
+	c.MapleFileMailgun.APIBase = getEnv("BACKEND_MAPLEFILE_MAILGUN_API_BASE", true)
+	c.MapleFileMailgun.SenderEmail = getEnv("BACKEND_MAPLEFILE_MAILGUN_SENDER_EMAIL", true)
+	c.MapleFileMailgun.MaintenanceEmail = getEnv("BACKEND_MAPLEFILE_MAILGUN_MAINTENANCE_EMAIL", true)
+	c.MapleFileMailgun.FrontendDomain = getEnv("BACKEND_MAPLEFILE_MAILGUN_FRONTEND_DOMAIN", true)
+	c.MapleFileMailgun.BackendDomain = getEnv("BACKEND_MAPLEFILE_MAILGUN_BACKEND_DOMAIN", true)
+
+	//
+	// --------- PaperCloud ------------
+	//
+
+	// --- Mailgun ---
+	c.PaperCloudMailgun.APIKey = getEnv("BACKEND_PAPERCLOUD_MAILGUN_API_KEY", true)
+	c.PaperCloudMailgun.Domain = getEnv("BACKEND_PAPERCLOUD_MAILGUN_DOMAIN", true)
+	c.PaperCloudMailgun.APIBase = getEnv("BACKEND_PAPERCLOUD_MAILGUN_API_BASE", true)
+	c.PaperCloudMailgun.SenderEmail = getEnv("BACKEND_PAPERCLOUD_MAILGUN_SENDER_EMAIL", true)
+	c.PaperCloudMailgun.MaintenanceEmail = getEnv("BACKEND_PAPERCLOUD_MAILGUN_MAINTENANCE_EMAIL", true)
+	c.PaperCloudMailgun.FrontendDomain = getEnv("BACKEND_PAPERCLOUD_MAILGUN_FRONTEND_DOMAIN", true)
+	c.PaperCloudMailgun.BackendDomain = getEnv("BACKEND_PAPERCLOUD_MAILGUN_BACKEND_DOMAIN", true)
 
 	return &c
 }

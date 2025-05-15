@@ -18,12 +18,12 @@ func Module() fx.Option {
 	return fx.Options(
 		fx.Provide(
 			fx.Annotate(
-				mailgun.NewPaperCloudPropertyEvaluatorModuleEmailer,
-				fx.ResultTags(`name:"papercloud-module-emailer"`), // Create name for better dependency management handling.
+				mailgun.NewMapleFileModuleEmailer,
+				fx.ResultTags(`name:"maplefile-module-emailer"`), // Create name for better dependency management handling.
 			),
 			fx.Annotate(
-				mailgun.NewPaperCloudPropertyEvaluatorModuleEmailer, //TODO: TEMPORARILY USED AS AN EXAMPLE.
-				fx.ResultTags(`name:"maplesend-module-emailer"`),
+				mailgun.NewPaperCloudModuleEmailer,
+				fx.ResultTags(`name:"papercloud-module-emailer"`), // Create name for better dependency management handling.
 			),
 		),
 		fx.Provide(

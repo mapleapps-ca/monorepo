@@ -8,7 +8,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam"
 	commonhttp "github.com/mapleapps-ca/monorepo/cloud/backend/internal/manifold/interface/http"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/papercloud"
-	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/vault"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg"
 )
 
@@ -17,7 +16,6 @@ func Module() fx.Option {
 		pkg.Module(),
 		commonhttp.Module(),
 		iam.Module(),
-		vault.Module(),
 		papercloud.Module(),
 		fx.Invoke(func(*http.Server) {}),
 	)

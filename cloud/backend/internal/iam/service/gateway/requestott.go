@@ -129,7 +129,8 @@ func (s *gatewayRequestLoginOTTServiceImpl) Execute(sessCtx context.Context, req
 	}
 
 	// Send OTT via email
-	if err := s.sendOTTEmailUseCase.Execute(sessCtx, int(constants.MonolithModulePaperCloud), user.Email, ott, user.FirstName); err != nil {
+	// TODO: Replace `int(constants.MonolithModuleMapleFile)` with int value from request payload.
+	if err := s.sendOTTEmailUseCase.Execute(sessCtx, int(constants.MonolithModuleMapleFile), user.Email, ott, user.FirstName); err != nil {
 		s.logger.Error("Failed to send OTT email", zap.Error(err))
 		return nil, fmt.Errorf("failed to send login code: %w", err)
 	}

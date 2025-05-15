@@ -4,16 +4,16 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 )
 
-// NewPaperCloudPropertyEvaluatorModuleEmailer creates a new emailer for the PaperCloud Property Evaluator module.
-func NewPaperCloudPropertyEvaluatorModuleEmailer(cfg *config.Configuration) Emailer {
+// NewPaperCloudModuleEmailer creates a new emailer for the PaperCloud Property Evaluator module.
+func NewPaperCloudModuleEmailer(cfg *config.Configuration) Emailer {
 	emailerConfigProvider := NewMailgunConfigurationProvider(
-		cfg.PAPERCLOUDMailgun.SenderEmail,
-		cfg.PAPERCLOUDMailgun.Domain,
-		cfg.PAPERCLOUDMailgun.APIBase,
-		cfg.PAPERCLOUDMailgun.MaintenanceEmail,
-		cfg.PAPERCLOUDMailgun.FrontendDomain,
-		cfg.PAPERCLOUDMailgun.BackendDomain,
-		cfg.PAPERCLOUDMailgun.APIKey,
+		cfg.PaperCloudMailgun.SenderEmail,
+		cfg.PaperCloudMailgun.Domain,
+		cfg.PaperCloudMailgun.APIBase,
+		cfg.PaperCloudMailgun.MaintenanceEmail,
+		cfg.PaperCloudMailgun.FrontendDomain,
+		cfg.PaperCloudMailgun.BackendDomain,
+		cfg.PaperCloudMailgun.APIKey,
 	)
 
 	return NewEmailer(emailerConfigProvider)

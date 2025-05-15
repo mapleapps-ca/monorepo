@@ -17,7 +17,7 @@ func Module() fx.Option {
 			// Annotate the constructor to specify which parameter should receive the named dependency
 			fx.Annotate(
 				templatedemailer.NewTemplatedEmailer,
-				fx.ParamTags(`name:"papercloud-module-emailer"`, `name:"maplesend-module-emailer"`),
+				fx.ParamTags(`name:"maplefile-module-emailer"`, `name:"papercloud-module-emailer"`),
 			),
 		),
 	)

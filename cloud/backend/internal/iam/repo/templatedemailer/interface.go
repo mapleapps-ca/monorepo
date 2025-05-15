@@ -15,12 +15,12 @@ type TemplatedEmailer interface {
 
 type templatedEmailer struct {
 	papercloudEmailer mailgun.Emailer
-	maplesendEmailer  mailgun.Emailer
+	maplefileEmailer  mailgun.Emailer
 }
 
-func NewTemplatedEmailer(papercloudEmailer mailgun.Emailer, maplesendEmailer mailgun.Emailer) TemplatedEmailer {
+func NewTemplatedEmailer(papercloudEmailer mailgun.Emailer, maplefileEmailer mailgun.Emailer) TemplatedEmailer {
 	return &templatedEmailer{
 		papercloudEmailer: papercloudEmailer,
-		maplesendEmailer:  maplesendEmailer,
+		maplefileEmailer:  maplefileEmailer,
 	}
 }

@@ -20,10 +20,15 @@ var (
 func init() {
 	// Exact matches
 	exactPaths = map[string]bool{
-		"/papercloud/api/v1/me":         true,
-		"/papercloud/api/v1/me/delete":  true,
-		"/papercloud/api/v1/dashboard":  true,
-		"/vault/api/v1/encrypted-files": true,
+		"/papercloud/api/v1/me":        true,
+		"/papercloud/api/v1/me/delete": true,
+		"/papercloud/api/v1/dashboard": true,
+		// "/iam/api/v1/reset-password":      true,
+		// "/iam/api/v1/token/refresh": true, // This is counterintuitive to the token refresh api endpoint
+		//
+		"/maplefile/api/v1/me":        true,
+		"/maplefile/api/v1/me/delete": true,
+		"/maplefile/api/v1/dashboard": true,
 		// "/iam/api/v1/reset-password":      true,
 		// "/iam/api/v1/token/refresh": true, // This is counterintuitive to the token refresh api endpoint
 	}
