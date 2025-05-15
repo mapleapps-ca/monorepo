@@ -1,4 +1,4 @@
-// monorepo/native/desktop/papercloud-cli/internal/service/crypto/crypto.go
+// monorepo/native/desktop/papercloud-cli/internal/usecase/crypto/crypto.go
 package crypto
 
 import (
@@ -20,16 +20,16 @@ const (
 	SecretKeySize = 32
 )
 
-// cryptoService implements the CryptoService interface
-type cryptoService struct{}
+// cryptoUseCase implements the CryptoUseCase interface
+type cryptoUseCase struct{}
 
-// NewCryptoService creates a new crypto service
-func NewCryptoService() auth.CryptoService {
-	return &cryptoService{}
+// NewCryptoUseCase creates a new crypto use-case
+func NewCryptoUseCase() auth.CryptographyOperations {
+	return &cryptoUseCase{}
 }
 
 // DeriveKeyFromPassword derives a key from a password and salt using Argon2id
-func (s *cryptoService) DeriveKeyFromPassword(password string, salt []byte) ([]byte, error) {
+func (s *cryptoUseCase) DeriveKeyFromPassword(password string, salt []byte) ([]byte, error) {
 	if len(salt) != 16 {
 		return nil, fmt.Errorf("salt must be 16 bytes, got %d", len(salt))
 	}
@@ -48,7 +48,7 @@ func (s *cryptoService) DeriveKeyFromPassword(password string, salt []byte) ([]b
 }
 
 // DecryptWithSecretBox decrypts data using NaCl secretbox
-func (s *cryptoService) DecryptWithSecretBox(ciphertext, nonce, key []byte) ([]byte, error) {
+func (s *cryptoUseCase) DecryptWithSecretBox(ciphertext, nonce, key []byte) ([]byte, error) {
 	if len(key) != KeySize {
 		return nil, fmt.Errorf("invalid key size: expected %d, got %d", KeySize, len(key))
 	}
@@ -72,7 +72,7 @@ func (s *cryptoService) DecryptWithSecretBox(ciphertext, nonce, key []byte) ([]b
 }
 
 // DecryptWithBox decrypts data with NaCl box
-func (s *cryptoService) DecryptWithBox(encryptedData, publicKey, privateKey []byte) ([]byte, error) {
+func (s *cryptoUseCase) DecryptWithBox(encryptedData, publicKey, privateKey []byte) ([]byte, error) {
 	if len(publicKey) != PublicKeySize {
 		return nil, fmt.Errorf("invalid public key size: expected %d, got %d", PublicKeySize, len(publicKey))
 	}
@@ -95,6 +95,6 @@ func (s *cryptoService) DecryptWithBox(encryptedData, publicKey, privateKey []by
 }
 
 // EncodeToBase64 encodes a byte slice to base64
-func (s *cryptoService) EncodeToBase64(data []byte) string {
+func (s *cryptoUseCase) EncodeToBase64(data []byte) string {
 	return base64.StdEncoding.EncodeToString(data)
 }

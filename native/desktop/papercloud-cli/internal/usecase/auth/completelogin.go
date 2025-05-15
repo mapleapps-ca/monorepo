@@ -24,7 +24,7 @@ type completeLoginUseCase struct {
 	logger        *zap.Logger
 	repository    auth.CompleteLoginRepository
 	userRepo      user.Repository
-	cryptoService auth.CryptoService
+	cryptoService auth.CryptographyOperations
 }
 
 // NewCompleteLoginUseCase creates a new login completion use case
@@ -32,7 +32,7 @@ func NewCompleteLoginUseCase(
 	logger *zap.Logger,
 	repository auth.CompleteLoginRepository,
 	userRepo user.Repository,
-	cryptoService auth.CryptoService,
+	cryptoService auth.CryptographyOperations,
 ) CompleteLoginUseCase {
 	return &completeLoginUseCase{
 		logger:        logger,

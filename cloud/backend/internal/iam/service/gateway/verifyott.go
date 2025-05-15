@@ -101,7 +101,8 @@ func (s *gatewayVerifyLoginOTTServiceImpl) Execute(sessCtx context.Context, req 
 	cacheKey := fmt.Sprintf("login_ott:%s", req.Email)
 	ottDataJSON, err := s.cache.Get(sessCtx, cacheKey)
 	if err != nil {
-		s.logger.Error("Failed to retrieve OTT data", zap.Error(err))
+		s.logger.Error("Failed to retrieve OTT data",
+			zap.Error(err))
 		return nil, httperror.NewForBadRequestWithSingleField("ott", "Invalid or expired verification code")
 	}
 
@@ -113,7 +114,8 @@ func (s *gatewayVerifyLoginOTTServiceImpl) Execute(sessCtx context.Context, req 
 	// Unmarshal the data from JSON
 	var ottData LoginOTTData
 	if err := json.Unmarshal(ottDataJSON, &ottData); err != nil {
-		s.logger.Error("Failed to unmarshal OTT data", zap.Error(err))
+		s.logger.Error("Failed to unmarshal OTT data",
+			zap.Error(err))
 		return nil, httperror.NewForBadRequestWithSingleField("ott", "Invalid verification code")
 	}
 

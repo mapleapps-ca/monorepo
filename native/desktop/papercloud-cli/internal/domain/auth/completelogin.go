@@ -26,8 +26,8 @@ type CompleteLoginRepository interface {
 	CompleteLogin(ctx context.Context, request *CompleteLoginRequest) (*TokenResponse, error)
 }
 
-// CryptoService defines cryptographic operations needed for login
-type CryptoService interface {
+// CryptographyOperations defines cryptographic operations needed for login
+type CryptographyOperations interface {
 	DeriveKeyFromPassword(password string, salt []byte) ([]byte, error)
 	DecryptWithSecretBox(ciphertext, nonce, key []byte) ([]byte, error)
 	DecryptWithBox(encryptedData, publicKey, privateKey []byte) ([]byte, error)

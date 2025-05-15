@@ -26,25 +26,6 @@ type cacheImpl struct {
 	Logger *zap.Logger
 }
 
-func NewProviderWithCustomConfig(
-	config CacheConfigurationProvider,
-	logger *zap.Logger,
-	dbClient *mongo_client.Client,
-) Cacher {
-	logger.Debug("cache initializing...")
-
-	cc := dbClient.Database(config.GetDatabaseName()).Collection("caches")
-
-	c := mongo.New(cc)
-
-	logger.Debug("cache initialized with mongodb as backend")
-	return &cacheImpl{
-		config: config,
-		Client: c,
-		Logger: logger,
-	}
-}
-
 func NewProvider(
 	appCfg *c.Configuration, //TODO: REPAIR!
 	logger *zap.Logger,

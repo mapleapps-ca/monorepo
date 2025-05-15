@@ -5,6 +5,7 @@ import (
 	"go.uber.org/fx"
 
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/usecase/auth"
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/usecase/crypto"
 	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/usecase/register"
 	userUseCase "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/usecase/user"
 )
@@ -12,6 +13,9 @@ import (
 // ServiceModule provides the service-layer--related dependencies
 func UseCaseModule() fx.Option {
 	return fx.Options(
+		// Crypto use cases
+		fx.Provide(crypto.NewCryptoUseCase),
+
 		// Auth use cases
 		fx.Provide(authUseCase.NewEmailVerificationUseCase),
 		fx.Provide(authUseCase.NewLoginOTTUseCase),
