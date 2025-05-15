@@ -52,7 +52,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
 	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(loginOTTVerificationService, logger))
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
-	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd())
+	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(configService, userRepo))
 	rootCmd.AddCommand(uploadfile.UploadFileCmd())
 
 	return rootCmd
