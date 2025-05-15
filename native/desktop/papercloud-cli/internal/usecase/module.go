@@ -13,6 +13,7 @@ import (
 func UseCaseModule() fx.Option {
 	return fx.Options(
 		// Auth use cases
+		fx.Provide(authUseCase.NewEmailVerificationUseCase),
 		fx.Provide(authUseCase.NewLoginOTTUseCase),
 
 		// User repository use cases

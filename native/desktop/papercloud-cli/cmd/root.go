@@ -27,8 +27,9 @@ func NewRootCmd(
 	logger *zap.Logger,
 	configService config.ConfigService,
 	userRepo user.Repository,
-	loginOTTService auth.LoginOTTService, // Add this new dependency
 	regService registerService.RegisterService,
+	emailVerificationService auth.EmailVerificationService,
+	loginOTTService auth.LoginOTTService,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "papercloud-cli",
@@ -45,11 +46,8 @@ func NewRootCmd(
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
 	rootCmd.AddCommand(remote.RemoteCmd(configService))
 	rootCmd.AddCommand(register.RegisterCmd(regService))
-	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(configService, userRepo))
-
-	// Updated to use our new service
+	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(emailVerificationService, logger))
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
-
 	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(configService, userRepo))
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(configService, userRepo))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd())

@@ -15,6 +15,10 @@ type Repository interface {
 	ListAll(ctx context.Context) ([]*User, error)
 	// CountByFilter(ctx context.Context, filter *UserFilter) (uint64, error)
 	// ListByFilter(ctx context.Context, filter *UserFilter) (*UserFilterResult, error)
+
+	// UpdateVerificationStatus updates the user's verification status
+	UpdateVerificationStatus(ctx context.Context, email string, verified bool, role int8, status int8) error
+
 	OpenTransaction() error
 	CommitTransaction() error
 	DiscardTransaction()

@@ -4,9 +4,11 @@ package repo
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 
+	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/common/errors"
 	domain "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/user"
 	disk "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/pkg/storage"
 )
@@ -74,6 +76,28 @@ func (r *UserRepo) ListAll(ctx context.Context) ([]*domain.User, error) {
 	})
 
 	return res, err
+}
+
+// UpdateVerificationStatus updates the user's verification status
+func (r *UserRepo) UpdateVerificationStatus(ctx context.Context, email string, verified bool, role int8, status int8) error {
+	// Get the user first
+	user, err := r.GetByEmail(ctx, email)
+	if err != nil {
+		return errors.NewAppError("failed to get user", err)
+	}
+
+	if user == nil {
+		return errors.NewAppError("user not found", nil)
+	}
+
+	// Update the user's verification status
+	user.WasEmailVerified = verified
+	user.Role = role
+	user.Status = status
+	user.ModifiedAt = time.Now()
+
+	// Save the updated user
+	return r.UpsertByEmail(ctx, user)
 }
 
 func (r *UserRepo) OpenTransaction() error {
