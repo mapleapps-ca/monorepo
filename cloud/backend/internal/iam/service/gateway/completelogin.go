@@ -21,13 +21,14 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/storage/database/mongodbcache"
 )
 
-// Data structures for completing login
+// GatewayCompleteLoginRequestIDO used to get input from client containing the email, challenge ID, and the decrypted challenge
 type GatewayCompleteLoginRequestIDO struct {
 	Email         string `json:"email"`
 	ChallengeID   string `json:"challengeId"`
 	DecryptedData string `json:"decryptedData"`
 }
 
+// GatewayCompleteLoginResponseIDO is the response sent back to client with authentication tokens
 type GatewayCompleteLoginResponseIDO struct {
 	AccessToken            string    `json:"access_token"`
 	AccessTokenExpiryTime  time.Time `json:"access_token_expiry_time"`
@@ -162,12 +163,6 @@ func (s *gatewayCompleteLoginServiceImpl) Execute(sessCtx context.Context, req *
 			return nil, httperror.NewForBadRequestWithSingleField("decryptedData", "Invalid format for decrypted challenge")
 		}
 	}
-
-	s.logger.Info("Challenge decoding results",
-		zap.String("challenge_id", req.ChallengeID),
-		zap.Int("stored_challenge_length", len(storedChallengeBytes)),
-		zap.Int("received_challenge_length", len(receivedChallengeBytes)),
-		zap.Bool("bytes_equal", bytes.Equal(storedChallengeBytes, receivedChallengeBytes)))
 
 	// Compare the raw byte slices
 	if !bytes.Equal(storedChallengeBytes, receivedChallengeBytes) {
