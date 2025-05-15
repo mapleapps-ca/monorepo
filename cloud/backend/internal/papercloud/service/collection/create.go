@@ -17,7 +17,6 @@ import (
 )
 
 type CreateCollectionRequestDTO struct {
-	ParentID               *string                     `bson:"parent_id,omitempty" json:"parent_id,omitempty"`
 	Name                   string                      `json:"name"`
 	Type                   string                      `json:"type"`
 	Path                   string                      `json:"path"`
@@ -25,7 +24,6 @@ type CreateCollectionRequestDTO struct {
 }
 
 type CollectionResponseDTO struct {
-	ParentID               *string                     `bson:"parent_id,omitempty" json:"parent_id,omitempty"`
 	ID                     string                      `json:"id"`
 	OwnerID                string                      `json:"owner_id"`
 	Name                   string                      `json:"name"`
@@ -111,7 +109,6 @@ func (svc *createCollectionServiceImpl) Execute(sessCtx context.Context, req *Cr
 	//
 	now := time.Now()
 	collection := &dom_collection.Collection{
-		ParentID:               req.ParentID,
 		OwnerID:                userID.Hex(), // Convert ObjectID to string
 		Name:                   req.Name,
 		Path:                   req.Path,
@@ -138,7 +135,6 @@ func (svc *createCollectionServiceImpl) Execute(sessCtx context.Context, req *Cr
 	// STEP 5: Map domain model to response DTO
 	//
 	response := &CollectionResponseDTO{
-		ParentID:               collection.ParentID,
 		ID:                     collection.ID,
 		OwnerID:                collection.OwnerID,
 		Name:                   collection.Name,

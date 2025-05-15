@@ -27,9 +27,6 @@ type Collection struct {
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 
-	// Parent Collection ID (if any). If ParentID is nil, it's a root folder/album.
-	ParentID *string `bson:"parent_id,omitempty" json:"parent_id,omitempty"`
-
 	// Collection key encrypted with owner's master key
 	EncryptedCollectionKey keys.EncryptedCollectionKey `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
 

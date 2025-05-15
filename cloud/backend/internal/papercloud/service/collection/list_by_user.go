@@ -71,7 +71,6 @@ func (svc *listUserCollectionsServiceImpl) Execute(sessCtx context.Context) (*Co
 
 	for i, collection := range collections {
 		collectionDTO := &CollectionResponseDTO{
-			ParentID:               collection.ParentID,
 			ID:                     collection.ID,
 			OwnerID:                collection.OwnerID,
 			Name:                   collection.Name,
