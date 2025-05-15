@@ -1,4 +1,4 @@
-// internal/service/register/register_service.go
+// internal/service/register/register.go
 package register
 
 import (
@@ -106,12 +106,6 @@ func (s *registerService) RegisterUser(ctx context.Context, input RegisterUserIn
 		return nil, fmt.Errorf("error saving user data: %w", err)
 	}
 
-	// Commit the transaction
-	if err := s.txManager.Commit(); err != nil {
-		s.txManager.Rollback()
-		return nil, fmt.Errorf("error committing transaction: %w", err)
-	}
-
 	output := &RegisterUserOutput{
 		User:                 newUser,
 		RecoveryKey:          credentials.RecoveryKey,
@@ -128,9 +122,16 @@ func (s *registerService) RegisterUser(ctx context.Context, input RegisterUserIn
 
 		response, err := s.sendRegistrationToServerUseCase.Execute(ctx, serverInput)
 		if err != nil {
+			s.txManager.Rollback()
 			return nil, fmt.Errorf("failed to send registration to server: %w", err)
 		}
 		output.ServerResponse = response
+	}
+
+	// Commit the transaction
+	if err := s.txManager.Commit(); err != nil {
+		s.txManager.Rollback()
+		return nil, fmt.Errorf("error committing transaction: %w", err)
 	}
 
 	return output, nil
