@@ -17,10 +17,15 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/cmd/version"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/domain/user"
+	registerService "github.com/mapleapps-ca/monorepo/native/desktop/papercloud-cli/internal/service/register"
 )
 
 // NewRootCmd creates a new root command with all dependencies injected
-func NewRootCmd(configService config.ConfigService, userRepo user.Repository) *cobra.Command {
+func NewRootCmd(
+	configService config.ConfigService,
+	userRepo user.Repository,
+	regService registerService.RegisterService,
+) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "papercloud-cli",
 		Short: "PaperCloud CLI",
@@ -35,7 +40,10 @@ func NewRootCmd(configService config.ConfigService, userRepo user.Repository) *c
 	rootCmd.AddCommand(version.VersionCmd())
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
 	rootCmd.AddCommand(remote.RemoteCmd(configService))
-	rootCmd.AddCommand(register.RegisterCmd(configService, userRepo))
+
+	// Use the register service instead of directly passing repository
+	rootCmd.AddCommand(register.RegisterCmd(regService))
+
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(configService, userRepo))
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(configService))
 	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(configService, userRepo))

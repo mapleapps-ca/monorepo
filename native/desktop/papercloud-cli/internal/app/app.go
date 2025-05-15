@@ -76,6 +76,9 @@ func NewApp() *App {
 			),
 		),
 
+		// Include registration module
+		RegisterModule(),
+
 		// Provide root command
 		fx.Provide(cmd.NewRootCmd),
 
