@@ -15,7 +15,7 @@ import (
 // Update a file's metadata
 func (impl fileMetadataRepositoryImpl) Update(file *dom_file.File) error {
 	ctx := context.Background()
-	filter := bson.M{"id": file.ID}
+	filter := bson.M{"_id": file.ID}
 
 	// Update modification time
 	file.ModifiedAt = time.Now()
@@ -28,7 +28,7 @@ func (impl fileMetadataRepositoryImpl) Update(file *dom_file.File) error {
 	if err != nil {
 		impl.Logger.Error("database update file error",
 			zap.Any("error", err),
-			zap.String("id", file.ID))
+			zap.Any("id", file.ID))
 		return err
 	}
 

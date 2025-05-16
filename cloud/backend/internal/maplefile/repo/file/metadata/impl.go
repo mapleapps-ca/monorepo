@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -16,13 +17,16 @@ import (
 
 type FileMetadataRepository interface {
 	Create(file *dom_file.File) error
-	Get(id string) (*dom_file.File, error)
-	GetByFileID(fileID string) (*dom_file.File, error)
-	GetByCollection(collectionID string) ([]*dom_file.File, error)
+	CreateMany(files []*dom_file.File) error
+	Get(id primitive.ObjectID) (*dom_file.File, error)
+	GetByIDs(ids []primitive.ObjectID) ([]*dom_file.File, error)
+	GetByEncryptedFileID(encryptedFileID string) (*dom_file.File, error)
+	GetByCollection(collectionID primitive.ObjectID) ([]*dom_file.File, error)
 	Update(file *dom_file.File) error
-	Delete(id string) error
-	CheckIfExistsByID(id string) (bool, error)
-	CheckIfUserHasAccess(fileID string, userID string) (bool, error)
+	Delete(id primitive.ObjectID) error
+	DeleteMany(ids []primitive.ObjectID) error
+	CheckIfExistsByID(id primitive.ObjectID) (bool, error)
+	CheckIfUserHasAccess(fileID primitive.ObjectID, userID primitive.ObjectID) (bool, error)
 }
 
 type fileMetadataRepositoryImpl struct {
@@ -47,10 +51,10 @@ func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mo
 			{Key: "created_at", Value: -1},
 		}},
 		{Keys: bson.D{
-			{Key: "id", Value: 1},
+			{Key: "_id", Value: 1},
 		}, Options: options.Index().SetUnique(true)},
 		{Keys: bson.D{
-			{Key: "file_id", Value: 1},
+			{Key: "encrypted_file_id", Value: 1},
 		}, Options: options.Index().SetUnique(true)},
 		{Keys: bson.D{
 			{Key: "collection_id", Value: 1},

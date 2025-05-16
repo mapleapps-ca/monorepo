@@ -5,8 +5,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
 	"go.uber.org/zap"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/file"
 )
@@ -16,8 +17,8 @@ func (impl fileMetadataRepositoryImpl) Create(file *dom_file.File) error {
 	ctx := context.Background()
 
 	// Validate file ID
-	if file.ID == "" {
-		file.ID = uuid.New().String()
+	if file.ID.IsZero() {
+		file.ID = primitive.NewObjectID()
 	}
 
 	// Set creation time if not set
@@ -33,7 +34,47 @@ func (impl fileMetadataRepositoryImpl) Create(file *dom_file.File) error {
 	if err != nil {
 		impl.Logger.Error("database failed create file error",
 			zap.Any("error", err),
-			zap.String("id", file.ID))
+			zap.Any("id", file.ID))
+		return err
+	}
+
+	return nil
+}
+
+// CreateMany inserts multiple file metadata entries
+func (impl fileMetadataRepositoryImpl) CreateMany(files []*dom_file.File) error {
+	if len(files) == 0 {
+		return nil
+	}
+
+	ctx := context.Background()
+	now := time.Now()
+
+	// Prepare documents for insertion
+	documents := make([]interface{}, len(files))
+	for i, file := range files {
+		// Validate file ID
+		if file.ID.IsZero() {
+			file.ID = primitive.NewObjectID()
+		}
+
+		// Set creation time if not set
+		if file.CreatedAt.IsZero() {
+			file.CreatedAt = now
+		}
+
+		// Set modification time to creation time
+		file.ModifiedAt = file.CreatedAt
+
+		documents[i] = file
+	}
+
+	// Insert all documents
+	_, err := impl.Collection.InsertMany(ctx, documents)
+	if err != nil {
+		impl.Logger.Error("database failed batch create files error",
+			zap.Any("error", err),
+			zap.Int("count", len(files)))
 		return err
 	}
 

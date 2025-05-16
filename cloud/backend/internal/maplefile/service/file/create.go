@@ -18,7 +18,7 @@ import (
 )
 
 type CreateFileRequestDTO struct {
-	CollectionID          string                `json:"collection_id"`
+	CollectionID          primitive.ObjectID    `json:"collection_id"`
 	FileID                string                `json:"file_id"`
 	EncryptedSize         int64                 `json:"encrypted_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`
@@ -31,8 +31,8 @@ type CreateFileRequestDTO struct {
 
 type FileResponseDTO struct {
 	ID                    string                `json:"id"`
-	CollectionID          string                `json:"collection_id"`
-	OwnerID               string                `json:"owner_id"`
+	CollectionID          primitive.ObjectID    `json:"collection_id"`
+	OwnerID               primitive.ObjectID    `json:"owner_id"`
 	FileID                string                `json:"file_id"`
 	StoragePath           string                `json:"storage_path"`
 	EncryptedSize         int64                 `json:"encrypted_size"`
@@ -47,7 +47,7 @@ type FileResponseDTO struct {
 }
 
 type CreateFileService interface {
-	Execute(sessCtx context.Context, req *CreateFileRequestDTO) (*FileResponseDTO, error)
+	Execute(ctx context.Context, req *CreateFileRequestDTO) (*FileResponseDTO, error)
 }
 
 type createFileServiceImpl struct {
@@ -71,7 +71,7 @@ func NewCreateFileService(
 	}
 }
 
-func (svc *createFileServiceImpl) Execute(sessCtx context.Context, req *CreateFileRequestDTO) (*FileResponseDTO, error) {
+func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRequestDTO) (*FileResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
@@ -81,7 +81,7 @@ func (svc *createFileServiceImpl) Execute(sessCtx context.Context, req *CreateFi
 	}
 
 	e := make(map[string]string)
-	if req.CollectionID == "" {
+	if req.CollectionID.IsZero() {
 		e["collection_id"] = "Collection ID is required"
 	}
 	if req.EncryptedFileKey.Ciphertext == nil || len(req.EncryptedFileKey.Ciphertext) == 0 {
@@ -109,7 +109,7 @@ func (svc *createFileServiceImpl) Execute(sessCtx context.Context, req *CreateFi
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
@@ -118,38 +118,39 @@ func (svc *createFileServiceImpl) Execute(sessCtx context.Context, req *CreateFi
 	//
 	// STEP 3: Verify collection exists and user has access
 	//
-	collection, err := svc.collectionRepo.Get(req.CollectionID)
+	collection, err := svc.collectionRepo.Get(ctx, req.CollectionID)
 	if err != nil {
 		svc.logger.Error("Failed to get collection",
 			zap.Any("error", err),
-			zap.String("collection_id", req.CollectionID))
+			zap.Any("collection_id", req.CollectionID))
 		return nil, err
 	}
 
 	if collection == nil {
 		svc.logger.Debug("Collection not found",
-			zap.String("collection_id", req.CollectionID))
+			zap.Any("collection_id", req.CollectionID))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "Collection not found")
 	}
 
 	// Check if user has write access to this collection
 	hasAccess, err := svc.collectionRepo.CheckAccess(
+		ctx,
 		req.CollectionID,
-		userID.Hex(),
+		userID,
 		dom_collection.CollectionPermissionReadWrite,
 	)
 	if err != nil {
 		svc.logger.Error("Failed checking collection access",
 			zap.Any("error", err),
-			zap.String("collection_id", req.CollectionID),
-			zap.String("user_id", userID.Hex()))
+			zap.Any("collection_id", req.CollectionID),
+			zap.Any("user_id", userID))
 		return nil, err
 	}
 
 	if !hasAccess {
 		svc.logger.Warn("Unauthorized file upload attempt",
-			zap.String("user_id", userID.Hex()),
-			zap.String("collection_id", req.CollectionID))
+			zap.Any("user_id", userID),
+			zap.Any("collection_id", req.CollectionID))
 		return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have write access to this collection")
 	}
 
@@ -157,12 +158,12 @@ func (svc *createFileServiceImpl) Execute(sessCtx context.Context, req *CreateFi
 	// STEP 4: Create file object
 	//
 	now := time.Now()
-	storagePath := generateStoragePath(req.CollectionID, req.FileID)
+	storagePath := generateStoragePath(req.CollectionID.Hex(), req.FileID)
 
 	file := &dom_file.File{
 		ID:                    generateFileID(),
-		CollectionID:          req.CollectionID,
-		OwnerID:               userID.Hex(),
+		CollectionID:          req.CollectionID.Hex(), // Convert ObjectID to string for file storage
+		OwnerID:               userID.Hex(),           // Convert ObjectID to string for file storage
 		FileID:                req.FileID,
 		StoragePath:           storagePath,
 		EncryptedSize:         req.EncryptedSize,
@@ -170,10 +171,10 @@ func (svc *createFileServiceImpl) Execute(sessCtx context.Context, req *CreateFi
 		EncryptedMetadata:     req.EncryptedMetadata,
 		EncryptedFileKey:      req.EncryptedFileKey,
 		EncryptionVersion:     req.EncryptionVersion,
-		// EncryptedHash:         req.EncryptedHash,
-		EncryptedThumbnail: req.EncryptedThumbnail,
-		CreatedAt:          now,
-		ModifiedAt:         now,
+		EncryptedHash:         req.EncryptedHash,
+		EncryptedThumbnail:    req.EncryptedThumbnail,
+		CreatedAt:             now,
+		ModifiedAt:            now,
 	}
 
 	//
@@ -191,10 +192,13 @@ func (svc *createFileServiceImpl) Execute(sessCtx context.Context, req *CreateFi
 	//
 	// STEP 6: Map domain model to response DTO
 	//
+	collectionObjectID, _ := primitive.ObjectIDFromHex(file.CollectionID)
+	ownerObjectID, _ := primitive.ObjectIDFromHex(file.OwnerID)
+
 	response := &FileResponseDTO{
 		ID:                    file.ID,
-		CollectionID:          file.CollectionID,
-		OwnerID:               file.OwnerID,
+		CollectionID:          collectionObjectID,
+		OwnerID:               ownerObjectID,
 		FileID:                file.FileID,
 		StoragePath:           file.StoragePath,
 		EncryptedSize:         file.EncryptedSize,

@@ -25,7 +25,7 @@ type DeleteFileResponseDTO struct {
 }
 
 type DeleteFileService interface {
-	Execute(sessCtx context.Context, req *DeleteFileRequestDTO) (*DeleteFileResponseDTO, error)
+	Execute(ctx context.Context, req *DeleteFileRequestDTO) (*DeleteFileResponseDTO, error)
 }
 
 type deleteFileServiceImpl struct {
@@ -49,7 +49,7 @@ func NewDeleteFileService(
 	}
 }
 
-func (svc *deleteFileServiceImpl) Execute(sessCtx context.Context, req *DeleteFileRequestDTO) (*DeleteFileResponseDTO, error) {
+func (svc *deleteFileServiceImpl) Execute(ctx context.Context, req *DeleteFileRequestDTO) (*DeleteFileResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
@@ -66,7 +66,7 @@ func (svc *deleteFileServiceImpl) Execute(sessCtx context.Context, req *DeleteFi
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
@@ -97,24 +97,34 @@ func (svc *deleteFileServiceImpl) Execute(sessCtx context.Context, req *DeleteFi
 
 	hasAdminAccess := false
 	if !isOwner {
+		// Convert collection ID string to ObjectID
+		collectionID, err := primitive.ObjectIDFromHex(file.CollectionID)
+		if err != nil {
+			svc.logger.Error("Failed to convert collection ID to ObjectID",
+				zap.Any("error", err),
+				zap.String("collection_id", file.CollectionID))
+			return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Invalid collection ID format")
+		}
+
 		// Check if user has admin access to the collection
 		hasAdminAccess, err = svc.collectionRepo.CheckAccess(
-			file.CollectionID,
-			userID.Hex(),
+			ctx,
+			collectionID,
+			userID,
 			dom_collection.CollectionPermissionAdmin,
 		)
 		if err != nil {
 			svc.logger.Error("Failed checking collection access",
 				zap.Any("error", err),
 				zap.String("collection_id", file.CollectionID),
-				zap.String("user_id", userID.Hex()))
+				zap.Any("user_id", userID))
 			return nil, err
 		}
 	}
 
 	if !isOwner && !hasAdminAccess {
 		svc.logger.Warn("Unauthorized file deletion attempt",
-			zap.String("user_id", userID.Hex()),
+			zap.Any("user_id", userID),
 			zap.String("file_id", req.ID))
 		return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have permission to delete this file")
 	}

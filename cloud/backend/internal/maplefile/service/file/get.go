@@ -16,7 +16,7 @@ import (
 )
 
 type GetFileService interface {
-	Execute(sessCtx context.Context, fileID string) (*FileResponseDTO, error)
+	Execute(ctx context.Context, fileID string) (*FileResponseDTO, error)
 }
 
 type getFileServiceImpl struct {
@@ -40,7 +40,7 @@ func NewGetFileService(
 	}
 }
 
-func (svc *getFileServiceImpl) Execute(sessCtx context.Context, fileID string) (*FileResponseDTO, error) {
+func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID string) (*FileResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
@@ -52,7 +52,7 @@ func (svc *getFileServiceImpl) Execute(sessCtx context.Context, fileID string) (
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
@@ -76,48 +76,4 @@ func (svc *getFileServiceImpl) Execute(sessCtx context.Context, fileID string) (
 	}
 
 	//
-	// STEP 4: Check if the user has access to the file's collection
-	//
-	hasAccess, err := svc.collectionRepo.CheckAccess(
-		file.CollectionID,
-		userID.Hex(),
-		dom_collection.CollectionPermissionReadOnly,
-	)
-	if err != nil {
-		svc.logger.Error("Failed checking collection access",
-			zap.Any("error", err),
-			zap.String("collection_id", file.CollectionID),
-			zap.String("user_id", userID.Hex()))
-		return nil, err
-	}
-
-	if !hasAccess {
-		svc.logger.Warn("Unauthorized file access attempt",
-			zap.String("user_id", userID.Hex()),
-			zap.String("file_id", fileID),
-			zap.String("collection_id", file.CollectionID))
-		return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have access to this file")
-	}
-
-	//
-	// STEP 5: Map domain model to response DTO
-	//
-	response := &FileResponseDTO{
-		ID:                    file.ID,
-		CollectionID:          file.CollectionID,
-		OwnerID:               file.OwnerID,
-		FileID:                file.FileID,
-		StoragePath:           file.StoragePath,
-		EncryptedSize:         file.EncryptedSize,
-		EncryptedOriginalSize: file.EncryptedOriginalSize,
-		EncryptedMetadata:     file.EncryptedMetadata,
-		EncryptionVersion:     file.EncryptionVersion,
-		EncryptedHash:         file.EncryptedHash,
-		EncryptedFileKey:      file.EncryptedFileKey,
-		EncryptedThumbnail:    file.EncryptedThumbnail,
-		CreatedAt:             file.CreatedAt,
-		ModifiedAt:            file.ModifiedAt,
-	}
-
-	return response, nil
-}
+	// STEP 4: Check if the user has access to the file's c

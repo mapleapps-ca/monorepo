@@ -7,13 +7,14 @@ import (
 
 	"go.uber.org/zap"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // CheckIfExistsByID checks if a file exists by ID
-func (impl fileMetadataRepositoryImpl) CheckIfExistsByID(id string) (bool, error) {
+func (impl fileMetadataRepositoryImpl) CheckIfExistsByID(id primitive.ObjectID) (bool, error) {
 	ctx := context.Background()
-	filter := bson.M{"id": id}
+	filter := bson.M{"_id": id}
 
 	count, err := impl.Collection.CountDocuments(ctx, filter)
 	if err != nil {
@@ -24,7 +25,7 @@ func (impl fileMetadataRepositoryImpl) CheckIfExistsByID(id string) (bool, error
 }
 
 // CheckIfUserHasAccess checks if a user has access to a file
-func (impl fileMetadataRepositoryImpl) CheckIfUserHasAccess(fileID string, userID string) (bool, error) {
+func (impl fileMetadataRepositoryImpl) CheckIfUserHasAccess(fileID primitive.ObjectID, userID primitive.ObjectID) (bool, error) {
 	// First get the file to find its owner and collection ID
 	file, err := impl.Get(fileID)
 	if err != nil {
