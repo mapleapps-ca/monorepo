@@ -1,4 +1,4 @@
-// github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/repo/collection/update.go
+// cloud/backend/internal/maplefile/repo/collection/update.go
 package collection
 
 import (
@@ -12,22 +12,27 @@ import (
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
 )
 
-func (impl collectionRepositoryImpl) Update(collection *dom_collection.Collection) error {
-	ctx := context.Background()
-	filter := bson.M{"id": collection.ID}
+func (impl collectionRepositoryImpl) Update(ctx context.Context, collection *dom_collection.Collection) error {
+	filter := bson.M{"_id": collection.ID}
 
-	// Update the UpdatedAt timestamp
-	collection.UpdatedAt = time.Now()
+	// Update the ModifiedAt timestamp
+	collection.ModifiedAt = time.Now()
 
 	update := bson.M{
-		"$set": collection,
+		"$set": bson.M{
+			"encrypted_name":           collection.EncryptedName,
+			"type":                     collection.Type,
+			"modified_at":              collection.ModifiedAt,
+			"encrypted_collection_key": collection.EncryptedCollectionKey,
+			"encrypted_path_segments":  collection.EncryptedPathSegments,
+		},
 	}
 
 	_, err := impl.Collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		impl.Logger.Error("database update collection error",
 			zap.Any("error", err),
-			zap.String("id", collection.ID))
+			zap.Any("id", collection.ID))
 		return err
 	}
 

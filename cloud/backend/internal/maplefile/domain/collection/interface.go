@@ -1,22 +1,44 @@
+// monorepo/cloud/backend/internal/maplefile/domain/collection/repository.go
 package collection
 
-// CollectionRepository interface defines all operations that can be performed on collections
+import (
+	"context"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
+
+// CollectionRepository defines the interface for collection persistence operations
 type CollectionRepository interface {
-	// Collection Management
-	Create(collection *Collection) error
-	Get(id string) (*Collection, error)
-	GetAllByUserID(userID string) ([]*Collection, error)
-	Update(collection *Collection) error
-	Delete(id string) error
+	// Collection CRUD operations
+	Create(ctx context.Context, collection *Collection) error
+	Get(ctx context.Context, id primitive.ObjectID) (*Collection, error)
+	Update(ctx context.Context, collection *Collection) error
+	Delete(ctx context.Context, id primitive.ObjectID) error
 
-	// Collection Sharing
-	GetCollectionsSharedWithUser(userID string) ([]*Collection, error)
-	AddMember(collectionID string, membership *CollectionMembership) error
-	RemoveMember(collectionID string, recipientID string) error
-	UpdateMemberPermission(collectionID string, recipientID string, newPermission string) error
+	// Hierarchical queries
+	FindByParent(ctx context.Context, parentID primitive.ObjectID) ([]*Collection, error)
+	FindRootCollections(ctx context.Context, ownerID primitive.ObjectID) ([]*Collection, error)
+	FindDescendants(ctx context.Context, collectionID primitive.ObjectID) ([]*Collection, error)
+	GetFullHierarchy(ctx context.Context, rootID primitive.ObjectID) (*Collection, error)
 
-	// Access Checking
-	CheckIfExistsByID(id string) (bool, error)
-	CheckAccess(collectionID string, userID string, requiredPermission string) (bool, error)
-	IsCollectionOwner(collectionID string, userID string) (bool, error)
+	// Move collection to a new parent
+	MoveCollection(ctx context.Context, collectionID, newParentID primitive.ObjectID, updatedAncestors []primitive.ObjectID, updatedPathSegments []string) error
+
+	// Collection ownership and access queries
+	CheckIfExistsByID(ctx context.Context, id primitive.ObjectID) (bool, error)
+	GetAllByUserID(ctx context.Context, ownerID primitive.ObjectID) ([]*Collection, error)
+	GetCollectionsSharedWithUser(ctx context.Context, userID primitive.ObjectID) ([]*Collection, error)
+	IsCollectionOwner(ctx context.Context, collectionID, userID primitive.ObjectID) (bool, error)
+	CheckAccess(ctx context.Context, collectionID, userID primitive.ObjectID, requiredPermission string) (bool, error)
+	GetUserPermissionLevel(ctx context.Context, collectionID, userID primitive.ObjectID) (string, error)
+
+	// Collection membership operations
+	AddMember(ctx context.Context, collectionID primitive.ObjectID, membership *CollectionMembership) error
+	RemoveMember(ctx context.Context, collectionID, recipientID primitive.ObjectID) error
+	UpdateMemberPermission(ctx context.Context, collectionID, recipientID primitive.ObjectID, newPermission string) error
+	GetCollectionMembership(ctx context.Context, collectionID, recipientID primitive.ObjectID) (*CollectionMembership, error)
+
+	// Hierarchical sharing
+	AddMemberToHierarchy(ctx context.Context, rootID primitive.ObjectID, membership *CollectionMembership) error
+	RemoveMemberFromHierarchy(ctx context.Context, rootID, recipientID primitive.ObjectID) error
 }

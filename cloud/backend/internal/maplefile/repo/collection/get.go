@@ -1,20 +1,22 @@
-// github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/repo/collection/get.go
+// cloud/backend/internal/maplefile/repo/collection/get.go
 package collection
 
 import (
 	"context"
+	"errors"
 
 	"go.uber.org/zap"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
 )
 
-func (impl collectionRepositoryImpl) Get(id string) (*dom_collection.Collection, error) {
-	ctx := context.Background()
-	filter := bson.M{"id": id}
+func (impl collectionRepositoryImpl) Get(ctx context.Context, id primitive.ObjectID) (*dom_collection.Collection, error) {
+	filter := bson.M{"_id": id}
 
 	var result dom_collection.Collection
 	err := impl.Collection.FindOne(ctx, filter).Decode(&result)
@@ -29,10 +31,9 @@ func (impl collectionRepositoryImpl) Get(id string) (*dom_collection.Collection,
 	return &result, nil
 }
 
-func (impl collectionRepositoryImpl) GetAllByUserID(userID string) ([]*dom_collection.Collection, error) {
-	ctx := context.Background()
+func (impl collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerID primitive.ObjectID) ([]*dom_collection.Collection, error) {
 	// Find collections owned by this user
-	filter := bson.M{"owner_id": userID}
+	filter := bson.M{"owner_id": ownerID}
 
 	cursor, err := impl.Collection.Find(ctx, filter)
 	if err != nil {
@@ -50,8 +51,7 @@ func (impl collectionRepositoryImpl) GetAllByUserID(userID string) ([]*dom_colle
 	return collections, nil
 }
 
-func (impl collectionRepositoryImpl) GetCollectionsSharedWithUser(userID string) ([]*dom_collection.Collection, error) {
-	ctx := context.Background()
+func (impl collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.Context, userID primitive.ObjectID) ([]*dom_collection.Collection, error) {
 	// Find collections where user is in members array as recipient
 	filter := bson.M{
 		"members.recipient_id": userID,
@@ -73,4 +73,114 @@ func (impl collectionRepositoryImpl) GetCollectionsSharedWithUser(userID string)
 	}
 
 	return collections, nil
+}
+
+func (impl collectionRepositoryImpl) FindByParent(ctx context.Context, parentID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+	filter := bson.M{"parent_id": parentID}
+
+	cursor, err := impl.Collection.Find(ctx, filter)
+	if err != nil {
+		impl.Logger.Error("database find by parent error", zap.Any("error", err))
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var collections []*dom_collection.Collection
+	if err = cursor.All(ctx, &collections); err != nil {
+		impl.Logger.Error("database decode collections error", zap.Any("error", err))
+		return nil, err
+	}
+
+	return collections, nil
+}
+
+func (impl collectionRepositoryImpl) FindRootCollections(ctx context.Context, ownerID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+	// Root collections are those without a parent
+	filter := bson.M{
+		"owner_id":  ownerID,
+		"parent_id": bson.M{"$exists": false},
+	}
+
+	cursor, err := impl.Collection.Find(ctx, filter)
+	if err != nil {
+		impl.Logger.Error("database find root collections error", zap.Any("error", err))
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var collections []*dom_collection.Collection
+	if err = cursor.All(ctx, &collections); err != nil {
+		impl.Logger.Error("database decode collections error", zap.Any("error", err))
+		return nil, err
+	}
+
+	return collections, nil
+}
+
+func (impl collectionRepositoryImpl) FindDescendants(ctx context.Context, collectionID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+	// Find all collections that have this ID in their ancestors array
+	filter := bson.M{"ancestor_ids": collectionID}
+
+	// Sort by path length to get a hierarchical order
+	opts := options.Find().SetSort(bson.M{"ancestor_ids": 1})
+
+	cursor, err := impl.Collection.Find(ctx, filter, opts)
+	if err != nil {
+		impl.Logger.Error("database find descendants error", zap.Any("error", err))
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var collections []*dom_collection.Collection
+	if err = cursor.All(ctx, &collections); err != nil {
+		impl.Logger.Error("database decode collections error", zap.Any("error", err))
+		return nil, err
+	}
+
+	return collections, nil
+}
+
+func (impl collectionRepositoryImpl) GetFullHierarchy(ctx context.Context, rootID primitive.ObjectID) (*dom_collection.Collection, error) {
+	// First get the root collection
+	rootCollection, err := impl.Get(ctx, rootID)
+	if err != nil {
+		return nil, err
+	}
+	if rootCollection == nil {
+		return nil, errors.New("root collection not found")
+	}
+
+	// Get all descendants
+	descendants, err := impl.FindDescendants(ctx, rootID)
+	if err != nil {
+		return nil, err
+	}
+
+	// If no descendants, return just the root
+	if len(descendants) == 0 {
+		return rootCollection, nil
+	}
+
+	// Build a map of parent ID to children collections
+	childrenMap := make(map[primitive.ObjectID][]*dom_collection.Collection)
+	for _, desc := range descendants {
+		parentID := desc.ParentID
+		childrenMap[parentID] = append(childrenMap[parentID], desc)
+	}
+
+	// Recursive function to build the hierarchy
+	var buildHierarchy func(collection *dom_collection.Collection)
+	buildHierarchy = func(collection *dom_collection.Collection) {
+		children, exists := childrenMap[collection.ID]
+		if exists {
+			collection.Children = children
+			for _, child := range children {
+				buildHierarchy(child)
+			}
+		}
+	}
+
+	// Start building from the root
+	buildHierarchy(rootCollection)
+	return rootCollection, nil
 }

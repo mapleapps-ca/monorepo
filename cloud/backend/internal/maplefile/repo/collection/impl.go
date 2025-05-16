@@ -1,4 +1,4 @@
-// github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/repo/collection/impl.go
+// cloud/backend/internal/maplefile/repo/collection/impl.go
 package collection
 
 import (
@@ -37,11 +37,17 @@ func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mo
 			{Key: "created_at", Value: -1},
 		}},
 		{Keys: bson.D{
-			{Key: "id", Value: 1},
+			{Key: "_id", Value: 1},
 		}, Options: options.Index().SetUnique(true)},
 		{Keys: bson.D{
 			{Key: "owner_id", Value: 1},
 			{Key: "created_at", Value: -1},
+		}},
+		{Keys: bson.D{
+			{Key: "parent_id", Value: 1},
+		}},
+		{Keys: bson.D{
+			{Key: "ancestor_ids", Value: 1},
 		}},
 		{Keys: bson.D{
 			{Key: "members.recipient_id", Value: 1},
@@ -49,6 +55,9 @@ func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mo
 		{Keys: bson.D{
 			{Key: "members.collection_id", Value: 1},
 			{Key: "members.recipient_id", Value: 1},
+		}},
+		{Keys: bson.D{
+			{Key: "members.is_inherited", Value: 1},
 		}},
 	})
 

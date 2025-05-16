@@ -1,4 +1,4 @@
-// github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/repo/collection/share.go
+// cloud/backend/internal/maplefile/repo/collection/share.go
 package collection
 
 import (
@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
@@ -15,16 +16,19 @@ import (
 )
 
 // AddMember adds a new member to a collection, giving them access
-func (impl collectionRepositoryImpl) AddMember(collectionID string, membership *dom_collection.CollectionMembership) error {
-	ctx := context.Background()
-
+func (impl collectionRepositoryImpl) AddMember(ctx context.Context, collectionID primitive.ObjectID, membership *dom_collection.CollectionMembership) error {
 	// Ensure the collection exists
-	exists, err := impl.CheckIfExistsByID(collectionID)
+	exists, err := impl.CheckIfExistsByID(ctx, collectionID)
 	if err != nil {
 		return err
 	}
 	if !exists {
 		return errors.New("collection not found")
+	}
+
+	// Generate ID if not provided
+	if membership.ID.IsZero() {
+		membership.ID = primitive.NewObjectID()
 	}
 
 	// Set the collection ID and created time
@@ -40,7 +44,7 @@ func (impl collectionRepositoryImpl) AddMember(collectionID string, membership *
 
 	// Check if user is already a member of this collection
 	filter := bson.M{
-		"id":                   collectionID,
+		"_id":                  collectionID,
 		"members.recipient_id": membership.RecipientID,
 	}
 
@@ -52,25 +56,25 @@ func (impl collectionRepositoryImpl) AddMember(collectionID string, membership *
 
 	if count > 0 {
 		impl.Logger.Warn("user is already a member of this collection",
-			zap.String("collection_id", collectionID),
-			zap.String("recipient_id", membership.RecipientID))
+			zap.Any("collection_id", collectionID),
+			zap.Any("recipient_id", membership.RecipientID))
 
 		// Update the existing membership instead
-		return impl.UpdateMemberPermission(collectionID, membership.RecipientID, membership.PermissionLevel)
+		return impl.UpdateMemberPermission(ctx, collectionID, membership.RecipientID, membership.PermissionLevel)
 	}
 
 	// Add the new membership
 	update := bson.M{
 		"$push": bson.M{"members": membership},
-		"$set":  bson.M{"updated_at": time.Now()},
+		"$set":  bson.M{"modified_at": time.Now()},
 	}
 
-	_, err = impl.Collection.UpdateOne(ctx, bson.M{"id": collectionID}, update)
+	_, err = impl.Collection.UpdateOne(ctx, bson.M{"_id": collectionID}, update)
 	if err != nil {
 		impl.Logger.Error("database add member error",
 			zap.Any("error", err),
-			zap.String("collection_id", collectionID),
-			zap.String("recipient_id", membership.RecipientID))
+			zap.Any("collection_id", collectionID),
+			zap.Any("recipient_id", membership.RecipientID))
 		return err
 	}
 
@@ -78,10 +82,8 @@ func (impl collectionRepositoryImpl) AddMember(collectionID string, membership *
 }
 
 // RemoveMember removes a member from a collection, revoking their access
-func (impl collectionRepositoryImpl) RemoveMember(collectionID string, recipientID string) error {
-	ctx := context.Background()
-
-	filter := bson.M{"id": collectionID}
+func (impl collectionRepositoryImpl) RemoveMember(ctx context.Context, collectionID, recipientID primitive.ObjectID) error {
+	filter := bson.M{"_id": collectionID}
 
 	// Pull the member from the members array
 	update := bson.M{
@@ -90,31 +92,29 @@ func (impl collectionRepositoryImpl) RemoveMember(collectionID string, recipient
 				"recipient_id": recipientID,
 			},
 		},
-		"$set": bson.M{"updated_at": time.Now()},
+		"$set": bson.M{"modified_at": time.Now()},
 	}
 
 	result, err := impl.Collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		impl.Logger.Error("database remove member error",
 			zap.Any("error", err),
-			zap.String("collection_id", collectionID),
-			zap.String("recipient_id", recipientID))
+			zap.Any("collection_id", collectionID),
+			zap.Any("recipient_id", recipientID))
 		return err
 	}
 
 	if result.ModifiedCount == 0 {
 		impl.Logger.Warn("no membership was removed, may not exist",
-			zap.String("collection_id", collectionID),
-			zap.String("recipient_id", recipientID))
+			zap.Any("collection_id", collectionID),
+			zap.Any("recipient_id", recipientID))
 	}
 
 	return nil
 }
 
 // UpdateMemberPermission updates a member's permission level
-func (impl collectionRepositoryImpl) UpdateMemberPermission(collectionID string, recipientID string, newPermission string) error {
-	ctx := context.Background()
-
+func (impl collectionRepositoryImpl) UpdateMemberPermission(ctx context.Context, collectionID, recipientID primitive.ObjectID, newPermission string) error {
 	// Ensure the permission level is valid
 	if newPermission == "" {
 		newPermission = dom_collection.CollectionPermissionReadOnly
@@ -122,7 +122,7 @@ func (impl collectionRepositoryImpl) UpdateMemberPermission(collectionID string,
 
 	// Find the collection and the specific membership to update
 	filter := bson.M{
-		"id":                   collectionID,
+		"_id":                  collectionID,
 		"members.recipient_id": recipientID,
 	}
 
@@ -130,7 +130,7 @@ func (impl collectionRepositoryImpl) UpdateMemberPermission(collectionID string,
 	update := bson.M{
 		"$set": bson.M{
 			"members.$.permission_level": newPermission,
-			"updated_at":                 time.Now(),
+			"modified_at":                time.Now(),
 		},
 	}
 
@@ -138,16 +138,16 @@ func (impl collectionRepositoryImpl) UpdateMemberPermission(collectionID string,
 	if err != nil {
 		impl.Logger.Error("database update member permission error",
 			zap.Any("error", err),
-			zap.String("collection_id", collectionID),
-			zap.String("recipient_id", recipientID),
+			zap.Any("collection_id", collectionID),
+			zap.Any("recipient_id", recipientID),
 			zap.String("new_permission", newPermission))
 		return err
 	}
 
 	if result.ModifiedCount == 0 {
 		impl.Logger.Warn("no membership was updated, may not exist",
-			zap.String("collection_id", collectionID),
-			zap.String("recipient_id", recipientID))
+			zap.Any("collection_id", collectionID),
+			zap.Any("recipient_id", recipientID))
 		return errors.New("membership not found")
 	}
 
@@ -155,11 +155,9 @@ func (impl collectionRepositoryImpl) UpdateMemberPermission(collectionID string,
 }
 
 // GetCollectionMembership retrieves a specific membership from a collection
-func (impl collectionRepositoryImpl) GetCollectionMembership(collectionID string, recipientID string) (*dom_collection.CollectionMembership, error) {
-	ctx := context.Background()
-
+func (impl collectionRepositoryImpl) GetCollectionMembership(ctx context.Context, collectionID, recipientID primitive.ObjectID) (*dom_collection.CollectionMembership, error) {
 	// Find the collection
-	filter := bson.M{"id": collectionID}
+	filter := bson.M{"_id": collectionID}
 
 	var collection dom_collection.Collection
 	err := impl.Collection.FindOne(ctx, filter).Decode(&collection)
@@ -179,4 +177,97 @@ func (impl collectionRepositoryImpl) GetCollectionMembership(collectionID string
 	}
 
 	return nil, errors.New("membership not found")
+}
+
+// AddMemberToHierarchy adds a user to a collection and all of its descendants
+func (impl collectionRepositoryImpl) AddMemberToHierarchy(ctx context.Context, rootID primitive.ObjectID, membership *dom_collection.CollectionMembership) error {
+	// First add the member to the root collection
+	rootMembership := *membership
+	rootMembership.IsInherited = false
+	rootMembership.ID = primitive.NewObjectID()
+
+	err := impl.AddMember(ctx, rootID, &rootMembership)
+	if err != nil {
+		return err
+	}
+
+	// Then find all descendant collections
+	descendants, err := impl.FindDescendants(ctx, rootID)
+	if err != nil {
+		return err
+	}
+
+	// For each descendant, add the member with inherited flag
+	for _, descendant := range descendants {
+		childMembership := *membership
+		childMembership.ID = primitive.NewObjectID()
+		childMembership.CollectionID = descendant.ID
+		childMembership.IsInherited = true
+		childMembership.InheritedFromID = rootID
+
+		err := impl.AddMember(ctx, descendant.ID, &childMembership)
+		if err != nil {
+			impl.Logger.Error("failed to add inherited membership to descendant",
+				zap.Any("error", err),
+				zap.Any("root_id", rootID),
+				zap.Any("descendant_id", descendant.ID))
+			// Continue with other descendants even if one fails
+			continue
+		}
+	}
+
+	return nil
+}
+
+// RemoveMemberFromHierarchy removes a user from a collection and all of its descendants
+func (impl collectionRepositoryImpl) RemoveMemberFromHierarchy(ctx context.Context, rootID, recipientID primitive.ObjectID) error {
+	// First remove the member from the root collection
+	err := impl.RemoveMember(ctx, rootID, recipientID)
+	if err != nil {
+		return err
+	}
+
+	// Then find all descendant collections
+	descendants, err := impl.FindDescendants(ctx, rootID)
+	if err != nil {
+		return err
+	}
+
+	// For each descendant, remove the inherited membership
+	for _, descendant := range descendants {
+		// Only remove memberships that were inherited from this root
+		filter := bson.M{
+			"_id": descendant.ID,
+			"members": bson.M{
+				"$elemMatch": bson.M{
+					"recipient_id":      recipientID,
+					"is_inherited":      true,
+					"inherited_from_id": rootID,
+				},
+			},
+		}
+
+		update := bson.M{
+			"$pull": bson.M{
+				"members": bson.M{
+					"recipient_id":      recipientID,
+					"is_inherited":      true,
+					"inherited_from_id": rootID,
+				},
+			},
+			"$set": bson.M{"modified_at": time.Now()},
+		}
+
+		_, err := impl.Collection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			impl.Logger.Error("failed to remove inherited membership from descendant",
+				zap.Any("error", err),
+				zap.Any("root_id", rootID),
+				zap.Any("descendant_id", descendant.ID))
+			// Continue with other descendants even if one fails
+			continue
+		}
+	}
+
+	return nil
 }
