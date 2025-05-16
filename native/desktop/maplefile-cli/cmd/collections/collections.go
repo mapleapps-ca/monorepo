@@ -3,11 +3,13 @@ package collections
 
 import (
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
+	collectionService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 )
 
-func CollectionsCmd(configService config.ConfigService) *cobra.Command {
+func CollectionsCmd(configService config.ConfigService, collectionSvc collectionService.CollectionService, logger *zap.Logger) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "collections",
 		Short: "Execute commands related to making collection operations",
@@ -18,7 +20,7 @@ func CollectionsCmd(configService config.ConfigService) *cobra.Command {
 	}
 
 	// Add Remote-related commands
-	cmd.AddCommand(HealthCheckCmd(configService))
+	cmd.AddCommand(createRootCollectionCmd(collectionSvc, logger))
 
 	return cmd
 }

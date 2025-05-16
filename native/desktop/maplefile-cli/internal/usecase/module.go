@@ -5,6 +5,7 @@ import (
 	"go.uber.org/fx"
 
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
@@ -28,6 +29,9 @@ func UseCaseModule() fx.Option {
 		fx.Provide(userUseCase.NewUpsertByEmailUseCase),
 		fx.Provide(userUseCase.NewDeleteByEmailUseCase),
 		fx.Provide(userUseCase.NewListAllUseCase),
+
+		// internal/usecase/module.go (addition to existing code)
+		fx.Provide(collection.NewCreateCollectionUseCase),
 
 		// Registration use cases
 		fx.Provide(registerUseCase.NewGenerateCredentialsUseCase),

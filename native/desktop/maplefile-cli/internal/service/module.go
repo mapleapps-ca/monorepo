@@ -5,6 +5,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
@@ -21,6 +22,9 @@ func ServiceModule() fx.Option {
 		fx.Provide(auth.NewLoginOTTService),
 		fx.Provide(auth.NewLoginOTTVerificationService),
 		fx.Provide(auth.NewCompleteLoginService),
+
+		// internal/service/module.go (addition to existing code)
+		fx.Provide(collection.NewCollectionService),
 
 		// Token refresh service
 		fx.Provide(tokenservice.NewTokenRefreshService),

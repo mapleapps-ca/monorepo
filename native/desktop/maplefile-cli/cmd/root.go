@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/collections"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/completelogin"
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
@@ -19,6 +20,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
+	collectionService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	registerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
@@ -34,6 +36,7 @@ func NewRootCmd(
 	loginOTTVerificationService auth.LoginOTTVerificationService,
 	completeLoginService auth.CompleteLoginService,
 	tokenRefreshSvc tokenservice.TokenRefreshService,
+	collectionService collectionService.CollectionService,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "maplefile-cli",
@@ -56,6 +59,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, userRepo, tokenRefreshSvc))
 	rootCmd.AddCommand(uploadfile.UploadFileCmd())
+	rootCmd.AddCommand(collections.CollectionsCmd(configService, collectionService, logger))
 
 	return rootCmd
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/auth"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/transaction"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/leveldb"
 )
@@ -55,6 +56,7 @@ func RepoModule() fx.Option {
 		fx.Provide(auth.NewLoginOTTRepository),
 		fx.Provide(auth.NewLoginOTTVerificationRepository),
 		fx.Provide(auth.NewCompleteLoginRepository),
+		fx.Provide(collection.NewCollectionRepository),
 
 		// Transaction manager
 		fx.Provide(transaction.NewTransactionManager),
