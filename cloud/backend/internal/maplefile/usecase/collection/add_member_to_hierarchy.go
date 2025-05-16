@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/add_member.go
+// cloud/backend/internal/maplefile/usecase/collection/add_member_to_hierarchy.go
 package collection
 
 import (
@@ -12,32 +12,32 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type AddCollectionMemberUseCase interface {
-	Execute(ctx context.Context, collectionID primitive.ObjectID, membership *dom_collection.CollectionMembership) error
+type AddMemberToHierarchyUseCase interface {
+	Execute(ctx context.Context, rootID primitive.ObjectID, membership *dom_collection.CollectionMembership) error
 }
 
-type addCollectionMemberUseCaseImpl struct {
+type addMemberToHierarchyUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
 	repo   dom_collection.CollectionRepository
 }
 
-func NewAddCollectionMemberUseCase(
+func NewAddMemberToHierarchyUseCase(
 	config *config.Configuration,
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
-) AddCollectionMemberUseCase {
-	return &addCollectionMemberUseCaseImpl{config, logger, repo}
+) AddMemberToHierarchyUseCase {
+	return &addMemberToHierarchyUseCaseImpl{config, logger, repo}
 }
 
-func (uc *addCollectionMemberUseCaseImpl) Execute(ctx context.Context, collectionID primitive.ObjectID, membership *dom_collection.CollectionMembership) error {
+func (uc *addMemberToHierarchyUseCaseImpl) Execute(ctx context.Context, rootID primitive.ObjectID, membership *dom_collection.CollectionMembership) error {
 	//
 	// STEP 1: Validation.
 	//
 
 	e := make(map[string]string)
-	if collectionID.IsZero() {
-		e["collection_id"] = "Collection ID is required"
+	if rootID.IsZero() {
+		e["root_id"] = "Root collection ID is required"
 	}
 	if membership == nil {
 		e["membership"] = "Membership details are required"
@@ -63,14 +63,14 @@ func (uc *addCollectionMemberUseCaseImpl) Execute(ctx context.Context, collectio
 		}
 	}
 	if len(e) != 0 {
-		uc.logger.Warn("Failed validating add collection member",
+		uc.logger.Warn("Failed validating add member to hierarchy",
 			zap.Any("error", e))
 		return httperror.NewForBadRequest(&e)
 	}
 
 	//
-	// STEP 2: Add member to collection.
+	// STEP 2: Add member to collection hierarchy.
 	//
 
-	return uc.repo.AddMember(ctx, collectionID, membership)
+	return uc.repo.AddMemberToHierarchy(ctx, rootID, membership)
 }

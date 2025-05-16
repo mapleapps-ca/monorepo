@@ -4,6 +4,7 @@ package collection
 import (
 	"context"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
@@ -12,7 +13,7 @@ import (
 )
 
 type DeleteCollectionUseCase interface {
-	Execute(ctx context.Context, id string) error
+	Execute(ctx context.Context, id primitive.ObjectID) error
 }
 
 type deleteCollectionUseCaseImpl struct {
@@ -29,13 +30,13 @@ func NewDeleteCollectionUseCase(
 	return &deleteCollectionUseCaseImpl{config, logger, repo}
 }
 
-func (uc *deleteCollectionUseCaseImpl) Execute(ctx context.Context, id string) error {
+func (uc *deleteCollectionUseCaseImpl) Execute(ctx context.Context, id primitive.ObjectID) error {
 	//
 	// STEP 1: Validation.
 	//
 
 	e := make(map[string]string)
-	if id == "" {
+	if id.IsZero() {
 		e["id"] = "Collection ID is required"
 	}
 	if len(e) != 0 {
@@ -48,5 +49,5 @@ func (uc *deleteCollectionUseCaseImpl) Execute(ctx context.Context, id string) e
 	// STEP 2: Delete from database.
 	//
 
-	return uc.repo.Delete(id)
+	return uc.repo.Delete(ctx, id)
 }

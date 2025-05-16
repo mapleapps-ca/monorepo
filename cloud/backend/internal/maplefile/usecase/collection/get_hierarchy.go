@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/get.go
+// cloud/backend/internal/maplefile/usecase/collection/get_hierarchy.go
 package collection
 
 import (
@@ -12,53 +12,53 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type GetCollectionUseCase interface {
-	Execute(ctx context.Context, id primitive.ObjectID) (*dom_collection.Collection, error)
+type GetCollectionHierarchyUseCase interface {
+	Execute(ctx context.Context, rootID primitive.ObjectID) (*dom_collection.Collection, error)
 }
 
-type getCollectionUseCaseImpl struct {
+type getCollectionHierarchyUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
 	repo   dom_collection.CollectionRepository
 }
 
-func NewGetCollectionUseCase(
+func NewGetCollectionHierarchyUseCase(
 	config *config.Configuration,
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
-) GetCollectionUseCase {
-	return &getCollectionUseCaseImpl{config, logger, repo}
+) GetCollectionHierarchyUseCase {
+	return &getCollectionHierarchyUseCaseImpl{config, logger, repo}
 }
 
-func (uc *getCollectionUseCaseImpl) Execute(ctx context.Context, id primitive.ObjectID) (*dom_collection.Collection, error) {
+func (uc *getCollectionHierarchyUseCaseImpl) Execute(ctx context.Context, rootID primitive.ObjectID) (*dom_collection.Collection, error) {
 	//
 	// STEP 1: Validation.
 	//
 
 	e := make(map[string]string)
-	if id.IsZero() {
-		e["id"] = "Collection ID is required"
+	if rootID.IsZero() {
+		e["root_id"] = "Root collection ID is required"
 	}
 	if len(e) != 0 {
-		uc.logger.Warn("Failed validating collection retrieval",
+		uc.logger.Warn("Failed validating get collection hierarchy",
 			zap.Any("error", e))
 		return nil, httperror.NewForBadRequest(&e)
 	}
 
 	//
-	// STEP 2: Get from database.
+	// STEP 2: Get collection hierarchy.
 	//
 
-	collection, err := uc.repo.Get(ctx, id)
+	hierarchy, err := uc.repo.GetFullHierarchy(ctx, rootID)
 	if err != nil {
 		return nil, err
 	}
 
-	if collection == nil {
+	if hierarchy == nil {
 		uc.logger.Debug("Collection not found",
-			zap.Any("id", id))
+			zap.Any("id", rootID))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "Collection not found")
 	}
 
-	return collection, nil
+	return hierarchy, nil
 }

@@ -4,6 +4,7 @@ package collection
 import (
 	"context"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
@@ -12,7 +13,7 @@ import (
 )
 
 type UpdateMemberPermissionUseCase interface {
-	Execute(ctx context.Context, collectionID string, recipientID string, newPermission string) error
+	Execute(ctx context.Context, collectionID, recipientID primitive.ObjectID, newPermission string) error
 }
 
 type updateMemberPermissionUseCaseImpl struct {
@@ -29,16 +30,16 @@ func NewUpdateMemberPermissionUseCase(
 	return &updateMemberPermissionUseCaseImpl{config, logger, repo}
 }
 
-func (uc *updateMemberPermissionUseCaseImpl) Execute(ctx context.Context, collectionID string, recipientID string, newPermission string) error {
+func (uc *updateMemberPermissionUseCaseImpl) Execute(ctx context.Context, collectionID, recipientID primitive.ObjectID, newPermission string) error {
 	//
 	// STEP 1: Validation.
 	//
 
 	e := make(map[string]string)
-	if collectionID == "" {
+	if collectionID.IsZero() {
 		e["collection_id"] = "Collection ID is required"
 	}
-	if recipientID == "" {
+	if recipientID.IsZero() {
 		e["recipient_id"] = "Recipient ID is required"
 	}
 	if newPermission == "" {
@@ -58,5 +59,5 @@ func (uc *updateMemberPermissionUseCaseImpl) Execute(ctx context.Context, collec
 	// STEP 2: Update member permission.
 	//
 
-	return uc.repo.UpdateMemberPermission(collectionID, recipientID, newPermission)
+	return uc.repo.UpdateMemberPermission(ctx, collectionID, recipientID, newPermission)
 }

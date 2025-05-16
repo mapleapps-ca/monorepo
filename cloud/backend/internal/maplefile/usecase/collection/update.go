@@ -38,7 +38,7 @@ func (uc *updateCollectionUseCaseImpl) Execute(ctx context.Context, collection *
 	if collection == nil {
 		e["collection"] = "Collection is required"
 	} else {
-		if collection.ID == "" {
+		if collection.ID.IsZero() {
 			e["id"] = "Collection ID is required"
 		}
 	}
@@ -52,5 +52,5 @@ func (uc *updateCollectionUseCaseImpl) Execute(ctx context.Context, collection *
 	// STEP 2: Update in database.
 	//
 
-	return uc.repo.Update(collection)
+	return uc.repo.Update(ctx, collection)
 }

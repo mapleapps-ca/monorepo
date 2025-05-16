@@ -4,6 +4,7 @@ package collection
 import (
 	"context"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
@@ -12,7 +13,7 @@ import (
 )
 
 type CheckCollectionAccessUseCase interface {
-	Execute(ctx context.Context, collectionID string, userID string, requiredPermission string) (bool, error)
+	Execute(ctx context.Context, collectionID, userID primitive.ObjectID, requiredPermission string) (bool, error)
 }
 
 type checkCollectionAccessUseCaseImpl struct {
@@ -29,16 +30,16 @@ func NewCheckCollectionAccessUseCase(
 	return &checkCollectionAccessUseCaseImpl{config, logger, repo}
 }
 
-func (uc *checkCollectionAccessUseCaseImpl) Execute(ctx context.Context, collectionID string, userID string, requiredPermission string) (bool, error) {
+func (uc *checkCollectionAccessUseCaseImpl) Execute(ctx context.Context, collectionID, userID primitive.ObjectID, requiredPermission string) (bool, error) {
 	//
 	// STEP 1: Validation.
 	//
 
 	e := make(map[string]string)
-	if collectionID == "" {
+	if collectionID.IsZero() {
 		e["collection_id"] = "Collection ID is required"
 	}
-	if userID == "" {
+	if userID.IsZero() {
 		e["user_id"] = "User ID is required"
 	}
 	if requiredPermission == "" {
@@ -59,5 +60,5 @@ func (uc *checkCollectionAccessUseCaseImpl) Execute(ctx context.Context, collect
 	// STEP 2: Check access.
 	//
 
-	return uc.repo.CheckAccess(collectionID, userID, requiredPermission)
+	return uc.repo.CheckAccess(ctx, collectionID, userID, requiredPermission)
 }

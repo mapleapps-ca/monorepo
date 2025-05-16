@@ -4,6 +4,7 @@ package collection
 import (
 	"context"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
@@ -12,7 +13,7 @@ import (
 )
 
 type ListCollectionsSharedWithUserUseCase interface {
-	Execute(ctx context.Context, userID string) ([]*dom_collection.Collection, error)
+	Execute(ctx context.Context, userID primitive.ObjectID) ([]*dom_collection.Collection, error)
 }
 
 type listCollectionsSharedWithUserUseCaseImpl struct {
@@ -29,13 +30,13 @@ func NewListCollectionsSharedWithUserUseCase(
 	return &listCollectionsSharedWithUserUseCaseImpl{config, logger, repo}
 }
 
-func (uc *listCollectionsSharedWithUserUseCaseImpl) Execute(ctx context.Context, userID string) ([]*dom_collection.Collection, error) {
+func (uc *listCollectionsSharedWithUserUseCaseImpl) Execute(ctx context.Context, userID primitive.ObjectID) ([]*dom_collection.Collection, error) {
 	//
 	// STEP 1: Validation.
 	//
 
 	e := make(map[string]string)
-	if userID == "" {
+	if userID.IsZero() {
 		e["user_id"] = "User ID is required"
 	}
 	if len(e) != 0 {
@@ -48,5 +49,5 @@ func (uc *listCollectionsSharedWithUserUseCaseImpl) Execute(ctx context.Context,
 	// STEP 2: Get from database.
 	//
 
-	return uc.repo.GetCollectionsSharedWithUser(userID)
+	return uc.repo.GetCollectionsSharedWithUser(ctx, userID)
 }

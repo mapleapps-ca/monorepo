@@ -4,6 +4,7 @@ package collection
 import (
 	"context"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
@@ -12,7 +13,7 @@ import (
 )
 
 type RemoveCollectionMemberUseCase interface {
-	Execute(ctx context.Context, collectionID string, recipientID string) error
+	Execute(ctx context.Context, collectionID, recipientID primitive.ObjectID) error
 }
 
 type removeCollectionMemberUseCaseImpl struct {
@@ -29,16 +30,16 @@ func NewRemoveCollectionMemberUseCase(
 	return &removeCollectionMemberUseCaseImpl{config, logger, repo}
 }
 
-func (uc *removeCollectionMemberUseCaseImpl) Execute(ctx context.Context, collectionID string, recipientID string) error {
+func (uc *removeCollectionMemberUseCaseImpl) Execute(ctx context.Context, collectionID, recipientID primitive.ObjectID) error {
 	//
 	// STEP 1: Validation.
 	//
 
 	e := make(map[string]string)
-	if collectionID == "" {
+	if collectionID.IsZero() {
 		e["collection_id"] = "Collection ID is required"
 	}
-	if recipientID == "" {
+	if recipientID.IsZero() {
 		e["recipient_id"] = "Recipient ID is required"
 	}
 	if len(e) != 0 {
@@ -51,5 +52,5 @@ func (uc *removeCollectionMemberUseCaseImpl) Execute(ctx context.Context, collec
 	// STEP 2: Remove member from collection.
 	//
 
-	return uc.repo.RemoveMember(collectionID, recipientID)
+	return uc.repo.RemoveMember(ctx, collectionID, recipientID)
 }

@@ -38,11 +38,11 @@ func (uc *createCollectionUseCaseImpl) Execute(ctx context.Context, collection *
 	if collection == nil {
 		e["collection"] = "Collection is required"
 	} else {
-		if collection.OwnerID == "" {
+		if collection.OwnerID.IsZero() {
 			e["owner_id"] = "Owner ID is required"
 		}
-		if collection.Name == "" {
-			e["name"] = "Collection name is required"
+		if collection.EncryptedName == "" {
+			e["encrypted_name"] = "Collection name is required"
 		}
 		if collection.Type == "" {
 			e["type"] = "Collection type is required"
@@ -63,5 +63,5 @@ func (uc *createCollectionUseCaseImpl) Execute(ctx context.Context, collection *
 	// STEP 2: Insert into database.
 	//
 
-	return uc.repo.Create(collection)
+	return uc.repo.Create(ctx, collection)
 }

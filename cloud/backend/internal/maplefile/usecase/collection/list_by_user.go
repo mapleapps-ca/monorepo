@@ -4,6 +4,7 @@ package collection
 import (
 	"context"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
@@ -12,7 +13,7 @@ import (
 )
 
 type ListCollectionsByUserUseCase interface {
-	Execute(ctx context.Context, userID string) ([]*dom_collection.Collection, error)
+	Execute(ctx context.Context, userID primitive.ObjectID) ([]*dom_collection.Collection, error)
 }
 
 type listCollectionsByUserUseCaseImpl struct {
@@ -29,13 +30,13 @@ func NewListCollectionsByUserUseCase(
 	return &listCollectionsByUserUseCaseImpl{config, logger, repo}
 }
 
-func (uc *listCollectionsByUserUseCaseImpl) Execute(ctx context.Context, userID string) ([]*dom_collection.Collection, error) {
+func (uc *listCollectionsByUserUseCaseImpl) Execute(ctx context.Context, userID primitive.ObjectID) ([]*dom_collection.Collection, error) {
 	//
 	// STEP 1: Validation.
 	//
 
 	e := make(map[string]string)
-	if userID == "" {
+	if userID.IsZero() {
 		e["user_id"] = "User ID is required"
 	}
 	if len(e) != 0 {
@@ -48,5 +49,5 @@ func (uc *listCollectionsByUserUseCaseImpl) Execute(ctx context.Context, userID 
 	// STEP 2: Get from database.
 	//
 
-	return uc.repo.GetAllByUserID(userID)
+	return uc.repo.GetAllByUserID(ctx, userID)
 }

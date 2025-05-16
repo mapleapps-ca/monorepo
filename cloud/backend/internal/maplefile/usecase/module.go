@@ -45,16 +45,23 @@ func Module() fx.Option {
 			file.NewGetEncryptedDataUseCase,
 
 			// Collection use cases
+			collection.NewAddCollectionMemberUseCase,
+			collection.NewAddMemberToHierarchyUseCase,
+			collection.NewCheckCollectionAccessUseCase,
 			collection.NewCreateCollectionUseCase,
+			collection.NewDeleteCollectionUseCase,
+			collection.NewFindCollectionsByParentUseCase,
+			collection.NewFindDescendantsUseCase,
+			collection.NewFindRootCollectionsUseCase,
 			collection.NewGetCollectionUseCase,
+			collection.NewGetCollectionHierarchyUseCase,
 			collection.NewListCollectionsByUserUseCase,
 			collection.NewListCollectionsSharedWithUserUseCase,
-			collection.NewUpdateCollectionUseCase,
-			collection.NewDeleteCollectionUseCase,
-			collection.NewAddCollectionMemberUseCase,
+			collection.NewMoveCollectionUseCase,
 			collection.NewRemoveCollectionMemberUseCase,
+			collection.NewRemoveMemberFromHierarchyUseCase,
+			collection.NewUpdateCollectionUseCase,
 			collection.NewUpdateMemberPermissionUseCase,
-			collection.NewCheckCollectionAccessUseCase,
 		),
 	)
 }
