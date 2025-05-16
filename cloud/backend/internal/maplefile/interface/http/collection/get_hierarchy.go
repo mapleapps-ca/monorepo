@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/interface/http/collection/get.go
+// cloud/backend/internal/maplefile/interface/http/collection/get_hierarchy.go
 package collection
 
 import (
@@ -17,22 +17,22 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type GetCollectionHTTPHandler struct {
+type GetCollectionHierarchyHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
 	dbClient   *mongo.Client
-	service    svc_collection.GetCollectionService
+	service    svc_collection.GetCollectionHierarchyService
 	middleware middleware.Middleware
 }
 
-func NewGetCollectionHTTPHandler(
+func NewGetCollectionHierarchyHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
 	dbClient *mongo.Client,
-	service svc_collection.GetCollectionService,
+	service svc_collection.GetCollectionHierarchyService,
 	middleware middleware.Middleware,
-) *GetCollectionHTTPHandler {
-	return &GetCollectionHTTPHandler{
+) *GetCollectionHierarchyHTTPHandler {
+	return &GetCollectionHierarchyHTTPHandler{
 		config:     config,
 		logger:     logger,
 		dbClient:   dbClient,
@@ -41,23 +41,22 @@ func NewGetCollectionHTTPHandler(
 	}
 }
 
-func (*GetCollectionHTTPHandler) Pattern() string {
-	return "GET /maplefile/api/v1/collections/{collection_id}"
+func (*GetCollectionHierarchyHTTPHandler) Pattern() string {
+	return "GET /maplefile/api/v1/collections/{collection_id}/hierarchy"
 }
 
-func (h *GetCollectionHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h *GetCollectionHierarchyHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Apply middleware before handling the request
 	h.middleware.Attach(h.Execute)(w, req)
 }
 
-func (h *GetCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
+func (h *GetCollectionHierarchyHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	// Set response content type
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx := r.Context()
 
 	// Extract collection ID from URL parameters
-	// Assuming Go 1.22+ where r.PathValue is available for patterns like "/items/{id}"
 	collectionIDStr := r.PathValue("collection_id")
 	if collectionIDStr == "" {
 		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("collection_id", "Collection ID is required"))
@@ -65,7 +64,7 @@ func (h *GetCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Convert string ID to ObjectID
-	collectionID, err := primitive.ObjectIDFromHex(collectionIDStr)
+	rootID, err := primitive.ObjectIDFromHex(collectionIDStr)
 	if err != nil {
 		h.logger.Error("invalid collection ID format",
 			zap.String("collection_id", collectionIDStr),
@@ -87,9 +86,9 @@ func (h *GetCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Reques
 	// Define a transaction function with a series of operations
 	transactionFunc := func(sessCtx context.Context) (interface{}, error) {
 		// Call service
-		response, err := h.service.Execute(sessCtx, collectionID)
+		response, err := h.service.Execute(sessCtx, rootID)
 		if err != nil {
-			h.logger.Error("failed to get collection",
+			h.logger.Error("failed to get collection hierarchy",
 				zap.Any("error", err))
 			return nil, err
 		}

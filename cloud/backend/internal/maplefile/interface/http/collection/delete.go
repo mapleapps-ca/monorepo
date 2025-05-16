@@ -7,9 +7,9 @@ import (
 	"errors"
 	"net/http"
 
-	"go.uber.org/zap"
-
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
@@ -57,9 +57,19 @@ func (h *DeleteCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Req
 	ctx := r.Context()
 
 	// Extract collection ID from the URL
-	collectionID := r.PathValue("collection_id")
-	if collectionID == "" {
+	collectionIDStr := r.PathValue("collection_id")
+	if collectionIDStr == "" {
 		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("collection_id", "Collection ID is required"))
+		return
+	}
+
+	// Convert string ID to ObjectID
+	collectionID, err := primitive.ObjectIDFromHex(collectionIDStr)
+	if err != nil {
+		h.logger.Error("invalid collection ID format",
+			zap.String("collection_id", collectionIDStr),
+			zap.Error(err))
+		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("collection_id", "Invalid collection ID format"))
 		return
 	}
 

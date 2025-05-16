@@ -26,12 +26,23 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(me.NewPutUpdateMeHTTPHandler),
 			unifiedhttp.AsRoute(me.NewDeleteMeHTTPHandler),
 
-			// Collection handlers
+			// Collection handlers - Basic CRUD
 			unifiedhttp.AsRoute(collection.NewCreateCollectionHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewGetCollectionHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewListUserCollectionsHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewUpdateCollectionHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewDeleteCollectionHTTPHandler),
+
+			// Collection handlers - Hierarchical operations
+			unifiedhttp.AsRoute(collection.NewFindCollectionsByParentHTTPHandler),
+			unifiedhttp.AsRoute(collection.NewFindRootCollectionsHTTPHandler),
+			unifiedhttp.AsRoute(collection.NewGetCollectionHierarchyHTTPHandler),
+			unifiedhttp.AsRoute(collection.NewMoveCollectionHTTPHandler),
+
+			// Collection handlers - Sharing
+			unifiedhttp.AsRoute(collection.NewShareCollectionHTTPHandler),
+			unifiedhttp.AsRoute(collection.NewRemoveMemberHTTPHandler),
+			unifiedhttp.AsRoute(collection.NewListSharedCollectionsHTTPHandler),
 
 			// File handlers
 			unifiedhttp.AsRoute(file.NewCreateFileHTTPHandler),

@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/interface/http/collection/get.go
+// cloud/backend/internal/maplefile/interface/http/collection/list_shared_with_user.go
 package collection
 
 import (
@@ -7,7 +7,6 @@ import (
 	"errors"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
@@ -17,22 +16,22 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type GetCollectionHTTPHandler struct {
+type ListSharedCollectionsHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
 	dbClient   *mongo.Client
-	service    svc_collection.GetCollectionService
+	service    svc_collection.ListSharedCollectionsService
 	middleware middleware.Middleware
 }
 
-func NewGetCollectionHTTPHandler(
+func NewListSharedCollectionsHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
 	dbClient *mongo.Client,
-	service svc_collection.GetCollectionService,
+	service svc_collection.ListSharedCollectionsService,
 	middleware middleware.Middleware,
-) *GetCollectionHTTPHandler {
-	return &GetCollectionHTTPHandler{
+) *ListSharedCollectionsHTTPHandler {
+	return &ListSharedCollectionsHTTPHandler{
 		config:     config,
 		logger:     logger,
 		dbClient:   dbClient,
@@ -41,38 +40,20 @@ func NewGetCollectionHTTPHandler(
 	}
 }
 
-func (*GetCollectionHTTPHandler) Pattern() string {
-	return "GET /maplefile/api/v1/collections/{collection_id}"
+func (*ListSharedCollectionsHTTPHandler) Pattern() string {
+	return "GET /maplefile/api/v1/collections/shared"
 }
 
-func (h *GetCollectionHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h *ListSharedCollectionsHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Apply middleware before handling the request
 	h.middleware.Attach(h.Execute)(w, req)
 }
 
-func (h *GetCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
+func (h *ListSharedCollectionsHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	// Set response content type
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx := r.Context()
-
-	// Extract collection ID from URL parameters
-	// Assuming Go 1.22+ where r.PathValue is available for patterns like "/items/{id}"
-	collectionIDStr := r.PathValue("collection_id")
-	if collectionIDStr == "" {
-		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("collection_id", "Collection ID is required"))
-		return
-	}
-
-	// Convert string ID to ObjectID
-	collectionID, err := primitive.ObjectIDFromHex(collectionIDStr)
-	if err != nil {
-		h.logger.Error("invalid collection ID format",
-			zap.String("collection_id", collectionIDStr),
-			zap.Error(err))
-		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("collection_id", "Invalid collection ID format"))
-		return
-	}
 
 	// Start the transaction
 	session, err := h.dbClient.StartSession()
@@ -87,9 +68,9 @@ func (h *GetCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Reques
 	// Define a transaction function with a series of operations
 	transactionFunc := func(sessCtx context.Context) (interface{}, error) {
 		// Call service
-		response, err := h.service.Execute(sessCtx, collectionID)
+		response, err := h.service.Execute(sessCtx)
 		if err != nil {
-			h.logger.Error("failed to get collection",
+			h.logger.Error("failed to list shared collections",
 				zap.Any("error", err))
 			return nil, err
 		}
@@ -107,7 +88,7 @@ func (h *GetCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Reques
 
 	// Encode response
 	if result != nil {
-		resp := result.(*svc_collection.CollectionResponseDTO)
+		resp := result.(*svc_collection.CollectionsResponseDTO)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			h.logger.Error("failed to encode response",
 				zap.Any("error", err))

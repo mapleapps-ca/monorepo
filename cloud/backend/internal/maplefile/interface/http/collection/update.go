@@ -9,9 +9,9 @@ import (
 	"io"
 	"net/http"
 
-	"go.uber.org/zap"
-
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
@@ -55,7 +55,7 @@ func (h *UpdateCollectionHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http
 func (h *UpdateCollectionHTTPHandler) unmarshalRequest(
 	ctx context.Context,
 	r *http.Request,
-	collectionID string,
+	collectionID primitive.ObjectID,
 ) (*svc_collection.UpdateCollectionRequestDTO, error) {
 	// Initialize our structure which will store the parsed request data
 	var requestData svc_collection.UpdateCollectionRequestDTO
@@ -89,13 +89,23 @@ func (h *UpdateCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Req
 
 	// Extract collection ID from the URL path parameter
 	// This assumes the router is net/http (Go 1.22+) and the pattern was registered like "PUT /path/{collection_id}"
-	collectionID := r.PathValue("collection_id")
-	if collectionID == "" {
+	collectionIDStr := r.PathValue("collection_id")
+	if collectionIDStr == "" {
 		h.logger.Warn("collection_id not found in path parameters or is empty",
 			zap.String("path", r.URL.Path),
 			zap.String("method", r.Method),
 		)
 		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("collection_id", "Collection ID is required"))
+		return
+	}
+
+	// Convert string ID to ObjectID
+	collectionID, err := primitive.ObjectIDFromHex(collectionIDStr)
+	if err != nil {
+		h.logger.Error("invalid collection ID format",
+			zap.String("collection_id", collectionIDStr),
+			zap.Error(err))
+		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("collection_id", "Invalid collection ID format"))
 		return
 	}
 
@@ -146,7 +156,7 @@ func (h *UpdateCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Req
 			return
 		}
 	} else {
-		err := errors.New("no result from transaction") // Clarified error message
+		err := errors.New("transaction completed with no result") // Clarified error message
 		h.logger.Error("transaction completed with no result", zap.Any("request_payload", req))
 		httperror.ResponseError(w, err)
 		return

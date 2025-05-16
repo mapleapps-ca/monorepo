@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/interface/http/collection/get.go
+// cloud/backend/internal/maplefile/interface/http/collection/find_by_parent.go
 package collection
 
 import (
@@ -17,22 +17,22 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type GetCollectionHTTPHandler struct {
+type FindCollectionsByParentHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
 	dbClient   *mongo.Client
-	service    svc_collection.GetCollectionService
+	service    svc_collection.FindCollectionsByParentService
 	middleware middleware.Middleware
 }
 
-func NewGetCollectionHTTPHandler(
+func NewFindCollectionsByParentHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
 	dbClient *mongo.Client,
-	service svc_collection.GetCollectionService,
+	service svc_collection.FindCollectionsByParentService,
 	middleware middleware.Middleware,
-) *GetCollectionHTTPHandler {
-	return &GetCollectionHTTPHandler{
+) *FindCollectionsByParentHTTPHandler {
+	return &FindCollectionsByParentHTTPHandler{
 		config:     config,
 		logger:     logger,
 		dbClient:   dbClient,
@@ -41,37 +41,41 @@ func NewGetCollectionHTTPHandler(
 	}
 }
 
-func (*GetCollectionHTTPHandler) Pattern() string {
-	return "GET /maplefile/api/v1/collections/{collection_id}"
+func (*FindCollectionsByParentHTTPHandler) Pattern() string {
+	return "GET /maplefile/api/v1/collections/by-parent/{parent_id}"
 }
 
-func (h *GetCollectionHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h *FindCollectionsByParentHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Apply middleware before handling the request
 	h.middleware.Attach(h.Execute)(w, req)
 }
 
-func (h *GetCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
+func (h *FindCollectionsByParentHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	// Set response content type
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx := r.Context()
 
-	// Extract collection ID from URL parameters
-	// Assuming Go 1.22+ where r.PathValue is available for patterns like "/items/{id}"
-	collectionIDStr := r.PathValue("collection_id")
-	if collectionIDStr == "" {
-		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("collection_id", "Collection ID is required"))
+	// Extract parent ID from URL parameters
+	parentIDStr := r.PathValue("parent_id")
+	if parentIDStr == "" {
+		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("parent_id", "Parent ID is required"))
 		return
 	}
 
 	// Convert string ID to ObjectID
-	collectionID, err := primitive.ObjectIDFromHex(collectionIDStr)
+	parentID, err := primitive.ObjectIDFromHex(parentIDStr)
 	if err != nil {
-		h.logger.Error("invalid collection ID format",
-			zap.String("collection_id", collectionIDStr),
+		h.logger.Error("invalid parent ID format",
+			zap.String("parent_id", parentIDStr),
 			zap.Error(err))
-		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("collection_id", "Invalid collection ID format"))
+		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("parent_id", "Invalid parent ID format"))
 		return
+	}
+
+	// Create request DTO
+	req := &svc_collection.FindByParentRequestDTO{
+		ParentID: parentID,
 	}
 
 	// Start the transaction
@@ -87,9 +91,9 @@ func (h *GetCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Reques
 	// Define a transaction function with a series of operations
 	transactionFunc := func(sessCtx context.Context) (interface{}, error) {
 		// Call service
-		response, err := h.service.Execute(sessCtx, collectionID)
+		response, err := h.service.Execute(sessCtx, req)
 		if err != nil {
-			h.logger.Error("failed to get collection",
+			h.logger.Error("failed to find collections by parent",
 				zap.Any("error", err))
 			return nil, err
 		}
@@ -107,7 +111,7 @@ func (h *GetCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Reques
 
 	// Encode response
 	if result != nil {
-		resp := result.(*svc_collection.CollectionResponseDTO)
+		resp := result.(*svc_collection.CollectionsResponseDTO)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			h.logger.Error("failed to encode response",
 				zap.Any("error", err))
