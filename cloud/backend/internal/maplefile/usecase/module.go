@@ -37,10 +37,12 @@ func Module() fx.Option {
 
 			// File use cases
 			file.NewCreateFileUseCase,
+			file.NewCreateManyFilesUseCase,
 			file.NewGetFileUseCase,
 			file.NewListFilesByCollectionUseCase,
 			file.NewUpdateFileUseCase,
 			file.NewDeleteFileUseCase,
+			file.NewDeleteManyFilesUseCase,
 			file.NewStoreEncryptedDataUseCase,
 			file.NewGetEncryptedDataUseCase,
 

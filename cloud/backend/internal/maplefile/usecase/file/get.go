@@ -4,6 +4,7 @@ package file
 import (
 	"context"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
@@ -12,7 +13,7 @@ import (
 )
 
 type GetFileUseCase interface {
-	Execute(ctx context.Context, id string) (*dom_file.File, error)
+	Execute(ctx context.Context, id primitive.ObjectID) (*dom_file.File, error)
 }
 
 type getFileUseCaseImpl struct {
@@ -29,13 +30,13 @@ func NewGetFileUseCase(
 	return &getFileUseCaseImpl{config, logger, repo}
 }
 
-func (uc *getFileUseCaseImpl) Execute(ctx context.Context, id string) (*dom_file.File, error) {
+func (uc *getFileUseCaseImpl) Execute(ctx context.Context, id primitive.ObjectID) (*dom_file.File, error) {
 	//
 	// STEP 1: Validation.
 	//
 
 	e := make(map[string]string)
-	if id == "" {
+	if id.IsZero() {
 		e["id"] = "File ID is required"
 	}
 	if len(e) != 0 {
@@ -55,7 +56,7 @@ func (uc *getFileUseCaseImpl) Execute(ctx context.Context, id string) (*dom_file
 
 	if file == nil {
 		uc.logger.Debug("File not found",
-			zap.String("id", id))
+			zap.Any("id", id))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "File not found")
 	}
 

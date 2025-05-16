@@ -3,7 +3,9 @@ package file
 
 import (
 	"context"
+	"fmt"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
@@ -37,7 +39,14 @@ func (uc *listFilesByCollectionUseCaseImpl) Execute(ctx context.Context, collect
 	e := make(map[string]string)
 	if collectionID == "" {
 		e["collection_id"] = "Collection ID is required"
+	} else {
+		// Validate that it's a valid ObjectID format
+		_, err := primitive.ObjectIDFromHex(collectionID)
+		if err != nil {
+			e["collection_id"] = fmt.Sprintf("Invalid collection ID format: %v", err)
+		}
 	}
+
 	if len(e) != 0 {
 		uc.logger.Warn("Failed validating list files by collection request",
 			zap.Any("error", e))

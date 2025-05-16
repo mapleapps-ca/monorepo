@@ -38,13 +38,13 @@ func (uc *updateFileUseCaseImpl) Execute(ctx context.Context, file *dom_file.Fil
 	if file == nil {
 		e["file"] = "File is required"
 	} else {
-		if file.ID == "" {
+		if file.ID.IsZero() {
 			e["id"] = "File ID is required"
 		}
-		if file.OwnerID == "" {
+		if file.OwnerID.IsZero() {
 			e["owner_id"] = "Owner ID is required"
 		}
-		if file.CollectionID == "" {
+		if file.CollectionID.IsZero() {
 			e["collection_id"] = "Collection ID is required"
 		}
 	}

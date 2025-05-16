@@ -38,13 +38,13 @@ func (uc *createFileUseCaseImpl) Execute(ctx context.Context, file *dom_file.Fil
 	if file == nil {
 		e["file"] = "File is required"
 	} else {
-		if file.OwnerID == "" {
+		if file.OwnerID.IsZero() {
 			e["owner_id"] = "Owner ID is required"
 		}
-		if file.CollectionID == "" {
+		if file.CollectionID.IsZero() {
 			e["collection_id"] = "Collection ID is required"
 		}
-		// FileID is optional as it may be generated in the repository if not provided
+		// EncryptedFileID is optional as it may be generated in the repository if not provided
 	}
 	if len(e) != 0 {
 		uc.logger.Warn("Failed validating file creation",
