@@ -3,7 +3,6 @@ package collection
 
 import (
 	"context"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -16,7 +15,7 @@ import (
 )
 
 type GetCollectionService interface {
-	Execute(sessCtx context.Context, collectionID string) (*CollectionResponseDTO, error)
+	Execute(ctx context.Context, collectionID primitive.ObjectID) (*CollectionResponseDTO, error)
 }
 
 type getCollectionServiceImpl struct {
@@ -37,11 +36,11 @@ func NewGetCollectionService(
 	}
 }
 
-func (svc *getCollectionServiceImpl) Execute(sessCtx context.Context, collectionID string) (*CollectionResponseDTO, error) {
+func (svc *getCollectionServiceImpl) Execute(ctx context.Context, collectionID primitive.ObjectID) (*CollectionResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
-	if collectionID == "" {
+	if collectionID.IsZero() {
 		svc.logger.Warn("Empty collection ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("collection_id", "Collection ID is required")
 	}
@@ -49,7 +48,7 @@ func (svc *getCollectionServiceImpl) Execute(sessCtx context.Context, collection
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
@@ -58,17 +57,17 @@ func (svc *getCollectionServiceImpl) Execute(sessCtx context.Context, collection
 	//
 	// STEP 3: Get collection from repository
 	//
-	collection, err := svc.repo.Get(collectionID)
+	collection, err := svc.repo.Get(ctx, collectionID)
 	if err != nil {
 		svc.logger.Error("Failed to get collection",
 			zap.Any("error", err),
-			zap.String("collection_id", collectionID))
+			zap.Any("collection_id", collectionID))
 		return nil, err
 	}
 
 	if collection == nil {
 		svc.logger.Debug("Collection not found",
-			zap.String("collection_id", collectionID))
+			zap.Any("collection_id", collectionID))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "Collection not found")
 	}
 
@@ -76,12 +75,12 @@ func (svc *getCollectionServiceImpl) Execute(sessCtx context.Context, collection
 	// STEP 4: Check if the user has access to this collection
 	//
 	// First check if user is owner
-	hasAccess := collection.OwnerID == userID.Hex()
+	hasAccess := collection.OwnerID == userID
 
 	// If not owner, check if user is a member
 	if !hasAccess {
 		for _, member := range collection.Members {
-			if member.RecipientID == userID.Hex() {
+			if member.RecipientID == userID {
 				hasAccess = true
 				break
 			}
@@ -90,51 +89,15 @@ func (svc *getCollectionServiceImpl) Execute(sessCtx context.Context, collection
 
 	if !hasAccess {
 		svc.logger.Warn("Unauthorized collection access attempt",
-			zap.String("user_id", userID.Hex()),
-			zap.String("collection_id", collectionID))
+			zap.Any("user_id", userID),
+			zap.Any("collection_id", collectionID))
 		return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have access to this collection")
 	}
 
 	//
 	// STEP 5: Map domain model to response DTO
 	//
-	response := &CollectionResponseDTO{
-		ID:                     collection.ID,
-		OwnerID:                collection.OwnerID,
-		Name:                   collection.Name,
-		Path:                   collection.Path,
-		Type:                   collection.Type,
-		EncryptedCollectionKey: collection.EncryptedCollectionKey,
-		CreatedAt:              collection.CreatedAt,
-		UpdatedAt:              collection.UpdatedAt,
-		Members: make([]struct {
-			RecipientID     string    `json:"recipient_id"`
-			RecipientEmail  string    `json:"recipient_email"`
-			PermissionLevel string    `json:"permission_level"`
-			GrantedByID     string    `json:"granted_by_id"`
-			CollectionID    string    `json:"collection_id"`
-			CreatedAt       time.Time `json:"created_at"`
-		}, len(collection.Members)),
-	}
-
-	// Map members from domain model to response DTO
-	for i, member := range collection.Members {
-		response.Members[i] = struct {
-			RecipientID     string    `json:"recipient_id"`
-			RecipientEmail  string    `json:"recipient_email"`
-			PermissionLevel string    `json:"permission_level"`
-			GrantedByID     string    `json:"granted_by_id"`
-			CollectionID    string    `json:"collection_id"`
-			CreatedAt       time.Time `json:"created_at"`
-		}{
-			RecipientID:     member.RecipientID,
-			RecipientEmail:  member.RecipientEmail,
-			PermissionLevel: member.PermissionLevel,
-			GrantedByID:     member.GrantedByID,
-			CollectionID:    member.CollectionID,
-			CreatedAt:       member.CreatedAt,
-		}
-	}
+	response := mapCollectionToDTO(collection)
 
 	return response, nil
 }

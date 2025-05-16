@@ -17,15 +17,15 @@ import (
 )
 
 type UpdateCollectionRequestDTO struct {
-	ID                     string                      `json:"id"`
-	Name                   string                      `json:"name"`
-	Path                   string                      `json:"path,omitempty"`
+	ID                     primitive.ObjectID          `json:"id"`
+	EncryptedName          string                      `json:"encrypted_name"`
 	Type                   string                      `json:"type,omitempty"`
-	EncryptedCollectionKey keys.EncryptedCollectionKey `json:"encrypted_collection_key"`
+	EncryptedPathSegments  []string                    `json:"encrypted_path_segments,omitempty"`
+	EncryptedCollectionKey keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
 }
 
 type UpdateCollectionService interface {
-	Execute(sessCtx context.Context, req *UpdateCollectionRequestDTO) (*CollectionResponseDTO, error)
+	Execute(ctx context.Context, req *UpdateCollectionRequestDTO) (*CollectionResponseDTO, error)
 }
 
 type updateCollectionServiceImpl struct {
@@ -46,7 +46,7 @@ func NewUpdateCollectionService(
 	}
 }
 
-func (svc *updateCollectionServiceImpl) Execute(sessCtx context.Context, req *UpdateCollectionRequestDTO) (*CollectionResponseDTO, error) {
+func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *UpdateCollectionRequestDTO) (*CollectionResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
@@ -56,11 +56,11 @@ func (svc *updateCollectionServiceImpl) Execute(sessCtx context.Context, req *Up
 	}
 
 	e := make(map[string]string)
-	if req.ID == "" {
+	if req.ID.IsZero() {
 		e["id"] = "Collection ID is required"
 	}
-	if req.Name == "" {
-		e["name"] = "Collection name is required"
+	if req.EncryptedName == "" {
+		e["encrypted_name"] = "Collection name is required"
 	}
 	if req.Type != "" && req.Type != dom_collection.CollectionTypeFolder && req.Type != dom_collection.CollectionTypeAlbum {
 		e["type"] = "Collection type must be either 'folder' or 'album'"
@@ -75,7 +75,7 @@ func (svc *updateCollectionServiceImpl) Execute(sessCtx context.Context, req *Up
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
@@ -84,28 +84,28 @@ func (svc *updateCollectionServiceImpl) Execute(sessCtx context.Context, req *Up
 	//
 	// STEP 3: Retrieve existing collection
 	//
-	collection, err := svc.repo.Get(req.ID)
+	collection, err := svc.repo.Get(ctx, req.ID)
 	if err != nil {
 		svc.logger.Error("Failed to get collection",
 			zap.Any("error", err),
-			zap.String("collection_id", req.ID))
+			zap.Any("collection_id", req.ID))
 		return nil, err
 	}
 
 	if collection == nil {
 		svc.logger.Debug("Collection not found",
-			zap.String("collection_id", req.ID))
+			zap.Any("collection_id", req.ID))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "Collection not found")
 	}
 
 	//
 	// STEP 4: Check if user has rights to update this collection
 	//
-	if collection.OwnerID != userID.Hex() {
+	if collection.OwnerID != userID {
 		// Check if user is a member with admin permissions
 		isAdmin := false
 		for _, member := range collection.Members {
-			if member.RecipientID == userID.Hex() && member.PermissionLevel == dom_collection.CollectionPermissionAdmin {
+			if member.RecipientID == userID && member.PermissionLevel == dom_collection.CollectionPermissionAdmin {
 				isAdmin = true
 				break
 			}
@@ -113,8 +113,8 @@ func (svc *updateCollectionServiceImpl) Execute(sessCtx context.Context, req *Up
 
 		if !isAdmin {
 			svc.logger.Warn("Unauthorized collection update attempt",
-				zap.String("user_id", userID.Hex()),
-				zap.String("collection_id", req.ID))
+				zap.Any("user_id", userID),
+				zap.Any("collection_id", req.ID))
 			return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have permission to update this collection")
 		}
 	}
@@ -122,15 +122,15 @@ func (svc *updateCollectionServiceImpl) Execute(sessCtx context.Context, req *Up
 	//
 	// STEP 5: Update collection
 	//
-	collection.Name = req.Name
-	collection.UpdatedAt = time.Now()
+	collection.EncryptedName = req.EncryptedName
+	collection.ModifiedAt = time.Now()
 
 	// Only update optional fields if they are provided
-	if req.Path != "" {
-		collection.Path = req.Path
-	}
 	if req.Type != "" {
 		collection.Type = req.Type
+	}
+	if req.EncryptedPathSegments != nil && len(req.EncryptedPathSegments) > 0 {
+		collection.EncryptedPathSegments = req.EncryptedPathSegments
 	}
 	if req.EncryptedCollectionKey.Ciphertext != nil && len(req.EncryptedCollectionKey.Ciphertext) > 0 &&
 		req.EncryptedCollectionKey.Nonce != nil && len(req.EncryptedCollectionKey.Nonce) > 0 {
@@ -140,56 +140,21 @@ func (svc *updateCollectionServiceImpl) Execute(sessCtx context.Context, req *Up
 	//
 	// STEP 6: Save updated collection
 	//
-	err = svc.repo.Update(collection)
+	err = svc.repo.Update(ctx, collection)
 	if err != nil {
 		svc.logger.Error("Failed to update collection",
 			zap.Any("error", err),
-			zap.String("collection_id", collection.ID))
+			zap.Any("collection_id", collection.ID))
 		return nil, err
 	}
 
 	//
 	// STEP 7: Map domain model to response DTO
 	//
-	response := &CollectionResponseDTO{
-		ID:        collection.ID,
-		OwnerID:   collection.OwnerID,
-		Name:      collection.Name,
-		Path:      collection.Path,
-		Type:      collection.Type,
-		CreatedAt: collection.CreatedAt,
-		UpdatedAt: collection.UpdatedAt,
-		Members: make([]struct {
-			RecipientID     string    `json:"recipient_id"`
-			RecipientEmail  string    `json:"recipient_email"`
-			PermissionLevel string    `json:"permission_level"`
-			GrantedByID     string    `json:"granted_by_id"`
-			CollectionID    string    `json:"collection_id"`
-			CreatedAt       time.Time `json:"created_at"`
-		}, len(collection.Members)),
-	}
-
-	// Map members from domain model to response DTO
-	for i, member := range collection.Members {
-		response.Members[i] = struct {
-			RecipientID     string    `json:"recipient_id"`
-			RecipientEmail  string    `json:"recipient_email"`
-			PermissionLevel string    `json:"permission_level"`
-			GrantedByID     string    `json:"granted_by_id"`
-			CollectionID    string    `json:"collection_id"`
-			CreatedAt       time.Time `json:"created_at"`
-		}{
-			RecipientID:     member.RecipientID,
-			RecipientEmail:  member.RecipientEmail,
-			PermissionLevel: member.PermissionLevel,
-			GrantedByID:     member.GrantedByID,
-			CollectionID:    member.CollectionID,
-			CreatedAt:       member.CreatedAt,
-		}
-	}
+	response := mapCollectionToDTO(collection)
 
 	svc.logger.Debug("Collection updated successfully",
-		zap.String("collection_id", collection.ID))
+		zap.Any("collection_id", collection.ID))
 
 	return response, nil
 }

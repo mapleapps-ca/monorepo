@@ -18,12 +18,23 @@ func Module() fx.Option {
 			me.NewUpdateMeService,
 			me.NewVerifyProfileService,
 
-			// Collection services
+			// Collection services - Basic CRUD
 			collection.NewCreateCollectionService,
 			collection.NewGetCollectionService,
-			collection.NewListUserCollectionsService,
 			collection.NewUpdateCollectionService,
 			collection.NewDeleteCollectionService,
+
+			// Collection services - Hierarchical operations
+			collection.NewListUserCollectionsService,
+			collection.NewFindCollectionsByParentService,
+			collection.NewFindRootCollectionsService,
+			collection.NewGetCollectionHierarchyService,
+			collection.NewMoveCollectionService,
+
+			// Collection services - Sharing
+			collection.NewShareCollectionService,
+			collection.NewRemoveMemberService,
+			collection.NewListSharedCollectionsService,
 
 			// File services
 			file.NewCreateFileService,

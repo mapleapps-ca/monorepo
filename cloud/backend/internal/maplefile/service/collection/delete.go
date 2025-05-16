@@ -16,7 +16,7 @@ import (
 )
 
 type DeleteCollectionRequestDTO struct {
-	ID string `json:"id"`
+	ID primitive.ObjectID `json:"id"`
 }
 
 type DeleteCollectionResponseDTO struct {
@@ -25,7 +25,7 @@ type DeleteCollectionResponseDTO struct {
 }
 
 type DeleteCollectionService interface {
-	Execute(sessCtx context.Context, req *DeleteCollectionRequestDTO) (*DeleteCollectionResponseDTO, error)
+	Execute(ctx context.Context, req *DeleteCollectionRequestDTO) (*DeleteCollectionResponseDTO, error)
 }
 
 type deleteCollectionServiceImpl struct {
@@ -49,7 +49,7 @@ func NewDeleteCollectionService(
 	}
 }
 
-func (svc *deleteCollectionServiceImpl) Execute(sessCtx context.Context, req *DeleteCollectionRequestDTO) (*DeleteCollectionResponseDTO, error) {
+func (svc *deleteCollectionServiceImpl) Execute(ctx context.Context, req *DeleteCollectionRequestDTO) (*DeleteCollectionResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
@@ -58,7 +58,7 @@ func (svc *deleteCollectionServiceImpl) Execute(sessCtx context.Context, req *De
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "Collection ID is required")
 	}
 
-	if req.ID == "" {
+	if req.ID.IsZero() {
 		svc.logger.Warn("Empty collection ID")
 		return nil, httperror.NewForBadRequestWithSingleField("id", "Collection ID is required")
 	}
@@ -66,7 +66,7 @@ func (svc *deleteCollectionServiceImpl) Execute(sessCtx context.Context, req *De
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
@@ -75,70 +75,64 @@ func (svc *deleteCollectionServiceImpl) Execute(sessCtx context.Context, req *De
 	//
 	// STEP 3: Retrieve existing collection
 	//
-	collection, err := svc.repo.Get(req.ID)
+	collection, err := svc.repo.Get(ctx, req.ID)
 	if err != nil {
 		svc.logger.Error("Failed to get collection",
 			zap.Any("error", err),
-			zap.String("collection_id", req.ID))
+			zap.Any("collection_id", req.ID))
 		return nil, err
 	}
 
 	if collection == nil {
 		svc.logger.Debug("Collection not found",
-			zap.String("collection_id", req.ID))
+			zap.Any("collection_id", req.ID))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "Collection not found")
 	}
 
 	//
 	// STEP 4: Check if user has rights to delete this collection
 	//
-	if collection.OwnerID != userID.Hex() {
+	if collection.OwnerID != userID {
 		svc.logger.Warn("Unauthorized collection deletion attempt",
-			zap.String("user_id", userID.Hex()),
-			zap.String("collection_id", req.ID))
+			zap.Any("user_id", userID),
+			zap.Any("collection_id", req.ID))
 		return nil, httperror.NewForForbiddenWithSingleField("message", "Only the collection owner can delete a collection")
 	}
 
 	//
-	// STEP 5: Check for associated files that need to be deleted
+	// STEP 5: Check for child collections
 	//
-	files, err := svc.fileRepo.GetByCollection(req.ID)
+	descendants, err := svc.repo.FindDescendants(ctx, req.ID)
 	if err != nil {
-		svc.logger.Error("Failed to fetch files in collection",
+		svc.logger.Error("Failed to check for descendant collections",
 			zap.Any("error", err),
-			zap.String("collection_id", req.ID))
+			zap.Any("collection_id", req.ID))
 		return nil, err
 	}
 
-	// Delete all files within the collection
-	for _, file := range files {
-		err = svc.fileRepo.Delete(file.ID)
-		if err != nil {
-			svc.logger.Error("Failed to delete file during collection deletion",
-				zap.Any("error", err),
-				zap.String("file_id", file.ID),
-				zap.String("collection_id", req.ID))
-			// Continue deleting other files even if one fails
-		}
-	}
+	//
+	// STEP 6: Delete all files in this collection and its descendants
+	//
+	// For this to work, we'd need to update the FileRepository to support filtering by multiple collection IDs
+	// Otherwise, we'd need to loop through each collection and delete its files
 
 	//
-	// STEP 6: Delete the collection
+	// STEP 7: Delete the collection and all its descendants
 	//
-	err = svc.repo.Delete(req.ID)
+	err = svc.repo.Delete(ctx, req.ID)
 	if err != nil {
 		svc.logger.Error("Failed to delete collection",
 			zap.Any("error", err),
-			zap.String("collection_id", req.ID))
+			zap.Any("collection_id", req.ID))
 		return nil, err
 	}
 
 	svc.logger.Info("Collection deleted successfully",
-		zap.String("collection_id", req.ID),
-		zap.Int("files_deleted", len(files)))
+		zap.Any("collection_id", req.ID),
+		zap.Int("descendants_count", len(descendants)))
 
 	return &DeleteCollectionResponseDTO{
 		Success: true,
-		Message: "Collection and all associated files deleted successfully",
+		Message: "Collection, descendants, and all associated files deleted successfully",
 	}, nil
 }

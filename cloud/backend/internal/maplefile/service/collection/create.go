@@ -17,33 +17,42 @@ import (
 )
 
 type CreateCollectionRequestDTO struct {
-	Name                   string                      `json:"name"`
+	EncryptedName          string                      `json:"encrypted_name"`
 	Type                   string                      `json:"type"`
-	Path                   string                      `json:"path"`
+	ParentID               primitive.ObjectID          `json:"parent_id,omitempty"`
+	EncryptedPathSegments  []string                    `json:"encrypted_path_segments,omitempty"`
 	EncryptedCollectionKey keys.EncryptedCollectionKey `json:"encrypted_collection_key"`
 }
 
 type CollectionResponseDTO struct {
-	ID                     string                      `json:"id"`
-	OwnerID                string                      `json:"owner_id"`
-	Name                   string                      `json:"name"`
-	Path                   string                      `json:"path"`
+	ID                     primitive.ObjectID          `json:"id"`
+	OwnerID                primitive.ObjectID          `json:"owner_id"`
+	EncryptedName          string                      `json:"encrypted_name"`
 	Type                   string                      `json:"type"`
+	ParentID               primitive.ObjectID          `json:"parent_id,omitempty"`
+	AncestorIDs            []primitive.ObjectID        `json:"ancestor_ids,omitempty"`
+	EncryptedPathSegments  []string                    `json:"encrypted_path_segments,omitempty"`
 	EncryptedCollectionKey keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
+	Children               []*CollectionResponseDTO    `json:"children,omitempty"`
 	CreatedAt              time.Time                   `json:"created_at"`
-	UpdatedAt              time.Time                   `json:"updated_at"`
-	Members                []struct {
-		RecipientID     string    `json:"recipient_id"`
-		RecipientEmail  string    `json:"recipient_email"`
-		PermissionLevel string    `json:"permission_level"`
-		GrantedByID     string    `json:"granted_by_id"`
-		CollectionID    string    `json:"collection_id"`
-		CreatedAt       time.Time `json:"created_at"`
-	} `json:"members"`
+	ModifiedAt             time.Time                   `json:"modified_at"`
+	Members                []MembershipResponseDTO     `json:"members"`
+}
+
+type MembershipResponseDTO struct {
+	ID              primitive.ObjectID `json:"id"`
+	RecipientID     primitive.ObjectID `json:"recipient_id"`
+	RecipientEmail  string             `json:"recipient_email"`
+	PermissionLevel string             `json:"permission_level"`
+	GrantedByID     primitive.ObjectID `json:"granted_by_id"`
+	CollectionID    primitive.ObjectID `json:"collection_id"`
+	IsInherited     bool               `json:"is_inherited"`
+	InheritedFromID primitive.ObjectID `json:"inherited_from_id,omitempty"`
+	CreatedAt       time.Time          `json:"created_at"`
 }
 
 type CreateCollectionService interface {
-	Execute(sessCtx context.Context, req *CreateCollectionRequestDTO) (*CollectionResponseDTO, error)
+	Execute(ctx context.Context, req *CreateCollectionRequestDTO) (*CollectionResponseDTO, error)
 }
 
 type createCollectionServiceImpl struct {
@@ -64,7 +73,7 @@ func NewCreateCollectionService(
 	}
 }
 
-func (svc *createCollectionServiceImpl) Execute(sessCtx context.Context, req *CreateCollectionRequestDTO) (*CollectionResponseDTO, error) {
+func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *CreateCollectionRequestDTO) (*CollectionResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
@@ -74,8 +83,8 @@ func (svc *createCollectionServiceImpl) Execute(sessCtx context.Context, req *Cr
 	}
 
 	e := make(map[string]string)
-	if req.Name == "" {
-		e["name"] = "Collection name is required"
+	if req.EncryptedName == "" {
+		e["encrypted_name"] = "Collection name is required"
 	}
 	if req.Type == "" {
 		e["type"] = "Collection type is required"
@@ -98,7 +107,7 @@ func (svc *createCollectionServiceImpl) Execute(sessCtx context.Context, req *Cr
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
@@ -109,53 +118,84 @@ func (svc *createCollectionServiceImpl) Execute(sessCtx context.Context, req *Cr
 	//
 	now := time.Now()
 	collection := &dom_collection.Collection{
-		OwnerID:                userID.Hex(), // Convert ObjectID to string
-		Name:                   req.Name,
-		Path:                   req.Path,
+		ID:                     primitive.NewObjectID(),
+		OwnerID:                userID,
+		EncryptedName:          req.EncryptedName,
 		Type:                   req.Type,
 		CreatedAt:              now,
-		UpdatedAt:              now,
+		ModifiedAt:             now,
 		EncryptedCollectionKey: req.EncryptedCollectionKey,
 		Members:                []dom_collection.CollectionMembership{}, // Initialize empty members slice
+		EncryptedPathSegments:  req.EncryptedPathSegments,
+	}
+
+	// If parent ID is provided, set it
+	if !req.ParentID.IsZero() {
+		collection.ParentID = req.ParentID
 	}
 
 	//
 	// STEP 4: Create collection in repository
 	//
-	err := svc.repo.Create(collection)
+	err := svc.repo.Create(ctx, collection)
 	if err != nil {
 		svc.logger.Error("Failed to create collection",
 			zap.Any("error", err),
-			zap.String("owner_id", collection.OwnerID),
-			zap.String("name", collection.Name))
+			zap.Any("owner_id", collection.OwnerID),
+			zap.String("name", collection.EncryptedName))
 		return nil, err
 	}
 
 	//
 	// STEP 5: Map domain model to response DTO
 	//
-	response := &CollectionResponseDTO{
-		ID:                     collection.ID,
-		OwnerID:                collection.OwnerID,
-		Name:                   collection.Name,
-		Path:                   collection.Path,
-		Type:                   collection.Type,
-		EncryptedCollectionKey: collection.EncryptedCollectionKey,
-		CreatedAt:              collection.CreatedAt,
-		UpdatedAt:              collection.UpdatedAt,
-		Members: make([]struct {
-			RecipientID     string    `json:"recipient_id"`
-			RecipientEmail  string    `json:"recipient_email"`
-			PermissionLevel string    `json:"permission_level"`
-			GrantedByID     string    `json:"granted_by_id"`
-			CollectionID    string    `json:"collection_id"`
-			CreatedAt       time.Time `json:"created_at"`
-		}, 0),
-	}
+	response := mapCollectionToDTO(collection)
 
 	svc.logger.Debug("Collection created successfully",
-		zap.String("collection_id", collection.ID),
-		zap.String("owner_id", collection.OwnerID))
+		zap.Any("collection_id", collection.ID),
+		zap.Any("owner_id", collection.OwnerID))
 
 	return response, nil
+}
+
+// Helper function to map a Collection domain model to a CollectionResponseDTO
+func mapCollectionToDTO(collection *dom_collection.Collection) *CollectionResponseDTO {
+	responseDTO := &CollectionResponseDTO{
+		ID:                     collection.ID,
+		OwnerID:                collection.OwnerID,
+		EncryptedName:          collection.EncryptedName,
+		Type:                   collection.Type,
+		ParentID:               collection.ParentID,
+		AncestorIDs:            collection.AncestorIDs,
+		EncryptedPathSegments:  collection.EncryptedPathSegments,
+		EncryptedCollectionKey: collection.EncryptedCollectionKey,
+		CreatedAt:              collection.CreatedAt,
+		ModifiedAt:             collection.ModifiedAt,
+		Members:                make([]MembershipResponseDTO, len(collection.Members)),
+	}
+
+	// Map members
+	for i, member := range collection.Members {
+		responseDTO.Members[i] = MembershipResponseDTO{
+			ID:              member.ID,
+			RecipientID:     member.RecipientID,
+			RecipientEmail:  member.RecipientEmail,
+			PermissionLevel: member.PermissionLevel,
+			GrantedByID:     member.GrantedByID,
+			CollectionID:    member.CollectionID,
+			IsInherited:     member.IsInherited,
+			InheritedFromID: member.InheritedFromID,
+			CreatedAt:       member.CreatedAt,
+		}
+	}
+
+	// Map children if present
+	if len(collection.Children) > 0 {
+		responseDTO.Children = make([]*CollectionResponseDTO, len(collection.Children))
+		for i, child := range collection.Children {
+			responseDTO.Children[i] = mapCollectionToDTO(child)
+		}
+	}
+
+	return responseDTO
 }

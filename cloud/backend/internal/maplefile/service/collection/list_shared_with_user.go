@@ -1,9 +1,8 @@
-// cloud/backend/internal/maplefile/service/collection/list_by_user.go
+// cloud/backend/internal/maplefile/service/collection/list_shared_with_user.go
 package collection
 
 import (
 	"context"
-	"errors"
 
 	"go.uber.org/zap"
 
@@ -14,48 +13,44 @@ import (
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
 )
 
-type CollectionsResponseDTO struct {
-	Collections []*CollectionResponseDTO `json:"collections"`
-}
-
-type ListUserCollectionsService interface {
+type ListSharedCollectionsService interface {
 	Execute(ctx context.Context) (*CollectionsResponseDTO, error)
 }
 
-type listUserCollectionsServiceImpl struct {
+type listSharedCollectionsServiceImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
 	repo   dom_collection.CollectionRepository
 }
 
-func NewListUserCollectionsService(
+func NewListSharedCollectionsService(
 	config *config.Configuration,
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
-) ListUserCollectionsService {
-	return &listUserCollectionsServiceImpl{
+) ListSharedCollectionsService {
+	return &listSharedCollectionsServiceImpl{
 		config: config,
 		logger: logger,
 		repo:   repo,
 	}
 }
 
-func (svc *listUserCollectionsServiceImpl) Execute(ctx context.Context) (*CollectionsResponseDTO, error) {
+func (svc *listSharedCollectionsServiceImpl) Execute(ctx context.Context) (*CollectionsResponseDTO, error) {
 	//
 	// STEP 1: Get user ID from context
 	//
 	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
-		return nil, errors.New("user ID not found in context")
+		return nil, nil
 	}
 
 	//
-	// STEP 2: Get user's collections from repository
+	// STEP 2: Get collections shared with the user
 	//
-	collections, err := svc.repo.GetAllByUserID(ctx, userID)
+	collections, err := svc.repo.GetCollectionsSharedWithUser(ctx, userID)
 	if err != nil {
-		svc.logger.Error("Failed to get user collections",
+		svc.logger.Error("Failed to get shared collections",
 			zap.Any("error", err),
 			zap.Any("user_id", userID))
 		return nil, err
@@ -72,7 +67,7 @@ func (svc *listUserCollectionsServiceImpl) Execute(ctx context.Context) (*Collec
 		response.Collections[i] = mapCollectionToDTO(collection)
 	}
 
-	svc.logger.Debug("Retrieved user collections",
+	svc.logger.Debug("Retrieved shared collections",
 		zap.Int("count", len(collections)),
 		zap.Any("user_id", userID))
 
