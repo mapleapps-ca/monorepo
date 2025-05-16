@@ -7,9 +7,9 @@ import (
 	"errors"
 	"net/http"
 
-	"go.uber.org/zap"
-
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
@@ -57,9 +57,19 @@ func (h *GetFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Extract file ID from URL parameters
-	fileID := r.PathValue("file_id")
-	if fileID == "" {
+	fileIDStr := r.PathValue("file_id")
+	if fileIDStr == "" {
 		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("file_id", "File ID is required"))
+		return
+	}
+
+	// Convert string ID to ObjectID
+	fileID, err := primitive.ObjectIDFromHex(fileIDStr)
+	if err != nil {
+		h.logger.Error("invalid file ID format",
+			zap.String("file_id", fileIDStr),
+			zap.Error(err))
+		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("file_id", "Invalid file ID format"))
 		return
 	}
 

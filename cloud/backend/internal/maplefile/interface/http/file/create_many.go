@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/interface/http/file/update.go
+// cloud/backend/internal/maplefile/interface/http/file/create_many.go
 package file
 
 import (
@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
@@ -19,22 +18,22 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type UpdateFileHTTPHandler struct {
+type CreateManyFilesHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
 	dbClient   *mongo.Client
-	service    svc_file.UpdateFileService
+	service    svc_file.CreateManyFilesService
 	middleware middleware.Middleware
 }
 
-func NewUpdateFileHTTPHandler(
+func NewCreateManyFilesHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
 	dbClient *mongo.Client,
-	service svc_file.UpdateFileService,
+	service svc_file.CreateManyFilesService,
 	middleware middleware.Middleware,
-) *UpdateFileHTTPHandler {
-	return &UpdateFileHTTPHandler{
+) *CreateManyFilesHTTPHandler {
+	return &CreateManyFilesHTTPHandler{
 		config:     config,
 		logger:     logger,
 		dbClient:   dbClient,
@@ -43,22 +42,21 @@ func NewUpdateFileHTTPHandler(
 	}
 }
 
-func (*UpdateFileHTTPHandler) Pattern() string {
-	return "PUT /maplefile/api/v1/files/{file_id}"
+func (*CreateManyFilesHTTPHandler) Pattern() string {
+	return "POST /maplefile/api/v1/files/batch"
 }
 
-func (h *UpdateFileHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h *CreateManyFilesHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Apply middleware before handling the request
 	h.middleware.Attach(h.Execute)(w, req)
 }
 
-func (h *UpdateFileHTTPHandler) unmarshalRequest(
+func (h *CreateManyFilesHTTPHandler) unmarshalRequest(
 	ctx context.Context,
 	r *http.Request,
-	fileID primitive.ObjectID,
-) (*svc_file.UpdateFileRequestDTO, error) {
+) (*svc_file.CreateManyFilesRequestDTO, error) {
 	// Initialize our structure which will store the parsed request data
-	var requestData svc_file.UpdateFileRequestDTO
+	var requestData svc_file.CreateManyFilesRequestDTO
 
 	defer r.Body.Close()
 
@@ -75,40 +73,16 @@ func (h *UpdateFileHTTPHandler) unmarshalRequest(
 		return nil, httperror.NewForSingleField(http.StatusBadRequest, "non_field_error", "payload structure is wrong")
 	}
 
-	// Set the file ID from the URL parameter
-	requestData.ID = fileID
-
 	return &requestData, nil
 }
 
-func (h *UpdateFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
+func (h *CreateManyFilesHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	// Set response content type
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx := r.Context()
 
-	// Extract file ID from the URL path parameter
-	fileIDStr := r.PathValue("file_id")
-	if fileIDStr == "" {
-		h.logger.Warn("file_id not found in path parameters or is empty",
-			zap.String("path", r.URL.Path),
-			zap.String("method", r.Method),
-		)
-		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("file_id", "File ID is required"))
-		return
-	}
-
-	// Convert string ID to ObjectID
-	fileID, err := primitive.ObjectIDFromHex(fileIDStr)
-	if err != nil {
-		h.logger.Error("invalid file ID format",
-			zap.String("file_id", fileIDStr),
-			zap.Error(err))
-		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("file_id", "Invalid file ID format"))
-		return
-	}
-
-	req, err := h.unmarshalRequest(ctx, r, fileID)
+	req, err := h.unmarshalRequest(ctx, r)
 	if err != nil {
 		httperror.ResponseError(w, err)
 		return
@@ -129,7 +103,7 @@ func (h *UpdateFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) 
 		// Call service
 		response, err := h.service.Execute(sessCtx, req)
 		if err != nil {
-			h.logger.Error("failed to update file",
+			h.logger.Error("failed to create files in batch",
 				zap.Any("error", err))
 			return nil, err
 		}
@@ -147,7 +121,7 @@ func (h *UpdateFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) 
 
 	// Encode response
 	if result != nil {
-		resp := result.(*svc_file.FileResponseDTO)
+		resp := result.(*svc_file.CreateManyFilesResponseDTO)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			h.logger.Error("failed to encode response",
 				zap.Any("error", err))
@@ -155,8 +129,7 @@ func (h *UpdateFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 	} else {
-		err := errors.New("transaction completed with no result")
-		h.logger.Error("transaction completed with no result", zap.Any("request_payload", req))
+		err := errors.New("no result")
 		httperror.ResponseError(w, err)
 		return
 	}

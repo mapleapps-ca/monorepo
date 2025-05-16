@@ -9,9 +9,8 @@ import (
 	"io"
 	"net/http"
 
-	"go.uber.org/zap"
-
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"

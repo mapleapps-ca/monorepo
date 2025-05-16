@@ -44,12 +44,16 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(collection.NewRemoveMemberHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewListSharedCollectionsHTTPHandler),
 
-			// File handlers
+			// File handlers - Basic CRUD
 			unifiedhttp.AsRoute(file.NewCreateFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewCreateManyFilesHTTPHandler),
 			unifiedhttp.AsRoute(file.NewGetFileHTTPHandler),
 			unifiedhttp.AsRoute(file.NewUpdateFileHTTPHandler),
 			unifiedhttp.AsRoute(file.NewDeleteFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewDeleteManyFilesHTTPHandler),
 			unifiedhttp.AsRoute(file.NewListFilesByCollectionHTTPHandler),
+
+			// File handlers - Data operations
 			unifiedhttp.AsRoute(file.NewStoreFileDataHTTPHandler),
 			unifiedhttp.AsRoute(file.NewGetFileDataHTTPHandler),
 		),

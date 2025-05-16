@@ -8,9 +8,8 @@ import (
 	"io"
 	"net/http"
 
-	"go.uber.org/zap"
-
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
@@ -60,8 +59,8 @@ func (h *StoreFileDataHTTPHandler) Execute(w http.ResponseWriter, r *http.Reques
 	ctx := r.Context()
 
 	// Extract file ID from the URL
-	fileID := r.PathValue("file_id")
-	if fileID == "" {
+	encryptedFileID := r.PathValue("file_id")
+	if encryptedFileID == "" {
 		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("file_id", "File ID is required"))
 		return
 	}
@@ -96,8 +95,8 @@ func (h *StoreFileDataHTTPHandler) Execute(w http.ResponseWriter, r *http.Reques
 
 	// Create request DTO
 	dtoReq := &svc_file.StoreFileDataRequestDTO{
-		ID:   fileID,
-		Data: fileData,
+		EncryptedFileID: encryptedFileID,
+		Data:            fileData,
 	}
 
 	// Start the transaction
