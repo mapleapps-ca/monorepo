@@ -59,7 +59,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, userRepo, tokenRefreshSvc))
 	rootCmd.AddCommand(uploadfile.UploadFileCmd())
-	rootCmd.AddCommand(collections.CollectionsCmd(configService, collectionService, logger))
+	rootCmd.AddCommand(collections.CollectionsCmd(collectionService, logger))
 
 	return rootCmd
 }

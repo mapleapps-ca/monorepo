@@ -83,3 +83,89 @@ Examples:
 
 	return cmd
 }
+
+// cmd/collections/collections.go
+// Add to the existing file
+
+// createSubCollectionCmd creates a command for creating a sub-collection
+func createSubCollectionCmd(collectionSvc collectionService.CollectionService, logger *zap.Logger) *cobra.Command {
+	var name, collectionType, parentID string
+
+	var cmd = &cobra.Command{
+		Use:   "create-sub",
+		Short: "Create a new sub-collection",
+		Long: `
+Create a new sub-collection within an existing collection.
+
+Sub-collections allow you to organize your files hierarchically.
+You must specify the parent collection ID where the new sub-collection will be created.
+
+Examples:
+  # Create a folder sub-collection
+  maplefile-cli collections create-sub --name "Project Documents" --type folder --parent 507f1f77bcf86cd799439011
+
+  # Create an album sub-collection
+  maplefile-cli collections create-sub --name "Vacation Photos" --type album --parent 507f1f77bcf86cd799439011
+`,
+		Run: func(cmd *cobra.Command, args []string) {
+			ctx := context.Background()
+
+			// Validate required fields
+			if name == "" {
+				fmt.Println("Error: Collection name is required.")
+				fmt.Println("Use --name flag to specify the name of your collection.")
+				return
+			}
+
+			if parentID == "" {
+				fmt.Println("Error: Parent collection ID is required.")
+				fmt.Println("Use --parent flag to specify the ID of the parent collection.")
+				return
+			}
+
+			// If type is not specified, default to folder
+			if collectionType == "" {
+				collectionType = "folder"
+			}
+
+			// Ensure valid collection type
+			if collectionType != "folder" && collectionType != "album" {
+				fmt.Printf("Error: Invalid collection type: %s\n", collectionType)
+				fmt.Println("Collection type must be either 'folder' or 'album'.")
+				return
+			}
+
+			input := collectionService.CreateSubCollectionInput{
+				Name:           name,
+				CollectionType: collectionType,
+				ParentID:       parentID,
+			}
+
+			// Create the sub-collection
+			output, err := collectionSvc.CreateSubCollection(ctx, input)
+			if err != nil {
+				logger.Error("Failed to create sub-collection", zap.Error(err))
+				fmt.Printf("Error creating sub-collection: %v\n", err)
+				return
+			}
+
+			// Display success message
+			fmt.Println("\n✅ Sub-collection created successfully!")
+			fmt.Printf("Collection ID: %s\n", output.Collection.ID.Hex())
+			fmt.Printf("Collection Type: %s\n", output.Collection.Type)
+			fmt.Printf("Parent Collection ID: %s\n", output.Collection.ParentID.Hex())
+			fmt.Printf("Created At: %s\n", output.Collection.CreatedAt.Format("2006-01-02 15:04:05"))
+		},
+	}
+
+	// Define command flags
+	cmd.Flags().StringVarP(&name, "name", "n", "", "Name of the sub-collection (required)")
+	cmd.Flags().StringVarP(&collectionType, "type", "t", "folder", "Type of collection ('folder' or 'album')")
+	cmd.Flags().StringVarP(&parentID, "parent", "p", "", "ID of the parent collection (required)")
+
+	// Mark required flags
+	cmd.MarkFlagRequired("name")
+	cmd.MarkFlagRequired("parent")
+
+	return cmd
+}
