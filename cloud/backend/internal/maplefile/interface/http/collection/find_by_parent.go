@@ -42,7 +42,7 @@ func NewFindCollectionsByParentHTTPHandler(
 }
 
 func (*FindCollectionsByParentHTTPHandler) Pattern() string {
-	return "GET /maplefile/api/v1/collections/by-parent/{parent_id}"
+	return "GET /maplefile/api/v1/collections-by-parent/{parent_id}"
 }
 
 func (h *FindCollectionsByParentHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {

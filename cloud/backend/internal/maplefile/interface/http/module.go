@@ -34,7 +34,7 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(collection.NewDeleteCollectionHTTPHandler),
 
 			// Collection handlers - Hierarchical operations
-			// unifiedhttp.AsRoute(collection.NewFindCollectionsByParentHTTPHandler), //TODO: BUGFIX
+			unifiedhttp.AsRoute(collection.NewFindCollectionsByParentHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewFindRootCollectionsHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewGetCollectionHierarchyHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewMoveCollectionHTTPHandler),
