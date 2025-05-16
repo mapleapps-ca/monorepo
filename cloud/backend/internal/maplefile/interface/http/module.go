@@ -33,16 +33,16 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(collection.NewUpdateCollectionHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewDeleteCollectionHTTPHandler),
 
-			// Collection handlers - Hierarchical operations
-			unifiedhttp.AsRoute(collection.NewFindCollectionsByParentHTTPHandler),
-			unifiedhttp.AsRoute(collection.NewFindRootCollectionsHTTPHandler),
-			unifiedhttp.AsRoute(collection.NewGetCollectionHierarchyHTTPHandler),
-			unifiedhttp.AsRoute(collection.NewMoveCollectionHTTPHandler),
+			// // Collection handlers - Hierarchical operations
+			// unifiedhttp.AsRoute(collection.NewFindCollectionsByParentHTTPHandler),
+			// unifiedhttp.AsRoute(collection.NewFindRootCollectionsHTTPHandler),
+			// unifiedhttp.AsRoute(collection.NewGetCollectionHierarchyHTTPHandler),
+			// unifiedhttp.AsRoute(collection.NewMoveCollectionHTTPHandler),
 
-			// Collection handlers - Sharing
-			unifiedhttp.AsRoute(collection.NewShareCollectionHTTPHandler),
-			unifiedhttp.AsRoute(collection.NewRemoveMemberHTTPHandler),
-			unifiedhttp.AsRoute(collection.NewListSharedCollectionsHTTPHandler),
+			// // Collection handlers - Sharing
+			// unifiedhttp.AsRoute(collection.NewShareCollectionHTTPHandler),
+			// unifiedhttp.AsRoute(collection.NewRemoveMemberHTTPHandler),
+			// unifiedhttp.AsRoute(collection.NewListSharedCollectionsHTTPHandler),
 
 			// File handlers - Basic CRUD
 			unifiedhttp.AsRoute(file.NewCreateFileHTTPHandler),
@@ -53,9 +53,9 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(file.NewDeleteManyFilesHTTPHandler),
 			unifiedhttp.AsRoute(file.NewListFilesByCollectionHTTPHandler),
 
-			// File handlers - Data operations
-			unifiedhttp.AsRoute(file.NewStoreFileDataHTTPHandler),
-			unifiedhttp.AsRoute(file.NewGetFileDataHTTPHandler),
+			// // File handlers - Data operations
+			// unifiedhttp.AsRoute(file.NewStoreFileDataHTTPHandler),
+			// unifiedhttp.AsRoute(file.NewGetFileDataHTTPHandler),
 		),
 	)
 }
