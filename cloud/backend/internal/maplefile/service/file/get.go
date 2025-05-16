@@ -16,7 +16,7 @@ import (
 )
 
 type GetFileService interface {
-	Execute(ctx context.Context, fileID string) (*FileResponseDTO, error)
+	Execute(ctx context.Context, fileID primitive.ObjectID) (*FileResponseDTO, error)
 }
 
 type getFileServiceImpl struct {
@@ -40,11 +40,11 @@ func NewGetFileService(
 	}
 }
 
-func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID string) (*FileResponseDTO, error) {
+func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID primitive.ObjectID) (*FileResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
-	if fileID == "" {
+	if fileID.IsZero() {
 		svc.logger.Warn("Empty file ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("file_id", "File ID is required")
 	}
@@ -65,15 +65,59 @@ func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID string) (*Fil
 	if err != nil {
 		svc.logger.Error("Failed to get file",
 			zap.Any("error", err),
-			zap.String("file_id", fileID))
+			zap.Any("file_id", fileID))
 		return nil, err
 	}
 
 	if file == nil {
 		svc.logger.Debug("File not found",
-			zap.String("file_id", fileID))
+			zap.Any("file_id", fileID))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "File not found")
 	}
 
 	//
-	// STEP 4: Check if the user has access to the file's c
+	// STEP 4: Check if the user has access to the file's collection
+	//
+	hasAccess, err := svc.collectionRepo.CheckAccess(
+		ctx,
+		file.CollectionID,
+		userID,
+		dom_collection.CollectionPermissionReadOnly,
+	)
+	if err != nil {
+		svc.logger.Error("Failed checking collection access",
+			zap.Any("error", err),
+			zap.Any("collection_id", file.CollectionID),
+			zap.Any("user_id", userID))
+		return nil, err
+	}
+
+	if !hasAccess {
+		svc.logger.Warn("Unauthorized file access attempt",
+			zap.Any("user_id", userID),
+			zap.Any("file_id", fileID))
+		return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have access to this file")
+	}
+
+	//
+	// STEP 5: Map domain model to response DTO
+	//
+	response := &FileResponseDTO{
+		ID:                    file.ID,
+		CollectionID:          file.CollectionID,
+		OwnerID:               file.OwnerID,
+		EncryptedFileID:       file.EncryptedFileID,
+		FileObjectKey:         file.FileObjectKey,
+		EncryptedSize:         file.EncryptedSize,
+		EncryptedOriginalSize: file.EncryptedOriginalSize,
+		EncryptedMetadata:     file.EncryptedMetadata,
+		EncryptionVersion:     file.EncryptionVersion,
+		EncryptedHash:         file.EncryptedHash,
+		EncryptedFileKey:      file.EncryptedFileKey,
+		ThumbnailObjectKey:    file.ThumbnailObjectKey,
+		CreatedAt:             file.CreatedAt,
+		ModifiedAt:            file.ModifiedAt,
+	}
+
+	return response, nil
+}

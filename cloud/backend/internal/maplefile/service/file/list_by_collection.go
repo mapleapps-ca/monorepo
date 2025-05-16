@@ -3,6 +3,7 @@ package file
 
 import (
 	"context"
+	"fmt"
 
 	"go.uber.org/zap"
 
@@ -44,13 +45,23 @@ func NewListFilesByCollectionService(
 	}
 }
 
-func (svc *listFilesByCollectionServiceImpl) Execute(sessCtx context.Context, collectionID string) (*FilesResponseDTO, error) {
+func (svc *listFilesByCollectionServiceImpl) Execute(sessCtx context.Context, collectionIDStr string) (*FilesResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
-	if collectionID == "" {
+	if collectionIDStr == "" {
 		svc.logger.Warn("Empty collection ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("collection_id", "Collection ID is required")
+	}
+
+	// Convert string ID to ObjectID
+	collectionID, err := primitive.ObjectIDFromHex(collectionIDStr)
+	if err != nil {
+		svc.logger.Error("Invalid collection ID format",
+			zap.String("collection_id", collectionIDStr),
+			zap.Error(err))
+		return nil, httperror.NewForBadRequestWithSingleField("collection_id",
+			fmt.Sprintf("Invalid collection ID format: %v", err))
 	}
 
 	//
@@ -65,49 +76,50 @@ func (svc *listFilesByCollectionServiceImpl) Execute(sessCtx context.Context, co
 	//
 	// STEP 3: Check if the collection exists and user has access
 	//
-	collection, err := svc.collectionRepo.Get(collectionID)
+	collection, err := svc.collectionRepo.Get(sessCtx, collectionID)
 	if err != nil {
 		svc.logger.Error("Failed to get collection",
 			zap.Any("error", err),
-			zap.String("collection_id", collectionID))
+			zap.Any("collection_id", collectionID))
 		return nil, err
 	}
 
 	if collection == nil {
 		svc.logger.Debug("Collection not found",
-			zap.String("collection_id", collectionID))
+			zap.Any("collection_id", collectionID))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "Collection not found")
 	}
 
 	// Check if user has access to this collection
 	hasAccess, err := svc.collectionRepo.CheckAccess(
+		sessCtx,
 		collectionID,
-		userID.Hex(),
+		userID,
 		dom_collection.CollectionPermissionReadOnly,
 	)
 	if err != nil {
 		svc.logger.Error("Failed checking collection access",
 			zap.Any("error", err),
-			zap.String("collection_id", collectionID),
-			zap.String("user_id", userID.Hex()))
+			zap.Any("collection_id", collectionID),
+			zap.Any("user_id", userID))
 		return nil, err
 	}
 
 	if !hasAccess {
 		svc.logger.Warn("Unauthorized collection access attempt",
-			zap.String("user_id", userID.Hex()),
-			zap.String("collection_id", collectionID))
+			zap.Any("user_id", userID),
+			zap.Any("collection_id", collectionID))
 		return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have access to this collection")
 	}
 
 	//
 	// STEP 4: Get files from repository
 	//
-	files, err := svc.fileRepo.GetByCollection(collectionID)
+	files, err := svc.fileRepo.GetByCollection(collectionIDStr)
 	if err != nil {
 		svc.logger.Error("Failed to get files by collection",
 			zap.Any("error", err),
-			zap.String("collection_id", collectionID))
+			zap.Any("collection_id", collectionID))
 		return nil, err
 	}
 
@@ -119,28 +131,26 @@ func (svc *listFilesByCollectionServiceImpl) Execute(sessCtx context.Context, co
 	}
 
 	for i, file := range files {
-		fileDTO := &FileResponseDTO{
+		response.Files[i] = &FileResponseDTO{
 			ID:                    file.ID,
 			CollectionID:          file.CollectionID,
 			OwnerID:               file.OwnerID,
-			FileID:                file.FileID,
-			StoragePath:           file.StoragePath,
+			EncryptedFileID:       file.EncryptedFileID,
+			FileObjectKey:         file.FileObjectKey,
 			EncryptedSize:         file.EncryptedSize,
 			EncryptedOriginalSize: file.EncryptedOriginalSize,
 			EncryptedMetadata:     file.EncryptedMetadata,
 			EncryptionVersion:     file.EncryptionVersion,
 			EncryptedHash:         file.EncryptedHash,
-			EncryptedThumbnail:    file.EncryptedThumbnail,
+			ThumbnailObjectKey:    file.ThumbnailObjectKey,
 			CreatedAt:             file.CreatedAt,
 			ModifiedAt:            file.ModifiedAt,
 		}
-
-		response.Files[i] = fileDTO
 	}
 
 	svc.logger.Debug("Retrieved files by collection",
 		zap.Int("count", len(files)),
-		zap.String("collection_id", collectionID))
+		zap.Any("collection_id", collectionID))
 
 	return response, nil
 }

@@ -19,7 +19,7 @@ import (
 
 type CreateFileRequestDTO struct {
 	CollectionID          primitive.ObjectID    `json:"collection_id"`
-	FileID                string                `json:"file_id"`
+	EncryptedFileID       string                `json:"encrypted_file_id"`
 	EncryptedSize         int64                 `json:"encrypted_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`
 	EncryptedMetadata     string                `json:"encrypted_metadata"`
@@ -30,18 +30,18 @@ type CreateFileRequestDTO struct {
 }
 
 type FileResponseDTO struct {
-	ID                    string                `json:"id"`
+	ID                    primitive.ObjectID    `json:"id"`
 	CollectionID          primitive.ObjectID    `json:"collection_id"`
 	OwnerID               primitive.ObjectID    `json:"owner_id"`
-	FileID                string                `json:"file_id"`
-	StoragePath           string                `json:"storage_path"`
+	EncryptedFileID       string                `json:"encrypted_file_id"`
+	FileObjectKey         string                `json:"file_object_key"`
 	EncryptedSize         int64                 `json:"encrypted_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`
 	EncryptedMetadata     string                `json:"encrypted_metadata"`
 	EncryptionVersion     string                `json:"encryption_version"`
 	EncryptedHash         string                `json:"encrypted_hash"`
 	EncryptedFileKey      keys.EncryptedFileKey `json:"encrypted_file_key,omitempty"`
-	EncryptedThumbnail    string                `json:"encrypted_thumbnail,omitempty"`
+	ThumbnailObjectKey    string                `json:"thumbnail_object_key,omitempty"`
 	CreatedAt             time.Time             `json:"created_at"`
 	ModifiedAt            time.Time             `json:"modified_at"`
 }
@@ -158,21 +158,26 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 	// STEP 4: Create file object
 	//
 	now := time.Now()
-	storagePath := generateStoragePath(req.CollectionID.Hex(), req.FileID)
+	fileID := primitive.NewObjectID()
+
+	// Use the provided EncryptedFileID or generate one
+	encryptedFileID := req.EncryptedFileID
+	if encryptedFileID == "" {
+		encryptedFileID = primitive.NewObjectID().Hex()
+	}
 
 	file := &dom_file.File{
-		ID:                    generateFileID(),
-		CollectionID:          req.CollectionID.Hex(), // Convert ObjectID to string for file storage
-		OwnerID:               userID.Hex(),           // Convert ObjectID to string for file storage
-		FileID:                req.FileID,
-		StoragePath:           storagePath,
+		ID:                    fileID,
+		CollectionID:          req.CollectionID,
+		OwnerID:               userID,
+		EncryptedFileID:       encryptedFileID,
 		EncryptedSize:         req.EncryptedSize,
 		EncryptedOriginalSize: req.EncryptedOriginalSize,
 		EncryptedMetadata:     req.EncryptedMetadata,
 		EncryptedFileKey:      req.EncryptedFileKey,
 		EncryptionVersion:     req.EncryptionVersion,
 		EncryptedHash:         req.EncryptedHash,
-		EncryptedThumbnail:    req.EncryptedThumbnail,
+		ThumbnailObjectKey:    "", // Will be populated later if thumbnail is uploaded
 		CreatedAt:             now,
 		ModifiedAt:            now,
 	}
@@ -184,47 +189,34 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 	if err != nil {
 		svc.logger.Error("Failed to create file",
 			zap.Any("error", err),
-			zap.String("collection_id", file.CollectionID),
-			zap.String("file_id", file.FileID))
+			zap.Any("collection_id", file.CollectionID),
+			zap.String("encrypted_file_id", file.EncryptedFileID))
 		return nil, err
 	}
 
 	//
 	// STEP 6: Map domain model to response DTO
 	//
-	collectionObjectID, _ := primitive.ObjectIDFromHex(file.CollectionID)
-	ownerObjectID, _ := primitive.ObjectIDFromHex(file.OwnerID)
-
 	response := &FileResponseDTO{
 		ID:                    file.ID,
-		CollectionID:          collectionObjectID,
-		OwnerID:               ownerObjectID,
-		FileID:                file.FileID,
-		StoragePath:           file.StoragePath,
+		CollectionID:          file.CollectionID,
+		OwnerID:               file.OwnerID,
+		EncryptedFileID:       file.EncryptedFileID,
+		FileObjectKey:         file.FileObjectKey,
 		EncryptedSize:         file.EncryptedSize,
 		EncryptedOriginalSize: file.EncryptedOriginalSize,
 		EncryptedMetadata:     file.EncryptedMetadata,
 		EncryptionVersion:     file.EncryptionVersion,
 		EncryptedHash:         file.EncryptedHash,
 		EncryptedFileKey:      file.EncryptedFileKey,
-		EncryptedThumbnail:    file.EncryptedThumbnail,
+		ThumbnailObjectKey:    file.ThumbnailObjectKey,
 		CreatedAt:             file.CreatedAt,
 		ModifiedAt:            file.ModifiedAt,
 	}
 
 	svc.logger.Debug("File created successfully",
-		zap.String("file_id", file.ID),
-		zap.String("collection_id", file.CollectionID))
+		zap.Any("file_id", file.ID),
+		zap.Any("collection_id", file.CollectionID))
 
 	return response, nil
-}
-
-// Helper function to generate a storage path for the file
-func generateStoragePath(collectionID, fileID string) string {
-	return "files/" + collectionID + "/" + fileID
-}
-
-// Helper function to generate a unique file ID
-func generateFileID() string {
-	return primitive.NewObjectID().Hex()
 }

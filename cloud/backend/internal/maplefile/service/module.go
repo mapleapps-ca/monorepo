@@ -36,12 +36,16 @@ func Module() fx.Option {
 			collection.NewRemoveMemberService,
 			collection.NewListSharedCollectionsService,
 
-			// File services
+			// File services - Basic CRUD
 			file.NewCreateFileService,
+			file.NewCreateManyFilesService,
 			file.NewGetFileService,
 			file.NewUpdateFileService,
 			file.NewDeleteFileService,
+			file.NewDeleteManyFilesService,
 			file.NewListFilesByCollectionService,
+
+			// File services - Data operations
 			file.NewStoreFileDataService,
 			file.NewGetFileDataService,
 		),

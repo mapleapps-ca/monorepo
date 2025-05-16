@@ -12,4 +12,6 @@ type FileRepository interface {
 	GetEncryptedData(fileID string) ([]byte, error)
 	CreateMany(files []*File) error
 	DeleteMany(ids []primitive.ObjectID) error
+	GetByEncryptedFileID(encryptedFileID string) (*File, error)
+	GetMany(ids []primitive.ObjectID) ([]*File, error)
 }

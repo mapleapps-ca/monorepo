@@ -18,10 +18,10 @@ import (
 )
 
 type UpdateFileRequestDTO struct {
-	ID                 string                `json:"id"`
+	ID                 primitive.ObjectID    `json:"id"`
 	EncryptedMetadata  string                `json:"encrypted_metadata,omitempty"`
 	EncryptedFileKey   keys.EncryptedFileKey `json:"encrypted_file_key,omitempty"`
-	EncryptedThumbnail string                `json:"encrypted_thumbnail,omitempty"`
+	ThumbnailObjectKey string                `json:"thumbnail_object_key,omitempty"`
 }
 
 type UpdateFileService interface {
@@ -58,15 +58,9 @@ func (svc *updateFileServiceImpl) Execute(sessCtx context.Context, req *UpdateFi
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "File details are required")
 	}
 
-	e := make(map[string]string)
-	if req.ID == "" {
-		e["id"] = "File ID is required"
-	}
-
-	if len(e) != 0 {
-		svc.logger.Warn("Failed validation",
-			zap.Any("error", e))
-		return nil, httperror.NewForBadRequest(&e)
+	if req.ID.IsZero() {
+		svc.logger.Warn("Empty file ID")
+		return nil, httperror.NewForBadRequestWithSingleField("id", "File ID is required")
 	}
 
 	//
@@ -85,13 +79,13 @@ func (svc *updateFileServiceImpl) Execute(sessCtx context.Context, req *UpdateFi
 	if err != nil {
 		svc.logger.Error("Failed to get file",
 			zap.Any("error", err),
-			zap.String("file_id", req.ID))
+			zap.Any("file_id", req.ID))
 		return nil, err
 	}
 
 	if file == nil {
 		svc.logger.Debug("File not found",
-			zap.String("file_id", req.ID))
+			zap.Any("file_id", req.ID))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "File not found")
 	}
 
@@ -99,22 +93,23 @@ func (svc *updateFileServiceImpl) Execute(sessCtx context.Context, req *UpdateFi
 	// STEP 4: Check if user has rights to update this file
 	//
 	hasAccess, err := svc.collectionRepo.CheckAccess(
+		sessCtx,
 		file.CollectionID,
-		userID.Hex(),
+		userID,
 		dom_collection.CollectionPermissionReadWrite,
 	)
 	if err != nil {
 		svc.logger.Error("Failed checking collection access",
 			zap.Any("error", err),
-			zap.String("collection_id", file.CollectionID),
-			zap.String("user_id", userID.Hex()))
+			zap.Any("collection_id", file.CollectionID),
+			zap.Any("user_id", userID))
 		return nil, err
 	}
 
 	if !hasAccess {
 		svc.logger.Warn("Unauthorized file update attempt",
-			zap.String("user_id", userID.Hex()),
-			zap.String("file_id", req.ID))
+			zap.Any("user_id", userID),
+			zap.Any("file_id", req.ID))
 		return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have permission to update this file")
 	}
 
@@ -131,8 +126,8 @@ func (svc *updateFileServiceImpl) Execute(sessCtx context.Context, req *UpdateFi
 		req.EncryptedFileKey.Nonce != nil && len(req.EncryptedFileKey.Nonce) > 0 {
 		file.EncryptedFileKey = req.EncryptedFileKey
 	}
-	if req.EncryptedThumbnail != "" {
-		file.EncryptedThumbnail = req.EncryptedThumbnail
+	if req.ThumbnailObjectKey != "" {
+		file.ThumbnailObjectKey = req.ThumbnailObjectKey
 	}
 
 	//
@@ -142,7 +137,7 @@ func (svc *updateFileServiceImpl) Execute(sessCtx context.Context, req *UpdateFi
 	if err != nil {
 		svc.logger.Error("Failed to update file",
 			zap.Any("error", err),
-			zap.String("file_id", file.ID))
+			zap.Any("file_id", file.ID))
 		return nil, err
 	}
 
@@ -153,20 +148,21 @@ func (svc *updateFileServiceImpl) Execute(sessCtx context.Context, req *UpdateFi
 		ID:                    file.ID,
 		CollectionID:          file.CollectionID,
 		OwnerID:               file.OwnerID,
-		FileID:                file.FileID,
-		StoragePath:           file.StoragePath,
+		EncryptedFileID:       file.EncryptedFileID,
+		FileObjectKey:         file.FileObjectKey,
 		EncryptedSize:         file.EncryptedSize,
 		EncryptedOriginalSize: file.EncryptedOriginalSize,
 		EncryptedMetadata:     file.EncryptedMetadata,
 		EncryptionVersion:     file.EncryptionVersion,
 		EncryptedHash:         file.EncryptedHash,
-		EncryptedThumbnail:    file.EncryptedThumbnail,
+		EncryptedFileKey:      file.EncryptedFileKey,
+		ThumbnailObjectKey:    file.ThumbnailObjectKey,
 		CreatedAt:             file.CreatedAt,
 		ModifiedAt:            file.ModifiedAt,
 	}
 
 	svc.logger.Debug("File updated successfully",
-		zap.String("file_id", file.ID))
+		zap.Any("file_id", file.ID))
 
 	return response, nil
 }

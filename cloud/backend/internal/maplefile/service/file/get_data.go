@@ -16,7 +16,7 @@ import (
 )
 
 type GetFileDataService interface {
-	Execute(sessCtx context.Context, fileID string) ([]byte, error)
+	Execute(sessCtx context.Context, encryptedFileID string) ([]byte, error)
 }
 
 type getFileDataServiceImpl struct {
@@ -40,13 +40,13 @@ func NewGetFileDataService(
 	}
 }
 
-func (svc *getFileDataServiceImpl) Execute(sessCtx context.Context, fileID string) ([]byte, error) {
+func (svc *getFileDataServiceImpl) Execute(sessCtx context.Context, encryptedFileID string) ([]byte, error) {
 	//
 	// STEP 1: Validation
 	//
-	if fileID == "" {
-		svc.logger.Warn("Empty file ID")
-		return nil, httperror.NewForBadRequestWithSingleField("id", "File ID is required")
+	if encryptedFileID == "" {
+		svc.logger.Warn("Empty encrypted file ID")
+		return nil, httperror.NewForBadRequestWithSingleField("encrypted_file_id", "Encrypted file ID is required")
 	}
 
 	//
@@ -61,17 +61,18 @@ func (svc *getFileDataServiceImpl) Execute(sessCtx context.Context, fileID strin
 	//
 	// STEP 3: Retrieve existing file
 	//
-	file, err := svc.fileRepo.Get(fileID)
+	// Note: We're using the EncryptedFileID here, not the MongoDB ObjectID
+	file, err := svc.fileRepo.GetByEncryptedFileID(encryptedFileID)
 	if err != nil {
 		svc.logger.Error("Failed to get file",
 			zap.Any("error", err),
-			zap.String("file_id", fileID))
+			zap.String("encrypted_file_id", encryptedFileID))
 		return nil, err
 	}
 
 	if file == nil {
 		svc.logger.Debug("File not found",
-			zap.String("file_id", fileID))
+			zap.String("encrypted_file_id", encryptedFileID))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "File not found")
 	}
 
@@ -79,44 +80,45 @@ func (svc *getFileDataServiceImpl) Execute(sessCtx context.Context, fileID strin
 	// STEP 4: Check if user has rights to download this file
 	//
 	hasAccess, err := svc.collectionRepo.CheckAccess(
+		sessCtx,
 		file.CollectionID,
-		userID.Hex(),
+		userID,
 		dom_collection.CollectionPermissionReadOnly,
 	)
 	if err != nil {
 		svc.logger.Error("Failed checking collection access",
 			zap.Any("error", err),
-			zap.String("collection_id", file.CollectionID),
-			zap.String("user_id", userID.Hex()))
+			zap.Any("collection_id", file.CollectionID),
+			zap.Any("user_id", userID))
 		return nil, err
 	}
 
 	if !hasAccess {
 		svc.logger.Warn("Unauthorized file data download attempt",
-			zap.String("user_id", userID.Hex()),
-			zap.String("file_id", fileID))
+			zap.Any("user_id", userID),
+			zap.String("encrypted_file_id", encryptedFileID))
 		return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have permission to download this file")
 	}
 
 	//
 	// STEP 5: Get encrypted data
 	//
-	encryptedData, err := svc.fileRepo.GetEncryptedData(fileID)
+	encryptedData, err := svc.fileRepo.GetEncryptedData(encryptedFileID)
 	if err != nil {
 		svc.logger.Error("Failed to get encrypted file data",
 			zap.Any("error", err),
-			zap.String("file_id", fileID))
+			zap.String("encrypted_file_id", encryptedFileID))
 		return nil, err
 	}
 
 	if encryptedData == nil || len(encryptedData) == 0 {
 		svc.logger.Warn("No data found for file",
-			zap.String("file_id", fileID))
+			zap.String("encrypted_file_id", encryptedFileID))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "No data found for this file")
 	}
 
 	svc.logger.Info("File data retrieved successfully",
-		zap.String("file_id", fileID),
+		zap.String("encrypted_file_id", encryptedFileID),
 		zap.Int("size", len(encryptedData)))
 
 	return encryptedData, nil
