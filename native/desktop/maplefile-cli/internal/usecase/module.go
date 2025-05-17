@@ -6,7 +6,6 @@ import (
 
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
@@ -47,13 +46,6 @@ func UseCaseModule() fx.Option {
 		fx.Provide(remotecollection.NewCreateRemoteCollectionUseCase),
 		fx.Provide(remotecollection.NewFetchRemoteCollectionUseCase),
 		fx.Provide(remotecollection.NewListRemoteCollectionsUseCase),
-
-		// Synchronization use cases
-		fx.Provide(collectionsyncer.NewFindByServerIDUseCase),
-		fx.Provide(collectionsyncer.NewDownloadToLocalUseCase),
-		fx.Provide(collectionsyncer.NewUploadToRemoteUseCase),
-		fx.Provide(collectionsyncer.NewSyncAllLocalToRemoteUseCase),
-		fx.Provide(collectionsyncer.NewDownloadAllRemoteUseCase),
 
 		// DEPRECATED
 		fx.Provide(collection.NewCreateCollectionUseCase),
