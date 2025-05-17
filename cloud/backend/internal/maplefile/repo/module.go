@@ -15,12 +15,12 @@ func Module() fx.Option {
 	return fx.Options(
 		fx.Provide(
 			bannedipaddress.NewRepository,
-			collection.NewRepository,
 			file.NewFileMetadataRepository,
 			file.NewFileStorageRepository,
 			file.NewFileRepository,
 			user.NewRepository,
 			templatedemailer.NewTemplatedEmailer,
+			collection.NewRepository,
 		),
 	)
 }

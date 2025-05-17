@@ -3,12 +3,12 @@ package collection
 
 import (
 	"context"
+	"log"
 
 	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
@@ -37,9 +37,6 @@ func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mo
 			{Key: "created_at", Value: -1},
 		}},
 		{Keys: bson.D{
-			{Key: "_id", Value: 1},
-		}, Options: options.Index().SetUnique(true)},
-		{Keys: bson.D{
 			{Key: "owner_id", Value: 1},
 			{Key: "created_at", Value: -1},
 		}},
@@ -62,8 +59,7 @@ func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mo
 	})
 
 	if err != nil {
-		loggerp.Error("failed creating indexes error", zap.Any("err", err))
-		return nil
+		log.Fatalf("failed creating indexes error: %v\n", err)
 	}
 
 	return &collectionRepositoryImpl{
