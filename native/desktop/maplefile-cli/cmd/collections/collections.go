@@ -27,6 +27,7 @@ func CollectionsCmd(
 	// Add collection subcommands
 	cmd.AddCommand(createRootCollectionCmd(remoteCollectionService, downloadService, logger))
 	cmd.AddCommand(createSubCollectionCmd(remoteCollectionService, downloadService, logger))
+	cmd.AddCommand(downloadAllCollectionsCmd(downloadService, logger))
 
 	return cmd
 }
