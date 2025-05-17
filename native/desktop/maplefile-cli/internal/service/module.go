@@ -5,7 +5,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
@@ -28,9 +27,6 @@ func ServiceModule() fx.Option {
 
 		// Token refresh service
 		fx.Provide(tokenservice.NewTokenRefreshService),
-
-		// Old collection service (can be removed after migration)
-		fx.Provide(collection.NewCollectionService),
 
 		// Local collection services
 		fx.Provide(localcollection.NewCreateService),
