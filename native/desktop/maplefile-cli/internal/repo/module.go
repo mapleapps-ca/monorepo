@@ -57,7 +57,14 @@ func RepoModule() fx.Option {
 		fx.Provide(auth.NewLoginOTTVerificationRepository),
 		fx.Provide(auth.NewCompleteLoginRepository),
 		fx.Provide(auth.NewTokenRefresherRepo),
-		fx.Provide(collection.NewCollectionRepository),
+
+		// Updated collection repository with storage dependency
+		fx.Provide(
+			fx.Annotate(
+				collection.NewCollectionRepository,
+				fx.ParamTags(``, ``, ``, ``, `name:"collection_db"`), // Pass collection_db to the repository
+			),
+		),
 
 		// Transaction manager
 		fx.Provide(transaction.NewTransactionManager),

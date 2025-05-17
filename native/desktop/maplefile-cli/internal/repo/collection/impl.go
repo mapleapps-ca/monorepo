@@ -1,4 +1,4 @@
-// monorepo/native/desktop/maplefile-cli/internal/repo/auth/impl.go
+// monorepo/native/desktop/maplefile-cli/internal/repo/collection/impl.go
 package collection
 
 import (

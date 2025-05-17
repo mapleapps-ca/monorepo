@@ -70,13 +70,7 @@ type MembershipResponse struct {
 
 // CollectionRepository defines the interface for interacting with collections
 type CollectionRepository interface {
-	// Existing remote operations
 	CreateCollection(ctx context.Context, request *CreateCollectionRequest) (*CollectionResponse, error)
-
-	// // New local operations
-	// SaveLocalCollection(ctx context.Context, collection *Collection) error
-	// GetLocalCollectionByID(ctx context.Context, id primitive.ObjectID) (*Collection, error)
-	// ListLocalCollections(ctx context.Context, parentID *primitive.ObjectID) ([]*Collection, error)
 }
 
 // Constants for collection types
