@@ -1,4 +1,4 @@
-// internal/app/register_module.go
+// internal/service/module.go
 package service
 
 import (
@@ -6,7 +6,10 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotecollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
 
@@ -16,17 +19,34 @@ func ServiceModule() fx.Option {
 		// Registration service
 		fx.Provide(register.NewRegisterService),
 
-		// Auth service
+		// Auth services
 		fx.Provide(auth.NewUserVerificationDataTransformer),
 		fx.Provide(auth.NewEmailVerificationService),
 		fx.Provide(auth.NewLoginOTTService),
 		fx.Provide(auth.NewLoginOTTVerificationService),
 		fx.Provide(auth.NewCompleteLoginService),
 
-		// internal/service/module.go (addition to existing code)
-		fx.Provide(collection.NewCollectionService),
-
 		// Token refresh service
 		fx.Provide(tokenservice.NewTokenRefreshService),
+
+		// Old collection service (can be removed after migration)
+		fx.Provide(collection.NewCollectionService),
+
+		// Local collection services
+		fx.Provide(localcollection.NewCreateService),
+		fx.Provide(localcollection.NewGetService),
+		fx.Provide(localcollection.NewListService),
+		fx.Provide(localcollection.NewUpdateService),
+		fx.Provide(localcollection.NewDeleteService),
+		fx.Provide(localcollection.NewMoveService),
+
+		// Remote collection services
+		fx.Provide(remotecollection.NewCreateService),
+		fx.Provide(remotecollection.NewFetchService),
+		fx.Provide(remotecollection.NewListService),
+
+		// Collection synchronization services
+		fx.Provide(collectionsyncer.NewDownloadService),
+		fx.Provide(collectionsyncer.NewUploadService),
 	)
 }
