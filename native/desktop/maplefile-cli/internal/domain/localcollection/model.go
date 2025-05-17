@@ -11,8 +11,13 @@ import (
 
 // LocalCollection represents a collection in the system (on the user's device).
 type LocalCollection struct {
+	// Local primary key
+	ID primitive.ObjectID `json:"id"`
+
+	// Remote reference ID - stores the ID of the corresponding remote collection
+	RemoteID primitive.ObjectID `json:"remote_id,omitempty"`
+
 	// Existing cloud fields
-	ID                     primitive.ObjectID          `json:"id"`
 	OwnerID                primitive.ObjectID          `json:"owner_id"`
 	EncryptedName          string                      `json:"encrypted_name"`
 	Type                   string                      `json:"type"`
@@ -23,7 +28,7 @@ type LocalCollection struct {
 	CreatedAt              time.Time                   `json:"created_at"`
 	ModifiedAt             time.Time                   `json:"modified_at"`
 
-	// New fields for local decrypted data
+	// Fields for local display and sync status
 	DecryptedName     string    `json:"-" bson:"-"`
 	DecryptedPath     string    `json:"-" bson:"-"`
 	LastSyncedAt      time.Time `json:"-" bson:"-"`

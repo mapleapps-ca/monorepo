@@ -46,6 +46,7 @@ func ServiceModule() fx.Option {
 		fx.Provide(remotecollection.NewListService),
 
 		// Collection synchronization services
+		fx.Provide(collectionsyncer.NewFindByRemoteIDService),
 		fx.Provide(collectionsyncer.NewDownloadService),
 		fx.Provide(collectionsyncer.NewUploadService),
 	)

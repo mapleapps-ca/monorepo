@@ -1,4 +1,4 @@
-// internal/usecase/module.go
+// internal/usecase/module.go (Updated)
 package usecase
 
 import (
@@ -15,7 +15,7 @@ import (
 	userUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
-// ServiceModule provides the service-layer--related dependencies
+// UseCaseModule provides the service-layer--related dependencies
 func UseCaseModule() fx.Option {
 	return fx.Options(
 		// Crypto use cases
@@ -49,6 +49,7 @@ func UseCaseModule() fx.Option {
 		fx.Provide(remotecollection.NewListRemoteCollectionsUseCase),
 
 		// Synchronization use cases
+		fx.Provide(collectionsyncer.NewFindByServerIDUseCase),
 		fx.Provide(collectionsyncer.NewDownloadToLocalUseCase),
 		fx.Provide(collectionsyncer.NewUploadToRemoteUseCase),
 		fx.Provide(collectionsyncer.NewSyncAllLocalToRemoteUseCase),

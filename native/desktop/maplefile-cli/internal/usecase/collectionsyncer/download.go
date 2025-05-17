@@ -41,11 +41,6 @@ func NewDownloadToLocalUseCase(
 	}
 }
 
-// ListLocalCollectionsWithServerIDUseCase is a helper interface for finding local collections by server ID
-type ListLocalCollectionsWithServerIDUseCase interface {
-	FindByServerID(ctx context.Context, serverID primitive.ObjectID) (*localcollection.LocalCollection, error)
-}
-
 // Execute downloads a remote collection and creates/updates a local copy
 func (uc *downloadToLocalUseCase) Execute(
 	ctx context.Context,
