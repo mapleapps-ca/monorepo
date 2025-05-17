@@ -12,6 +12,7 @@ import (
 
 // Collection represents a collection in the system
 type Collection struct {
+	// Existing cloud fields
 	ID                     primitive.ObjectID          `json:"id"`
 	OwnerID                primitive.ObjectID          `json:"owner_id"`
 	EncryptedName          string                      `json:"encrypted_name"`
@@ -22,6 +23,12 @@ type Collection struct {
 	EncryptedCollectionKey keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
 	CreatedAt              time.Time                   `json:"created_at"`
 	ModifiedAt             time.Time                   `json:"modified_at"`
+
+	// New fields for local decrypted data
+	DecryptedName     string    `json:"-" bson:"-"`
+	DecryptedPath     string    `json:"-" bson:"-"`
+	LastSyncedAt      time.Time `json:"-" bson:"-"`
+	IsModifiedLocally bool      `json:"-" bson:"-"`
 }
 
 // CreateCollectionRequest represents the data needed to create a collection
@@ -63,7 +70,13 @@ type MembershipResponse struct {
 
 // CollectionRepository defines the interface for interacting with collections
 type CollectionRepository interface {
+	// Existing remote operations
 	CreateCollection(ctx context.Context, request *CreateCollectionRequest) (*CollectionResponse, error)
+
+	// // New local operations
+	// SaveLocalCollection(ctx context.Context, collection *Collection) error
+	// GetLocalCollectionByID(ctx context.Context, id primitive.ObjectID) (*Collection, error)
+	// ListLocalCollections(ctx context.Context, parentID *primitive.ObjectID) ([]*Collection, error)
 }
 
 // Constants for collection types
