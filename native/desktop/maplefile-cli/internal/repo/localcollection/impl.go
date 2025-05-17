@@ -2,6 +2,7 @@
 package collection
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -11,23 +12,29 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage"
 )
 
-// localcollectionRepository implements the localcollection.CollectionRepository interface
+// Key prefix for collections to avoid key collisions with other types
+const collectionKeyPrefix = "local_collection:"
+
+// localcollectionRepository implements the localcollection.LocalCollectionRepository interface
 type localcollectionRepository struct {
 	logger         *zap.Logger
 	configService  config.ConfigService
 	userRepo       user.Repository
 	tokenRefresher auth.TokenRefresher
 	httpClient     *http.Client
+	dbClient       storage.Storage // Add LevelDB client for local storage
 }
 
-// NewCollectionRepository creates a new repository for localcollection operations
+// NewLocalCollectionRepository creates a new repository for localcollection operations
 func NewLocalCollectionRepository(
 	logger *zap.Logger,
 	configService config.ConfigService,
 	userRepo user.Repository,
 	tokenRefresher auth.TokenRefresher,
+	dbClient storage.Storage, // Add storage client parameter
 ) localcollection.LocalCollectionRepository {
 	return &localcollectionRepository{
 		logger:         logger,
@@ -35,5 +42,11 @@ func NewLocalCollectionRepository(
 		userRepo:       userRepo,
 		tokenRefresher: tokenRefresher,
 		httpClient:     &http.Client{Timeout: 30 * time.Second},
+		dbClient:       dbClient,
 	}
+}
+
+// generateKey creates a storage key for a collection
+func (r *localcollectionRepository) generateKey(id string) string {
+	return fmt.Sprintf("%s%s", collectionKeyPrefix, id)
 }
