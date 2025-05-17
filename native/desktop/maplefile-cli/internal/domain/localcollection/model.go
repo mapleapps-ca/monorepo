@@ -1,5 +1,5 @@
 // monorepo/native/desktop/maplefile-cli/internal/domain/localcollection/model.go
-package collection
+package localcollection
 
 import (
 	"time"

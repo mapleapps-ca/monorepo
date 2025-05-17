@@ -13,11 +13,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
+	collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotecollection"
 )
 
 // CreateRemoteCollection creates a new collection by calling the server API
-func (r *collectionRepository) CreateRemoteCollection(ctx context.Context, request *collection.CreateRemoteCollectionRequest) (*collection.RemoteCollectionResponse, error) {
+func (r *collectionRepository) Create(ctx context.Context, request *collection.RemoteCreateCollectionRequest) (*collection.RemoteCollectionResponse, error) {
 	r.logger.Debug("Starting CreateRemoteCollection process")
 
 	// Get server URL from configuration

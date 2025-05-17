@@ -1,5 +1,5 @@
-// monorepo/native/desktop/maplefile-cli/internal/repo/remotecollection/impl.go
-package remotecollection
+// monorepo/native/desktop/maplefile-cli/internal/repo/localcollection/impl.go
+package collection
 
 import (
 	"net/http"
@@ -9,12 +9,12 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
-	collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotecollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 )
 
-// collectionRepository implements the collection.RemoteCollectionRepository interface
-type collectionRepository struct {
+// localcollectionRepository implements the localcollection.CollectionRepository interface
+type localcollectionRepository struct {
 	logger         *zap.Logger
 	configService  config.ConfigService
 	userRepo       user.Repository
@@ -22,14 +22,14 @@ type collectionRepository struct {
 	httpClient     *http.Client
 }
 
-// NewRemoteCollectionRepository creates a new repository for collection operations
-func NewRemoteCollectionRepository(
+// NewCollectionRepository creates a new repository for localcollection operations
+func NewLocalCollectionRepository(
 	logger *zap.Logger,
 	configService config.ConfigService,
 	userRepo user.Repository,
 	tokenRefresher auth.TokenRefresher,
-) collection.RemoteCollectionRepository {
-	return &collectionRepository{
+) localcollection.LocalCollectionRepository {
+	return &localcollectionRepository{
 		logger:         logger,
 		configService:  configService,
 		userRepo:       userRepo,

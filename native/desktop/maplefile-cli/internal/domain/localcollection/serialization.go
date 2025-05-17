@@ -1,5 +1,5 @@
 // monorepo/native/desktop/maplefile-cli/internal/domain/localcollection/serialization.go
-package collection
+package localcollection
 
 import (
 	"fmt"

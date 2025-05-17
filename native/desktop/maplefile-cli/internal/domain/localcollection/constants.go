@@ -1,5 +1,5 @@
 // monorepo/native/desktop/maplefile-cli/internal/domain/localcollection/constants.go
-package collection
+package localcollection
 
 // Constants for collection types
 const (
