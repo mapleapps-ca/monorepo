@@ -6,9 +6,12 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotecollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotefile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
 
@@ -45,5 +48,24 @@ func ServiceModule() fx.Option {
 		fx.Provide(collectionsyncer.NewFindByRemoteIDService),
 		fx.Provide(collectionsyncer.NewDownloadService),
 		fx.Provide(collectionsyncer.NewUploadService),
+
+		// Local file services
+		fx.Provide(localfile.NewCreateService),
+		fx.Provide(localfile.NewGetService),
+		fx.Provide(localfile.NewListService),
+		fx.Provide(localfile.NewUpdateService),
+		fx.Provide(localfile.NewDeleteService),
+		fx.Provide(localfile.NewImportService),
+
+		// Remote file services
+		fx.Provide(remotefile.NewCreateService),
+		fx.Provide(remotefile.NewFetchService),
+		fx.Provide(remotefile.NewListService),
+		fx.Provide(remotefile.NewDeleteService),
+		fx.Provide(remotefile.NewUploadService),
+		fx.Provide(remotefile.NewDownloadService),
+
+		// File synchronization service
+		fx.Provide(filesyncer.NewSyncService),
 	)
 }
