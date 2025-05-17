@@ -6,13 +6,19 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
-	collectionService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotecollection"
 )
 
 // createRootCollectionCmd creates a command for creating a root collection
-func createRootCollectionCmd(collectionSvc collectionService.CollectionService, logger *zap.Logger) *cobra.Command {
+func createRootCollectionCmd(
+	remoteCollectionService remotecollection.CreateService,
+	downloadService collectionsyncer.DownloadService,
+	logger *zap.Logger,
+) *cobra.Command {
 	var name, collectionType string
 
 	var cmd = &cobra.Command{
@@ -53,23 +59,42 @@ Examples:
 				return
 			}
 
-			input := collectionService.CreateCollectionInput{
+			// Step 1: Create the collection remotely
+			remoteInput := remotecollection.CreateInput{
 				Name:           name,
 				CollectionType: collectionType,
 			}
 
-			// Create the collection
-			output, err := collectionSvc.CreateRootCollection(ctx, input)
+			logger.Debug("Creating remote collection",
+				zap.String("name", name),
+				zap.String("type", collectionType))
+
+			remoteOutput, err := remoteCollectionService.Create(ctx, remoteInput)
 			if err != nil {
-				fmt.Printf("🐞 Error creating collection: %v\n", err)
+				fmt.Printf("🐞 Error creating remote collection: %v\n", err)
 				return
+			}
+
+			// Step 2: Download the remote collection to local storage
+			remoteID := remoteOutput.Collection.ID.Hex()
+			logger.Debug("Downloading remote collection to local storage",
+				zap.String("remoteID", remoteID))
+
+			downloadOutput, err := downloadService.Download(ctx, remoteID)
+			if err != nil {
+				fmt.Printf("🐞 Warning: Created remote collection, but failed to download to local storage: %v\n", err)
+				// Continue execution, as the remote collection was successfully created
 			}
 
 			// Display success message
 			fmt.Println("\n✅ Collection created successfully!")
-			fmt.Printf("Collection ID: %s\n", output.Collection.ID.Hex())
-			fmt.Printf("Collection Type: %s\n", output.Collection.Type)
-			fmt.Printf("Created At: %s\n", output.Collection.CreatedAt.Format("2006-01-02 15:04:05"))
+			fmt.Printf("Collection ID: %s\n", remoteOutput.Collection.ID.Hex())
+			fmt.Printf("Collection Type: %s\n", remoteOutput.Collection.Type)
+			fmt.Printf("Created At: %s\n", remoteOutput.Collection.CreatedAt.Format("2006-01-02 15:04:05"))
+
+			if downloadOutput != nil && downloadOutput.Collection != nil {
+				fmt.Println("Collection synchronized to local storage.")
+			}
 		},
 	}
 
@@ -83,11 +108,12 @@ Examples:
 	return cmd
 }
 
-// cmd/collections/collections.go
-// Add to the existing file
-
 // createSubCollectionCmd creates a command for creating a sub-collection
-func createSubCollectionCmd(collectionSvc collectionService.CollectionService, logger *zap.Logger) *cobra.Command {
+func createSubCollectionCmd(
+	remoteCollectionService remotecollection.CreateService,
+	downloadService collectionsyncer.DownloadService,
+	logger *zap.Logger,
+) *cobra.Command {
 	var name, collectionType, parentID string
 
 	var cmd = &cobra.Command{
@@ -134,25 +160,52 @@ Examples:
 				return
 			}
 
-			input := collectionService.CreateSubCollectionInput{
+			// Validate parentID format
+			_, err := primitive.ObjectIDFromHex(parentID)
+			if err != nil {
+				fmt.Printf("🐞 Error: Invalid parent ID format: %v\n", err)
+				return
+			}
+
+			// Step 1: Create the sub-collection remotely
+			remoteInput := remotecollection.CreateInput{
 				Name:           name,
 				CollectionType: collectionType,
 				ParentID:       parentID,
 			}
 
-			// Create the sub-collection
-			output, err := collectionSvc.CreateSubCollection(ctx, input)
+			logger.Debug("Creating remote sub-collection",
+				zap.String("name", name),
+				zap.String("type", collectionType),
+				zap.String("parentID", parentID))
+
+			remoteOutput, err := remoteCollectionService.Create(ctx, remoteInput)
 			if err != nil {
-				fmt.Printf("🐞 Error creating sub-collection: %v\n", err)
+				fmt.Printf("🐞 Error creating remote sub-collection: %v\n", err)
 				return
+			}
+
+			// Step 2: Download the remote sub-collection to local storage
+			remoteID := remoteOutput.Collection.ID.Hex()
+			logger.Debug("Downloading remote sub-collection to local storage",
+				zap.String("remoteID", remoteID))
+
+			downloadOutput, err := downloadService.Download(ctx, remoteID)
+			if err != nil {
+				fmt.Printf("🐞 Warning: Created remote sub-collection, but failed to download to local storage: %v\n", err)
+				// Continue execution, as the remote collection was successfully created
 			}
 
 			// Display success message
 			fmt.Println("\n✅ Sub-collection created successfully!")
-			fmt.Printf("Collection ID: %s\n", output.Collection.ID.Hex())
-			fmt.Printf("Collection Type: %s\n", output.Collection.Type)
-			fmt.Printf("Parent Collection ID: %s\n", output.Collection.ParentID.Hex())
-			fmt.Printf("Created At: %s\n", output.Collection.CreatedAt.Format("2006-01-02 15:04:05"))
+			fmt.Printf("Collection ID: %s\n", remoteOutput.Collection.ID.Hex())
+			fmt.Printf("Collection Type: %s\n", remoteOutput.Collection.Type)
+			fmt.Printf("Parent Collection ID: %s\n", parentID)
+			fmt.Printf("Created At: %s\n", remoteOutput.Collection.CreatedAt.Format("2006-01-02 15:04:05"))
+
+			if downloadOutput != nil && downloadOutput.Collection != nil {
+				fmt.Println("Collection synchronized to local storage.")
+			}
 		},
 	}
 
