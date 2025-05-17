@@ -10,13 +10,26 @@ import (
 // LocalFileRepository defines the interface for interacting with local files
 type LocalFileRepository interface {
 	Create(ctx context.Context, file *LocalFile) error
+
 	Save(ctx context.Context, file *LocalFile) error
+
 	GetByID(ctx context.Context, id primitive.ObjectID) (*LocalFile, error)
 	GetByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*LocalFile, error)
 	GetByEncryptedFileID(ctx context.Context, encryptedFileID string) (*LocalFile, error)
+
 	List(ctx context.Context, filter LocalFileFilter) ([]*LocalFile, error)
 	ListByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*LocalFile, error)
+
 	Delete(ctx context.Context, id primitive.ObjectID) error
+
+	SaveFileData(ctx context.Context, file *LocalFile, data []byte) error
+	LoadFileData(ctx context.Context, file *LocalFile) ([]byte, error)
+
+	ImportFile(ctx context.Context, filePath string, file *LocalFile) error
+
+	SaveThumbnail(ctx context.Context, file *LocalFile, thumbnailData []byte) error
+	LoadThumbnail(ctx context.Context, file *LocalFile) ([]byte, error)
+
 	OpenTransaction() error
 	CommitTransaction() error
 	DiscardTransaction()
