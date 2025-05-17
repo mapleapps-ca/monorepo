@@ -30,8 +30,8 @@ type RemoteCollection struct {
 	IsModifiedLocally bool      `json:"-" bson:"-"`
 }
 
-// CreateCollectionRequest represents the data needed to create a collection
-type CreateCollectionRequest struct {
+// RemoteCreateCollectionRequest represents the data needed to create a collection
+type RemoteCreateCollectionRequest struct {
 	EncryptedName          string                      `json:"encrypted_name"`
 	Type                   string                      `json:"type"`
 	ParentID               primitive.ObjectID          `json:"parent_id,omitempty"`
@@ -39,8 +39,8 @@ type CreateCollectionRequest struct {
 	EncryptedCollectionKey keys.EncryptedCollectionKey `json:"encrypted_collection_key"`
 }
 
-// CollectionResponse represents the server's response when creating a collection
-type CollectionResponse struct {
+// RemoteCollectionResponse represents the server's response when creating a collection
+type RemoteCollectionResponse struct {
 	ID                     primitive.ObjectID          `json:"id"`
 	OwnerID                primitive.ObjectID          `json:"owner_id"`
 	EncryptedName          string                      `json:"encrypted_name"`
@@ -51,11 +51,11 @@ type CollectionResponse struct {
 	EncryptedCollectionKey keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
 	CreatedAt              time.Time                   `json:"created_at"`
 	ModifiedAt             time.Time                   `json:"modified_at"`
-	Members                []MembershipResponse        `json:"members"`
+	Members                []RemoteMembershipResponse  `json:"members"`
 }
 
-// MembershipResponse represents a collection membership
-type MembershipResponse struct {
+// RemoteMembershipResponse represents a collection membership
+type RemoteMembershipResponse struct {
 	ID              primitive.ObjectID `json:"id"`
 	RecipientID     primitive.ObjectID `json:"recipient_id"`
 	RecipientEmail  string             `json:"recipient_email"`
