@@ -60,6 +60,7 @@ func NewCollectionService(
 func (s *collectionService) CreateRootCollection(ctx context.Context, input CreateCollectionInput) (*CreateCollectionOutput, error) {
 	// Validate inputs
 	if input.Name == "" {
+		s.logger.Error("collection name is required for root collection", zap.String("name", input.Name))
 		return nil, errors.NewAppError("collection name is required", nil)
 	}
 
@@ -67,28 +68,33 @@ func (s *collectionService) CreateRootCollection(ctx context.Context, input Crea
 		// Default to folder if not specified
 		input.CollectionType = collection.CollectionTypeFolder
 	} else if input.CollectionType != collection.CollectionTypeFolder && input.CollectionType != collection.CollectionTypeAlbum {
+		s.logger.Error("invalid collection type for root collection", zap.String("type", input.CollectionType))
 		return nil, errors.NewAppError("collection type must be either 'folder' or 'album'", nil)
 	}
 
 	// Get the authenticated user's email
 	email, err := s.configService.GetEmail(ctx)
 	if err != nil {
+		s.logger.Error("failed to get current user email for root collection creation", zap.Error(err))
 		return nil, errors.NewAppError("failed to get current user", err)
 	}
 
 	// Get user data
 	userData, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
+		s.logger.Error("failed to get user data for root collection creation", zap.String("email", email), zap.Error(err))
 		return nil, errors.NewAppError("failed to get user data", err)
 	}
 
 	if userData == nil {
+		s.logger.Error("user not found for root collection creation", zap.String("email", email))
 		return nil, errors.NewAppError("user not found; please login first", nil)
 	}
 
 	// Generate a collection key
 	collectionKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
 	if err != nil {
+		s.logger.Error("failed to generate collection key for root collection", zap.Error(err))
 		return nil, errors.NewAppError("failed to generate collection key", err)
 	}
 
@@ -101,6 +107,7 @@ func (s *collectionService) CreateRootCollection(ctx context.Context, input Crea
 	// This is a simplified version - real implementation would decrypt master key first
 	ciphertext, nonce, err := crypto.EncryptWithSecretBox(collectionKey, collectionKey)
 	if err != nil {
+		s.logger.Error("failed to encrypt collection key for root collection", zap.Error(err))
 		return nil, errors.NewAppError("failed to encrypt collection key", err)
 	}
 
@@ -112,6 +119,7 @@ func (s *collectionService) CreateRootCollection(ctx context.Context, input Crea
 	// Call the use case to create the collection
 	response, err := s.useCase.Execute(ctx, encryptedName, input.CollectionType, encryptedCollectionKey)
 	if err != nil {
+		s.logger.Error("use case failed to create root collection", zap.String("name", input.Name), zap.Error(err))
 		return nil, err
 	}
 
@@ -131,10 +139,12 @@ type CreateSubCollectionInput struct {
 func (s *collectionService) CreateSubCollection(ctx context.Context, input CreateSubCollectionInput) (*CreateCollectionOutput, error) {
 	// Validate inputs
 	if input.Name == "" {
+		s.logger.Error("collection name is required for sub-collection", zap.String("name", input.Name), zap.String("parent_id", input.ParentID))
 		return nil, errors.NewAppError("collection name is required", nil)
 	}
 
 	if input.ParentID == "" {
+		s.logger.Error("parent collection ID is required for sub-collection", zap.String("name", input.Name), zap.String("parent_id", input.ParentID))
 		return nil, errors.NewAppError("parent collection ID is required", nil)
 	}
 
@@ -142,28 +152,33 @@ func (s *collectionService) CreateSubCollection(ctx context.Context, input Creat
 		// Default to folder if not specified
 		input.CollectionType = collection.CollectionTypeFolder
 	} else if input.CollectionType != collection.CollectionTypeFolder && input.CollectionType != collection.CollectionTypeAlbum {
+		s.logger.Error("invalid collection type for sub-collection", zap.String("type", input.CollectionType), zap.String("name", input.Name), zap.String("parent_id", input.ParentID))
 		return nil, errors.NewAppError("collection type must be either 'folder' or 'album'", nil)
 	}
 
 	// Get the authenticated user's email
 	email, err := s.configService.GetEmail(ctx)
 	if err != nil {
+		s.logger.Error("failed to get current user email for sub-collection creation", zap.String("name", input.Name), zap.String("parent_id", input.ParentID), zap.Error(err))
 		return nil, errors.NewAppError("failed to get current user", err)
 	}
 
 	// Get user data
 	userData, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
+		s.logger.Error("failed to get user data for sub-collection creation", zap.String("email", email), zap.String("name", input.Name), zap.String("parent_id", input.ParentID), zap.Error(err))
 		return nil, errors.NewAppError("failed to get user data", err)
 	}
 
 	if userData == nil {
+		s.logger.Error("user not found for sub-collection creation", zap.String("email", email), zap.String("name", input.Name), zap.String("parent_id", input.ParentID))
 		return nil, errors.NewAppError("user not found; please login first", nil)
 	}
 
 	// Generate a collection key
 	collectionKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
 	if err != nil {
+		s.logger.Error("failed to generate collection key for sub-collection", zap.String("name", input.Name), zap.String("parent_id", input.ParentID), zap.Error(err))
 		return nil, errors.NewAppError("failed to generate collection key", err)
 	}
 
@@ -176,6 +191,7 @@ func (s *collectionService) CreateSubCollection(ctx context.Context, input Creat
 	// This is a simplified version - real implementation would decrypt master key first
 	ciphertext, nonce, err := crypto.EncryptWithSecretBox(collectionKey, collectionKey)
 	if err != nil {
+		s.logger.Error("failed to encrypt collection key for sub-collection", zap.String("name", input.Name), zap.String("parent_id", input.ParentID), zap.Error(err))
 		return nil, errors.NewAppError("failed to encrypt collection key", err)
 	}
 
@@ -198,6 +214,10 @@ func (s *collectionService) CreateSubCollection(ctx context.Context, input Creat
 		encryptedCollectionKey,
 	)
 	if err != nil {
+		s.logger.Error("use case failed to create sub-collection",
+			zap.String("name", input.Name),
+			zap.String("parent_id", input.ParentID),
+			zap.Error(err))
 		return nil, err
 	}
 

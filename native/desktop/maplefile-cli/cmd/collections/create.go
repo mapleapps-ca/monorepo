@@ -61,8 +61,7 @@ Examples:
 			// Create the collection
 			output, err := collectionSvc.CreateRootCollection(ctx, input)
 			if err != nil {
-				logger.Error("Failed to create collection", zap.Error(err))
-				fmt.Printf("Error creating collection: %v\n", err)
+				fmt.Printf("🐞 Error creating collection: %v\n", err)
 				return
 			}
 
@@ -112,13 +111,13 @@ Examples:
 
 			// Validate required fields
 			if name == "" {
-				fmt.Println("Error: Collection name is required.")
+				fmt.Println("🐞 Error: Collection name is required.")
 				fmt.Println("Use --name flag to specify the name of your collection.")
 				return
 			}
 
 			if parentID == "" {
-				fmt.Println("Error: Parent collection ID is required.")
+				fmt.Println("🐞 Error: Parent collection ID is required.")
 				fmt.Println("Use --parent flag to specify the ID of the parent collection.")
 				return
 			}
@@ -130,7 +129,7 @@ Examples:
 
 			// Ensure valid collection type
 			if collectionType != "folder" && collectionType != "album" {
-				fmt.Printf("Error: Invalid collection type: %s\n", collectionType)
+				fmt.Printf("🐞 Error: Invalid collection type: %s\n", collectionType)
 				fmt.Println("Collection type must be either 'folder' or 'album'.")
 				return
 			}
@@ -144,8 +143,7 @@ Examples:
 			// Create the sub-collection
 			output, err := collectionSvc.CreateSubCollection(ctx, input)
 			if err != nil {
-				logger.Error("Failed to create sub-collection", zap.Error(err))
-				fmt.Printf("Error creating sub-collection: %v\n", err)
+				fmt.Printf("🐞 Error creating sub-collection: %v\n", err)
 				return
 			}
 
