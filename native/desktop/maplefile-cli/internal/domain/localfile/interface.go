@@ -17,6 +17,9 @@ type LocalFileRepository interface {
 	List(ctx context.Context, filter LocalFileFilter) ([]*LocalFile, error)
 	ListByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*LocalFile, error)
 	Delete(ctx context.Context, id primitive.ObjectID) error
+	OpenTransaction() error
+	CommitTransaction() error
+	DiscardTransaction()
 }
 
 // LocalFileFilter defines filtering options for listing local files

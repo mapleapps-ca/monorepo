@@ -2,7 +2,6 @@
 package collection
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -46,7 +45,14 @@ func NewLocalCollectionRepository(
 	}
 }
 
-// generateKey creates a storage key for a collection
-func (r *localcollectionRepository) generateKey(id string) string {
-	return fmt.Sprintf("%s%s", collectionKeyPrefix, id)
+func (r *localcollectionRepository) OpenTransaction() error {
+	return r.dbClient.OpenTransaction()
+}
+
+func (r *localcollectionRepository) CommitTransaction() error {
+	return r.dbClient.CommitTransaction()
+}
+
+func (r *localcollectionRepository) DiscardTransaction() {
+	r.dbClient.DiscardTransaction()
 }

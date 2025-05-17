@@ -14,6 +14,9 @@ type LocalCollectionRepository interface {
 	GetByID(ctx context.Context, id primitive.ObjectID) (*LocalCollection, error)
 	List(ctx context.Context, filter LocalCollectionFilter) ([]*LocalCollection, error)
 	Delete(ctx context.Context, id primitive.ObjectID) error
+	OpenTransaction() error
+	CommitTransaction() error
+	DiscardTransaction()
 }
 
 // LocalCollectionFilter defines filtering options for listing local collections
