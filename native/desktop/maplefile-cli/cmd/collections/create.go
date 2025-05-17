@@ -1,4 +1,4 @@
-// monorepo/native/desktop/maplefile-cli/cmd/collections/healthcheck.go
+// monorepo/native/desktop/maplefile-cli/cmd/collections/create.go
 package collections
 
 import (
