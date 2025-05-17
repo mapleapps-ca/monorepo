@@ -6,9 +6,12 @@ import (
 
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/remotecollection"
 	userUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
@@ -17,6 +20,7 @@ func UseCaseModule() fx.Option {
 	return fx.Options(
 		// Crypto use cases
 		fx.Provide(crypto.NewCryptoUseCase),
+		fx.Provide(crypto.NewDecryptCollectionNameUseCase),
 
 		// Auth use cases
 		fx.Provide(authUseCase.NewEmailVerificationUseCase),
@@ -30,7 +34,27 @@ func UseCaseModule() fx.Option {
 		fx.Provide(userUseCase.NewDeleteByEmailUseCase),
 		fx.Provide(userUseCase.NewListAllUseCase),
 
-		// internal/usecase/module.go (addition to existing code)
+		// Local collection use cases
+		fx.Provide(localcollection.NewCreateLocalCollectionUseCase),
+		fx.Provide(localcollection.NewGetLocalCollectionUseCase),
+		fx.Provide(localcollection.NewListLocalCollectionsUseCase),
+		fx.Provide(localcollection.NewUpdateLocalCollectionUseCase),
+		fx.Provide(localcollection.NewDeleteLocalCollectionUseCase),
+		fx.Provide(localcollection.NewMoveLocalCollectionUseCase),
+		fx.Provide(localcollection.NewGetLocalCollectionPathUseCase),
+
+		// Remote collection use cases
+		fx.Provide(remotecollection.NewCreateRemoteCollectionUseCase),
+		fx.Provide(remotecollection.NewFetchRemoteCollectionUseCase),
+		fx.Provide(remotecollection.NewListRemoteCollectionsUseCase),
+
+		// Synchronization use cases
+		fx.Provide(collectionsyncer.NewDownloadToLocalUseCase),
+		fx.Provide(collectionsyncer.NewUploadToRemoteUseCase),
+		fx.Provide(collectionsyncer.NewSyncAllLocalToRemoteUseCase),
+		fx.Provide(collectionsyncer.NewDownloadAllRemoteUseCase),
+
+		// DEPRECATED
 		fx.Provide(collection.NewCreateCollectionUseCase),
 
 		// Registration use cases
