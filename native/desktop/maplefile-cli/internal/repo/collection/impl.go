@@ -1,4 +1,4 @@
-// monorepo/native/desktop/maplefile-cli/internal/repo/collection/impl.go
+// monorepo/native/desktop/maplefile-cli/internal/repo/collection/impl.go (DEPRECATED)
 package collection
 
 import (

@@ -1,4 +1,4 @@
-// monorepo/native/desktop/maplefile-cli/internal/repo/auth/refreshtoken.go
+// monorepo/native/desktop/maplefile-cli/internal/repo/auth/refreshtoken.go (DEPRECATED)
 package collection
 
 import (

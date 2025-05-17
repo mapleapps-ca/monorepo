@@ -1,4 +1,4 @@
-// internal/domain/collection/serialization.go
+// internal/domain/collection/serialization.go (DEPRECATED)
 package collection
 
 import (

@@ -1,4 +1,4 @@
-// monorepo/native/desktop/maplefile-cli/internal/repo/auth/create.go
+// monorepo/native/desktop/maplefile-cli/internal/repo/auth/create.go (DEPRECATED)
 package collection
 
 import (

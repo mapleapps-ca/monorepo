@@ -1,4 +1,4 @@
-// internal/domain/collection/model.go
+// internal/domain/collection/model.go (DEPRECATED)
 package collection
 
 import (
