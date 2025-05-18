@@ -122,12 +122,14 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 	if err != nil {
 		svc.logger.Error("Failed to get collection",
 			zap.Any("error", err),
+			zap.Any("user_id", userID),
 			zap.Any("collection_id", req.CollectionID))
 		return nil, err
 	}
 
 	if collection == nil {
 		svc.logger.Debug("Collection not found",
+			zap.Any("user_id", userID),
 			zap.Any("collection_id", req.CollectionID))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "Collection not found")
 	}

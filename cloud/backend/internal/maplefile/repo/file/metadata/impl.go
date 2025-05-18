@@ -51,9 +51,6 @@ func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mo
 			{Key: "created_at", Value: -1},
 		}},
 		{Keys: bson.D{
-			{Key: "_id", Value: 1},
-		}, Options: options.Index().SetUnique(true)},
-		{Keys: bson.D{
 			{Key: "encrypted_file_id", Value: 1},
 		}, Options: options.Index().SetUnique(true)},
 		{Keys: bson.D{

@@ -23,6 +23,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
 	filesyncerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	registerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotecollection"
@@ -41,7 +42,9 @@ func NewRootCmd(
 	completeLoginService auth.CompleteLoginService,
 	tokenRefreshSvc tokenservice.TokenRefreshService,
 	remoteCollectionService remotecollection.CreateService,
+	remoteListService remotecollection.ListService, // Add this parameter
 	downloadService collectionsyncer.DownloadService,
+	listService localcollection.ListService,
 	fileSyncService filesyncerService.SyncService,
 	fileImportService localfile.ImportService,
 	// other services...
@@ -59,7 +62,7 @@ func NewRootCmd(
 	// Attach sub-commands to our main root
 	rootCmd.AddCommand(version.VersionCmd())
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
-	rootCmd.AddCommand(remote.RemoteCmd(configService))
+	rootCmd.AddCommand(remote.RemoteCmd(configService, remoteListService, logger)) // Update this line
 	rootCmd.AddCommand(register.RegisterCmd(regService))
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(emailVerificationService, logger))
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
@@ -67,7 +70,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, userRepo, tokenRefreshSvc))
 	rootCmd.AddCommand(uploadfile.UploadFileCmd())
-	rootCmd.AddCommand(collections.CollectionsCmd(remoteCollectionService, downloadService, logger))
+	rootCmd.AddCommand(collections.CollectionsCmd(remoteCollectionService, downloadService, listService, logger))
 	rootCmd.AddCommand(filesyncer.FileSyncerCmd(fileImportService, fileSyncService, logger))
 
 	return rootCmd

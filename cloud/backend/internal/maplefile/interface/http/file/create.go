@@ -103,8 +103,8 @@ func (h *CreateFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) 
 		// Call service
 		response, err := h.service.Execute(sessCtx, req)
 		if err != nil {
-			h.logger.Error("failed to create file",
-				zap.Any("error", err))
+			// h.logger.Error("failed to create file",
+			// 	zap.Any("error", err))
 			return nil, err
 		}
 		return response, nil
@@ -113,8 +113,8 @@ func (h *CreateFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) 
 	// Start a transaction
 	result, txErr := session.WithTransaction(ctx, transactionFunc)
 	if txErr != nil {
-		h.logger.Error("session failed error",
-			zap.Any("error", txErr))
+		// h.logger.Error("session failed error",
+		// 	zap.Any("error", txErr))
 		httperror.ResponseError(w, txErr)
 		return
 	}

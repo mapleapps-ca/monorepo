@@ -3,11 +3,17 @@ package remote
 
 import (
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotecollection"
 )
 
-func RemoteCmd(configService config.ConfigService) *cobra.Command {
+func RemoteCmd(
+	configService config.ConfigService,
+	remoteListService remotecollection.ListService,
+	logger *zap.Logger,
+) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "remote",
 		Short: "Execute commands related to making remote API calls",
@@ -19,6 +25,7 @@ func RemoteCmd(configService config.ConfigService) *cobra.Command {
 
 	// Add Remote-related commands
 	cmd.AddCommand(HealthCheckCmd(configService))
+	cmd.AddCommand(RemoteListCollectionsCmd(configService, remoteListService, logger))
 
 	return cmd
 }
