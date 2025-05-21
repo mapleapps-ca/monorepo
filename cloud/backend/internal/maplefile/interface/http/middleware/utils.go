@@ -37,6 +37,7 @@ func init() {
 		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/files$", // Regex designed for collection IDs
 		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+$",             // Regex designed for collection IDs
 		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/data$",        // Regex designed for collection IDs
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/upload-url$",  // Regex designed for collection IDs
 	}
 
 	// Precompile patterns

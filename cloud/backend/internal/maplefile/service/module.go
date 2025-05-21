@@ -44,6 +44,7 @@ func Module() fx.Option {
 			file.NewDeleteFileService,
 			file.NewDeleteManyFilesService,
 			file.NewListFilesByCollectionService,
+			file.NewGetFileUploadURLService,
 
 			// File services - Data operations
 			file.NewStoreFileDataService,
