@@ -27,9 +27,12 @@ func (r *localFileRepository) ImportFile(ctx context.Context, filePath string, f
 		return err
 	}
 
-	// Define paths for both versions
+	// Determine the appropriate file extension
+	fileExt := r.determineFileExtension(filePath, file.DecryptedMimeType)
+
+	// Define paths for both versions with appropriate extensions
 	encryptedFileName := fmt.Sprintf("%s_encrypted.bin", file.ID.Hex())
-	decryptedFileName := fmt.Sprintf("%s_decrypted.bin", file.ID.Hex())
+	decryptedFileName := fmt.Sprintf("%s_decrypted%s", file.ID.Hex(), fileExt)
 
 	encryptedPath := filepath.Join(dataPath, encryptedFileName)
 	decryptedPath := filepath.Join(dataPath, decryptedFileName)
@@ -90,6 +93,58 @@ func (r *localFileRepository) ImportFile(ctx context.Context, filePath string, f
 	return nil
 }
 
+// determineFileExtension determines the appropriate file extension for a file
+func (r *localFileRepository) determineFileExtension(filePath, mimeType string) string {
+	// First try to get extension from original file path
+	if ext := filepath.Ext(filePath); ext != "" {
+		return ext
+	}
+
+	// If no extension, try to infer from MIME type
+	switch mimeType {
+	case "text/plain":
+		return ".txt"
+	case "application/pdf":
+		return ".pdf"
+	case "image/jpeg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/gif":
+		return ".gif"
+	case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+		return ".docx"
+	case "application/msword":
+		return ".doc"
+	case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+		return ".xlsx"
+	case "application/vnd.ms-excel":
+		return ".xls"
+	case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+		return ".pptx"
+	case "application/json":
+		return ".json"
+	case "application/xml", "text/xml":
+		return ".xml"
+	case "text/html":
+		return ".html"
+	case "text/css":
+		return ".css"
+	case "application/javascript", "text/javascript":
+		return ".js"
+	case "application/zip":
+		return ".zip"
+	case "application/x-tar":
+		return ".tar"
+	case "application/gzip":
+		return ".gz"
+	default:
+		// For unknown MIME types or when MIME type is "application/octet-stream",
+		// don't add an extension to avoid confusion
+		return ""
+	}
+}
+
 // Helper method to create encrypted version of file
 func (r *localFileRepository) createEncryptedFile(sourcePath, destPath string, file *localfile.LocalFile) error {
 	// Read the source file
@@ -128,10 +183,7 @@ func (r *localFileRepository) createEncryptedFile(sourcePath, destPath string, f
 
 // Helper method to create decrypted version of file
 func (r *localFileRepository) createDecryptedFile(sourcePath, destPath string, file *localfile.LocalFile) error {
-	// For decrypted files, we simply copy the source file
-	// In a real implementation, if the source is already encrypted,
-	// you would decrypt it first
-
+	// For decrypted files, we simply copy the source file as-is
 	sourceFile, err := os.Open(sourcePath)
 	if err != nil {
 		return errors.NewAppError("failed to open source file", err)
@@ -154,7 +206,6 @@ func (r *localFileRepository) createDecryptedFile(sourcePath, destPath string, f
 }
 
 // SaveFileData saves file data to the local filesystem
-// This method needs to be updated to be compatible with our new storage model
 func (r *localFileRepository) SaveFileData(ctx context.Context, file *localfile.LocalFile, data []byte) error {
 	r.logger.Debug("Saving file data to local filesystem",
 		zap.String("fileID", file.ID.Hex()),
@@ -167,18 +218,27 @@ func (r *localFileRepository) SaveFileData(ctx context.Context, file *localfile.
 		return err
 	}
 
+	// For encrypted files, use .bin extension
+	encryptedFileName := fmt.Sprintf("%s_encrypted.bin", file.ID.Hex())
+	encryptedPath := filepath.Join(dataPath, encryptedFileName)
+
+	// For decrypted files, preserve the original extension
+	fileExt := filepath.Ext(file.DecryptedName)
+	if fileExt == "" {
+		fileExt = ".bin" // Fallback if no extension is found
+	}
+	decryptedFileName := fmt.Sprintf("%s_decrypted%s", file.ID.Hex(), fileExt)
+	decryptedPath := filepath.Join(dataPath, decryptedFileName)
+
+	// Ensure the parent directory exists
+	if err := os.MkdirAll(filepath.Dir(encryptedPath), 0755); err != nil {
+		return errors.NewAppError("failed to create directory for file", err)
+	}
+
 	// Behavior depends on storage mode
 	switch file.StorageMode {
 	case localfile.StorageModeEncryptedOnly:
 		// Create only encrypted version
-		encryptedFileName := fmt.Sprintf("%s_encrypted.bin", file.ID.Hex())
-		encryptedPath := filepath.Join(dataPath, encryptedFileName)
-
-		// Ensure directory exists
-		if err := os.MkdirAll(filepath.Dir(encryptedPath), 0755); err != nil {
-			return errors.NewAppError("failed to create directory for file", err)
-		}
-
 		// In a real implementation, encrypt the data here
 		// For simplicity, we're just writing it as-is
 		if err := os.WriteFile(encryptedPath, data, 0644); err != nil {
@@ -187,38 +247,20 @@ func (r *localFileRepository) SaveFileData(ctx context.Context, file *localfile.
 
 		file.EncryptedFilePath = encryptedPath
 		file.EncryptedSize = int64(len(data))
+		file.DecryptedFilePath = "" // Clear decrypted path
 
 	case localfile.StorageModeDecryptedOnly:
-		// Create only decrypted version
-		decryptedFileName := fmt.Sprintf("%s_decrypted.bin", file.ID.Hex())
-		decryptedPath := filepath.Join(dataPath, decryptedFileName)
-
-		// Ensure directory exists
-		if err := os.MkdirAll(filepath.Dir(decryptedPath), 0755); err != nil {
-			return errors.NewAppError("failed to create directory for file", err)
-		}
-
-		// Write the data as-is
+		// Create only decrypted version with correct file extension
 		if err := os.WriteFile(decryptedPath, data, 0644); err != nil {
 			return errors.NewAppError("failed to write decrypted file", err)
 		}
 
 		file.DecryptedFilePath = decryptedPath
 		file.OriginalSize = int64(len(data))
+		file.EncryptedFilePath = "" // Clear encrypted path
 
 	case localfile.StorageModeHybrid:
 		// Create both versions
-		encryptedFileName := fmt.Sprintf("%s_encrypted.bin", file.ID.Hex())
-		decryptedFileName := fmt.Sprintf("%s_decrypted.bin", file.ID.Hex())
-
-		encryptedPath := filepath.Join(dataPath, encryptedFileName)
-		decryptedPath := filepath.Join(dataPath, decryptedFileName)
-
-		// Ensure directory exists
-		if err := os.MkdirAll(filepath.Dir(encryptedPath), 0755); err != nil {
-			return errors.NewAppError("failed to create directory for file", err)
-		}
-
 		// In a real implementation, encrypt for one file and leave the other unencrypted
 		// For simplicity, we're writing the same data to both
 		if err := os.WriteFile(encryptedPath, data, 0644); err != nil {
