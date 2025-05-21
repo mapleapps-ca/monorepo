@@ -10,7 +10,7 @@
 ###
 
 # The base go-image
-FROM golang:1.24.1-alpine as build-env
+FROM golang:1.24.3-alpine as build-env
 
 # Create a directory for the app
 RUN mkdir /app

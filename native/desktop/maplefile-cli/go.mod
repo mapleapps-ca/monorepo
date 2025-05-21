@@ -1,6 +1,6 @@
 module github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli
 
-go 1.24.1
+go 1.24.3
 
 require (
 	github.com/fxamacker/cbor/v2 v2.8.0

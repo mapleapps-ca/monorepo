@@ -1,6 +1,6 @@
 module github.com/mapleapps-ca/monorepo/cloud/backend
 
-go 1.24.1
+go 1.24.3
 
 require (
 	github.com/awnumar/memguard v0.22.5

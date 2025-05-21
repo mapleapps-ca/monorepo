@@ -27,8 +27,8 @@ func (r *localFileRepository) ImportFile(ctx context.Context, filePath string, f
 		return err
 	}
 
-	// Determine the appropriate file extension
-	fileExt := r.determineFileExtension(filePath, file.DecryptedMimeType)
+	// Determine the appropriate file extension using only the file path
+	fileExt := r.determineFileExtension(filePath)
 
 	// Define paths for both versions with appropriate extensions
 	encryptedFileName := fmt.Sprintf("%s_encrypted.bin", file.ID.Hex())
@@ -94,55 +94,10 @@ func (r *localFileRepository) ImportFile(ctx context.Context, filePath string, f
 }
 
 // determineFileExtension determines the appropriate file extension for a file
-func (r *localFileRepository) determineFileExtension(filePath, mimeType string) string {
-	// First try to get extension from original file path
-	if ext := filepath.Ext(filePath); ext != "" {
-		return ext
-	}
-
-	// If no extension, try to infer from MIME type
-	switch mimeType {
-	case "text/plain":
-		return ".txt"
-	case "application/pdf":
-		return ".pdf"
-	case "image/jpeg":
-		return ".jpg"
-	case "image/png":
-		return ".png"
-	case "image/gif":
-		return ".gif"
-	case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-		return ".docx"
-	case "application/msword":
-		return ".doc"
-	case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-		return ".xlsx"
-	case "application/vnd.ms-excel":
-		return ".xls"
-	case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-		return ".pptx"
-	case "application/json":
-		return ".json"
-	case "application/xml", "text/xml":
-		return ".xml"
-	case "text/html":
-		return ".html"
-	case "text/css":
-		return ".css"
-	case "application/javascript", "text/javascript":
-		return ".js"
-	case "application/zip":
-		return ".zip"
-	case "application/x-tar":
-		return ".tar"
-	case "application/gzip":
-		return ".gz"
-	default:
-		// For unknown MIME types or when MIME type is "application/octet-stream",
-		// don't add an extension to avoid confusion
-		return ""
-	}
+// by only using the file path.
+func (r *localFileRepository) determineFileExtension(filePath string) string {
+	// Only try to get extension from original file path
+	return filepath.Ext(filePath)
 }
 
 // Helper method to create encrypted version of file

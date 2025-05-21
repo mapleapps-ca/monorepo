@@ -7,7 +7,7 @@
 
 # Start with the official Golang image
 # This provides us with a complete Go development environment
-FROM golang:1.24.1
+FROM golang:1.24.3
 
 # ============================================================================
 # SETUP PROJECT DIRECTORY STRUCTURE
