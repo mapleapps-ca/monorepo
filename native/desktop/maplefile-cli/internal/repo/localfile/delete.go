@@ -14,7 +14,7 @@ import (
 func (r *localFileRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
 	r.logger.Debug("Deleting file from local storage", zap.String("fileID", id.Hex()))
 
-	// Get the file first to access its local file path
+	// Get the file first to access its file paths
 	file, err := r.GetByID(ctx, id)
 	if err != nil {
 		return errors.NewAppError("failed to get file before deletion", err)
@@ -25,13 +25,29 @@ func (r *localFileRepository) Delete(ctx context.Context, id primitive.ObjectID)
 		return nil // Nothing to delete, return success
 	}
 
-	// Delete the actual file data from the filesystem if it exists
-	if file.LocalFilePath != "" {
-		if err := os.Remove(file.LocalFilePath); err != nil && !os.IsNotExist(err) {
-			r.logger.Error("Failed to delete file data",
-				zap.String("localFilePath", file.LocalFilePath),
+	// Delete the encrypted file data from the filesystem if it exists
+	if file.EncryptedFilePath != "" {
+		if err := os.Remove(file.EncryptedFilePath); err != nil && !os.IsNotExist(err) {
+			r.logger.Error("Failed to delete encrypted file data",
+				zap.String("encryptedFilePath", file.EncryptedFilePath),
+				zap.Error(err))
+			// Continue with other deletions even if this one fails
+		} else {
+			r.logger.Debug("Deleted encrypted file data",
+				zap.String("encryptedFilePath", file.EncryptedFilePath))
+		}
+	}
+
+	// Delete the decrypted file data from the filesystem if it exists
+	if file.DecryptedFilePath != "" {
+		if err := os.Remove(file.DecryptedFilePath); err != nil && !os.IsNotExist(err) {
+			r.logger.Error("Failed to delete decrypted file data",
+				zap.String("decryptedFilePath", file.DecryptedFilePath),
 				zap.Error(err))
 			// Continue with metadata deletion even if file deletion fails
+		} else {
+			r.logger.Debug("Deleted decrypted file data",
+				zap.String("decryptedFilePath", file.DecryptedFilePath))
 		}
 	}
 
@@ -42,6 +58,9 @@ func (r *localFileRepository) Delete(ctx context.Context, id primitive.ObjectID)
 				zap.String("localThumbnailPath", file.LocalThumbnailPath),
 				zap.Error(err))
 			// Continue with metadata deletion even if thumbnail deletion fails
+		} else {
+			r.logger.Debug("Deleted thumbnail data",
+				zap.String("localThumbnailPath", file.LocalThumbnailPath))
 		}
 	}
 
@@ -57,6 +76,7 @@ func (r *localFileRepository) Delete(ctx context.Context, id primitive.ObjectID)
 	}
 
 	r.logger.Info("File deleted successfully from local storage",
-		zap.String("fileID", id.Hex()))
+		zap.String("fileID", id.Hex()),
+		zap.String("storageMode", file.StorageMode))
 	return nil
 }

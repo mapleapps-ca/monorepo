@@ -26,12 +26,6 @@ type LocalFile struct {
 	// Encrypted file identifier (client-generated)
 	EncryptedFileID string `json:"encrypted_file_id"`
 
-	// The path on the local filesystem where the file is stored
-	LocalFilePath string `json:"local_file_path"`
-
-	// LocalFileState keeps track of the whether the file we are tracking is local and encrypted, in cloud and encrypted, or neither.
-	LocalFileState string `json:"local_file_state,omitempty"`
-
 	// The original file size before encryption
 	OriginalSize int64 `json:"original_size"`
 
@@ -68,4 +62,13 @@ type LocalFile struct {
 	LastSyncedAt      time.Time  `json:"last_synced_at"`
 	IsModifiedLocally bool       `json:"is_modified_locally"`
 	SyncStatus        SyncStatus `json:"sync_status"`
+
+	// The path on the local filesystem where the encrypted file is stored
+	EncryptedFilePath string `json:"encrypted_file_path"`
+
+	// The path on the local filesystem where the decrypted file is stored
+	DecryptedFilePath string `json:"decrypted_file_path"`
+
+	// Controls which file versions are kept (encrypted, decrypted, or both)
+	StorageMode string `json:"storage_mode"`
 }

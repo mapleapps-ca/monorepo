@@ -24,7 +24,7 @@ type ImportInput struct {
 	EncryptedFileKey  keys.EncryptedFileKey `json:"encrypted_file_key"`
 	EncryptionVersion string                `json:"encryption_version"`
 	ThumbnailData     []byte                `json:"thumbnail_data,omitempty"`
-	LocalFileState    string                `json:"local_file_state,omitempty"`
+	StorageMode       string                `json:"storage_mode,omitempty"`
 }
 
 // ImportOutput represents the result of importing a file
@@ -79,6 +79,13 @@ func (s *importService) Import(ctx context.Context, input ImportInput) (*ImportO
 		return nil, errors.NewAppError("invalid collection ID format", err)
 	}
 
+	// Validate storage mode
+	if input.StorageMode != localfile.StorageModeEncryptedOnly &&
+		input.StorageMode != localfile.StorageModeDecryptedOnly &&
+		input.StorageMode != localfile.StorageModeHybrid {
+		return nil, errors.NewAppError("invalid storage mode", nil)
+	}
+
 	// Prepare use case input
 	useCaseInput := uc.ImportFileInput{
 		FilePath:          input.FilePath,
@@ -91,7 +98,7 @@ func (s *importService) Import(ctx context.Context, input ImportInput) (*ImportO
 		EncryptionVersion: input.EncryptionVersion,
 		GenerateThumbnail: len(input.ThumbnailData) > 0,
 		ThumbnailData:     input.ThumbnailData,
-		LocalFileState:    input.LocalFileState,
+		StorageMode:       input.StorageMode,
 	}
 
 	// Call the use case

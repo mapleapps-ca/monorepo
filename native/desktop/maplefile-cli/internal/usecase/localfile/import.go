@@ -27,7 +27,7 @@ type ImportFileInput struct {
 	EncryptionVersion string
 	GenerateThumbnail bool
 	ThumbnailData     []byte
-	LocalFileState    string
+	StorageMode       string
 }
 
 // ImportLocalFileUseCase defines the interface for importing files
@@ -70,6 +70,13 @@ func (uc *importLocalFileUseCase) Execute(
 		return nil, errors.NewAppError("encrypted file ID is required", nil)
 	}
 
+	// Validate storage mode
+	if input.StorageMode != localfile.StorageModeEncryptedOnly &&
+		input.StorageMode != localfile.StorageModeDecryptedOnly &&
+		input.StorageMode != localfile.StorageModeHybrid {
+		return nil, errors.NewAppError("invalid storage mode", nil)
+	}
+
 	// Check if the file exists
 	fileInfo, err := os.Stat(input.FilePath)
 	if err != nil {
@@ -105,12 +112,6 @@ func (uc *importLocalFileUseCase) Execute(
 		}
 	}
 
-	// Default LocalFileState if not provided
-	localFileState := input.LocalFileState
-	if localFileState == "" {
-		localFileState = localfile.LocalFileStateLocalAndEncrypted
-	}
-
 	// Create a new local file
 	file := &localfile.LocalFile{
 		ID:                primitive.NewObjectID(),
@@ -126,7 +127,7 @@ func (uc *importLocalFileUseCase) Execute(
 		ModifiedAt:        time.Now(),
 		IsModifiedLocally: true,
 		SyncStatus:        localfile.SyncStatusLocalOnly,
-		LocalFileState:    localFileState,
+		StorageMode:       input.StorageMode,
 	}
 
 	// Save the file metadata

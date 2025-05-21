@@ -1,4 +1,3 @@
-// monorepo/native/desktop/maplefile-cli/cmd/localfile/create.go
 package localfile
 
 import (
@@ -8,7 +7,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localfile"
-	svc_localfile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
+	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -16,13 +15,13 @@ import (
 
 // createLocalFileCmd creates a command for importing a file to local storage only
 func createLocalFileCmd(
-	importService svc_localfile.ImportService,
+	importService uc.ImportService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var filePath string
 	var collectionID string
 	var name string
-	var encrypt bool
+	var storageMode string
 
 	var cmd = &cobra.Command{
 		Use:   "create",
@@ -30,18 +29,24 @@ func createLocalFileCmd(
 		Long: `
 Create a local file from the filesystem without uploading to remote server.
 
-This command takes a local file and imports it into the MapleFile system locally,
-either encrypting its contents or keeping it as-is based on the --encrypt flag.
-You must specify the local file path and the collection ID where the file should be stored.
+This command takes a local file and imports it into the MapleFile system locally.
+You can control how the file is stored using the --storage-mode flag:
+
+* "encrypted_only": Only keep the encrypted version (most secure)
+* "hybrid": Keep both encrypted and decrypted versions (convenient)
+* "decrypted_only": Keep only the decrypted version (not recommended, no encryption)
 
 Examples:
-  # Create a local file (encrypted by default)
+  # Create a file with encrypted-only storage (most secure)
   maplefile-cli localfile create --file /path/to/file.pdf --collection 507f1f77bcf86cd799439011
 
-  # Create a local file without encryption
-  maplefile-cli localfile create --file /path/to/file.pdf --collection 507f1f77bcf86cd799439011 --encrypt=false
+  # Create a file with both encrypted and decrypted copies
+  maplefile-cli localfile create --file /path/to/file.pdf --collection 507f1f77bcf86cd799439011 --storage-mode=hybrid
 
-  # Create a local file with a custom name
+  # Create a file without encryption (not recommended)
+  maplefile-cli localfile create --file /path/to/file.pdf --collection 507f1f77bcf86cd799439011 --storage-mode=decrypted_only
+
+  # Create a file with a custom name
   maplefile-cli localfile create --file /path/to/file.pdf --collection 507f1f77bcf86cd799439011 --name "Project Document.pdf"
 `,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -77,6 +82,14 @@ Examples:
 				name = fileInfo.Name()
 			}
 
+			// Validate storage mode
+			if storageMode != localfile.StorageModeEncryptedOnly &&
+				storageMode != localfile.StorageModeDecryptedOnly &&
+				storageMode != localfile.StorageModeHybrid {
+				fmt.Println("Error: Invalid storage mode. Must be 'encrypted_only', 'hybrid', or 'decrypted_only'.")
+				return
+			}
+
 			// Generate a random encrypted file ID
 			encryptedFileID, err := generateRandomHexID(16)
 			if err != nil {
@@ -87,9 +100,8 @@ Examples:
 			var encryptedFileKey keys.EncryptedFileKey
 			var encryptionVersion string
 			var metadata string
-			var localFileState string
 
-			if encrypt {
+			if storageMode == localfile.StorageModeEncryptedOnly || storageMode == localfile.StorageModeHybrid {
 				// Generate a file encryption key for encrypted file
 				fileKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
 				if err != nil {
@@ -114,9 +126,8 @@ Examples:
 					Nonce:      nonce,
 				}
 				encryptionVersion = "1.0"
-				localFileState = localfile.LocalFileStateLocalAndEncrypted
 			} else {
-				// For unencrypted files, we still need some metadata
+				// For unencrypted files (decrypted_only mode), we still need some metadata
 				// But we don't actually encrypt it
 				metadata = base64Encode(fmt.Sprintf(`{"name":"%s","mime":"%s"}`, name, getMimeType(name)))
 
@@ -127,17 +138,16 @@ Examples:
 					Nonce:      emptyKey,
 				}
 				encryptionVersion = "unencrypted"
-				localFileState = localfile.LocalFileStateLocalAndDecrypted
 			}
 
 			logger.Debug("Creating local file",
 				zap.String("filepath", filePath),
 				zap.String("collectionID", collectionID),
 				zap.String("name", name),
-				zap.Bool("encrypted", encrypt))
+				zap.String("storageMode", storageMode))
 
 			// Prepare import input
-			importInput := svc_localfile.ImportInput{
+			importInput := uc.ImportInput{
 				FilePath:          filePath,
 				CollectionID:      collectionID,
 				EncryptedFileID:   encryptedFileID,
@@ -146,7 +156,7 @@ Examples:
 				DecryptedMimeType: getMimeType(name),
 				EncryptedFileKey:  encryptedFileKey,
 				EncryptionVersion: encryptionVersion,
-				LocalFileState:    localFileState,
+				StorageMode:       storageMode,
 				// You might want to add thumbnail data generation here for certain file types
 			}
 
@@ -161,12 +171,16 @@ Examples:
 			fmt.Println("\n✅ File created successfully!")
 			fmt.Printf("Local File ID: %s\n", result.File.ID.Hex())
 			fmt.Printf("File Name: %s\n", result.File.DecryptedName)
-			fmt.Printf("File Path: %s\n", result.File.LocalFilePath)
-			if encrypt {
-				fmt.Println("File is stored encrypted")
-			} else {
-				fmt.Println("File is stored unencrypted")
+
+			// Display appropriate paths based on storage mode
+			if storageMode == localfile.StorageModeEncryptedOnly || storageMode == localfile.StorageModeHybrid {
+				fmt.Printf("Encrypted File Path: %s\n", result.File.EncryptedFilePath)
 			}
+			if storageMode == localfile.StorageModeHybrid || storageMode == localfile.StorageModeDecryptedOnly {
+				fmt.Printf("Decrypted File Path: %s\n", result.File.DecryptedFilePath)
+			}
+
+			fmt.Printf("Storage Mode: %s\n", result.File.StorageMode)
 		},
 	}
 
@@ -174,7 +188,8 @@ Examples:
 	cmd.Flags().StringVarP(&filePath, "file", "f", "", "Path to the file to import (required)")
 	cmd.Flags().StringVarP(&collectionID, "collection", "c", "", "ID of the collection to store the file in (required)")
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Custom name for the file (defaults to original filename)")
-	cmd.Flags().BoolVarP(&encrypt, "encrypt", "e", true, "Encrypt the file during import (defaults to true)")
+	cmd.Flags().StringVar(&storageMode, "storage-mode", localfile.StorageModeEncryptedOnly,
+		"Storage mode: 'encrypted_only', 'hybrid', or 'decrypted_only'")
 
 	// Mark required flags
 	cmd.MarkFlagRequired("file")

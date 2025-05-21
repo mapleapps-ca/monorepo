@@ -18,9 +18,9 @@ const (
 	SyncStatusModifiedLocally
 )
 
-// LocalFileState constants define the encryption state of the file
+// Storage mode constants define which file versions to keep
 const (
-	LocalFileStateLocalAndDecrypted   = "local_and_decrypted"
-	LocalFileStateLocalAndEncrypted   = "local_and_encrypted"
-	LocalFileStateInCloudAndEncrypted = "in_cloud_and_encrypted"
+	StorageModeEncryptedOnly = "encrypted_only" // Only keep encrypted version (more secure)
+	StorageModeDecryptedOnly = "decrypted_only" // Only keep decrypted version (not recommended)
+	StorageModeHybrid        = "hybrid"         // Keep both versions (convenient)
 )
