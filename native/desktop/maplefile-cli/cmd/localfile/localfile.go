@@ -1,4 +1,4 @@
-// Package localfile provides commands for managing local files
+// monorepo/native/desktop/maplefile-cli/cmd/localfile/localfile.go
 package localfile
 
 import (
@@ -10,12 +10,16 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotefile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // LocalFileCmd creates a command for local file operations
 func LocalFileCmd(
 	importService localfile.ImportService,
+	deleteService localfile.DeleteService,
+	getService localfile.GetService,
+	remoteFetchService remotefile.FetchService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -30,6 +34,7 @@ func LocalFileCmd(
 
 	// Add file management subcommands
 	cmd.AddCommand(createLocalFileCmd(importService, logger))
+	cmd.AddCommand(deleteLocalFileCmd(deleteService, getService, remoteFetchService, logger))
 
 	return cmd
 }

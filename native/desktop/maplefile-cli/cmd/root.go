@@ -25,6 +25,7 @@ import (
 	localfileService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	registerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotecollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotefile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
 
@@ -40,10 +41,13 @@ func NewRootCmd(
 	completeLoginService auth.CompleteLoginService,
 	tokenRefreshSvc tokenservice.TokenRefreshService,
 	remoteCollectionService remotecollection.CreateService,
-	remoteListService remotecollection.ListService, // Add this parameter
+	remoteListService remotecollection.ListService,
 	downloadService collectionsyncer.DownloadService,
 	listService localcollection.ListService,
 	fileImportService localfileService.ImportService,
+	fileDeleteService localfileService.DeleteService,
+	fileGetService localfileService.GetService,
+	remoteFetchService remotefile.FetchService,
 	// other services...
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
@@ -67,7 +71,12 @@ func NewRootCmd(
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, userRepo, tokenRefreshSvc))
 	rootCmd.AddCommand(collections.CollectionsCmd(remoteCollectionService, downloadService, listService, logger))
-	rootCmd.AddCommand(localfile.LocalFileCmd(fileImportService, logger))
+	rootCmd.AddCommand(localfile.LocalFileCmd(
+		fileImportService,
+		fileDeleteService,
+		fileGetService,
+		remoteFetchService,
+		logger))
 
 	return rootCmd
 }
