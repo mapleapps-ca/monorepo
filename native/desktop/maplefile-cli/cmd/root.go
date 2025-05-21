@@ -9,13 +9,11 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/collections"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/completelogin"
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/remote"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/requestloginott"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/uploadfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyemail"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyloginott"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/version"
@@ -70,9 +68,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(loginOTTVerificationService, logger))
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, userRepo, tokenRefreshSvc))
-	rootCmd.AddCommand(uploadfile.UploadFileCmd())
 	rootCmd.AddCommand(collections.CollectionsCmd(remoteCollectionService, downloadService, listService, logger))
-	rootCmd.AddCommand(filesyncer.FileSyncerCmd(fileImportService, fileSyncService, logger))
 	rootCmd.AddCommand(localfile.LocalFileCmd(fileImportService, logger))
 
 	return rootCmd
