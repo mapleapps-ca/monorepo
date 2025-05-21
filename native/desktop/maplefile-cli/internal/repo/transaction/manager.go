@@ -50,10 +50,10 @@ func (tm *txManager) Begin() error {
 	if err != nil {
 		return err
 	}
-	err = tm.localfileRepo.OpenTransaction()
-	if err != nil {
-		return err
-	}
+	// err = tm.localfileRepo.OpenTransaction()
+	// if err != nil {
+	// 	return err
+	// }
 	//TODO:
 	// remotecollectionRepo: ,
 	// remotefileRepo:       remotefileRepo,
@@ -74,10 +74,10 @@ func (tm *txManager) Commit() error {
 	if err != nil {
 		return err
 	}
-	err = tm.localfileRepo.CommitTransaction()
-	if err != nil {
-		return err
-	}
+	// err = tm.localfileRepo.CommitTransaction()
+	// if err != nil {
+	// 	return err
+	// }
 	//TODO:
 	// remotecollectionRepo: remotecollectionRepo,
 	// remotefileRepo:       remotefileRepo,
