@@ -21,7 +21,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
-	filesyncerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
 	localfileService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	registerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
@@ -44,7 +43,6 @@ func NewRootCmd(
 	remoteListService remotecollection.ListService, // Add this parameter
 	downloadService collectionsyncer.DownloadService,
 	listService localcollection.ListService,
-	fileSyncService filesyncerService.SyncService,
 	fileImportService localfileService.ImportService,
 	// other services...
 ) *cobra.Command {
