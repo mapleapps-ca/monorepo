@@ -10,6 +10,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/completelogin"
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/filesyncer"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/remote"
@@ -24,7 +25,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
 	filesyncerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
+	localfileService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	registerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotecollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
@@ -46,7 +47,7 @@ func NewRootCmd(
 	downloadService collectionsyncer.DownloadService,
 	listService localcollection.ListService,
 	fileSyncService filesyncerService.SyncService,
-	fileImportService localfile.ImportService,
+	fileImportService localfileService.ImportService,
 	// other services...
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
@@ -72,6 +73,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(uploadfile.UploadFileCmd())
 	rootCmd.AddCommand(collections.CollectionsCmd(remoteCollectionService, downloadService, listService, logger))
 	rootCmd.AddCommand(filesyncer.FileSyncerCmd(fileImportService, fileSyncService, logger))
+	rootCmd.AddCommand(localfile.LocalFileCmd(fileImportService, logger))
 
 	return rootCmd
 }
