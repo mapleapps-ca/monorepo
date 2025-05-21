@@ -24,6 +24,7 @@ type ImportInput struct {
 	EncryptedFileKey  keys.EncryptedFileKey `json:"encrypted_file_key"`
 	EncryptionVersion string                `json:"encryption_version"`
 	ThumbnailData     []byte                `json:"thumbnail_data,omitempty"`
+	LocalFileState    string                `json:"local_file_state,omitempty"`
 }
 
 // ImportOutput represents the result of importing a file
@@ -90,6 +91,7 @@ func (s *importService) Import(ctx context.Context, input ImportInput) (*ImportO
 		EncryptionVersion: input.EncryptionVersion,
 		GenerateThumbnail: len(input.ThumbnailData) > 0,
 		ThumbnailData:     input.ThumbnailData,
+		LocalFileState:    input.LocalFileState,
 	}
 
 	// Call the use case

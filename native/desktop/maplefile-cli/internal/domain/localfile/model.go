@@ -29,6 +29,9 @@ type LocalFile struct {
 	// The path on the local filesystem where the file is stored
 	LocalFilePath string `json:"local_file_path"`
 
+	// LocalFileState keeps track of the whether the file we are tracking is local and encrypted, in cloud and encrypted, or neither.
+	LocalFileState string `json:"local_file_state,omitempty"`
+
 	// The original file size before encryption
 	OriginalSize int64 `json:"original_size"`
 

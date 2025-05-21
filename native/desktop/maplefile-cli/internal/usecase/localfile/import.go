@@ -27,6 +27,7 @@ type ImportFileInput struct {
 	EncryptionVersion string
 	GenerateThumbnail bool
 	ThumbnailData     []byte
+	LocalFileState    string
 }
 
 // ImportLocalFileUseCase defines the interface for importing files
@@ -104,6 +105,12 @@ func (uc *importLocalFileUseCase) Execute(
 		}
 	}
 
+	// Default LocalFileState if not provided
+	localFileState := input.LocalFileState
+	if localFileState == "" {
+		localFileState = localfile.LocalFileStateLocalAndEncrypted
+	}
+
 	// Create a new local file
 	file := &localfile.LocalFile{
 		ID:                primitive.NewObjectID(),
@@ -119,6 +126,7 @@ func (uc *importLocalFileUseCase) Execute(
 		ModifiedAt:        time.Now(),
 		IsModifiedLocally: true,
 		SyncStatus:        localfile.SyncStatusLocalOnly,
+		LocalFileState:    localFileState,
 	}
 
 	// Save the file metadata

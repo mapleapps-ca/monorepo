@@ -17,3 +17,10 @@ const (
 	// SyncStatusModifiedLocally indicates the file exists in both places but has local changes
 	SyncStatusModifiedLocally
 )
+
+// LocalFileState constants define the encryption state of the file
+const (
+	LocalFileStateLocalAndDecrypted   = "local_and_decrypted"
+	LocalFileStateLocalAndEncrypted   = "local_and_encrypted"
+	LocalFileStateInCloudAndEncrypted = "in_cloud_and_encrypted"
+)

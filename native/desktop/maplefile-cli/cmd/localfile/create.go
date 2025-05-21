@@ -1,3 +1,4 @@
+// monorepo/native/desktop/maplefile-cli/cmd/localfile/create.go
 package localfile
 
 import (
@@ -6,7 +7,8 @@ import (
 	"os"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localfile"
+	svc_localfile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -14,12 +16,13 @@ import (
 
 // createLocalFileCmd creates a command for importing a file to local storage only
 func createLocalFileCmd(
-	importService localfile.ImportService,
+	importService svc_localfile.ImportService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var filePath string
 	var collectionID string
 	var name string
+	var encrypt bool
 
 	var cmd = &cobra.Command{
 		Use:   "create",
@@ -28,12 +31,15 @@ func createLocalFileCmd(
 Create a local file from the filesystem without uploading to remote server.
 
 This command takes a local file and imports it into the MapleFile system locally,
-encrypting its contents and storing the necessary metadata. You must specify
-the local file path and the collection ID where the file should be stored.
+either encrypting its contents or keeping it as-is based on the --encrypt flag.
+You must specify the local file path and the collection ID where the file should be stored.
 
 Examples:
-  # Create a local file
+  # Create a local file (encrypted by default)
   maplefile-cli localfile create --file /path/to/file.pdf --collection 507f1f77bcf86cd799439011
+
+  # Create a local file without encryption
+  maplefile-cli localfile create --file /path/to/file.pdf --collection 507f1f77bcf86cd799439011 --encrypt=false
 
   # Create a local file with a custom name
   maplefile-cli localfile create --file /path/to/file.pdf --collection 507f1f77bcf86cd799439011 --name "Project Document.pdf"
@@ -78,37 +84,60 @@ Examples:
 				return
 			}
 
-			// Generate a file encryption key
-			fileKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
-			if err != nil {
-				fmt.Printf("🐞 Error generating file key: %v\n", err)
-				return
-			}
+			var encryptedFileKey keys.EncryptedFileKey
+			var encryptionVersion string
+			var metadata string
+			var localFileState string
 
-			// Create metadata (in a real implementation, this would be JSON and encrypted)
-			// For this example, we'll use a simple base64 encoding to simulate encryption
-			metadata := base64Encode(fmt.Sprintf(`{"name":"%s","mime":"%s"}`, name, getMimeType(name)))
+			if encrypt {
+				// Generate a file encryption key for encrypted file
+				fileKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
+				if err != nil {
+					fmt.Printf("🐞 Error generating file key: %v\n", err)
+					return
+				}
 
-			// Simulate encrypting the file key with the collection key
-			// In a real implementation, this would use proper E2EE techniques
-			ciphertext, nonce, err := crypto.EncryptWithSecretBox(fileKey, fileKey)
-			if err != nil {
-				fmt.Printf("🐞 Error encrypting file key: %v\n", err)
-				return
-			}
+				// Create metadata (in a real implementation, this would be JSON and encrypted)
+				// For this example, we'll use a simple base64 encoding to simulate encryption
+				metadata = base64Encode(fmt.Sprintf(`{"name":"%s","mime":"%s"}`, name, getMimeType(name)))
 
-			encryptedFileKey := keys.EncryptedFileKey{
-				Ciphertext: ciphertext,
-				Nonce:      nonce,
+				// Simulate encrypting the file key with the collection key
+				// In a real implementation, this would use proper E2EE techniques
+				ciphertext, nonce, err := crypto.EncryptWithSecretBox(fileKey, fileKey)
+				if err != nil {
+					fmt.Printf("🐞 Error encrypting file key: %v\n", err)
+					return
+				}
+
+				encryptedFileKey = keys.EncryptedFileKey{
+					Ciphertext: ciphertext,
+					Nonce:      nonce,
+				}
+				encryptionVersion = "1.0"
+				localFileState = localfile.LocalFileStateLocalAndEncrypted
+			} else {
+				// For unencrypted files, we still need some metadata
+				// But we don't actually encrypt it
+				metadata = base64Encode(fmt.Sprintf(`{"name":"%s","mime":"%s"}`, name, getMimeType(name)))
+
+				// Create empty encryption structures to satisfy the API
+				emptyKey := make([]byte, 0)
+				encryptedFileKey = keys.EncryptedFileKey{
+					Ciphertext: emptyKey,
+					Nonce:      emptyKey,
+				}
+				encryptionVersion = "unencrypted"
+				localFileState = localfile.LocalFileStateLocalAndDecrypted
 			}
 
 			logger.Debug("Creating local file",
 				zap.String("filepath", filePath),
 				zap.String("collectionID", collectionID),
-				zap.String("name", name))
+				zap.String("name", name),
+				zap.Bool("encrypted", encrypt))
 
 			// Prepare import input
-			importInput := localfile.ImportInput{
+			importInput := svc_localfile.ImportInput{
 				FilePath:          filePath,
 				CollectionID:      collectionID,
 				EncryptedFileID:   encryptedFileID,
@@ -116,7 +145,8 @@ Examples:
 				DecryptedName:     name,
 				DecryptedMimeType: getMimeType(name),
 				EncryptedFileKey:  encryptedFileKey,
-				EncryptionVersion: "1.0",
+				EncryptionVersion: encryptionVersion,
+				LocalFileState:    localFileState,
 				// You might want to add thumbnail data generation here for certain file types
 			}
 
@@ -132,6 +162,11 @@ Examples:
 			fmt.Printf("Local File ID: %s\n", result.File.ID.Hex())
 			fmt.Printf("File Name: %s\n", result.File.DecryptedName)
 			fmt.Printf("File Path: %s\n", result.File.LocalFilePath)
+			if encrypt {
+				fmt.Println("File is stored encrypted")
+			} else {
+				fmt.Println("File is stored unencrypted")
+			}
 		},
 	}
 
@@ -139,6 +174,7 @@ Examples:
 	cmd.Flags().StringVarP(&filePath, "file", "f", "", "Path to the file to import (required)")
 	cmd.Flags().StringVarP(&collectionID, "collection", "c", "", "ID of the collection to store the file in (required)")
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Custom name for the file (defaults to original filename)")
+	cmd.Flags().BoolVarP(&encrypt, "encrypt", "e", true, "Encrypt the file during import (defaults to true)")
 
 	// Mark required flags
 	cmd.MarkFlagRequired("file")

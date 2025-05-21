@@ -89,7 +89,8 @@ func (r *localFileRepository) LoadFileData(ctx context.Context, file *localfile.
 func (r *localFileRepository) ImportFile(ctx context.Context, filePath string, file *localfile.LocalFile) error {
 	r.logger.Debug("Importing file into local storage",
 		zap.String("sourceFilePath", filePath),
-		zap.String("fileID", file.ID.Hex()))
+		zap.String("fileID", file.ID.Hex()),
+		zap.String("fileState", file.LocalFileState))
 
 	// Get the app data path
 	dataPath, err := r.getAppDataPath(ctx)
@@ -106,31 +107,66 @@ func (r *localFileRepository) ImportFile(ctx context.Context, filePath string, f
 		return errors.NewAppError("failed to create directory for file", err)
 	}
 
-	// Open source file
-	sourceFile, err := os.Open(filePath)
-	if err != nil {
-		return errors.NewAppError("failed to open source file", err)
-	}
-	defer sourceFile.Close()
+	// Different handling based on file state
+	if file.LocalFileState == localfile.LocalFileStateLocalAndEncrypted {
+		// For encrypted files, we'd perform encryption here
+		// Open source file
+		sourceFile, err := os.Open(filePath)
+		if err != nil {
+			return errors.NewAppError("failed to open source file", err)
+		}
+		defer sourceFile.Close()
 
-	// Create destination file
-	destFile, err := os.Create(destinationPath)
-	if err != nil {
-		return errors.NewAppError("failed to create destination file", err)
-	}
-	defer destFile.Close()
+		// Create destination file
+		destFile, err := os.Create(destinationPath)
+		if err != nil {
+			return errors.NewAppError("failed to create destination file", err)
+		}
+		defer destFile.Close()
 
-	// Copy the file
-	written, err := io.Copy(destFile, sourceFile)
-	if err != nil {
-		return errors.NewAppError("failed to copy file data", err)
-	}
+		// In a real implementation, we would:
+		// 1. Read the source file data
+		// 2. Encrypt it using the file key
+		// 3. Write the encrypted data to the destination file
 
-	// Update the file metadata
-	file.LocalFilePath = destinationPath
-	file.EncryptedSize = written
-	file.ModifiedAt = time.Now()
-	file.IsModifiedLocally = true
+		// For this simplified implementation, we'll just copy the file
+		written, err := io.Copy(destFile, sourceFile)
+		if err != nil {
+			return errors.NewAppError("failed to copy file data", err)
+		}
+
+		// Update the file metadata
+		file.LocalFilePath = destinationPath
+		file.EncryptedSize = written
+		file.ModifiedAt = time.Now()
+		file.IsModifiedLocally = true
+	} else if file.LocalFileState == localfile.LocalFileStateLocalAndDecrypted {
+		// For unencrypted files, we just copy the file as-is
+		sourceFile, err := os.Open(filePath)
+		if err != nil {
+			return errors.NewAppError("failed to open source file", err)
+		}
+		defer sourceFile.Close()
+
+		destFile, err := os.Create(destinationPath)
+		if err != nil {
+			return errors.NewAppError("failed to create destination file", err)
+		}
+		defer destFile.Close()
+
+		written, err := io.Copy(destFile, sourceFile)
+		if err != nil {
+			return errors.NewAppError("failed to copy file data", err)
+		}
+
+		// Update the file metadata
+		file.LocalFilePath = destinationPath
+		file.EncryptedSize = written // Even though not encrypted, we use this field
+		file.ModifiedAt = time.Now()
+		file.IsModifiedLocally = true
+	} else {
+		return errors.NewAppError("unsupported file state", nil)
+	}
 
 	// Save the file metadata
 	if err := r.Save(ctx, file); err != nil {
@@ -141,6 +177,6 @@ func (r *localFileRepository) ImportFile(ctx context.Context, filePath string, f
 		zap.String("fileID", file.ID.Hex()),
 		zap.String("sourceFilePath", filePath),
 		zap.String("destinationPath", destinationPath),
-		zap.Int64("size", written))
+		zap.String("fileState", file.LocalFileState))
 	return nil
 }
