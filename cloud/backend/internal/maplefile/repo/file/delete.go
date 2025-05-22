@@ -19,9 +19,9 @@ func (repo *fileRepositoryImpl) Delete(id primitive.ObjectID) error {
 	}
 
 	// Delete from S3 if storage path exists
-	if file.FileObjectKey != "" {
-		if err := repo.storage.DeleteEncryptedData(file.FileObjectKey); err != nil {
-			repo.logger.Error("failed to delete file data",
+	if file.EncryptedFileObjectKey != "" {
+		if err := repo.storage.DeleteEncryptedData(file.EncryptedFileObjectKey); err != nil {
+			repo.logger.Error("failed to delete encrypted file data",
 				zap.Any("id", id),
 				zap.Error(err))
 			return err
@@ -29,8 +29,8 @@ func (repo *fileRepositoryImpl) Delete(id primitive.ObjectID) error {
 	}
 
 	// Delete thumbnail if it exists
-	if file.ThumbnailObjectKey != "" {
-		if err := repo.storage.DeleteEncryptedData(file.ThumbnailObjectKey); err != nil {
+	if file.EncryptedThumbnailObjectKey != "" {
+		if err := repo.storage.DeleteEncryptedData(file.EncryptedThumbnailObjectKey); err != nil {
 			repo.logger.Warn("failed to delete thumbnail",
 				zap.Any("id", id),
 				zap.Error(err))
@@ -53,8 +53,8 @@ func (repo *fileRepositoryImpl) DeleteMany(ids []primitive.ObjectID) error {
 	// Delete all files from S3
 	for _, file := range files {
 		// Delete main file data
-		if file.FileObjectKey != "" {
-			if err := repo.storage.DeleteEncryptedData(file.FileObjectKey); err != nil {
+		if file.EncryptedFileObjectKey != "" {
+			if err := repo.storage.DeleteEncryptedData(file.EncryptedFileObjectKey); err != nil {
 				repo.logger.Error("failed to delete file data during batch deletion",
 					zap.Any("id", file.ID),
 					zap.Error(err))
@@ -63,8 +63,8 @@ func (repo *fileRepositoryImpl) DeleteMany(ids []primitive.ObjectID) error {
 		}
 
 		// Delete thumbnail if it exists
-		if file.ThumbnailObjectKey != "" {
-			if err := repo.storage.DeleteEncryptedData(file.ThumbnailObjectKey); err != nil {
+		if file.EncryptedFileObjectKey != "" {
+			if err := repo.storage.DeleteEncryptedData(file.EncryptedFileObjectKey); err != nil {
 				repo.logger.Warn("failed to delete thumbnail during batch deletion",
 					zap.Any("id", file.ID),
 					zap.Error(err))

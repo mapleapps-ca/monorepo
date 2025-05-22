@@ -36,14 +36,14 @@ func (repo *fileRepositoryImpl) GetEncryptedData(fileID primitive.ObjectID) ([]b
 		return nil, err
 	}
 	if file == nil {
-		return nil, fmt.Errorf("file not found: %s", fileID.Hex())
+		return nil, fmt.Errorf("encrypted file not found: %s", fileID.Hex())
 	}
 
 	// Check if file has been stored
-	if file.FileObjectKey == "" {
-		return nil, fmt.Errorf("file data not yet stored: %s", fileID.Hex())
+	if file.EncryptedFileObjectKey == "" {
+		return nil, fmt.Errorf("encrypted file data not yet stored: %s", fileID.Hex())
 	}
 
 	// Retrieve the encrypted data from S3
-	return repo.storage.GetEncryptedData(file.FileObjectKey)
+	return repo.storage.GetEncryptedData(file.EncryptedFileObjectKey)
 }
