@@ -47,7 +47,7 @@ func NewCreateRemoteFileUseCase(
 	}
 }
 
-// Execute creates a new remote file
+// Execute creates a new remote file with complete upload flow
 func (uc *createRemoteFileUseCase) Execute(
 	ctx context.Context,
 	input CreateRemoteFileInput,
@@ -69,7 +69,12 @@ func (uc *createRemoteFileUseCase) Execute(
 		return nil, errors.NewAppError("encrypted file key is required", nil)
 	}
 
-	// Create a request for the repository
+	uc.logger.Info("Creating remote file",
+		zap.String("encryptedFileID", input.EncryptedFileID),
+		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.Int("fileDataSize", len(input.FileData)))
+
+	// Step 1: Create file metadata on backend
 	request := &remotefile.RemoteCreateFileRequest{
 		CollectionID:          input.CollectionID,
 		EncryptedFileID:       input.EncryptedFileID,
@@ -81,21 +86,42 @@ func (uc *createRemoteFileUseCase) Execute(
 		EncryptedHash:         input.EncryptedHash,
 	}
 
-	// Create the remote file
+	// Create the remote file metadata
 	response, err := uc.repository.Create(ctx, request)
 	if err != nil {
-		return nil, errors.NewAppError("failed to create remote file", err)
+		return nil, errors.NewAppError("failed to create remote file metadata", err)
 	}
 
-	// If file data is provided, upload it
+	uc.logger.Info("Remote file metadata created successfully",
+		zap.String("remoteFileID", response.ID.Hex()),
+		zap.String("encryptedFileID", input.EncryptedFileID))
+
+	// Step 2: Upload file data to S3 if provided
 	if input.FileData != nil && len(input.FileData) > 0 {
+		uc.logger.Info("Uploading file data to S3",
+			zap.String("remoteFileID", response.ID.Hex()),
+			zap.Int("dataSize", len(input.FileData)))
+
 		if err := uc.repository.UploadFile(ctx, response.ID, input.FileData); err != nil {
-			// Log error but still return the created file response
-			uc.logger.Error("Failed to upload file data",
-				zap.String("fileID", response.ID.Hex()),
+			uc.logger.Error("Failed to upload file data to S3",
+				zap.String("remoteFileID", response.ID.Hex()),
 				zap.Error(err))
-			// Don't return early, as the file was created successfully
+
+			// Don't return error immediately - the file metadata was created successfully
+			// But log the upload failure and continue
+			uc.logger.Warn("File metadata created but data upload failed - file will need to be uploaded separately",
+				zap.String("remoteFileID", response.ID.Hex()))
+
+			// Return the response but indicate upload failure in logs
+			// The caller can retry the upload later using the upload endpoint
+		} else {
+			uc.logger.Info("File data uploaded successfully to S3",
+				zap.String("remoteFileID", response.ID.Hex()),
+				zap.Int("uploadedBytes", len(input.FileData)))
 		}
+	} else {
+		uc.logger.Debug("No file data provided, skipping upload",
+			zap.String("remoteFileID", response.ID.Hex()))
 	}
 
 	return response, nil

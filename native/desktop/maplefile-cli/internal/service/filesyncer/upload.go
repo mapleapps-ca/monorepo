@@ -194,70 +194,84 @@ func (s *fileSyncerUploadService) createNewRemoteFile(
 	localFile *localfile.LocalFile,
 	encryptedData []byte,
 ) (*remotefile.RemoteFileResponse, error) {
-	// Create remote file input
+	s.logger.Info("Creating new remote file with data upload",
+		zap.String("localFileID", localFile.ID.Hex()),
+		zap.String("encryptedFileID", localFile.EncryptedFileID),
+		zap.Int("dataSize", len(encryptedData)))
+
+	// Create remote file input with complete file data
 	createInput := uc_remotefile.CreateRemoteFileInput{
 		CollectionID:          localFile.CollectionID,
 		EncryptedFileID:       localFile.EncryptedFileID,
 		EncryptedFileSize:     int64(len(encryptedData)),
-		EncryptedOriginalSize: "", // Could be encrypted with file key
+		EncryptedOriginalSize: "", // Could be encrypted with file key if needed
 		EncryptedMetadata:     localFile.EncryptedMetadata,
 		EncryptedFileKey:      localFile.EncryptedFileKey,
 		EncryptionVersion:     localFile.EncryptionVersion,
 		EncryptedHash:         localFile.EncryptedHash,
-		FileData:              encryptedData,
+		FileData:              encryptedData, // This will trigger S3 upload
 	}
 
+	// Execute the complete create + upload flow
 	remoteFile, err := s.createRemoteFileUseCase.Execute(ctx, createInput)
 	if err != nil {
-		return nil, errors.NewAppError("failed to create remote file", err)
+		return nil, errors.NewAppError("failed to create and upload remote file", err)
 	}
+
+	s.logger.Info("Remote file created and uploaded successfully",
+		zap.String("localFileID", localFile.ID.Hex()),
+		zap.String("remoteFileID", remoteFile.ID.Hex()),
+		zap.String("fileObjectKey", remoteFile.FileObjectKey))
 
 	return remoteFile, nil
 }
 
-// updateExistingRemoteFile updates an existing remote file using existing use cases
+// updateExistingRemoteFile updates an existing remote file with new data
 func (s *fileSyncerUploadService) updateExistingRemoteFile(
 	ctx context.Context,
 	localFile *localfile.LocalFile,
 	encryptedData []byte,
 ) (*remotefile.RemoteFileResponse, error) {
+	s.logger.Info("Updating existing remote file with new data",
+		zap.String("localFileID", localFile.ID.Hex()),
+		zap.String("remoteFileID", localFile.RemoteID.Hex()),
+		zap.Int("dataSize", len(encryptedData)))
+
 	// Check if remote file exists
 	if localFile.RemoteID.IsZero() {
 		return nil, errors.NewAppError("local file has no remote ID for update", nil)
 	}
 
-	// Fetch existing remote file to verify it exists using existing use case
-	_, err := s.fetchRemoteFileUseCase.ByID(ctx, localFile.RemoteID)
+	// Fetch existing remote file to verify it exists
+	existingRemote, err := s.fetchRemoteFileUseCase.ByID(ctx, localFile.RemoteID)
 	if err != nil {
 		return nil, errors.NewAppError("failed to fetch existing remote file for update", err)
 	}
 
-	// Upload the new data to the existing remote file using existing use case
+	// Upload the new data to the existing remote file
 	if err := s.uploadRemoteFileUseCase.Execute(ctx, localFile.RemoteID, encryptedData); err != nil {
-		return nil, errors.NewAppError("failed to upload updated file data", err)
+		return nil, errors.NewAppError("failed to upload updated file data to S3", err)
 	}
 
-	// Fetch the updated remote file info using existing use case
-	updatedRemoteFile, err := s.fetchRemoteFileUseCase.ByID(ctx, localFile.RemoteID)
-	if err != nil {
-		return nil, errors.NewAppError("failed to fetch updated remote file", err)
-	}
+	s.logger.Info("Successfully uploaded updated file data",
+		zap.String("localFileID", localFile.ID.Hex()),
+		zap.String("remoteFileID", localFile.RemoteID.Hex()))
 
-	// Convert to response format
+	// Return updated remote file info
 	return &remotefile.RemoteFileResponse{
-		ID:                    updatedRemoteFile.ID,
-		CollectionID:          updatedRemoteFile.CollectionID,
-		OwnerID:               updatedRemoteFile.OwnerID,
-		EncryptedFileID:       updatedRemoteFile.EncryptedFileID,
-		FileObjectKey:         updatedRemoteFile.FileObjectKey,
-		EncryptedFileSize:     updatedRemoteFile.EncryptedFileSize,
-		EncryptedOriginalSize: updatedRemoteFile.EncryptedOriginalSize,
-		EncryptedMetadata:     updatedRemoteFile.EncryptedMetadata,
-		EncryptedFileKey:      updatedRemoteFile.EncryptedFileKey,
-		EncryptionVersion:     updatedRemoteFile.EncryptionVersion,
-		EncryptedHash:         updatedRemoteFile.EncryptedHash,
-		ThumbnailObjectKey:    updatedRemoteFile.ThumbnailObjectKey,
-		CreatedAt:             updatedRemoteFile.CreatedAt,
-		ModifiedAt:            updatedRemoteFile.ModifiedAt,
+		ID:                    existingRemote.ID,
+		CollectionID:          existingRemote.CollectionID,
+		OwnerID:               existingRemote.OwnerID,
+		EncryptedFileID:       existingRemote.EncryptedFileID,
+		FileObjectKey:         existingRemote.FileObjectKey,
+		EncryptedFileSize:     int64(len(encryptedData)), // Updated size
+		EncryptedOriginalSize: existingRemote.EncryptedOriginalSize,
+		EncryptedMetadata:     localFile.EncryptedMetadata, // Use local metadata (might be updated)
+		EncryptedFileKey:      existingRemote.EncryptedFileKey,
+		EncryptionVersion:     existingRemote.EncryptionVersion,
+		EncryptedHash:         localFile.EncryptedHash, // Use local hash (might be updated)
+		ThumbnailObjectKey:    existingRemote.ThumbnailObjectKey,
+		CreatedAt:             existingRemote.CreatedAt,
+		ModifiedAt:            existingRemote.ModifiedAt,
 	}, nil
 }

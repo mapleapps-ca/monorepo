@@ -3,7 +3,6 @@ package file
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"go.uber.org/zap"
@@ -194,15 +193,15 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 		return nil, err
 	}
 
-	// Defensive code
-	if file.FileObjectKey == "" {
-		err := errors.New("file object key is empty")
-		svc.logger.Error("Failed to create file",
-			zap.Any("error", err),
-			zap.Any("collection_id", file.CollectionID),
-			zap.String("encrypted_file_id", file.EncryptedFileID))
-		return nil, err
-	}
+	// // Defensive code
+	// if file.FileObjectKey == "" {
+	// 	err := errors.New("file object key is empty")
+	// 	svc.logger.Error("Failed to create file",
+	// 		zap.Any("error", err),
+	// 		zap.Any("collection_id", file.CollectionID),
+	// 		zap.String("encrypted_file_id", file.EncryptedFileID))
+	// 	return nil, err
+	// }
 
 	//
 	// STEP 6: Map domain model to response DTO

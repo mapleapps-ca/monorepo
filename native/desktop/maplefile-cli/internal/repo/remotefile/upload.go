@@ -33,7 +33,7 @@ func (r *remoteFileRepository) GetUploadURL(ctx context.Context, fileID primitiv
 			zap.Error(err),
 			zap.Any("fileID", fileID),
 		)
-		return "", err // getAccessToken likely returns an AppError already
+		return "", err
 	}
 
 	// Create HTTP request
@@ -104,62 +104,77 @@ func (r *remoteFileRepository) GetUploadURL(ctx context.Context, fileID primitiv
 	return response.URL, nil
 }
 
-// UploadFile uploads file data to the remote server
+// UploadFile uploads file data directly to S3 using presigned URL
 func (r *remoteFileRepository) UploadFile(ctx context.Context, fileID primitive.ObjectID, data []byte) error {
-	// Get pre-signed upload URL
+	// Step 1: Get pre-signed upload URL from backend
 	uploadURL, err := r.GetUploadURL(ctx, fileID)
 	if err != nil {
-		// Error is logged within GetUploadURL
+		// Error is already logged within GetUploadURL
 		return err
 	}
 
-	// Create HTTP request
+	r.logger.Info("Starting S3 upload using presigned URL",
+		zap.String("fileID", fileID.Hex()),
+		zap.Int("dataSize", len(data)),
+		zap.String("uploadURL", uploadURL[:min(len(uploadURL), 100)]+"...")) // Log first 100 chars for security
+
+	// Step 2: Upload directly to S3 using presigned URL
 	req, err := http.NewRequestWithContext(ctx, "PUT", uploadURL, bytes.NewBuffer(data))
 	if err != nil {
-		r.logger.Error("Failed to create HTTP request for file upload",
+		r.logger.Error("Failed to create S3 upload request",
 			zap.Error(err),
-			zap.Any("upload_url", uploadURL),
-			zap.Any("fileID", fileID),
+			zap.String("fileID", fileID.Hex()),
 		)
-		return errors.NewAppError("failed to create HTTP request", err)
+		return errors.NewAppError("failed to create S3 upload request", err)
 	}
 
+	// Set appropriate headers for S3
 	req.Header.Set("Content-Type", "application/octet-stream")
+	req.ContentLength = int64(len(data))
 
-	// Execute the request
+	// Execute the S3 upload
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
-		r.logger.Error("Failed making HTTP request for file upload",
+		r.logger.Error("Failed to upload file to S3",
 			zap.Error(err),
-			zap.Any("upload_url", uploadURL),
-			zap.Any("fileID", fileID),
+			zap.String("fileID", fileID.Hex()),
 		)
-		return errors.NewAppError("failed to upload file", err)
+		return errors.NewAppError("failed to upload file to S3", err)
 	}
 	defer resp.Body.Close()
 
-	// Check for error status codes
+	// Check for S3 upload success
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		body, readErr := io.ReadAll(resp.Body)
 		if readErr != nil {
-			r.logger.Error("Server returned error status during file upload, failed to read body",
+			r.logger.Error("S3 returned error status during upload, failed to read body",
 				zap.Error(readErr),
 				zap.Int("status", resp.StatusCode),
 				zap.String("statusText", resp.Status),
-				zap.Any("upload_url", uploadURL),
-				zap.Any("fileID", fileID),
+				zap.String("fileID", fileID.Hex()),
 			)
-			return errors.NewAppError(fmt.Sprintf("server returned error status: %s, failed to read body", resp.Status), nil)
+			return errors.NewAppError(fmt.Sprintf("S3 upload failed with status: %s, failed to read body", resp.Status), nil)
 		}
-		r.logger.Error("Server returned error status during file upload",
+		r.logger.Error("S3 returned error status during file upload",
 			zap.Int("status", resp.StatusCode),
 			zap.String("statusText", resp.Status),
 			zap.ByteString("responseBody", body),
-			zap.Any("upload_url", uploadURL),
-			zap.Any("fileID", fileID),
+			zap.String("fileID", fileID.Hex()),
 		)
-		return errors.NewAppError(fmt.Sprintf("server returned error status: %s, body: %s", resp.Status, string(body)), nil)
+		return errors.NewAppError(fmt.Sprintf("S3 upload failed with status: %s, body: %s", resp.Status, string(body)), nil)
 	}
 
+	r.logger.Info("Successfully uploaded file to S3",
+		zap.String("fileID", fileID.Hex()),
+		zap.Int("uploadedBytes", len(data)))
+
 	return nil
+}
+
+// Helper function for min
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
