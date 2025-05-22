@@ -79,7 +79,7 @@ Examples:
 			fmt.Printf("📁 File: %s\n", file.DecryptedName)
 			fmt.Printf("🔐 Storage Mode: %s\n", file.StorageMode)
 			fmt.Printf("📊 Sync Status: %s\n", getSyncStatusText(file.SyncStatus))
-			fmt.Printf("💾 File Size: %d bytes\n", file.FileSize)
+			fmt.Printf("💾 File Size (of encrypted data): %d bytes\n", file.EncryptedFileSize)
 
 			// Validate file can be uploaded
 			if file.StorageMode == "decrypted_only" {
@@ -154,7 +154,7 @@ Examples:
 
 			fmt.Printf("\n📊 Summary:\n")
 			fmt.Printf("  - Local file is now synced with remote backend\n")
-			fmt.Printf("  - File size: %d bytes\n", result.RemoteFile.FileSize)
+			fmt.Printf("  - File size (encrypted data): %d bytes\n", result.RemoteFile.EncryptedFileSize)
 			fmt.Printf("  - Encryption version: %s\n", result.RemoteFile.EncryptionVersion)
 		},
 	}

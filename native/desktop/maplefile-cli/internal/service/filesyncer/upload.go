@@ -206,7 +206,7 @@ func (s *fileSyncerUploadService) createNewRemoteFile(
 	createInput := uc_remotefile.CreateRemoteFileInput{
 		CollectionID:          localFile.CollectionID,
 		EncryptedFileID:       localFile.EncryptedFileID,
-		FileSize:              int64(len(encryptedData)),
+		EncryptedFileSize:     int64(len(encryptedData)),
 		EncryptedOriginalSize: "", // Could be encrypted with file key
 		EncryptedMetadata:     localFile.EncryptedMetadata,
 		EncryptedFileKey:      localFile.EncryptedFileKey,
@@ -258,7 +258,7 @@ func (s *fileSyncerUploadService) updateExistingRemoteFile(
 		OwnerID:               updatedRemoteFile.OwnerID,
 		EncryptedFileID:       updatedRemoteFile.EncryptedFileID,
 		FileObjectKey:         updatedRemoteFile.FileObjectKey,
-		FileSize:              updatedRemoteFile.FileSize,
+		EncryptedFileSize:     updatedRemoteFile.EncryptedFileSize,
 		EncryptedOriginalSize: updatedRemoteFile.EncryptedOriginalSize,
 		EncryptedMetadata:     updatedRemoteFile.EncryptedMetadata,
 		EncryptedFileKey:      updatedRemoteFile.EncryptedFileKey,

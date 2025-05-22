@@ -114,15 +114,14 @@ func (uc *fileSyncerUseCase) UploadToRemote(
 	if remoteFile == nil {
 		// Create a new remote file
 		input := remotefileUseCase.CreateRemoteFileInput{
-			CollectionID:          localFile.CollectionID,
-			EncryptedFileID:       localFile.EncryptedFileID,
-			FileSize:              localFile.FileSize,
-			EncryptedOriginalSize: "", // Not used in this implementation
-			EncryptedMetadata:     localFile.EncryptedMetadata,
-			EncryptedFileKey:      localFile.EncryptedFileKey,
-			EncryptionVersion:     localFile.EncryptionVersion,
-			EncryptedHash:         localFile.EncryptedHash,
-			FileData:              fileData, // Upload file data with creation
+			CollectionID:      localFile.CollectionID,
+			EncryptedFileID:   localFile.EncryptedFileID,
+			EncryptedFileSize: localFile.EncryptedFileSize,
+			EncryptedMetadata: localFile.EncryptedMetadata,
+			EncryptedFileKey:  localFile.EncryptedFileKey,
+			EncryptionVersion: localFile.EncryptionVersion,
+			EncryptedHash:     localFile.EncryptedHash,
+			FileData:          fileData, // Upload file data with creation
 		}
 
 		remoteFileResponse, err = uc.remoteFileCreateUseCase.Execute(ctx, input)

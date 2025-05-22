@@ -18,32 +18,30 @@ import (
 )
 
 type CreateFileRequestDTO struct {
-	CollectionID          primitive.ObjectID    `json:"collection_id"`
-	EncryptedFileID       string                `json:"encrypted_file_id"`
-	FileSize              int64                 `json:"file_size"`
-	EncryptedOriginalSize string                `json:"encrypted_original_size"`
-	EncryptedMetadata     string                `json:"encrypted_metadata"`
-	EncryptedFileKey      keys.EncryptedFileKey `json:"encrypted_file_key"`
-	EncryptionVersion     string                `json:"encryption_version"`
-	EncryptedHash         string                `json:"encrypted_hash"`
-	EncryptedThumbnail    string                `json:"encrypted_thumbnail,omitempty"`
+	CollectionID       primitive.ObjectID    `json:"collection_id"`
+	EncryptedFileID    string                `json:"encrypted_file_id"`
+	EncryptedFileSize  int64                 `json:"encrypted_file_size"`
+	EncryptedMetadata  string                `json:"encrypted_metadata"`
+	EncryptedFileKey   keys.EncryptedFileKey `json:"encrypted_file_key"`
+	EncryptionVersion  string                `json:"encryption_version"`
+	EncryptedHash      string                `json:"encrypted_hash"`
+	EncryptedThumbnail string                `json:"encrypted_thumbnail,omitempty"`
 }
 
 type FileResponseDTO struct {
-	ID                    primitive.ObjectID    `json:"id"`
-	CollectionID          primitive.ObjectID    `json:"collection_id"`
-	OwnerID               primitive.ObjectID    `json:"owner_id"`
-	EncryptedFileID       string                `json:"encrypted_file_id"`
-	FileObjectKey         string                `json:"file_object_key"`
-	FileSize              int64                 `json:"file_size"`
-	EncryptedOriginalSize string                `json:"encrypted_original_size"`
-	EncryptedMetadata     string                `json:"encrypted_metadata"`
-	EncryptionVersion     string                `json:"encryption_version"`
-	EncryptedHash         string                `json:"encrypted_hash"`
-	EncryptedFileKey      keys.EncryptedFileKey `json:"encrypted_file_key,omitempty"`
-	ThumbnailObjectKey    string                `json:"thumbnail_object_key,omitempty"`
-	CreatedAt             time.Time             `json:"created_at"`
-	ModifiedAt            time.Time             `json:"modified_at"`
+	ID                 primitive.ObjectID    `json:"id"`
+	CollectionID       primitive.ObjectID    `json:"collection_id"`
+	OwnerID            primitive.ObjectID    `json:"owner_id"`
+	EncryptedFileID    string                `json:"encrypted_file_id"`
+	FileObjectKey      string                `json:"file_object_key"`
+	EncryptedFileSize  int64                 `json:"encrypted_file_size"`
+	EncryptedMetadata  string                `json:"encrypted_metadata"`
+	EncryptionVersion  string                `json:"encryption_version"`
+	EncryptedHash      string                `json:"encrypted_hash"`
+	EncryptedFileKey   keys.EncryptedFileKey `json:"encrypted_file_key,omitempty"`
+	ThumbnailObjectKey string                `json:"thumbnail_object_key,omitempty"`
+	CreatedAt          time.Time             `json:"created_at"`
+	ModifiedAt         time.Time             `json:"modified_at"`
 }
 
 type CreateFileService interface {
@@ -169,19 +167,18 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 	}
 
 	file := &dom_file.File{
-		ID:                    fileID,
-		CollectionID:          req.CollectionID,
-		OwnerID:               userID,
-		EncryptedFileID:       encryptedFileID,
-		FileSize:              req.FileSize,
-		EncryptedOriginalSize: req.EncryptedOriginalSize,
-		EncryptedMetadata:     req.EncryptedMetadata,
-		EncryptedFileKey:      req.EncryptedFileKey,
-		EncryptionVersion:     req.EncryptionVersion,
-		EncryptedHash:         req.EncryptedHash,
-		ThumbnailObjectKey:    "", // Will be populated later if thumbnail is uploaded
-		CreatedAt:             now,
-		ModifiedAt:            now,
+		ID:                 fileID,
+		CollectionID:       req.CollectionID,
+		OwnerID:            userID,
+		EncryptedFileID:    encryptedFileID,
+		EncryptedFileSize:  req.EncryptedFileSize,
+		EncryptedMetadata:  req.EncryptedMetadata,
+		EncryptedFileKey:   req.EncryptedFileKey,
+		EncryptionVersion:  req.EncryptionVersion,
+		EncryptedHash:      req.EncryptedHash,
+		ThumbnailObjectKey: "", // Will be populated later if thumbnail is uploaded
+		CreatedAt:          now,
+		ModifiedAt:         now,
 	}
 
 	//
@@ -200,20 +197,19 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 	// STEP 6: Map domain model to response DTO
 	//
 	response := &FileResponseDTO{
-		ID:                    file.ID,
-		CollectionID:          file.CollectionID,
-		OwnerID:               file.OwnerID,
-		EncryptedFileID:       file.EncryptedFileID,
-		FileObjectKey:         file.FileObjectKey,
-		FileSize:              file.FileSize,
-		EncryptedOriginalSize: file.EncryptedOriginalSize,
-		EncryptedMetadata:     file.EncryptedMetadata,
-		EncryptionVersion:     file.EncryptionVersion,
-		EncryptedHash:         file.EncryptedHash,
-		EncryptedFileKey:      file.EncryptedFileKey,
-		ThumbnailObjectKey:    file.ThumbnailObjectKey,
-		CreatedAt:             file.CreatedAt,
-		ModifiedAt:            file.ModifiedAt,
+		ID:                 file.ID,
+		CollectionID:       file.CollectionID,
+		OwnerID:            file.OwnerID,
+		EncryptedFileID:    file.EncryptedFileID,
+		FileObjectKey:      file.FileObjectKey,
+		EncryptedFileSize:  file.EncryptedFileSize,
+		EncryptedMetadata:  file.EncryptedMetadata,
+		EncryptionVersion:  file.EncryptionVersion,
+		EncryptedHash:      file.EncryptedHash,
+		EncryptedFileKey:   file.EncryptedFileKey,
+		ThumbnailObjectKey: file.ThumbnailObjectKey,
+		CreatedAt:          file.CreatedAt,
+		ModifiedAt:         file.ModifiedAt,
 	}
 
 	svc.logger.Debug("File created successfully",

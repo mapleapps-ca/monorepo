@@ -120,7 +120,7 @@ func (uc *importLocalFileUseCase) Execute(
 		EncryptedMetadata: input.EncryptedMetadata,
 		DecryptedName:     decryptedName,
 		DecryptedMimeType: decryptedMimeType,
-		FileSize:          fileInfo.Size(),
+		DecryptedFileSize: fileInfo.Size(),
 		EncryptedFileKey:  input.EncryptedFileKey,
 		EncryptionVersion: input.EncryptionVersion,
 		CreatedAt:         time.Now(),

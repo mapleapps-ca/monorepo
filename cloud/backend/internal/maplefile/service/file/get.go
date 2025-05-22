@@ -103,20 +103,19 @@ func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID primitive.Obj
 	// STEP 5: Map domain model to response DTO
 	//
 	response := &FileResponseDTO{
-		ID:                    file.ID,
-		CollectionID:          file.CollectionID,
-		OwnerID:               file.OwnerID,
-		EncryptedFileID:       file.EncryptedFileID,
-		FileObjectKey:         file.FileObjectKey,
-		FileSize:              file.FileSize,
-		EncryptedOriginalSize: file.EncryptedOriginalSize,
-		EncryptedMetadata:     file.EncryptedMetadata,
-		EncryptionVersion:     file.EncryptionVersion,
-		EncryptedHash:         file.EncryptedHash,
-		EncryptedFileKey:      file.EncryptedFileKey,
-		ThumbnailObjectKey:    file.ThumbnailObjectKey,
-		CreatedAt:             file.CreatedAt,
-		ModifiedAt:            file.ModifiedAt,
+		ID:                 file.ID,
+		CollectionID:       file.CollectionID,
+		OwnerID:            file.OwnerID,
+		EncryptedFileID:    file.EncryptedFileID,
+		FileObjectKey:      file.FileObjectKey,
+		EncryptedFileSize:  file.EncryptedFileSize,
+		EncryptedMetadata:  file.EncryptedMetadata,
+		EncryptionVersion:  file.EncryptionVersion,
+		EncryptedHash:      file.EncryptedHash,
+		EncryptedFileKey:   file.EncryptedFileKey,
+		ThumbnailObjectKey: file.ThumbnailObjectKey,
+		CreatedAt:          file.CreatedAt,
+		ModifiedAt:         file.ModifiedAt,
 	}
 
 	return response, nil

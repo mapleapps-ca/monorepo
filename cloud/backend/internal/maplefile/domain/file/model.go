@@ -16,17 +16,14 @@ type File struct {
 	CollectionID primitive.ObjectID `bson:"collection_id" json:"collection_id"`
 	OwnerID      primitive.ObjectID `bson:"owner_id" json:"owner_id"`
 
+	// The path/key in S3 storage where the encrypted file is stored
+	FileObjectKey string `bson:"file_object_key" json:"-"` // Note: This is not exposed to the client
+
 	// Encrypted file identifier (client-generated)
 	EncryptedFileID string `bson:"encrypted_file_id" json:"encrypted_file_id"`
 
-	// The path/key in S3 storage where the encrypted file is stored
-	FileObjectKey string `bson:"file_object_key" json:"file_object_key"`
-
-	// Size of the file in bytes (with encryption overhead included). To be used for accounting and billing purposes.
-	FileSize int64 `bson:"file_size" json:"file_size"`
-
-	// The original file size before encryption, encrypted with file key
-	EncryptedOriginalSize string `bson:"encrypted_original_size" json:"encrypted_original_size"`
+	// Size of the encrypted file in bytes. Note: (1) This is not an encrypted value, it's an actual valid number of the number of bytes the received encrypted file is occuping on our servers. (2) To be used for accounting and billing purposes.
+	EncryptedFileSize int64 `bson:"encrypted_file_size" json:"encrypted_file_size"`
 
 	// Encrypted metadata (JSON blob encrypted by client)
 	// Contains file name, mime type, etc.

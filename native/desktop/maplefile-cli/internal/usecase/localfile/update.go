@@ -92,7 +92,7 @@ func (uc *updateLocalFileUseCase) Execute(
 		if err := uc.repository.SaveFileData(ctx, file, input.FileData); err != nil {
 			return nil, errors.NewAppError("failed to save updated file data", err)
 		}
-		file.FileSize = int64(len(input.FileData))
+		file.DecryptedFileSize = int64(len(input.FileData))
 		file.IsModifiedLocally = true
 		file.SyncStatus = localfile.SyncStatusModifiedLocally
 	}

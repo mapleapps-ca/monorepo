@@ -69,7 +69,7 @@ func (r *remoteFileRepository) GetByEncryptedFileID(ctx context.Context, encrypt
 		OwnerID:               response.OwnerID,
 		EncryptedFileID:       response.EncryptedFileID,
 		FileObjectKey:         response.FileObjectKey,
-		FileSize:              response.FileSize,
+		EncryptedFileSize:     response.EncryptedFileSize,
 		EncryptedOriginalSize: response.EncryptedOriginalSize,
 		EncryptedMetadata:     response.EncryptedMetadata,
 		EncryptedFileKey:      response.EncryptedFileKey,

@@ -17,7 +17,7 @@ import (
 type CreateInput struct {
 	CollectionID          string                `json:"collection_id"`
 	EncryptedFileID       string                `json:"encrypted_file_id"`
-	FileSize              int64                 `json:"file_size"`
+	EncryptedFileSize     int64                 `json:"encrypted_file_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size,omitempty"`
 	EncryptedMetadata     string                `json:"encrypted_metadata"`
 	EncryptedFileKey      keys.EncryptedFileKey `json:"encrypted_file_key"`
@@ -78,7 +78,7 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 	useCaseInput := uc.CreateRemoteFileInput{
 		CollectionID:          collectionID,
 		EncryptedFileID:       input.EncryptedFileID,
-		FileSize:              input.FileSize,
+		EncryptedFileSize:     input.EncryptedFileSize,
 		EncryptedOriginalSize: input.EncryptedOriginalSize,
 		EncryptedMetadata:     input.EncryptedMetadata,
 		EncryptedFileKey:      input.EncryptedFileKey,

@@ -149,19 +149,18 @@ func (svc *createManyFilesServiceImpl) Execute(ctx context.Context, req *CreateM
 		}
 
 		file := &dom_file.File{
-			ID:                    fileID,
-			CollectionID:          fileReq.CollectionID,
-			OwnerID:               userID,
-			EncryptedFileID:       encryptedFileID,
-			FileSize:              fileReq.FileSize,
-			EncryptedOriginalSize: fileReq.EncryptedOriginalSize,
-			EncryptedMetadata:     fileReq.EncryptedMetadata,
-			EncryptedFileKey:      fileReq.EncryptedFileKey,
-			EncryptionVersion:     fileReq.EncryptionVersion,
-			EncryptedHash:         fileReq.EncryptedHash,
-			ThumbnailObjectKey:    "", // Will be populated later if thumbnail is uploaded
-			CreatedAt:             now,
-			ModifiedAt:            now,
+			ID:                 fileID,
+			CollectionID:       fileReq.CollectionID,
+			OwnerID:            userID,
+			EncryptedFileID:    encryptedFileID,
+			EncryptedFileSize:  fileReq.EncryptedFileSize,
+			EncryptedMetadata:  fileReq.EncryptedMetadata,
+			EncryptedFileKey:   fileReq.EncryptedFileKey,
+			EncryptionVersion:  fileReq.EncryptionVersion,
+			EncryptedHash:      fileReq.EncryptedHash,
+			ThumbnailObjectKey: "", // Will be populated later if thumbnail is uploaded
+			CreatedAt:          now,
+			ModifiedAt:         now,
 		}
 
 		domainFiles = append(domainFiles, file)
@@ -187,20 +186,19 @@ func (svc *createManyFilesServiceImpl) Execute(ctx context.Context, req *CreateM
 
 	for i, file := range domainFiles {
 		response.Files[i] = &FileResponseDTO{
-			ID:                    file.ID,
-			CollectionID:          file.CollectionID,
-			OwnerID:               file.OwnerID,
-			EncryptedFileID:       file.EncryptedFileID,
-			FileObjectKey:         file.FileObjectKey,
-			FileSize:              file.FileSize,
-			EncryptedOriginalSize: file.EncryptedOriginalSize,
-			EncryptedMetadata:     file.EncryptedMetadata,
-			EncryptionVersion:     file.EncryptionVersion,
-			EncryptedHash:         file.EncryptedHash,
-			EncryptedFileKey:      file.EncryptedFileKey,
-			ThumbnailObjectKey:    file.ThumbnailObjectKey,
-			CreatedAt:             file.CreatedAt,
-			ModifiedAt:            file.ModifiedAt,
+			ID:                 file.ID,
+			CollectionID:       file.CollectionID,
+			OwnerID:            file.OwnerID,
+			EncryptedFileID:    file.EncryptedFileID,
+			FileObjectKey:      file.FileObjectKey,
+			EncryptedFileSize:  file.EncryptedFileSize,
+			EncryptedMetadata:  file.EncryptedMetadata,
+			EncryptionVersion:  file.EncryptionVersion,
+			EncryptedHash:      file.EncryptedHash,
+			EncryptedFileKey:   file.EncryptedFileKey,
+			ThumbnailObjectKey: file.ThumbnailObjectKey,
+			CreatedAt:          file.CreatedAt,
+			ModifiedAt:         file.ModifiedAt,
 		}
 	}
 

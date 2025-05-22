@@ -60,7 +60,7 @@ func (repo *fileRepositoryImpl) StoreEncryptedData(fileID string, encryptedData 
 
 	// Update the file storage path and size
 	file.FileObjectKey = storagePath
-	file.FileSize = int64(len(encryptedData))
+	file.EncryptedFileSize = int64(len(encryptedData))
 
 	// Update metadata
 	return repo.metadata.Update(file)
