@@ -6,6 +6,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
@@ -65,6 +66,6 @@ func ServiceModule() fx.Option {
 		fx.Provide(remotefile.NewDownloadService),
 
 		// File synchronization service
-		//TODO: Implement.
+		fx.Provide(filesyncer.NewFileSyncerUploadService),
 	)
 }

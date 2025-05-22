@@ -9,6 +9,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/collections"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/completelogin"
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
@@ -21,6 +22,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
+	srv_filesyncer "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
 	localfileService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	registerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
@@ -43,11 +45,13 @@ func NewRootCmd(
 	remoteCollectionService remotecollection.CreateService,
 	remoteListService remotecollection.ListService,
 	downloadService collectionsyncer.DownloadService,
-	listService localcollection.ListService,
+	collectionListService localcollection.ListService,
 	fileImportService localfileService.ImportService,
+	fileListService localfileService.ListService,
 	fileDeleteService localfileService.DeleteService,
 	fileGetService localfileService.GetService,
 	remoteFetchService remotefile.FetchService,
+	fileSyncerUploadService srv_filesyncer.UploadService,
 	// other services...
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
@@ -63,18 +67,30 @@ func NewRootCmd(
 	// Attach sub-commands to our main root
 	rootCmd.AddCommand(version.VersionCmd())
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
-	rootCmd.AddCommand(remote.RemoteCmd(configService, remoteListService, logger)) // Update this line
+	rootCmd.AddCommand(remote.RemoteCmd(configService, remoteListService, logger))
 	rootCmd.AddCommand(register.RegisterCmd(regService))
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(emailVerificationService, logger))
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
 	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(loginOTTVerificationService, logger))
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, userRepo, tokenRefreshSvc))
-	rootCmd.AddCommand(collections.CollectionsCmd(remoteCollectionService, downloadService, listService, logger))
+	rootCmd.AddCommand(collections.CollectionsCmd(
+		remoteCollectionService,
+		downloadService,
+		collectionListService,
+		logger))
 	rootCmd.AddCommand(localfile.LocalFileCmd(
 		fileImportService,
 		fileDeleteService,
 		fileGetService,
+		fileListService,
+		remoteFetchService,
+		logger))
+	rootCmd.AddCommand(filesyncer.FileSyncerCmd(
+		fileImportService,
+		fileDeleteService,
+		fileGetService,
+		fileSyncerUploadService,
 		remoteFetchService,
 		logger))
 

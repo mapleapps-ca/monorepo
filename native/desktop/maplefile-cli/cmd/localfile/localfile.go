@@ -19,6 +19,7 @@ func LocalFileCmd(
 	importService localfile.ImportService,
 	deleteService localfile.DeleteService,
 	getService localfile.GetService,
+	listService localfile.ListService,
 	remoteFetchService remotefile.FetchService,
 	logger *zap.Logger,
 ) *cobra.Command {
@@ -35,6 +36,7 @@ func LocalFileCmd(
 	// Add file management subcommands
 	cmd.AddCommand(createLocalFileCmd(importService, logger))
 	cmd.AddCommand(deleteLocalFileCmd(deleteService, getService, remoteFetchService, logger))
+	cmd.AddCommand(listLocalFileCmd(listService, logger))
 
 	return cmd
 }
