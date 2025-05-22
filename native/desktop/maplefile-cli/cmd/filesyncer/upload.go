@@ -11,13 +11,13 @@ import (
 
 	dom_localfile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
+	uc_localfile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 )
 
 // uploadLocalFileCmd creates a command for uploading a local file to the remote backend
 func uploadLocalFileCmd(
 	uploadService filesyncer.UploadToRemoteService,
-	getService localfile.GetService,
+	getService uc_localfile.GetService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var fileID string
@@ -63,25 +63,25 @@ Examples:
 			}
 
 			// Convert string ID to ObjectID
-			localID, err := primitive.ObjectIDFromHex(fileID)
+			localFileID, err := primitive.ObjectIDFromHex(fileID)
 			if err != nil {
 				fmt.Printf("🐞 Error: Invalid file ID format: %v\n", err)
 				return
 			}
 
 			// Get file information first to show user what will be uploaded
-			fileOutput, err := getService.GetByID(ctx, fileID)
+			localFileOutput, err := getService.GetByID(ctx, localFileID)
 			if err != nil {
 				fmt.Printf("🐞 Error getting file information: %v\n", err)
 				return
 			}
 
-			if fileOutput == nil || fileOutput.File == nil {
-				fmt.Println("Error: File not found.")
+			if localFileOutput == nil || localFileOutput.File == nil {
+				fmt.Println("Error: Local File not found.")
 				return
 			}
 
-			file := fileOutput.File
+			file := localFileOutput.File
 
 			// Display file information
 			fmt.Printf("📁 File: %s\n", file.DecryptedName)
@@ -137,7 +137,7 @@ Examples:
 
 			// Prepare upload input
 			uploadInput := filesyncer.UploadToRemoteInput{
-				LocalID: localID,
+				LocalID: id,
 			}
 
 			// Upload the file

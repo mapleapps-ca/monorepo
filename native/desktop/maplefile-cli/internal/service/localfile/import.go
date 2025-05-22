@@ -19,7 +19,6 @@ type ImportInput struct {
 	CollectionID      string                `json:"collection_id"`
 	EncryptedMetadata string                `json:"encrypted_metadata"`
 	DecryptedName     string                `json:"decrypted_name,omitempty"`
-	DecryptedMimeType string                `json:"decrypted_mime_type,omitempty"`
 	EncryptedFileKey  keys.EncryptedFileKey `json:"encrypted_file_key"`
 	EncryptionVersion string                `json:"encryption_version"`
 	ThumbnailData     []byte                `json:"thumbnail_data,omitempty"`
@@ -87,7 +86,6 @@ func (s *importService) Import(ctx context.Context, input ImportInput) (*ImportO
 		CollectionID:      collectionID,
 		EncryptedMetadata: input.EncryptedMetadata,
 		DecryptedName:     input.DecryptedName,
-		DecryptedMimeType: input.DecryptedMimeType,
 		EncryptedFileKey:  input.EncryptedFileKey,
 		EncryptionVersion: input.EncryptionVersion,
 		GenerateThumbnail: len(input.ThumbnailData) > 0,

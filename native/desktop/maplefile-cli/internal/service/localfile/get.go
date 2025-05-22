@@ -20,8 +20,8 @@ type GetOutput struct {
 
 // GetService defines the interface for getting local files
 type GetService interface {
-	GetByID(ctx context.Context, id string) (*GetOutput, error)
-	GetWithData(ctx context.Context, id string) (*GetOutput, error)
+	GetByID(ctx context.Context, id primitive.ObjectID) (*GetOutput, error)
+	GetWithData(ctx context.Context, id primitive.ObjectID) (*GetOutput, error)
 	GetByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*GetOutput, error)
 }
 
@@ -43,20 +43,14 @@ func NewGetService(
 }
 
 // GetByID retrieves a local file by ID
-func (s *getService) GetByID(ctx context.Context, id string) (*GetOutput, error) {
+func (s *getService) GetByID(ctx context.Context, id primitive.ObjectID) (*GetOutput, error) {
 	// Validate inputs
-	if id == "" {
-		return nil, errors.NewAppError("file ID is required", nil)
-	}
-
-	// Convert ID to ObjectID
-	fileID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return nil, errors.NewAppError("invalid file ID format", err)
+	if id.IsZero() {
+		return nil, errors.NewAppError("ID is required", nil)
 	}
 
 	// Get file
-	file, err := s.getFileUseCase.ByID(ctx, fileID)
+	file, err := s.getFileUseCase.ByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -67,20 +61,14 @@ func (s *getService) GetByID(ctx context.Context, id string) (*GetOutput, error)
 }
 
 // GetWithData retrieves a local file and its data by ID
-func (s *getService) GetWithData(ctx context.Context, id string) (*GetOutput, error) {
+func (s *getService) GetWithData(ctx context.Context, id primitive.ObjectID) (*GetOutput, error) {
 	// Validate inputs
-	if id == "" {
-		return nil, errors.NewAppError("file ID is required", nil)
-	}
-
-	// Convert ID to ObjectID
-	fileID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return nil, errors.NewAppError("invalid file ID format", err)
+	if id.IsZero() {
+		return nil, errors.NewAppError("ID is required", nil)
 	}
 
 	// Get file
-	file, err := s.getFileUseCase.ByID(ctx, fileID)
+	file, err := s.getFileUseCase.ByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}

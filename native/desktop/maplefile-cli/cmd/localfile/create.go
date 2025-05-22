@@ -146,7 +146,6 @@ Examples:
 				CollectionID:      collectionID,
 				EncryptedMetadata: metadata,
 				DecryptedName:     name,
-				DecryptedMimeType: getMimeType(name),
 				EncryptedFileKey:  encryptedFileKey,
 				EncryptionVersion: encryptionVersion,
 				StorageMode:       storageMode,

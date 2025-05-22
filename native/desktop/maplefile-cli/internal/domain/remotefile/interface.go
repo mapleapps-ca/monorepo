@@ -18,7 +18,7 @@ type RemoteFileRepository interface {
 
 	// Upload/download operations
 	GetDownloadURL(ctx context.Context, fileID primitive.ObjectID) (string, error)
-	UploadFile(ctx context.Context, fileID primitive.ObjectID, data []byte) error
+	UploadFileByLocalID(ctx context.Context, localID primitive.ObjectID, data []byte) error
 	UploadFileByRemoteID(ctx context.Context, remoteID primitive.ObjectID, data []byte) error
 	DownloadFile(ctx context.Context, fileID primitive.ObjectID) ([]byte, error)
 }

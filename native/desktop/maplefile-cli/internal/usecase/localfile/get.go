@@ -112,7 +112,7 @@ func (uc *getLocalFileUseCase) GetThumbnail(
 	}
 
 	// Load the thumbnail data
-	data, err := uc.repository.LoadThumbnail(ctx, file)
+	data, err := uc.repository.LoadFileData(ctx, file)
 	if err != nil {
 		return nil, errors.NewAppError("failed to load thumbnail data", err)
 	}

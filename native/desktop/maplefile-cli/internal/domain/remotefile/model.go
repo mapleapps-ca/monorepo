@@ -14,6 +14,9 @@ type RemoteFile struct {
 	// Remote primary key
 	ID primitive.ObjectID `json:"id"`
 
+	// LocalID is the local file ID associated with this remote file.
+	LocalID primitive.ObjectID `json:"local_id"`
+
 	// Collection this file belongs to
 	CollectionID primitive.ObjectID `json:"collection_id"`
 
@@ -58,6 +61,18 @@ type RemoteFile struct {
 	DownloadExpiry string `json:"download_expiry,omitempty"`
 }
 
+// RemoteCreateFileRequest represents the data needed to create a file
+type RemoteCreateFileRequest struct {
+	LocalFileID           primitive.ObjectID    `json:"local_file_id"`
+	CollectionID          primitive.ObjectID    `json:"collection_id"`
+	EncryptedFileSize     int64                 `json:"encrypted_file_size"`
+	EncryptedOriginalSize string                `json:"encrypted_original_size"`
+	EncryptedMetadata     string                `json:"encrypted_metadata"`
+	EncryptedFileKey      keys.EncryptedFileKey `json:"encrypted_file_key"`
+	EncryptionVersion     string                `json:"encryption_version"`
+	EncryptedHash         string                `json:"encrypted_hash,omitempty"`
+}
+
 // RemoteFileResponse represents the server's response when creating or fetching a file
 type RemoteFileResponse struct {
 	ID                    primitive.ObjectID    `json:"id"`
@@ -75,15 +90,4 @@ type RemoteFileResponse struct {
 	ModifiedAt            time.Time             `json:"modified_at"`
 	DownloadURL           string                `json:"download_url,omitempty"`    // Presigned URL for download
 	DownloadExpiry        string                `json:"download_expiry,omitempty"` // Download URL expiry time
-}
-
-// RemoteCreateFileRequest represents the data needed to create a file
-type RemoteCreateFileRequest struct {
-	CollectionID          primitive.ObjectID    `json:"collection_id"`
-	EncryptedFileSize     int64                 `json:"encrypted_file_size"`
-	EncryptedOriginalSize string                `json:"encrypted_original_size"`
-	EncryptedMetadata     string                `json:"encrypted_metadata"`
-	EncryptedFileKey      keys.EncryptedFileKey `json:"encrypted_file_key"`
-	EncryptionVersion     string                `json:"encryption_version"`
-	EncryptedHash         string                `json:"encrypted_hash,omitempty"`
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotefile"
 	"github.com/spf13/cobra"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 )
 
@@ -52,9 +53,16 @@ Examples:
 				return
 			}
 
+			// Convert string ID to ObjectID
+			id, err := primitive.ObjectIDFromHex(fileID)
+			if err != nil {
+				fmt.Printf("🐞 Error: Invalid file ID format: %v\n", err)
+				return
+			}
+
 			// Get the file to check its remote ID
 			if !forceIgnoreRemote {
-				fileOutput, err := getService.GetByID(ctx, fileID)
+				fileOutput, err := getService.GetByID(ctx, id)
 				if err != nil {
 					fmt.Printf("🐞 Error retrieving file: %v\n", err)
 					return

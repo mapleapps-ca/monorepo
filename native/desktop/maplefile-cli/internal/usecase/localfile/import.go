@@ -3,6 +3,7 @@ package localfile
 
 import (
 	"context"
+	"mime"
 	"os"
 	"path/filepath"
 	"time"
@@ -21,7 +22,6 @@ type ImportFileInput struct {
 	CollectionID      primitive.ObjectID
 	EncryptedMetadata string
 	DecryptedName     string
-	DecryptedMimeType string
 	EncryptedFileKey  keys.EncryptedFileKey
 	EncryptionVersion string
 	GenerateThumbnail bool
@@ -84,32 +84,19 @@ func (uc *importLocalFileUseCase) Execute(
 		decryptedName = filepath.Base(input.FilePath)
 	}
 
-	// Guess mime type from extension if not provided
-	decryptedMimeType := input.DecryptedMimeType
+	// Guess mime type from extension
+	ext := filepath.Ext(input.FilePath)
+	// Use standard library's mime package for better detection
+	decryptedMimeType := mime.TypeByExtension(ext)
 	if decryptedMimeType == "" {
-		// Simple extension-based mime type detection
-		ext := filepath.Ext(input.FilePath)
-		switch ext {
-		case ".pdf":
-			decryptedMimeType = "application/pdf"
-		case ".jpg", ".jpeg":
-			decryptedMimeType = "image/jpeg"
-		case ".png":
-			decryptedMimeType = "image/png"
-		case ".txt":
-			decryptedMimeType = "text/plain"
-		case ".doc", ".docx":
-			decryptedMimeType = "application/msword"
-		case ".xls", ".xlsx":
-			decryptedMimeType = "application/vnd.ms-excel"
-		default:
-			decryptedMimeType = "application/octet-stream"
-		}
+		// Fallback if detection fails
+		decryptedMimeType = "application/octet-stream"
 	}
 
 	// Create a new local file
 	file := &localfile.LocalFile{
 		ID:                primitive.NewObjectID(),
+		RemoteID:          primitive.NilObjectID, // This value will be set by the remote backend cloud server!
 		CollectionID:      input.CollectionID,
 		EncryptedMetadata: input.EncryptedMetadata,
 		DecryptedName:     decryptedName,
