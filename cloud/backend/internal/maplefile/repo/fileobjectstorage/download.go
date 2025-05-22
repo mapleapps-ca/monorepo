@@ -1,5 +1,5 @@
-// cloud/backend/internal/maplefile/repo/file/storage/download.go
-package storage
+// cloud/backend/internal/maplefile/repo/fileobjectstorage/download.go
+package fileobjectstorage
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 )
 
 // GetEncryptedData retrieves encrypted file data from S3
-func (impl *fileStorageRepositoryImpl) GetEncryptedData(storagePath string) ([]byte, error) {
+func (impl *fileObjectStorageRepositoryImpl) GetEncryptedData(storagePath string) ([]byte, error) {
 	ctx := context.Background()
 
 	// Get the encrypted data
@@ -36,7 +36,7 @@ func (impl *fileStorageRepositoryImpl) GetEncryptedData(storagePath string) ([]b
 }
 
 // GeneratePresignedURL creates a time-limited URL for downloading the file directly
-func (impl *fileStorageRepositoryImpl) GeneratePresignedURL(storagePath string, duration time.Duration) (string, error) {
+func (impl *fileObjectStorageRepositoryImpl) GeneratePresignedURL(storagePath string, duration time.Duration) (string, error) {
 	ctx := context.Background()
 
 	// Generate presigned URL

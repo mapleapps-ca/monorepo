@@ -11,7 +11,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config/constants"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
-	dom_file "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
@@ -29,23 +28,23 @@ type DeleteCollectionService interface {
 }
 
 type deleteCollectionServiceImpl struct {
-	config   *config.Configuration
-	logger   *zap.Logger
-	repo     dom_collection.CollectionRepository
-	fileRepo dom_file.FileRepository
+	config *config.Configuration
+	logger *zap.Logger
+	repo   dom_collection.CollectionRepository
+	// fileRepo dom_file.FileRepository
 }
 
 func NewDeleteCollectionService(
 	config *config.Configuration,
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
-	fileRepo dom_file.FileRepository,
+	// fileRepo dom_file.FileRepository,
 ) DeleteCollectionService {
 	return &deleteCollectionServiceImpl{
-		config:   config,
-		logger:   logger,
-		repo:     repo,
-		fileRepo: fileRepo,
+		config: config,
+		logger: logger,
+		repo:   repo,
+		// fileRepo: fileRepo,
 	}
 }
 
@@ -99,37 +98,37 @@ func (svc *deleteCollectionServiceImpl) Execute(ctx context.Context, req *Delete
 		return nil, httperror.NewForForbiddenWithSingleField("message", "Only the collection owner can delete a collection")
 	}
 
+	// //
+	// // STEP 5: Check for child collections
+	// //
+	// descendants, err := svc.repo.FindDescendants(ctx, req.ID)
+	// if err != nil {
+	// 	svc.logger.Error("Failed to check for descendant collections",
+	// 		zap.Any("error", err),
+	// 		zap.Any("collection_id", req.ID))
+	// 	return nil, err
+	// }
 	//
-	// STEP 5: Check for child collections
-	//
-	descendants, err := svc.repo.FindDescendants(ctx, req.ID)
-	if err != nil {
-		svc.logger.Error("Failed to check for descendant collections",
-			zap.Any("error", err),
-			zap.Any("collection_id", req.ID))
-		return nil, err
-	}
+	// //
+	// // STEP 6: Delete all files in this collection and its descendants
+	// //
+	// // For this to work, we'd need to update the FileRepository to support filtering by multiple collection IDs
+	// // Otherwise, we'd need to loop through each collection and delete its files
 
-	//
-	// STEP 6: Delete all files in this collection and its descendants
-	//
-	// For this to work, we'd need to update the FileRepository to support filtering by multiple collection IDs
-	// Otherwise, we'd need to loop through each collection and delete its files
+	// //
+	// // STEP 7: Delete the collection and all its descendants
+	// //
+	// err = svc.repo.Delete(ctx, req.ID)
+	// if err != nil {
+	// 	svc.logger.Error("Failed to delete collection",
+	// 		zap.Any("error", err),
+	// 		zap.Any("collection_id", req.ID))
+	// 	return nil, err
+	// }
 
-	//
-	// STEP 7: Delete the collection and all its descendants
-	//
-	err = svc.repo.Delete(ctx, req.ID)
-	if err != nil {
-		svc.logger.Error("Failed to delete collection",
-			zap.Any("error", err),
-			zap.Any("collection_id", req.ID))
-		return nil, err
-	}
-
-	svc.logger.Info("Collection deleted successfully",
-		zap.Any("collection_id", req.ID),
-		zap.Int("descendants_count", len(descendants)))
+	// svc.logger.Info("Collection deleted successfully",
+	// 	zap.Any("collection_id", req.ID),
+	// 	zap.Int("descendants_count", len(descendants)))
 
 	return &DeleteCollectionResponseDTO{
 		Success: true,

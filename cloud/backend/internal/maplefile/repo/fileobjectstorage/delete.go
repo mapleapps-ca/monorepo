@@ -1,5 +1,5 @@
-// cloud/backend/internal/maplefile/repo/file/storage/delete.go
-package storage
+// cloud/backend/internal/maplefile/repo/fileobjectstorage/delete.go
+package fileobjectstorage
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 )
 
 // DeleteEncryptedData removes encrypted file data from S3
-func (impl *fileStorageRepositoryImpl) DeleteEncryptedData(storagePath string) error {
+func (impl *fileObjectStorageRepositoryImpl) DeleteEncryptedData(storagePath string) error {
 	ctx := context.Background()
 
 	// Delete the encrypted data

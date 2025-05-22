@@ -1,5 +1,5 @@
-// cloud/backend/internal/maplefile/repo/file/metadata/delete.go
-package metadata
+// cloud/backend/internal/maplefile/repo/filemetadata/delete.go
+package filemetadata
 
 import (
 	"context"

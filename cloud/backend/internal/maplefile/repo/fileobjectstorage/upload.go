@@ -1,5 +1,5 @@
-// cloud/backend/internal/maplefile/repo/file/storage/upload.go
-package storage
+// cloud/backend/internal/maplefile/repo/fileobjectstorage/upload.go
+package fileobjectstorage
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 )
 
 // StoreEncryptedData uploads encrypted file data to S3 and returns the storage path
-func (impl *fileStorageRepositoryImpl) StoreEncryptedData(ownerID string, fileID string, encryptedData []byte) (string, error) {
+func (impl *fileObjectStorageRepositoryImpl) StoreEncryptedData(ownerID string, fileID string, encryptedData []byte) (string, error) {
 	ctx := context.Background()
 
 	// Generate a storage path using a deterministic pattern

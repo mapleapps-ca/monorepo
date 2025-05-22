@@ -1,5 +1,5 @@
-// cloud/backend/internal/maplefile/repo/file/metadata/check.go
-package metadata
+// cloud/backend/internal/maplefile/repo/filemetadata/check.go
+package filemetadata
 
 import (
 	"context"
