@@ -5,6 +5,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/service/collection"
+	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/service/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/service/me"
 )
 
@@ -34,6 +35,15 @@ func Module() fx.Option {
 			collection.NewShareCollectionService,
 			collection.NewRemoveMemberService,
 			collection.NewListSharedCollectionsService,
+
+			// File services
+			file.NewUploadFileService,
+			file.NewDeleteFileService,
+			file.NewDeleteMultipleFilesService,
+			file.NewDownloadFileService,
+			file.NewGetFileService,
+			file.NewListFilesByCollectionService,
+			file.NewUpdateFileService,
 		),
 	)
 }
