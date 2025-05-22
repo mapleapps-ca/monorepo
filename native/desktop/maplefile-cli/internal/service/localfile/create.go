@@ -61,10 +61,6 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
-	if input.EncryptedFileID == "" {
-		return nil, errors.NewAppError("encrypted file ID is required", nil)
-	}
-
 	if input.EncryptedMetadata == "" {
 		return nil, errors.NewAppError("encrypted metadata is required", nil)
 	}
@@ -81,7 +77,6 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 
 	// Prepare use case input
 	useCaseInput := uc.CreateLocalFileInput{
-		EncryptedFileID:   input.EncryptedFileID,
 		CollectionID:      collectionID,
 		EncryptedMetadata: input.EncryptedMetadata,
 		DecryptedName:     input.DecryptedName,

@@ -19,11 +19,6 @@ func (repo *fileRepositoryImpl) GetMany(ids []primitive.ObjectID) ([]*dom_file.F
 	return repo.metadata.GetByIDs(ids)
 }
 
-// GetByEncryptedFileID implements the FileRepository.GetByEncryptedFileID method
-func (repo *fileRepositoryImpl) GetByEncryptedFileID(encryptedFileID string) (*dom_file.File, error) {
-	return repo.metadata.GetByEncryptedFileID(encryptedFileID)
-}
-
 // GetByCollection implements the FileRepository.GetByCollection method
 func (repo *fileRepositoryImpl) GetByCollection(collectionID string) ([]*dom_file.File, error) {
 	objectID, err := primitive.ObjectIDFromHex(collectionID)
@@ -34,19 +29,19 @@ func (repo *fileRepositoryImpl) GetByCollection(collectionID string) ([]*dom_fil
 }
 
 // GetEncryptedData implements the FileRepository.GetEncryptedData method
-func (repo *fileRepositoryImpl) GetEncryptedData(fileID string) ([]byte, error) {
+func (repo *fileRepositoryImpl) GetEncryptedData(fileID primitive.ObjectID) ([]byte, error) {
 	// Get file metadata to ensure it exists and get storage path
-	file, err := repo.metadata.GetByEncryptedFileID(fileID)
+	file, err := repo.metadata.Get(fileID)
 	if err != nil {
 		return nil, err
 	}
 	if file == nil {
-		return nil, fmt.Errorf("file not found: %s", fileID)
+		return nil, fmt.Errorf("file not found: %s", fileID.Hex())
 	}
 
 	// Check if file has been stored
 	if file.FileObjectKey == "" {
-		return nil, fmt.Errorf("file data not yet stored: %s", fileID)
+		return nil, fmt.Errorf("file data not yet stored: %s", fileID.Hex())
 	}
 
 	// Retrieve the encrypted data from S3

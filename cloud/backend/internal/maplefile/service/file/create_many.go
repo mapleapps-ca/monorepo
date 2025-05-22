@@ -142,17 +142,10 @@ func (svc *createManyFilesServiceImpl) Execute(ctx context.Context, req *CreateM
 		// Create file domain object
 		fileID := primitive.NewObjectID()
 
-		// Use the provided EncryptedFileID or generate one
-		encryptedFileID := fileReq.EncryptedFileID
-		if encryptedFileID == "" {
-			encryptedFileID = primitive.NewObjectID().Hex()
-		}
-
 		file := &dom_file.File{
 			ID:                 fileID,
 			CollectionID:       fileReq.CollectionID,
 			OwnerID:            userID,
-			EncryptedFileID:    encryptedFileID,
 			EncryptedFileSize:  fileReq.EncryptedFileSize,
 			EncryptedMetadata:  fileReq.EncryptedMetadata,
 			EncryptedFileKey:   fileReq.EncryptedFileKey,
@@ -189,7 +182,6 @@ func (svc *createManyFilesServiceImpl) Execute(ctx context.Context, req *CreateM
 			ID:                 file.ID,
 			CollectionID:       file.CollectionID,
 			OwnerID:            file.OwnerID,
-			EncryptedFileID:    file.EncryptedFileID,
 			FileObjectKey:      file.FileObjectKey,
 			EncryptedFileSize:  file.EncryptedFileSize,
 			EncryptedMetadata:  file.EncryptedMetadata,

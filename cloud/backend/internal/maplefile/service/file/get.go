@@ -114,7 +114,7 @@ func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID primitive.Obj
 	// Only generate download URL if the file has been uploaded and stored
 	if file.FileObjectKey != "" {
 		// Determine storage path for the file
-		storagePath := fmt.Sprintf("users/%s/files/%s", file.OwnerID.Hex(), file.EncryptedFileID)
+		storagePath := fmt.Sprintf("users/%s/files/%s", file.OwnerID.Hex(), file.ID.Hex())
 
 		// Generate a presigned URL valid for 5 minutes
 		expiration := 5 * time.Minute
@@ -139,7 +139,6 @@ func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID primitive.Obj
 		ID:                 file.ID,
 		CollectionID:       file.CollectionID,
 		OwnerID:            file.OwnerID,
-		EncryptedFileID:    file.EncryptedFileID,
 		FileObjectKey:      file.FileObjectKey,
 		EncryptedFileSize:  file.EncryptedFileSize,
 		EncryptedMetadata:  file.EncryptedMetadata,

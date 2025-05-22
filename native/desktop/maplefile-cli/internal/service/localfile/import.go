@@ -17,7 +17,6 @@ import (
 type ImportInput struct {
 	FilePath          string                `json:"file_path"`
 	CollectionID      string                `json:"collection_id"`
-	EncryptedFileID   string                `json:"encrypted_file_id"`
 	EncryptedMetadata string                `json:"encrypted_metadata"`
 	DecryptedName     string                `json:"decrypted_name,omitempty"`
 	DecryptedMimeType string                `json:"decrypted_mime_type,omitempty"`
@@ -65,10 +64,6 @@ func (s *importService) Import(ctx context.Context, input ImportInput) (*ImportO
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
-	if input.EncryptedFileID == "" {
-		return nil, errors.NewAppError("encrypted file ID is required", nil)
-	}
-
 	if input.EncryptedMetadata == "" {
 		return nil, errors.NewAppError("encrypted metadata is required", nil)
 	}
@@ -90,7 +85,6 @@ func (s *importService) Import(ctx context.Context, input ImportInput) (*ImportO
 	useCaseInput := uc.ImportFileInput{
 		FilePath:          input.FilePath,
 		CollectionID:      collectionID,
-		EncryptedFileID:   input.EncryptedFileID,
 		EncryptedMetadata: input.EncryptedMetadata,
 		DecryptedName:     input.DecryptedName,
 		DecryptedMimeType: input.DecryptedMimeType,

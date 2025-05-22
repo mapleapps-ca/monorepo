@@ -87,11 +87,11 @@ func (s *syncCollectionService) Execute(
 	remoteFileMap := make(map[string]*remotefile.RemoteFile)
 
 	for _, file := range localFiles {
-		localFileMap[file.EncryptedFileID] = file
+		localFileMap[file.RemoteID] = file
 	}
 
 	for _, file := range remoteFiles {
-		remoteFileMap[file.EncryptedFileID] = file
+		remoteFileMap[file.RemoteID] = file
 	}
 
 	// Initialize result

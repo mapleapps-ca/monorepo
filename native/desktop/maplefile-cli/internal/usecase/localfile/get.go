@@ -15,7 +15,6 @@ import (
 type GetLocalFileUseCase interface {
 	ByID(ctx context.Context, id primitive.ObjectID) (*localfile.LocalFile, error)
 	ByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*localfile.LocalFile, error)
-	ByEncryptedFileID(ctx context.Context, encryptedFileID string) (*localfile.LocalFile, error)
 	GetFileData(ctx context.Context, file *localfile.LocalFile) ([]byte, error)
 	GetThumbnail(ctx context.Context, file *localfile.LocalFile) ([]byte, error)
 }
@@ -78,29 +77,6 @@ func (uc *getLocalFileUseCase) ByRemoteID(
 
 	if file == nil {
 		return nil, errors.NewAppError("local file with the specified remote ID not found", nil)
-	}
-
-	return file, nil
-}
-
-// ByEncryptedFileID retrieves a local file by its encrypted file ID
-func (uc *getLocalFileUseCase) ByEncryptedFileID(
-	ctx context.Context,
-	encryptedFileID string,
-) (*localfile.LocalFile, error) {
-	// Validate inputs
-	if encryptedFileID == "" {
-		return nil, errors.NewAppError("encrypted file ID is required", nil)
-	}
-
-	// Get the file from the repository
-	file, err := uc.repository.GetByEncryptedFileID(ctx, encryptedFileID)
-	if err != nil {
-		return nil, errors.NewAppError("failed to get local file by encrypted file ID", err)
-	}
-
-	if file == nil {
-		return nil, errors.NewAppError("local file with the specified encrypted file ID not found", nil)
 	}
 
 	return file, nil

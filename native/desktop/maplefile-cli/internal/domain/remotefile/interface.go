@@ -11,7 +11,7 @@ import (
 type RemoteFileRepository interface {
 	Create(ctx context.Context, request *RemoteCreateFileRequest) (*RemoteFileResponse, error)
 	Fetch(ctx context.Context, id primitive.ObjectID) (*RemoteFile, error)
-	GetByEncryptedFileID(ctx context.Context, encryptedFileID string) (*RemoteFile, error)
+	GetByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*RemoteFile, error)
 	ListByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*RemoteFile, error)
 	List(ctx context.Context, filter RemoteFileFilter) ([]*RemoteFile, error)
 	Delete(ctx context.Context, id primitive.ObjectID) error
@@ -19,7 +19,7 @@ type RemoteFileRepository interface {
 	// Upload/download operations
 	GetDownloadURL(ctx context.Context, fileID primitive.ObjectID) (string, error)
 	UploadFile(ctx context.Context, fileID primitive.ObjectID, data []byte) error
-	UploadFileByEncryptedID(ctx context.Context, encryptedFileID string, data []byte) error
+	UploadFileByRemoteID(ctx context.Context, remoteID primitive.ObjectID, data []byte) error
 	DownloadFile(ctx context.Context, fileID primitive.ObjectID) ([]byte, error)
 }
 

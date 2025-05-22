@@ -10,10 +10,11 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotefile"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// GetByEncryptedFileID retrieves a file by its encrypted file ID
-func (r *remoteFileRepository) GetByEncryptedFileID(ctx context.Context, encryptedFileID string) (*remotefile.RemoteFile, error) {
+// GetByRemoteID retrieves a file by its remote ID
+func (r *remoteFileRepository) GetByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*remotefile.RemoteFile, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -27,7 +28,7 @@ func (r *remoteFileRepository) GetByEncryptedFileID(ctx context.Context, encrypt
 	}
 
 	// Create HTTP request
-	fetchURL := fmt.Sprintf("%s/maplefile/api/v1/files/by-encrypted-id/%s", serverURL, encryptedFileID)
+	fetchURL := fmt.Sprintf("%s/maplefile/api/v1/files/id/%s", serverURL, remoteID)
 	req, err := http.NewRequestWithContext(ctx, "GET", fetchURL, nil)
 	if err != nil {
 		return nil, errors.NewAppError("failed to create HTTP request", err)
@@ -67,7 +68,6 @@ func (r *remoteFileRepository) GetByEncryptedFileID(ctx context.Context, encrypt
 		ID:                 response.ID,
 		CollectionID:       response.CollectionID,
 		OwnerID:            response.OwnerID,
-		EncryptedFileID:    response.EncryptedFileID,
 		FileObjectKey:      response.FileObjectKey,
 		EncryptedFileSize:  response.EncryptedFileSize,
 		EncryptedMetadata:  response.EncryptedMetadata,

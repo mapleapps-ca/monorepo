@@ -13,7 +13,7 @@ import (
 // Create creates a new local file
 func (r *localFileRepository) Create(ctx context.Context, file *localfile.LocalFile) error {
 	r.logger.Debug("Creating new local file",
-		zap.String("encryptedFileID", file.EncryptedFileID))
+		zap.String("remoteID", file.RemoteID.Hex()))
 
 	// Ensure file has an ID
 	if file.ID.IsZero() {

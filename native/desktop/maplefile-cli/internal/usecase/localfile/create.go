@@ -15,7 +15,6 @@ import (
 
 // CreateLocalFileInput defines the input for creating a local file
 type CreateLocalFileInput struct {
-	EncryptedFileID   string
 	CollectionID      primitive.ObjectID
 	EncryptedMetadata string
 	DecryptedName     string
@@ -55,10 +54,6 @@ func (uc *createLocalFileUseCase) Execute(
 	input CreateLocalFileInput,
 ) (*localfile.LocalFile, error) {
 	// Validate inputs
-	if input.EncryptedFileID == "" {
-		return nil, errors.NewAppError("encrypted file ID is required", nil)
-	}
-
 	if input.CollectionID.IsZero() {
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
@@ -75,7 +70,6 @@ func (uc *createLocalFileUseCase) Execute(
 	file := &localfile.LocalFile{
 		ID:                primitive.NewObjectID(),
 		CollectionID:      input.CollectionID,
-		EncryptedFileID:   input.EncryptedFileID,
 		EncryptedMetadata: input.EncryptedMetadata,
 		DecryptedName:     input.DecryptedName,
 		DecryptedMimeType: input.DecryptedMimeType,

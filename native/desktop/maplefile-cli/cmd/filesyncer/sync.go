@@ -6,17 +6,18 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 )
 
-// syncFileCmd creates a command for syncing a file by encrypted file ID
+// syncFileCmd creates a command for syncing a file by file ID
 func syncFileCmd(
 	syncService filesyncer.SyncFileService,
 	logger *zap.Logger,
 ) *cobra.Command {
-	var encryptedFileID string
+	var fileID string
 	var force bool
 
 	var cmd = &cobra.Command{
@@ -25,7 +26,7 @@ func syncFileCmd(
 		Long: `
 Synchronize a file between local and remote storage.
 
-This command finds a file by its encrypted file ID and synchronizes it between
+This command finds a file by its ID and synchronizes it between
 local and remote storage. The sync direction is determined automatically based
 on file existence and modification times.
 
@@ -37,24 +38,31 @@ Sync behavior:
 
 Examples:
   # Auto-sync a file (recommended)
-  maplefile-cli filesyncer sync --encrypted-id abc123def456
+  maplefile-cli filesyncer sync --file-id 507f1f77bcf86cd799439011
 
   # Force sync without confirmation
-  maplefile-cli filesyncer sync --encrypted-id abc123def456 --force
+  maplefile-cli filesyncer sync --file-id 507f1f77bcf86cd799439011 --force
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
 
 			// Validate required fields
-			if encryptedFileID == "" {
-				fmt.Println("Error: Encrypted file ID is required.")
-				fmt.Println("Use --encrypted-id flag to specify the encrypted file ID.")
+			if fileID == "" {
+				fmt.Println("Error: File ID is required.")
+				fmt.Println("Use --file-id flag to specify the file ID.")
+				return
+			}
+
+			// Convert string ID to ObjectID
+			objectID, err := primitive.ObjectIDFromHex(fileID)
+			if err != nil {
+				fmt.Printf("🐞 Error: Invalid file ID format: %v\n", err)
 				return
 			}
 
 			// Confirm sync
 			if !force {
-				fmt.Printf("🚀 Ready to auto-sync file with encrypted ID: %s\n", encryptedFileID)
+				fmt.Printf("🚀 Ready to auto-sync file with ID: %s\n", fileID)
 				if !confirmAction("Do you want to continue? (y/n): ") {
 					fmt.Println("Sync cancelled.")
 					return
@@ -64,12 +72,12 @@ Examples:
 			fmt.Println("\n🔄 Synchronizing file...")
 
 			logger.Debug("Syncing file",
-				zap.String("encryptedFileID", encryptedFileID),
+				zap.String("fileID", fileID),
 				zap.Bool("force", force))
 
 			// Prepare sync input
 			syncInput := filesyncer.SyncFileInput{
-				EncryptedFileID: encryptedFileID,
+				FileID: objectID,
 			}
 
 			// Sync the file
@@ -110,11 +118,11 @@ Examples:
 	}
 
 	// Define command flags
-	cmd.Flags().StringVar(&encryptedFileID, "encrypted-id", "", "Encrypted file ID to sync (required)")
+	cmd.Flags().StringVar(&fileID, "file-id", "", "File ID to sync (required)")
 	cmd.Flags().BoolVar(&force, "force", false, "Skip confirmation prompts")
 
 	// Mark required flags
-	cmd.MarkFlagRequired("encrypted-id")
+	cmd.MarkFlagRequired("file-id")
 
 	return cmd
 }

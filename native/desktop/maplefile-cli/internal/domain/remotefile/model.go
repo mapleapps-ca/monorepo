@@ -1,4 +1,4 @@
-// internal/domain/remotefile/model.go
+// native/desktop/maplefile-cli/internal/domain/remotefile/model.go
 package remotefile
 
 import (
@@ -19,9 +19,6 @@ type RemoteFile struct {
 
 	// Owner of the file
 	OwnerID primitive.ObjectID `json:"owner_id"`
-
-	// Encrypted file identifier (client-generated)
-	EncryptedFileID string `json:"encrypted_file_id"`
 
 	// The path/key in S3 storage where the encrypted file is stored
 	FileObjectKey string `json:"file_object_key"`
@@ -66,7 +63,6 @@ type RemoteFileResponse struct {
 	ID                    primitive.ObjectID    `json:"id"`
 	CollectionID          primitive.ObjectID    `json:"collection_id"`
 	OwnerID               primitive.ObjectID    `json:"owner_id"`
-	EncryptedFileID       string                `json:"encrypted_file_id"`
 	FileObjectKey         string                `json:"file_object_key"`
 	EncryptedFileSize     int64                 `json:"encrypted_file_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`
@@ -84,7 +80,6 @@ type RemoteFileResponse struct {
 // RemoteCreateFileRequest represents the data needed to create a file
 type RemoteCreateFileRequest struct {
 	CollectionID          primitive.ObjectID    `json:"collection_id"`
-	EncryptedFileID       string                `json:"encrypted_file_id"`
 	EncryptedFileSize     int64                 `json:"encrypted_file_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`
 	EncryptedMetadata     string                `json:"encrypted_metadata"`

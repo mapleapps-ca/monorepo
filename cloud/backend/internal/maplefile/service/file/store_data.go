@@ -16,8 +16,8 @@ import (
 )
 
 type StoreFileDataRequestDTO struct {
-	EncryptedFileID string `json:"encrypted_file_id"`
-	Data            []byte `json:"data"`
+	FileID primitive.ObjectID `json:"file_id"`
+	Data   []byte             `json:"data"`
 }
 
 type StoreFileDataResponseDTO struct {
@@ -60,9 +60,9 @@ func (svc *storeFileDataServiceImpl) Execute(sessCtx context.Context, req *Store
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "File data is required")
 	}
 
-	if req.EncryptedFileID == "" {
-		svc.logger.Warn("Empty encrypted file ID")
-		return nil, httperror.NewForBadRequestWithSingleField("encrypted_file_id", "Encrypted file ID is required")
+	if req.FileID.IsZero() {
+		svc.logger.Warn("Empty file ID")
+		return nil, httperror.NewForBadRequestWithSingleField("file_id", "File ID is required")
 	}
 
 	if len(req.Data) == 0 {
@@ -82,17 +82,17 @@ func (svc *storeFileDataServiceImpl) Execute(sessCtx context.Context, req *Store
 	//
 	// STEP 3: Retrieve existing file
 	//
-	file, err := svc.fileRepo.GetByEncryptedFileID(req.EncryptedFileID)
+	file, err := svc.fileRepo.Get(req.FileID)
 	if err != nil {
 		svc.logger.Error("Failed to get file",
 			zap.Any("error", err),
-			zap.String("encrypted_file_id", req.EncryptedFileID))
+			zap.String("file_id", req.FileID.Hex()))
 		return nil, err
 	}
 
 	if file == nil {
 		svc.logger.Debug("File not found",
-			zap.String("encrypted_file_id", req.EncryptedFileID))
+			zap.String("file_id", req.FileID.Hex()))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "File not found")
 	}
 
@@ -116,32 +116,32 @@ func (svc *storeFileDataServiceImpl) Execute(sessCtx context.Context, req *Store
 	if !hasAccess {
 		svc.logger.Warn("Unauthorized file data upload attempt",
 			zap.Any("user_id", userID),
-			zap.String("encrypted_file_id", req.EncryptedFileID))
+			zap.String("file_id", req.FileID.Hex()))
 		return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have permission to upload data for this file")
 	}
 
 	//
 	// STEP 5: Store encrypted data
 	//
-	err = svc.fileRepo.StoreEncryptedData(req.EncryptedFileID, req.Data)
+	err = svc.fileRepo.StoreEncryptedData(req.FileID, req.Data)
 	if err != nil {
 		svc.logger.Error("Failed to store file data",
 			zap.Any("error", err),
-			zap.String("encrypted_file_id", req.EncryptedFileID))
+			zap.String("file_id", req.FileID.Hex()))
 		return nil, err
 	}
 
 	// Refresh file data to get updated storage path
-	updatedFile, err := svc.fileRepo.GetByEncryptedFileID(req.EncryptedFileID)
+	updatedFile, err := svc.fileRepo.Get(req.FileID)
 	if err != nil {
 		svc.logger.Error("Failed to get updated file",
 			zap.Any("error", err),
-			zap.String("encrypted_file_id", req.EncryptedFileID))
+			zap.String("file_id", req.FileID.Hex()))
 		return nil, err
 	}
 
 	svc.logger.Info("📄⬆️☁️ File data stored successfully",
-		zap.String("encrypted_file_id", req.EncryptedFileID),
+		zap.String("file_id", req.FileID.Hex()),
 		zap.String("file_object_key", updatedFile.FileObjectKey),
 		zap.Int64("encrypted_file_size", updatedFile.EncryptedFileSize))
 

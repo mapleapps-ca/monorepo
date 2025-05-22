@@ -1,4 +1,4 @@
-// internal/domain/localfile/model.go
+// native/desktop/maplefile-cli/internal/domain/localfile/model.go
 package localfile
 
 import (
@@ -22,9 +22,6 @@ type LocalFile struct {
 
 	// Owner of the file
 	OwnerID primitive.ObjectID `json:"owner_id"`
-
-	// Encrypted file identifier (client-generated)
-	EncryptedFileID string `json:"encrypted_file_id"`
 
 	// Encrypted metadata (JSON blob encrypted by client)
 	// Contains file name, mime type, etc.

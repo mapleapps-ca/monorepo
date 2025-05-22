@@ -1,9 +1,10 @@
-// internal/service/filesyncer/sync.go
+// native/desktop/maplefile-cli/internal/service/filesyncer/sync.go
 package filesyncer
 
 import (
 	"context"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
@@ -15,7 +16,7 @@ import (
 
 // SyncFileInput defines the input for syncing a file
 type SyncFileInput struct {
-	EncryptedFileID string
+	FileID primitive.ObjectID // Use actual file ID instead of encrypted file ID
 }
 
 // SyncFileResult contains information about a sync operation
@@ -59,32 +60,52 @@ func NewSyncFileService(
 	}
 }
 
-// Execute synchronizes a file by its encrypted file ID
+// Execute synchronizes a file by its ID
 func (s *syncFileService) Execute(
 	ctx context.Context,
 	input SyncFileInput,
 ) (*SyncFileResult, error) {
 	// Validate inputs
-	if input.EncryptedFileID == "" {
-		return nil, errors.NewAppError("encrypted file ID is required", nil)
+	if input.FileID.IsZero() {
+		return nil, errors.NewAppError("file ID is required", nil)
 	}
 
-	// Check for local file
-	localFile, err := s.localFileGetUseCase.ByEncryptedFileID(ctx, input.EncryptedFileID)
+	// Try to find the file locally first
+	localFile, err := s.localFileGetUseCase.ByID(ctx, input.FileID)
 	if err != nil {
-		s.logger.Error("Error checking for local file",
-			zap.String("encryptedFileID", input.EncryptedFileID),
+		s.logger.Debug("File not found locally, checking if it's a remote file",
+			zap.String("fileID", input.FileID.Hex()),
 			zap.Error(err))
-		// Continue to check for remote file
 	}
 
-	// Check for remote file
-	remoteFile, err := s.remoteFileFetchUseCase.ByEncryptedFileID(ctx, input.EncryptedFileID)
-	if err != nil {
-		s.logger.Error("Error checking for remote file",
-			zap.String("encryptedFileID", input.EncryptedFileID),
-			zap.Error(err))
-		// Continue with sync logic
+	// Check if we have a local file with a matching remote ID
+	var remoteFile *remotefile.RemoteFile
+	if localFile != nil && !localFile.RemoteID.IsZero() {
+		// Get the corresponding remote file
+		remoteFile, err = s.remoteFileFetchUseCase.ByID(ctx, localFile.RemoteID)
+		if err != nil {
+			s.logger.Error("Error checking for remote file",
+				zap.String("remoteID", localFile.RemoteID.Hex()),
+				zap.Error(err))
+		}
+	} else {
+		// Try to find remote file by the provided ID
+		remoteFile, err = s.remoteFileFetchUseCase.ByID(ctx, input.FileID)
+		if err != nil {
+			s.logger.Debug("File not found remotely either",
+				zap.String("fileID", input.FileID.Hex()),
+				zap.Error(err))
+		}
+
+		// If we found a remote file, check if we have a local file with matching remote ID
+		if remoteFile != nil && localFile == nil {
+			localFile, err = s.localFileGetUseCase.ByRemoteID(ctx, remoteFile.ID)
+			if err != nil {
+				s.logger.Debug("No local file found with matching remote ID",
+					zap.String("remoteID", remoteFile.ID.Hex()),
+					zap.Error(err))
+			}
+		}
 	}
 
 	// Determine sync direction and execute
@@ -170,6 +191,6 @@ func (s *syncFileService) Execute(
 
 	} else {
 		// Neither exists
-		return nil, errors.NewAppError("file not found with the specified encrypted file ID", nil)
+		return nil, errors.NewAppError("file not found with the specified ID", nil)
 	}
 }

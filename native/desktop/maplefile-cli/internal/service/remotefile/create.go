@@ -16,7 +16,6 @@ import (
 // CreateInput represents the input for creating a remote file
 type CreateInput struct {
 	CollectionID          string                `json:"collection_id"`
-	EncryptedFileID       string                `json:"encrypted_file_id"`
 	EncryptedFileSize     int64                 `json:"encrypted_file_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size,omitempty"`
 	EncryptedMetadata     string                `json:"encrypted_metadata"`
@@ -60,10 +59,6 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
-	if input.EncryptedFileID == "" {
-		return nil, errors.NewAppError("encrypted file ID is required", nil)
-	}
-
 	if input.EncryptedMetadata == "" {
 		return nil, errors.NewAppError("encrypted metadata is required", nil)
 	}
@@ -77,7 +72,6 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 	// Prepare use case input
 	useCaseInput := uc.CreateRemoteFileInput{
 		CollectionID:          collectionID,
-		EncryptedFileID:       input.EncryptedFileID,
 		EncryptedFileSize:     input.EncryptedFileSize,
 		EncryptedOriginalSize: input.EncryptedOriginalSize,
 		EncryptedMetadata:     input.EncryptedMetadata,

@@ -16,7 +16,6 @@ import (
 // CreateRemoteFileInput defines the input for creating a remote file
 type CreateRemoteFileInput struct {
 	CollectionID          primitive.ObjectID
-	EncryptedFileID       string
 	EncryptedFileSize     int64
 	EncryptedOriginalSize string
 	EncryptedMetadata     string
@@ -57,11 +56,6 @@ func (uc *createRemoteFileUseCase) Execute(
 	if input.CollectionID.IsZero() {
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
-
-	if input.EncryptedFileID == "" {
-		return nil, errors.NewAppError("encrypted file ID is required", nil)
-	}
-
 	if input.EncryptedMetadata == "" {
 		return nil, errors.NewAppError("encrypted metadata is required", nil)
 	}
@@ -71,14 +65,12 @@ func (uc *createRemoteFileUseCase) Execute(
 	}
 
 	uc.logger.Info("Creating remote file with data upload",
-		zap.String("encryptedFileID", input.EncryptedFileID),
 		zap.String("collectionID", input.CollectionID.Hex()),
 		zap.Int("fileDataSize", len(input.FileData)))
 
 	// Step 1: Create file metadata on backend
 	request := &remotefile.RemoteCreateFileRequest{
 		CollectionID:          input.CollectionID,
-		EncryptedFileID:       input.EncryptedFileID,
 		EncryptedFileSize:     input.EncryptedFileSize,
 		EncryptedOriginalSize: input.EncryptedOriginalSize,
 		EncryptedMetadata:     input.EncryptedMetadata,
@@ -94,21 +86,18 @@ func (uc *createRemoteFileUseCase) Execute(
 	}
 
 	uc.logger.Info("Remote file metadata created successfully",
-		zap.String("remoteFileID", response.ID.Hex()),
-		zap.String("encryptedFileID", input.EncryptedFileID))
+		zap.String("remoteFileID", response.ID.Hex()))
 
 	// Step 2: Upload file data using encrypted file ID if provided
 	if input.FileData != nil && len(input.FileData) > 0 {
 		uc.logger.Info("Uploading file data to backend/S3 using encrypted file ID",
 			zap.String("remoteFileID", response.ID.Hex()),
-			zap.String("encryptedFileID", input.EncryptedFileID),
 			zap.Int("dataSize", len(input.FileData)))
 
 		// Use encrypted file ID for upload (not MongoDB ObjectID)
 		if err := uc.repository.UploadFileByEncryptedID(ctx, input.EncryptedFileID, input.FileData); err != nil {
 			uc.logger.Error("Failed to upload file data, rolling back file creation",
 				zap.String("remoteFileID", response.ID.Hex()),
-				zap.String("encryptedFileID", input.EncryptedFileID),
 				zap.Error(err))
 
 			// Rollback: Delete the created file metadata
@@ -116,7 +105,6 @@ func (uc *createRemoteFileUseCase) Execute(
 			if deleteErr != nil {
 				uc.logger.Error("Failed to rollback file creation after upload failure",
 					zap.String("remoteFileID", response.ID.Hex()),
-					zap.String("encryptedFileID", input.EncryptedFileID),
 					zap.Error(deleteErr))
 				// Return original upload error, but mention rollback failure
 				return nil, errors.NewAppError(
@@ -125,8 +113,7 @@ func (uc *createRemoteFileUseCase) Execute(
 			}
 
 			uc.logger.Info("Successfully rolled back file creation after upload failure",
-				zap.String("remoteFileID", response.ID.Hex()),
-				zap.String("encryptedFileID", input.EncryptedFileID))
+				zap.String("remoteFileID", response.ID.Hex()))
 
 			// Return the original upload error
 			return nil, errors.NewAppError("failed to upload file data, file creation rolled back", err)
@@ -134,12 +121,10 @@ func (uc *createRemoteFileUseCase) Execute(
 
 		uc.logger.Info("File data uploaded successfully to backend/S3",
 			zap.String("remoteFileID", response.ID.Hex()),
-			zap.String("encryptedFileID", input.EncryptedFileID),
 			zap.Int("uploadedBytes", len(input.FileData)))
 	} else {
 		uc.logger.Debug("No file data provided, skipping upload",
-			zap.String("remoteFileID", response.ID.Hex()),
-			zap.String("encryptedFileID", input.EncryptedFileID))
+			zap.String("remoteFileID", response.ID.Hex()))
 	}
 
 	return response, nil

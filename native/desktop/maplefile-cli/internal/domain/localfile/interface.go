@@ -1,4 +1,4 @@
-// internal/domain/localfile/interface.go
+// native/desktop/maplefile-cli/internal/domain/localfile/interface.go
 package localfile
 
 import (
@@ -15,7 +15,6 @@ type LocalFileRepository interface {
 
 	GetByID(ctx context.Context, id primitive.ObjectID) (*LocalFile, error)
 	GetByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*LocalFile, error)
-	GetByEncryptedFileID(ctx context.Context, encryptedFileID string) (*LocalFile, error)
 
 	List(ctx context.Context, filter LocalFileFilter) ([]*LocalFile, error)
 	ListByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*LocalFile, error)

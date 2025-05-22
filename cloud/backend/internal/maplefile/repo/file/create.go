@@ -16,11 +16,6 @@ func (repo *fileRepositoryImpl) Create(file *dom_file.File) error {
 		file.ID = primitive.NewObjectID()
 	}
 
-	// If EncryptedFileID is not set, generate one - ideally this comes from client
-	if file.EncryptedFileID == "" {
-		file.EncryptedFileID = primitive.NewObjectID().Hex()
-	}
-
 	// Store metadata
 	return repo.metadata.Create(file)
 }
@@ -32,9 +27,6 @@ func (repo *fileRepositoryImpl) CreateMany(files []*dom_file.File) error {
 		if file.ID.IsZero() {
 			file.ID = primitive.NewObjectID()
 		}
-		if file.EncryptedFileID == "" {
-			file.EncryptedFileID = primitive.NewObjectID().Hex()
-		}
 	}
 
 	// Store metadata for all files
@@ -42,18 +34,18 @@ func (repo *fileRepositoryImpl) CreateMany(files []*dom_file.File) error {
 }
 
 // StoreEncryptedData implements the FileRepository.StoreEncryptedData method
-func (repo *fileRepositoryImpl) StoreEncryptedData(fileID string, encryptedData []byte) error {
+func (repo *fileRepositoryImpl) StoreEncryptedData(fileID primitive.ObjectID, encryptedData []byte) error {
 	// Get file metadata to ensure it exists
-	file, err := repo.metadata.GetByEncryptedFileID(fileID)
+	file, err := repo.metadata.Get(fileID)
 	if err != nil {
 		return err
 	}
 	if file == nil {
-		return fmt.Errorf("file not found: %s", fileID)
+		return fmt.Errorf("file not found: %s", fileID.Hex())
 	}
 
 	// Store the encrypted data in S3 - backend doesn't decode/process the content
-	storagePath, err := repo.storage.StoreEncryptedData(file.OwnerID.Hex(), fileID, encryptedData)
+	storagePath, err := repo.storage.StoreEncryptedData(file.OwnerID.Hex(), fileID.Hex(), encryptedData)
 	if err != nil {
 		return err
 	}

@@ -148,7 +148,6 @@ func (svc *updateFileServiceImpl) Execute(sessCtx context.Context, req *UpdateFi
 		ID:                 file.ID,
 		CollectionID:       file.CollectionID,
 		OwnerID:            file.OwnerID,
-		EncryptedFileID:    file.EncryptedFileID,
 		FileObjectKey:      file.FileObjectKey,
 		EncryptedFileSize:  file.EncryptedFileSize,
 		EncryptedMetadata:  file.EncryptedMetadata,

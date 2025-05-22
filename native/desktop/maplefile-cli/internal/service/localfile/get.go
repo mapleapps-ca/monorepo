@@ -22,7 +22,7 @@ type GetOutput struct {
 type GetService interface {
 	GetByID(ctx context.Context, id string) (*GetOutput, error)
 	GetWithData(ctx context.Context, id string) (*GetOutput, error)
-	GetByEncryptedFileID(ctx context.Context, encryptedFileID string) (*GetOutput, error)
+	GetByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*GetOutput, error)
 }
 
 // getService implements the GetService interface
@@ -98,14 +98,14 @@ func (s *getService) GetWithData(ctx context.Context, id string) (*GetOutput, er
 }
 
 // GetByEncryptedFileID retrieves a local file by encrypted file ID
-func (s *getService) GetByEncryptedFileID(ctx context.Context, encryptedFileID string) (*GetOutput, error) {
+func (s *getService) GetByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*GetOutput, error) {
 	// Validate inputs
-	if encryptedFileID == "" {
-		return nil, errors.NewAppError("encrypted file ID is required", nil)
+	if remoteID.IsZero() {
+		return nil, errors.NewAppError("remote ID is required", nil)
 	}
 
 	// Get file
-	file, err := s.getFileUseCase.ByEncryptedFileID(ctx, encryptedFileID)
+	file, err := s.getFileUseCase.ByRemoteID(ctx, remoteID)
 	if err != nil {
 		return nil, err
 	}

@@ -1,3 +1,4 @@
+// native/desktop/maplefile-cli/cmd/localfile/create.go
 package localfile
 
 import (
@@ -90,13 +91,6 @@ Examples:
 				return
 			}
 
-			// Generate a random encrypted file ID
-			encryptedFileID, err := generateRandomHexID(16)
-			if err != nil {
-				fmt.Printf("🐞 Error generating file ID: %v\n", err)
-				return
-			}
-
 			var encryptedFileKey keys.EncryptedFileKey
 			var encryptionVersion string
 			var metadata string
@@ -150,7 +144,6 @@ Examples:
 			importInput := svc_localfile.ImportInput{
 				FilePath:          filePath,
 				CollectionID:      collectionID,
-				EncryptedFileID:   encryptedFileID,
 				EncryptedMetadata: metadata,
 				DecryptedName:     name,
 				DecryptedMimeType: getMimeType(name),

@@ -15,14 +15,13 @@ import (
 	"go.uber.org/zap"
 )
 
-// UploadFileByEncryptedID uploads file data using the encrypted file ID
-func (r *remoteFileRepository) UploadFileByEncryptedID(ctx context.Context, encryptedFileID string, data []byte) error {
+// UploadFileByEncryptedID uploads file data using the remote file ID
+func (r *remoteFileRepository) UploadFileByRemoteID(ctx context.Context, remoteID primitive.ObjectID, data []byte) error {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
 		r.logger.Error("Failed to get cloud provider address",
 			zap.Error(err),
-			zap.String("encryptedFileID", encryptedFileID),
 		)
 		return errors.NewAppError("failed to get cloud provider address", err)
 	}
@@ -32,13 +31,11 @@ func (r *remoteFileRepository) UploadFileByEncryptedID(ctx context.Context, encr
 	if err != nil {
 		r.logger.Error("Failed to get access token for file upload",
 			zap.Error(err),
-			zap.String("encryptedFileID", encryptedFileID),
 		)
 		return err
 	}
 
 	r.logger.Info("Starting file upload to backend using encrypted file ID",
-		zap.String("encryptedFileID", encryptedFileID),
 		zap.Int("dataSize", len(data)))
 
 	// Create multipart form data
@@ -50,7 +47,6 @@ func (r *remoteFileRepository) UploadFileByEncryptedID(ctx context.Context, encr
 	if err != nil {
 		r.logger.Error("Failed to create form file field",
 			zap.Error(err),
-			zap.String("encryptedFileID", encryptedFileID),
 		)
 		return errors.NewAppError("failed to create form file field", err)
 	}
@@ -59,7 +55,6 @@ func (r *remoteFileRepository) UploadFileByEncryptedID(ctx context.Context, encr
 	if _, err := fileWriter.Write(data); err != nil {
 		r.logger.Error("Failed to write file data to form",
 			zap.Error(err),
-			zap.String("encryptedFileID", encryptedFileID),
 		)
 		return errors.NewAppError("failed to write file data to form", err)
 	}
@@ -68,18 +63,16 @@ func (r *remoteFileRepository) UploadFileByEncryptedID(ctx context.Context, encr
 	if err := writer.Close(); err != nil {
 		r.logger.Error("Failed to close multipart writer",
 			zap.Error(err),
-			zap.String("encryptedFileID", encryptedFileID),
 		)
 		return errors.NewAppError("failed to close multipart writer", err)
 	}
 
 	// Create HTTP request using encrypted file ID in URL
-	uploadURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/data", serverURL, encryptedFileID)
+	uploadURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/data", serverURL, remoteID.Hex())
 	req, err := http.NewRequestWithContext(ctx, "POST", uploadURL, &requestBody)
 	if err != nil {
 		r.logger.Error("Failed to create upload request",
 			zap.Error(err),
-			zap.String("encryptedFileID", encryptedFileID),
 		)
 		return errors.NewAppError("failed to create upload request", err)
 	}
@@ -93,7 +86,6 @@ func (r *remoteFileRepository) UploadFileByEncryptedID(ctx context.Context, encr
 	if err != nil {
 		r.logger.Error("Failed to execute upload request",
 			zap.Error(err),
-			zap.String("encryptedFileID", encryptedFileID),
 		)
 		return errors.NewAppError("failed to execute upload request", err)
 	}
@@ -104,7 +96,6 @@ func (r *remoteFileRepository) UploadFileByEncryptedID(ctx context.Context, encr
 	if err != nil {
 		r.logger.Error("Failed to read upload response body",
 			zap.Error(err),
-			zap.String("encryptedFileID", encryptedFileID),
 		)
 		return errors.NewAppError("failed to read upload response body", err)
 	}
@@ -115,7 +106,6 @@ func (r *remoteFileRepository) UploadFileByEncryptedID(ctx context.Context, encr
 			zap.Int("status", resp.StatusCode),
 			zap.String("statusText", resp.Status),
 			zap.ByteString("responseBody", body),
-			zap.String("encryptedFileID", encryptedFileID),
 		)
 		return errors.NewAppError(fmt.Sprintf("backend upload failed with status: %s, body: %s", resp.Status, string(body)), nil)
 	}
@@ -129,13 +119,11 @@ func (r *remoteFileRepository) UploadFileByEncryptedID(ctx context.Context, encr
 	if err := json.Unmarshal(body, &response); err != nil {
 		r.logger.Warn("Failed to parse upload response, but upload succeeded",
 			zap.Error(err),
-			zap.String("encryptedFileID", encryptedFileID),
 		)
 		// Don't return error since upload succeeded
 	}
 
 	r.logger.Info("Successfully uploaded file to backend/S3",
-		zap.String("encryptedFileID", encryptedFileID),
 		zap.Int("uploadedBytes", len(data)),
 		zap.String("fileObjectKey", response.FileObjectKey))
 
@@ -144,12 +132,12 @@ func (r *remoteFileRepository) UploadFileByEncryptedID(ctx context.Context, encr
 
 // UploadFile uploads file data using MongoDB ObjectID (legacy method, kept for compatibility)
 func (r *remoteFileRepository) UploadFile(ctx context.Context, fileID primitive.ObjectID, data []byte) error {
-	// First, get the file to obtain its encrypted file ID
-	file, err := r.Fetch(ctx, fileID)
+	// First, get the file to obtain its remote file
+	remotefile, err := r.Fetch(ctx, fileID)
 	if err != nil {
 		return errors.NewAppError("failed to fetch file to get encrypted file ID", err)
 	}
 
 	// Use the encrypted file ID for upload
-	return r.UploadFileByEncryptedID(ctx, file.EncryptedFileID, data)
+	return r.UploadFileByRemoteID(ctx, remotefile.ID, data)
 }

@@ -109,7 +109,6 @@ func (s *uploadToRemoteService) Execute(
 		// Create a new remote file
 		createInput := remotefileUseCase.CreateRemoteFileInput{
 			CollectionID:      localFile.CollectionID,
-			EncryptedFileID:   localFile.EncryptedFileID,
 			EncryptedFileSize: localFile.EncryptedFileSize,
 			EncryptedMetadata: localFile.EncryptedMetadata,
 			EncryptedFileKey:  localFile.EncryptedFileKey,

@@ -19,7 +19,6 @@ import (
 type ImportFileInput struct {
 	FilePath          string
 	CollectionID      primitive.ObjectID
-	EncryptedFileID   string
 	EncryptedMetadata string
 	DecryptedName     string
 	DecryptedMimeType string
@@ -64,10 +63,6 @@ func (uc *importLocalFileUseCase) Execute(
 
 	if input.CollectionID.IsZero() {
 		return nil, errors.NewAppError("collection ID is required", nil)
-	}
-
-	if input.EncryptedFileID == "" {
-		return nil, errors.NewAppError("encrypted file ID is required", nil)
 	}
 
 	// Validate storage mode
@@ -116,7 +111,6 @@ func (uc *importLocalFileUseCase) Execute(
 	file := &localfile.LocalFile{
 		ID:                primitive.NewObjectID(),
 		CollectionID:      input.CollectionID,
-		EncryptedFileID:   input.EncryptedFileID,
 		EncryptedMetadata: input.EncryptedMetadata,
 		DecryptedName:     decryptedName,
 		DecryptedMimeType: decryptedMimeType,

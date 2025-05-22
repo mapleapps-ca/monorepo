@@ -18,21 +18,18 @@ import (
 )
 
 type CreateFileRequestDTO struct {
-	CollectionID       primitive.ObjectID    `json:"collection_id"`
-	EncryptedFileID    string                `json:"encrypted_file_id"`
-	EncryptedFileSize  int64                 `json:"encrypted_file_size"`
-	EncryptedMetadata  string                `json:"encrypted_metadata"`
-	EncryptedFileKey   keys.EncryptedFileKey `json:"encrypted_file_key"`
-	EncryptionVersion  string                `json:"encryption_version"`
-	EncryptedHash      string                `json:"encrypted_hash"`
-	EncryptedThumbnail string                `json:"encrypted_thumbnail,omitempty"`
+	CollectionID      primitive.ObjectID    `json:"collection_id"`
+	EncryptedFileSize int64                 `json:"encrypted_file_size"`
+	EncryptedMetadata string                `json:"encrypted_metadata"`
+	EncryptedFileKey  keys.EncryptedFileKey `json:"encrypted_file_key"`
+	EncryptionVersion string                `json:"encryption_version"`
+	EncryptedHash     string                `json:"encrypted_hash"`
 }
 
 type FileResponseDTO struct {
 	ID                 primitive.ObjectID    `json:"id"`
 	CollectionID       primitive.ObjectID    `json:"collection_id"`
 	OwnerID            primitive.ObjectID    `json:"owner_id"`
-	EncryptedFileID    string                `json:"encrypted_file_id"`
 	FileObjectKey      string                `json:"file_object_key"`
 	EncryptedFileSize  int64                 `json:"encrypted_file_size"`
 	EncryptedMetadata  string                `json:"encrypted_metadata"`
@@ -96,9 +93,6 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 	if req.EncryptionVersion == "" {
 		e["encryption_version"] = "Encryption version is required"
 	}
-	// if req.EncryptedHash == "" {
-	// 	e["encrypted_hash"] = "Encrypted hash is required"
-	// }
 
 	if len(e) != 0 {
 		svc.logger.Warn("Failed validation",
@@ -162,17 +156,10 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 	now := time.Now()
 	fileID := primitive.NewObjectID()
 
-	// Use the provided EncryptedFileID or generate one
-	encryptedFileID := req.EncryptedFileID
-	if encryptedFileID == "" {
-		encryptedFileID = primitive.NewObjectID().Hex()
-	}
-
 	file := &dom_file.File{
 		ID:                 fileID,
 		CollectionID:       req.CollectionID,
 		OwnerID:            userID,
-		EncryptedFileID:    encryptedFileID,
 		EncryptedFileSize:  req.EncryptedFileSize,
 		EncryptedMetadata:  req.EncryptedMetadata,
 		EncryptedFileKey:   req.EncryptedFileKey,
@@ -191,19 +178,9 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 		svc.logger.Error("Failed to create file",
 			zap.Any("error", err),
 			zap.Any("collection_id", file.CollectionID),
-			zap.String("encrypted_file_id", file.EncryptedFileID))
+			zap.String("file_id", file.ID.Hex()))
 		return nil, err
 	}
-
-	// // Defensive code
-	// if file.FileObjectKey == "" {
-	// 	err := errors.New("file object key is empty")
-	// 	svc.logger.Error("Failed to create file",
-	// 		zap.Any("error", err),
-	// 		zap.Any("collection_id", file.CollectionID),
-	// 		zap.String("encrypted_file_id", file.EncryptedFileID))
-	// 	return nil, err
-	// }
 
 	//
 	// STEP 6: Map domain model to response DTO
@@ -212,7 +189,6 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 		ID:                 file.ID,
 		CollectionID:       file.CollectionID,
 		OwnerID:            file.OwnerID,
-		EncryptedFileID:    file.EncryptedFileID,
 		FileObjectKey:      file.FileObjectKey,
 		EncryptedFileSize:  file.EncryptedFileSize,
 		EncryptedMetadata:  file.EncryptedMetadata,

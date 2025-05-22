@@ -1,4 +1,4 @@
-// monorepo/cloud/backend/internal/maplefile/domain/file/model.go
+// cloud/backend/internal/maplefile/domain/file/model.go
 package file
 
 import (
@@ -18,9 +18,6 @@ type File struct {
 
 	// The path/key in S3 storage where the encrypted file is stored
 	FileObjectKey string `bson:"file_object_key" json:"-"` // Note: This is not exposed to the client
-
-	// Encrypted file identifier (client-generated)
-	EncryptedFileID string `bson:"encrypted_file_id" json:"encrypted_file_id"`
 
 	// Size of the encrypted file in bytes. Note: (1) This is not an encrypted value, it's an actual valid number of the number of bytes the received encrypted file is occuping on our servers. (2) To be used for accounting and billing purposes.
 	EncryptedFileSize int64 `bson:"encrypted_file_size" json:"encrypted_file_size"`

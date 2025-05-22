@@ -1,4 +1,4 @@
-// monorepo/native/desktop/maplefile-cli/internal/repo/localfile/get.go
+// native/desktop/maplefile-cli/internal/repo/localfile/get.go
 package localfile
 
 import (
@@ -40,8 +40,7 @@ func (r *localFileRepository) GetByID(ctx context.Context, id primitive.ObjectID
 	}
 
 	r.logger.Debug("Successfully retrieved file metadata from local storage",
-		zap.String("fileID", id.Hex()),
-		zap.String("encryptedFileID", file.EncryptedFileID))
+		zap.String("fileID", id.Hex()))
 	return file, nil
 }
 
@@ -63,26 +62,5 @@ func (r *localFileRepository) GetByRemoteID(ctx context.Context, remoteID primit
 	}
 
 	r.logger.Debug("File with remote ID not found in local storage", zap.String("remoteID", remoteID.Hex()))
-	return nil, nil
-}
-
-// GetByEncryptedFileID retrieves a local file by its encrypted file ID
-func (r *localFileRepository) GetByEncryptedFileID(ctx context.Context, encryptedFileID string) (*localfile.LocalFile, error) {
-	r.logger.Debug("Retrieving file by encrypted ID from local storage", zap.String("encryptedFileID", encryptedFileID))
-
-	// Get all files and filter
-	files, err := r.List(ctx, localfile.LocalFileFilter{})
-	if err != nil {
-		return nil, errors.NewAppError("failed to list local files", err)
-	}
-
-	// Find the file with matching encrypted file ID
-	for _, file := range files {
-		if file.EncryptedFileID == encryptedFileID {
-			return file, nil
-		}
-	}
-
-	r.logger.Debug("File with encrypted ID not found in local storage", zap.String("encryptedFileID", encryptedFileID))
 	return nil, nil
 }
