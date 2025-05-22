@@ -40,6 +40,8 @@ type FileResponseDTO struct {
 	EncryptedHash      string                `json:"encrypted_hash"`
 	EncryptedFileKey   keys.EncryptedFileKey `json:"encrypted_file_key,omitempty"`
 	ThumbnailObjectKey string                `json:"thumbnail_object_key,omitempty"`
+	DownloadURL        string                `json:"download_url,omitempty"`
+	DownloadExpiry     string                `json:"download_expiry,omitempty"`
 	CreatedAt          time.Time             `json:"created_at"`
 	ModifiedAt         time.Time             `json:"modified_at"`
 }

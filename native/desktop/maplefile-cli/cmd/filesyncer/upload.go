@@ -148,8 +148,8 @@ Examples:
 			fmt.Printf("File Name: %s\n", result.LocalFile.DecryptedName)
 			fmt.Printf("Sync Status: %s\n", getSyncStatusText(result.LocalFile.SyncStatus))
 
-			if result.RemoteFile.UploadURL != "" {
-				fmt.Printf("Upload completed to: %s\n", result.RemoteFile.FileObjectKey)
+			if result.RemoteFile.DownloadURL != "" {
+				fmt.Printf("Download from: %s\n", result.RemoteFile.DownloadURL)
 			}
 
 			fmt.Printf("\n📊 Summary:\n")

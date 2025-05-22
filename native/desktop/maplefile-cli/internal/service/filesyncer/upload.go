@@ -201,15 +201,14 @@ func (s *fileSyncerUploadService) createNewRemoteFile(
 
 	// Create remote file input with complete file data
 	createInput := uc_remotefile.CreateRemoteFileInput{
-		CollectionID:          localFile.CollectionID,
-		EncryptedFileID:       localFile.EncryptedFileID,
-		EncryptedFileSize:     int64(len(encryptedData)),
-		EncryptedOriginalSize: "", // Could be encrypted with file key if needed
-		EncryptedMetadata:     localFile.EncryptedMetadata,
-		EncryptedFileKey:      localFile.EncryptedFileKey,
-		EncryptionVersion:     localFile.EncryptionVersion,
-		EncryptedHash:         localFile.EncryptedHash,
-		FileData:              encryptedData, // This will trigger backend upload
+		CollectionID:      localFile.CollectionID,
+		EncryptedFileID:   localFile.EncryptedFileID,
+		EncryptedFileSize: int64(len(encryptedData)),
+		EncryptedMetadata: localFile.EncryptedMetadata,
+		EncryptedFileKey:  localFile.EncryptedFileKey,
+		EncryptionVersion: localFile.EncryptionVersion,
+		EncryptedHash:     localFile.EncryptedHash,
+		FileData:          encryptedData, // This will trigger backend upload
 	}
 
 	// Execute the complete create + upload flow (with automatic rollback on failure)
@@ -271,19 +270,18 @@ func (s *fileSyncerUploadService) updateExistingRemoteFile(
 
 	// Return updated remote file info
 	return &remotefile.RemoteFileResponse{
-		ID:                    existingRemote.ID,
-		CollectionID:          existingRemote.CollectionID,
-		OwnerID:               existingRemote.OwnerID,
-		EncryptedFileID:       existingRemote.EncryptedFileID,
-		FileObjectKey:         existingRemote.FileObjectKey,
-		EncryptedFileSize:     int64(len(encryptedData)), // Updated size
-		EncryptedOriginalSize: existingRemote.EncryptedOriginalSize,
-		EncryptedMetadata:     localFile.EncryptedMetadata, // Use local metadata (might be updated)
-		EncryptedFileKey:      existingRemote.EncryptedFileKey,
-		EncryptionVersion:     existingRemote.EncryptionVersion,
-		EncryptedHash:         localFile.EncryptedHash, // Use local hash (might be updated)
-		ThumbnailObjectKey:    existingRemote.ThumbnailObjectKey,
-		CreatedAt:             existingRemote.CreatedAt,
-		ModifiedAt:            existingRemote.ModifiedAt,
+		ID:                 existingRemote.ID,
+		CollectionID:       existingRemote.CollectionID,
+		OwnerID:            existingRemote.OwnerID,
+		EncryptedFileID:    existingRemote.EncryptedFileID,
+		FileObjectKey:      existingRemote.FileObjectKey,
+		EncryptedFileSize:  int64(len(encryptedData)),   // Updated size
+		EncryptedMetadata:  localFile.EncryptedMetadata, // Use local metadata (might be updated)
+		EncryptedFileKey:   existingRemote.EncryptedFileKey,
+		EncryptionVersion:  existingRemote.EncryptionVersion,
+		EncryptedHash:      localFile.EncryptedHash, // Use local hash (might be updated)
+		ThumbnailObjectKey: existingRemote.ThumbnailObjectKey,
+		CreatedAt:          existingRemote.CreatedAt,
+		ModifiedAt:         existingRemote.ModifiedAt,
 	}, nil
 }

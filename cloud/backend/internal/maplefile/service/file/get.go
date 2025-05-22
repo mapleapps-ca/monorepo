@@ -3,6 +3,8 @@ package file
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -13,6 +15,7 @@ import (
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
+	s3storage "github.com/mapleapps-ca/monorepo/cloud/backend/pkg/storage/object/s3"
 )
 
 type GetFileService interface {
@@ -24,6 +27,7 @@ type getFileServiceImpl struct {
 	logger         *zap.Logger
 	fileRepo       dom_file.FileRepository
 	collectionRepo dom_collection.CollectionRepository
+	s3Storage      s3storage.S3ObjectStorage
 }
 
 func NewGetFileService(
@@ -31,12 +35,14 @@ func NewGetFileService(
 	logger *zap.Logger,
 	fileRepo dom_file.FileRepository,
 	collectionRepo dom_collection.CollectionRepository,
+	s3Storage s3storage.S3ObjectStorage,
 ) GetFileService {
 	return &getFileServiceImpl{
 		config:         config,
 		logger:         logger,
 		fileRepo:       fileRepo,
 		collectionRepo: collectionRepo,
+		s3Storage:      s3Storage,
 	}
 }
 
@@ -100,7 +106,34 @@ func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID primitive.Obj
 	}
 
 	//
-	// STEP 5: Map domain model to response DTO
+	// STEP 5: Generate pre-signed download URL if file data exists
+	//
+	var downloadURL string
+	var downloadExpiry string
+
+	// Only generate download URL if the file has been uploaded and stored
+	if file.FileObjectKey != "" {
+		// Determine storage path for the file
+		storagePath := fmt.Sprintf("users/%s/files/%s", file.OwnerID.Hex(), file.EncryptedFileID)
+
+		// Generate a presigned URL valid for 5 minutes
+		expiration := 5 * time.Minute
+		url, err := svc.s3Storage.GetPresignedURL(ctx, storagePath, expiration)
+		if err != nil {
+			svc.logger.Error("Failed to generate presigned download URL",
+				zap.Any("error", err),
+				zap.Any("file_id", fileID),
+				zap.String("storage_path", storagePath))
+			// Don't fail the entire request, just log the error and continue without download URL
+			svc.logger.Warn("Continuing without download URL due to presigned URL generation failure")
+		} else {
+			downloadURL = url
+			downloadExpiry = time.Now().Add(expiration).Format(time.RFC3339)
+		}
+	}
+
+	//
+	// STEP 6: Map domain model to response DTO
 	//
 	response := &FileResponseDTO{
 		ID:                 file.ID,
@@ -114,9 +147,15 @@ func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID primitive.Obj
 		EncryptedHash:      file.EncryptedHash,
 		EncryptedFileKey:   file.EncryptedFileKey,
 		ThumbnailObjectKey: file.ThumbnailObjectKey,
+		DownloadURL:        downloadURL,
+		DownloadExpiry:     downloadExpiry,
 		CreatedAt:          file.CreatedAt,
 		ModifiedAt:         file.ModifiedAt,
 	}
+
+	svc.logger.Debug("File retrieved successfully with download URL",
+		zap.Any("file_id", fileID),
+		zap.Bool("has_download_url", downloadURL != ""))
 
 	return response, nil
 }

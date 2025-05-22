@@ -29,9 +29,6 @@ type RemoteFile struct {
 	// Size of the encrypted file in bytes
 	EncryptedFileSize int64 `json:"encrypted_file_size"`
 
-	// The original file size before encryption, encrypted with file key
-	EncryptedOriginalSize string `json:"encrypted_original_size"`
-
 	// Encrypted metadata (JSON blob encrypted by client)
 	// Contains file name, mime type, etc.
 	EncryptedMetadata string `json:"encrypted_metadata"`
@@ -56,6 +53,12 @@ type RemoteFile struct {
 
 	// Current status of the file in the remote system
 	Status FileStatus `json:"status"`
+
+	// Presigned download URL (if available)
+	DownloadURL string `json:"download_url,omitempty"`
+
+	// Download URL expiry time (if available)
+	DownloadExpiry string `json:"download_expiry,omitempty"`
 }
 
 // RemoteFileResponse represents the server's response when creating or fetching a file
@@ -74,8 +77,8 @@ type RemoteFileResponse struct {
 	ThumbnailObjectKey    string                `json:"thumbnail_object_key,omitempty"`
 	CreatedAt             time.Time             `json:"created_at"`
 	ModifiedAt            time.Time             `json:"modified_at"`
-	UploadURL             string                `json:"upload_url,omitempty"`   // Presigned URL for upload
-	DownloadURL           string                `json:"download_url,omitempty"` // Presigned URL for download
+	DownloadURL           string                `json:"download_url,omitempty"`    // Presigned URL for download
+	DownloadExpiry        string                `json:"download_expiry,omitempty"` // Download URL expiry time
 }
 
 // RemoteCreateFileRequest represents the data needed to create a file

@@ -67,21 +67,22 @@ func (r *remoteFileRepository) ListByCollection(ctx context.Context, collectionI
 	files := make([]*remotefile.RemoteFile, 0, len(response.Files))
 	for _, fileResp := range response.Files {
 		file := &remotefile.RemoteFile{
-			ID:                    fileResp.ID,
-			CollectionID:          fileResp.CollectionID,
-			OwnerID:               fileResp.OwnerID,
-			EncryptedFileID:       fileResp.EncryptedFileID,
-			FileObjectKey:         fileResp.FileObjectKey,
-			EncryptedFileSize:     fileResp.EncryptedFileSize,
-			EncryptedOriginalSize: fileResp.EncryptedOriginalSize,
-			EncryptedMetadata:     fileResp.EncryptedMetadata,
-			EncryptedFileKey:      fileResp.EncryptedFileKey,
-			EncryptionVersion:     fileResp.EncryptionVersion,
-			EncryptedHash:         fileResp.EncryptedHash,
-			ThumbnailObjectKey:    fileResp.ThumbnailObjectKey,
-			CreatedAt:             fileResp.CreatedAt,
-			ModifiedAt:            fileResp.ModifiedAt,
-			Status:                remotefile.FileStatusAvailable, // Default to available
+			ID:                 fileResp.ID,
+			CollectionID:       fileResp.CollectionID,
+			OwnerID:            fileResp.OwnerID,
+			EncryptedFileID:    fileResp.EncryptedFileID,
+			FileObjectKey:      fileResp.FileObjectKey,
+			EncryptedFileSize:  fileResp.EncryptedFileSize,
+			EncryptedMetadata:  fileResp.EncryptedMetadata,
+			EncryptedFileKey:   fileResp.EncryptedFileKey,
+			EncryptionVersion:  fileResp.EncryptionVersion,
+			EncryptedHash:      fileResp.EncryptedHash,
+			ThumbnailObjectKey: fileResp.ThumbnailObjectKey,
+			CreatedAt:          fileResp.CreatedAt,
+			ModifiedAt:         fileResp.ModifiedAt,
+			Status:             remotefile.FileStatusAvailable,
+			DownloadURL:        fileResp.DownloadURL,    // Include download URL from response
+			DownloadExpiry:     fileResp.DownloadExpiry, // Include download expiry from response
 		}
 		files = append(files, file)
 	}
@@ -160,21 +161,22 @@ func (r *remoteFileRepository) List(ctx context.Context, filter remotefile.Remot
 	files := make([]*remotefile.RemoteFile, 0, len(response.Files))
 	for _, fileResp := range response.Files {
 		file := &remotefile.RemoteFile{
-			ID:                    fileResp.ID,
-			CollectionID:          fileResp.CollectionID,
-			OwnerID:               fileResp.OwnerID,
-			EncryptedFileID:       fileResp.EncryptedFileID,
-			FileObjectKey:         fileResp.FileObjectKey,
-			EncryptedFileSize:     fileResp.EncryptedFileSize,
-			EncryptedOriginalSize: fileResp.EncryptedOriginalSize,
-			EncryptedMetadata:     fileResp.EncryptedMetadata,
-			EncryptedFileKey:      fileResp.EncryptedFileKey,
-			EncryptionVersion:     fileResp.EncryptionVersion,
-			EncryptedHash:         fileResp.EncryptedHash,
-			ThumbnailObjectKey:    fileResp.ThumbnailObjectKey,
-			CreatedAt:             fileResp.CreatedAt,
-			ModifiedAt:            fileResp.ModifiedAt,
-			Status:                remotefile.FileStatusAvailable,
+			ID:                 fileResp.ID,
+			CollectionID:       fileResp.CollectionID,
+			OwnerID:            fileResp.OwnerID,
+			EncryptedFileID:    fileResp.EncryptedFileID,
+			FileObjectKey:      fileResp.FileObjectKey,
+			EncryptedFileSize:  fileResp.EncryptedFileSize,
+			EncryptedMetadata:  fileResp.EncryptedMetadata,
+			EncryptedFileKey:   fileResp.EncryptedFileKey,
+			EncryptionVersion:  fileResp.EncryptionVersion,
+			EncryptedHash:      fileResp.EncryptedHash,
+			ThumbnailObjectKey: fileResp.ThumbnailObjectKey,
+			CreatedAt:          fileResp.CreatedAt,
+			ModifiedAt:         fileResp.ModifiedAt,
+			Status:             remotefile.FileStatusAvailable,
+			DownloadURL:        fileResp.DownloadURL,    // Include download URL from response
+			DownloadExpiry:     fileResp.DownloadExpiry, // Include download expiry from response
 		}
 		files = append(files, file)
 	}

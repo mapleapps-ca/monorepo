@@ -64,21 +64,22 @@ func (r *remoteFileRepository) GetByEncryptedFileID(ctx context.Context, encrypt
 
 	// Convert the response to a RemoteFile
 	remoteFile := &remotefile.RemoteFile{
-		ID:                    response.ID,
-		CollectionID:          response.CollectionID,
-		OwnerID:               response.OwnerID,
-		EncryptedFileID:       response.EncryptedFileID,
-		FileObjectKey:         response.FileObjectKey,
-		EncryptedFileSize:     response.EncryptedFileSize,
-		EncryptedOriginalSize: response.EncryptedOriginalSize,
-		EncryptedMetadata:     response.EncryptedMetadata,
-		EncryptedFileKey:      response.EncryptedFileKey,
-		EncryptionVersion:     response.EncryptionVersion,
-		EncryptedHash:         response.EncryptedHash,
-		ThumbnailObjectKey:    response.ThumbnailObjectKey,
-		CreatedAt:             response.CreatedAt,
-		ModifiedAt:            response.ModifiedAt,
-		Status:                remotefile.FileStatusAvailable, // Default to available
+		ID:                 response.ID,
+		CollectionID:       response.CollectionID,
+		OwnerID:            response.OwnerID,
+		EncryptedFileID:    response.EncryptedFileID,
+		FileObjectKey:      response.FileObjectKey,
+		EncryptedFileSize:  response.EncryptedFileSize,
+		EncryptedMetadata:  response.EncryptedMetadata,
+		EncryptedFileKey:   response.EncryptedFileKey,
+		EncryptionVersion:  response.EncryptionVersion,
+		EncryptedHash:      response.EncryptedHash,
+		ThumbnailObjectKey: response.ThumbnailObjectKey,
+		CreatedAt:          response.CreatedAt,
+		ModifiedAt:         response.ModifiedAt,
+		Status:             remotefile.FileStatusAvailable, // Default to available
+		DownloadURL:        response.DownloadURL,           // Include download URL from response
+		DownloadExpiry:     response.DownloadExpiry,        // Include download expiry from response
 	}
 
 	return remoteFile, nil
