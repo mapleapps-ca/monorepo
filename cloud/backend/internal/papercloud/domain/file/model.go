@@ -22,7 +22,7 @@ type File struct {
 	StoragePath string `bson:"storage_path" json:"storage_path"`
 
 	// Size of the encrypted file in bytes
-	EncryptedSize int64 `bson:"encrypted_size" json:"encrypted_size"`
+	FileSize int64 `bson:"file_size" json:"file_size"`
 
 	// The original file size before encryption, encrypted with file key
 	EncryptedOriginalSize string `bson:"encrypted_original_size" json:"encrypted_original_size"`

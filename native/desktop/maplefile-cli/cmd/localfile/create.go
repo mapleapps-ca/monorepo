@@ -7,7 +7,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localfile"
-	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
+	svc_localfile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -15,7 +15,7 @@ import (
 
 // createLocalFileCmd creates a command for importing a file to local storage only
 func createLocalFileCmd(
-	importService uc.ImportService,
+	importService svc_localfile.ImportService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var filePath string
@@ -147,7 +147,7 @@ Examples:
 				zap.String("storageMode", storageMode))
 
 			// Prepare import input
-			importInput := uc.ImportInput{
+			importInput := svc_localfile.ImportInput{
 				FilePath:          filePath,
 				CollectionID:      collectionID,
 				EncryptedFileID:   encryptedFileID,

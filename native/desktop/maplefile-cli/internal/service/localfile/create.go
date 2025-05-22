@@ -86,7 +86,6 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 		EncryptedMetadata: input.EncryptedMetadata,
 		DecryptedName:     input.DecryptedName,
 		DecryptedMimeType: input.DecryptedMimeType,
-		OriginalSize:      input.OriginalSize,
 		EncryptedFileKey:  input.EncryptedFileKey,
 		EncryptionVersion: input.EncryptionVersion,
 		FileData:          input.FileData,

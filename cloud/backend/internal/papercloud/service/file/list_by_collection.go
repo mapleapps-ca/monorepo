@@ -125,7 +125,7 @@ func (svc *listFilesByCollectionServiceImpl) Execute(sessCtx context.Context, co
 			OwnerID:               file.OwnerID,
 			FileID:                file.FileID,
 			StoragePath:           file.StoragePath,
-			EncryptedSize:         file.EncryptedSize,
+			FileSize:              file.FileSize,
 			EncryptedOriginalSize: file.EncryptedOriginalSize,
 			EncryptedMetadata:     file.EncryptedMetadata,
 			EncryptionVersion:     file.EncryptionVersion,

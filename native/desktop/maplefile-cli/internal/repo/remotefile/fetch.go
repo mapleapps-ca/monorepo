@@ -67,7 +67,7 @@ func (r *remoteFileRepository) Fetch(ctx context.Context, id primitive.ObjectID)
 		OwnerID:               response.OwnerID,
 		EncryptedFileID:       response.EncryptedFileID,
 		FileObjectKey:         response.FileObjectKey,
-		EncryptedSize:         response.EncryptedSize,
+		FileSize:              response.FileSize,
 		EncryptedOriginalSize: response.EncryptedOriginalSize,
 		EncryptedMetadata:     response.EncryptedMetadata,
 		EncryptedFileKey:      response.EncryptedFileKey,

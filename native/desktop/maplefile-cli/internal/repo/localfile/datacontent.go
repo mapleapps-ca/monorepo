@@ -132,7 +132,7 @@ func (r *localFileRepository) createEncryptedFile(sourcePath, destPath string, f
 		return errors.NewAppError("failed to write encrypted file", err)
 	}
 
-	file.EncryptedSize = int64(len(encryptedData))
+	file.FileSize = int64(len(encryptedData))
 	return nil
 }
 
@@ -156,7 +156,7 @@ func (r *localFileRepository) createDecryptedFile(sourcePath, destPath string, f
 		return errors.NewAppError("failed to copy file data", err)
 	}
 
-	file.OriginalSize = written
+	file.FileSize = written
 	return nil
 }
 
@@ -201,7 +201,7 @@ func (r *localFileRepository) SaveFileData(ctx context.Context, file *localfile.
 		}
 
 		file.EncryptedFilePath = encryptedPath
-		file.EncryptedSize = int64(len(data))
+		file.FileSize = int64(len(data))
 		file.DecryptedFilePath = "" // Clear decrypted path
 
 	case localfile.StorageModeDecryptedOnly:
@@ -211,7 +211,7 @@ func (r *localFileRepository) SaveFileData(ctx context.Context, file *localfile.
 		}
 
 		file.DecryptedFilePath = decryptedPath
-		file.OriginalSize = int64(len(data))
+		file.FileSize = int64(len(data))
 		file.EncryptedFilePath = "" // Clear encrypted path
 
 	case localfile.StorageModeHybrid:
@@ -230,8 +230,7 @@ func (r *localFileRepository) SaveFileData(ctx context.Context, file *localfile.
 
 		file.EncryptedFilePath = encryptedPath
 		file.DecryptedFilePath = decryptedPath
-		file.EncryptedSize = int64(len(data))
-		file.OriginalSize = int64(len(data))
+		file.FileSize = int64(len(data)) // Only save file-size of the encrypted file.
 
 	default:
 		return errors.NewAppError("unsupported storage mode", nil)

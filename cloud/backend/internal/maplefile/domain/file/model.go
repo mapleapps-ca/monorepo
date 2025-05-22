@@ -22,8 +22,8 @@ type File struct {
 	// The path/key in S3 storage where the encrypted file is stored
 	FileObjectKey string `bson:"file_object_key" json:"file_object_key"`
 
-	// Size of the encrypted file in bytes
-	EncryptedSize int64 `bson:"encrypted_size" json:"encrypted_size"`
+	// Size of the file in bytes (with encryption overhead included). To be used for accounting and billing purposes.
+	FileSize int64 `bson:"file_size" json:"file_size"`
 
 	// The original file size before encryption, encrypted with file key
 	EncryptedOriginalSize string `bson:"encrypted_original_size" json:"encrypted_original_size"`

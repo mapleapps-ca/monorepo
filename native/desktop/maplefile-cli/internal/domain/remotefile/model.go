@@ -27,7 +27,7 @@ type RemoteFile struct {
 	FileObjectKey string `json:"file_object_key"`
 
 	// Size of the encrypted file in bytes
-	EncryptedSize int64 `json:"encrypted_size"`
+	FileSize int64 `json:"file_size"`
 
 	// The original file size before encryption, encrypted with file key
 	EncryptedOriginalSize string `json:"encrypted_original_size"`
@@ -65,7 +65,7 @@ type RemoteFileResponse struct {
 	OwnerID               primitive.ObjectID    `json:"owner_id"`
 	EncryptedFileID       string                `json:"encrypted_file_id"`
 	FileObjectKey         string                `json:"file_object_key"`
-	EncryptedSize         int64                 `json:"encrypted_size"`
+	FileSize              int64                 `json:"file_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`
 	EncryptedMetadata     string                `json:"encrypted_metadata"`
 	EncryptedFileKey      keys.EncryptedFileKey `json:"encrypted_file_key"`
@@ -82,7 +82,7 @@ type RemoteFileResponse struct {
 type RemoteCreateFileRequest struct {
 	CollectionID          primitive.ObjectID    `json:"collection_id"`
 	EncryptedFileID       string                `json:"encrypted_file_id"`
-	EncryptedSize         int64                 `json:"encrypted_size"`
+	FileSize              int64                 `json:"file_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`
 	EncryptedMetadata     string                `json:"encrypted_metadata"`
 	EncryptedFileKey      keys.EncryptedFileKey `json:"encrypted_file_key"`

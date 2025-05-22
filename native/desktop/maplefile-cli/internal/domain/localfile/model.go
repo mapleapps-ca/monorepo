@@ -26,11 +26,8 @@ type LocalFile struct {
 	// Encrypted file identifier (client-generated)
 	EncryptedFileID string `json:"encrypted_file_id"`
 
-	// The original file size before encryption
-	OriginalSize int64 `json:"original_size"`
-
-	// The encrypted size of the file
-	EncryptedSize int64 `json:"encrypted_size"`
+	// Size of the file in bytes (with encryption overhead included). To be used for accounting and billing purposes.
+	FileSize int64 `json:"file_size"`
 
 	// Encrypted metadata (JSON blob encrypted by client)
 	// Contains file name, mime type, etc.

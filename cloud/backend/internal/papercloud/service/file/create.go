@@ -20,7 +20,7 @@ import (
 type CreateFileRequestDTO struct {
 	CollectionID          string                `json:"collection_id"`
 	FileID                string                `json:"file_id"`
-	EncryptedSize         int64                 `json:"encrypted_size"`
+	FileSize              int64                 `json:"file_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`
 	EncryptedMetadata     string                `json:"encrypted_metadata"`
 	EncryptedFileKey      keys.EncryptedFileKey `json:"encrypted_file_key"`
@@ -35,7 +35,7 @@ type FileResponseDTO struct {
 	OwnerID               string                `json:"owner_id"`
 	FileID                string                `json:"file_id"`
 	StoragePath           string                `json:"storage_path"`
-	EncryptedSize         int64                 `json:"encrypted_size"`
+	FileSize              int64                 `json:"file_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`
 	EncryptedMetadata     string                `json:"encrypted_metadata"`
 	EncryptionVersion     string                `json:"encryption_version"`
@@ -165,7 +165,7 @@ func (svc *createFileServiceImpl) Execute(sessCtx context.Context, req *CreateFi
 		OwnerID:               userID.Hex(),
 		FileID:                req.FileID,
 		StoragePath:           storagePath,
-		EncryptedSize:         req.EncryptedSize,
+		FileSize:              req.FileSize,
 		EncryptedOriginalSize: req.EncryptedOriginalSize,
 		EncryptedMetadata:     req.EncryptedMetadata,
 		EncryptedFileKey:      req.EncryptedFileKey,
@@ -197,7 +197,7 @@ func (svc *createFileServiceImpl) Execute(sessCtx context.Context, req *CreateFi
 		OwnerID:               file.OwnerID,
 		FileID:                file.FileID,
 		StoragePath:           file.StoragePath,
-		EncryptedSize:         file.EncryptedSize,
+		FileSize:              file.FileSize,
 		EncryptedOriginalSize: file.EncryptedOriginalSize,
 		EncryptedMetadata:     file.EncryptedMetadata,
 		EncryptionVersion:     file.EncryptionVersion,

@@ -20,7 +20,7 @@ import (
 type CreateFileRequestDTO struct {
 	CollectionID          primitive.ObjectID    `json:"collection_id"`
 	EncryptedFileID       string                `json:"encrypted_file_id"`
-	EncryptedSize         int64                 `json:"encrypted_size"`
+	FileSize              int64                 `json:"file_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`
 	EncryptedMetadata     string                `json:"encrypted_metadata"`
 	EncryptedFileKey      keys.EncryptedFileKey `json:"encrypted_file_key"`
@@ -35,7 +35,7 @@ type FileResponseDTO struct {
 	OwnerID               primitive.ObjectID    `json:"owner_id"`
 	EncryptedFileID       string                `json:"encrypted_file_id"`
 	FileObjectKey         string                `json:"file_object_key"`
-	EncryptedSize         int64                 `json:"encrypted_size"`
+	FileSize              int64                 `json:"file_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`
 	EncryptedMetadata     string                `json:"encrypted_metadata"`
 	EncryptionVersion     string                `json:"encryption_version"`
@@ -173,7 +173,7 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 		CollectionID:          req.CollectionID,
 		OwnerID:               userID,
 		EncryptedFileID:       encryptedFileID,
-		EncryptedSize:         req.EncryptedSize,
+		FileSize:              req.FileSize,
 		EncryptedOriginalSize: req.EncryptedOriginalSize,
 		EncryptedMetadata:     req.EncryptedMetadata,
 		EncryptedFileKey:      req.EncryptedFileKey,
@@ -205,7 +205,7 @@ func (svc *createFileServiceImpl) Execute(ctx context.Context, req *CreateFileRe
 		OwnerID:               file.OwnerID,
 		EncryptedFileID:       file.EncryptedFileID,
 		FileObjectKey:         file.FileObjectKey,
-		EncryptedSize:         file.EncryptedSize,
+		FileSize:              file.FileSize,
 		EncryptedOriginalSize: file.EncryptedOriginalSize,
 		EncryptedMetadata:     file.EncryptedMetadata,
 		EncryptionVersion:     file.EncryptionVersion,

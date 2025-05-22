@@ -108,7 +108,7 @@ func (svc *getFileServiceImpl) Execute(sessCtx context.Context, fileID string) (
 		OwnerID:               file.OwnerID,
 		FileID:                file.FileID,
 		StoragePath:           file.StoragePath,
-		EncryptedSize:         file.EncryptedSize,
+		FileSize:              file.FileSize,
 		EncryptedOriginalSize: file.EncryptedOriginalSize,
 		EncryptedMetadata:     file.EncryptedMetadata,
 		EncryptionVersion:     file.EncryptionVersion,

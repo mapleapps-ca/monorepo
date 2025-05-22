@@ -16,7 +16,7 @@ import (
 type CreateRemoteFileInput struct {
 	CollectionID          primitive.ObjectID
 	EncryptedFileID       string
-	EncryptedSize         int64
+	FileSize              int64
 	EncryptedOriginalSize string
 	EncryptedMetadata     string
 	EncryptedFileKey      keys.EncryptedFileKey
@@ -73,7 +73,7 @@ func (uc *createRemoteFileUseCase) Execute(
 	request := &remotefile.RemoteCreateFileRequest{
 		CollectionID:          input.CollectionID,
 		EncryptedFileID:       input.EncryptedFileID,
-		EncryptedSize:         input.EncryptedSize,
+		FileSize:              input.FileSize,
 		EncryptedOriginalSize: input.EncryptedOriginalSize,
 		EncryptedMetadata:     input.EncryptedMetadata,
 		EncryptedFileKey:      input.EncryptedFileKey,

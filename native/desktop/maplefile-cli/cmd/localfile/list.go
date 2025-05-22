@@ -124,7 +124,7 @@ func displayTable(output *svc_localfile.ListOutput) {
 		status := getSyncStatusIcon(file.SyncStatus)
 
 		// Format file size
-		sizeStr := formatFileSize(file.OriginalSize)
+		sizeStr := formatFileSize(file.FileSize)
 
 		// Truncate long names
 		name := file.DecryptedName
@@ -157,7 +157,7 @@ func displaySimple(output *svc_localfile.ListOutput) {
 		fmt.Printf("%s %s (%s)\n",
 			getSyncStatusIcon(file.SyncStatus),
 			file.DecryptedName,
-			formatFileSize(file.OriginalSize))
+			formatFileSize(file.FileSize))
 	}
 }
 
@@ -186,7 +186,7 @@ func displayJSON(output *svc_localfile.ListOutput) {
 		jsonFiles[i] = jsonFile{
 			ID:           file.ID.Hex(),
 			Name:         file.DecryptedName,
-			Size:         file.OriginalSize,
+			Size:         file.FileSize,
 			MimeType:     file.DecryptedMimeType,
 			StorageMode:  file.StorageMode,
 			SyncStatus:   getSyncStatusString(file.SyncStatus),
@@ -238,7 +238,7 @@ func displaySummary(output *svc_localfile.ListOutput) {
 	modeCounts := make(map[string]int)
 
 	for _, file := range output.Files {
-		totalSize += file.OriginalSize
+		totalSize += file.FileSize
 		statusCounts[file.SyncStatus]++
 		modeCounts[file.StorageMode]++
 	}

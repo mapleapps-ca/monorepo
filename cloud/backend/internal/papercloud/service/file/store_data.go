@@ -142,7 +142,7 @@ func (svc *storeFileDataServiceImpl) Execute(sessCtx context.Context, req *Store
 	svc.logger.Info("📄⬆️☁️ File data stored successfully",
 		zap.String("file_id", req.ID),
 		zap.String("storage_path", updatedFile.StoragePath),
-		zap.Int64("size", updatedFile.EncryptedSize))
+		zap.Int64("size", updatedFile.FileSize))
 
 	return &StoreFileDataResponseDTO{
 		Success:     true,

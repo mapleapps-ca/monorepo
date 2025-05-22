@@ -20,7 +20,6 @@ type CreateLocalFileInput struct {
 	EncryptedMetadata string
 	DecryptedName     string
 	DecryptedMimeType string
-	OriginalSize      int64
 	EncryptedFileKey  keys.EncryptedFileKey
 	EncryptionVersion string
 	FileData          []byte
@@ -80,8 +79,7 @@ func (uc *createLocalFileUseCase) Execute(
 		EncryptedMetadata: input.EncryptedMetadata,
 		DecryptedName:     input.DecryptedName,
 		DecryptedMimeType: input.DecryptedMimeType,
-		OriginalSize:      input.OriginalSize,
-		EncryptedSize:     int64(len(input.FileData)),
+		FileSize:          int64(len(input.FileData)),
 		EncryptedFileKey:  input.EncryptedFileKey,
 		EncryptionVersion: input.EncryptionVersion,
 		CreatedAt:         time.Now(),
