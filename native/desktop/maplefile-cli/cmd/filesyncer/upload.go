@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	dom_localfile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localfile"
@@ -15,7 +16,7 @@ import (
 
 // uploadLocalFileCmd creates a command for uploading a local file to the remote backend
 func uploadLocalFileCmd(
-	uploadService filesyncer.UploadService,
+	uploadService filesyncer.UploadToRemoteService,
 	getService localfile.GetService,
 	logger *zap.Logger,
 ) *cobra.Command {
@@ -58,6 +59,13 @@ Examples:
 			if fileID == "" {
 				fmt.Println("Error: File ID is required.")
 				fmt.Println("Use --file-id flag to specify the local file ID.")
+				return
+			}
+
+			// Convert string ID to ObjectID
+			localID, err := primitive.ObjectIDFromHex(fileID)
+			if err != nil {
+				fmt.Printf("🐞 Error: Invalid file ID format: %v\n", err)
 				return
 			}
 
@@ -104,9 +112,9 @@ Examples:
 			if !force {
 				var action string
 				switch file.SyncStatus {
-				case 0: // SyncStatusLocalOnly
+				case dom_localfile.SyncStatusLocalOnly:
 					action = "create a new remote file"
-				case 3: // SyncStatusModifiedLocally
+				case dom_localfile.SyncStatusModifiedLocally:
 					action = "update the existing remote file"
 				default:
 					action = "upload the file"
@@ -128,13 +136,12 @@ Examples:
 				zap.Bool("force", force))
 
 			// Prepare upload input
-			uploadInput := filesyncer.UploadInput{
-				LocalFileID: fileID,
-				ForceUpdate: force,
+			uploadInput := filesyncer.UploadToRemoteInput{
+				LocalID: localID,
 			}
 
 			// Upload the file
-			result, err := uploadService.Upload(ctx, uploadInput)
+			result, err := uploadService.Execute(ctx, uploadInput)
 			if err != nil {
 				fmt.Printf("🐞 Error uploading file: %v\n", err)
 				return
@@ -142,20 +149,25 @@ Examples:
 
 			// Display success message
 			fmt.Println("\n✅ File uploaded successfully!")
-			fmt.Printf("Action: %s\n", result.Action)
+			fmt.Printf("Action: %s\n", result.SynchronizationLog)
 			fmt.Printf("Local File ID: %s\n", result.LocalFile.ID.Hex())
-			fmt.Printf("Remote File ID: %s\n", result.RemoteFile.ID.Hex())
+			if result.RemoteFile != nil {
+				fmt.Printf("Remote File ID: %s\n", result.RemoteFile.ID.Hex())
+			}
 			fmt.Printf("File Name: %s\n", result.LocalFile.DecryptedName)
 			fmt.Printf("Sync Status: %s\n", getSyncStatusText(result.LocalFile.SyncStatus))
+			fmt.Printf("Upload Status: %t\n", result.UploadedToRemote)
 
-			if result.RemoteFile.DownloadURL != "" {
+			if result.RemoteFile != nil && result.RemoteFile.DownloadURL != "" {
 				fmt.Printf("Download from: %s\n", result.RemoteFile.DownloadURL)
 			}
 
 			fmt.Printf("\n📊 Summary:\n")
 			fmt.Printf("  - Local file is now synced with remote backend\n")
-			fmt.Printf("  - File size (encrypted data): %d bytes\n", result.RemoteFile.EncryptedFileSize)
-			fmt.Printf("  - Encryption version: %s\n", result.RemoteFile.EncryptionVersion)
+			if result.RemoteFile != nil {
+				fmt.Printf("  - File size (encrypted data): %d bytes\n", result.RemoteFile.EncryptedFileSize)
+				fmt.Printf("  - Encryption version: %s\n", result.RemoteFile.EncryptionVersion)
+			}
 		},
 	}
 
@@ -172,13 +184,13 @@ Examples:
 // getSyncStatusText returns a human-readable sync status
 func getSyncStatusText(status dom_localfile.SyncStatus) string {
 	switch status {
-	case dom_localfile.SyncStatusLocalOnly: // SyncStatusLocalOnly
+	case dom_localfile.SyncStatusLocalOnly:
 		return "Local Only"
-	case dom_localfile.SyncStatusCloudOnly: // SyncStatusCloudOnly
+	case dom_localfile.SyncStatusCloudOnly:
 		return "Cloud Only"
-	case dom_localfile.SyncStatusSynced: // SyncStatusSynced
+	case dom_localfile.SyncStatusSynced:
 		return "Synced"
-	case dom_localfile.SyncStatusModifiedLocally: // SyncStatusModifiedLocally
+	case dom_localfile.SyncStatusModifiedLocally:
 		return "Modified Locally"
 	default:
 		return "Unknown"

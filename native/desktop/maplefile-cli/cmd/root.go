@@ -51,7 +51,11 @@ func NewRootCmd(
 	fileDeleteService localfileService.DeleteService,
 	fileGetService localfileService.GetService,
 	remoteFetchService remotefile.FetchService,
-	fileSyncerUploadService srv_filesyncer.UploadService,
+	// File syncer services with correct interfaces
+	uploadToRemoteService srv_filesyncer.UploadToRemoteService,
+	downloadToLocalService srv_filesyncer.DownloadToLocalService,
+	syncFileService srv_filesyncer.SyncFileService,
+	syncCollectionService srv_filesyncer.SyncCollectionService,
 	// other services...
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
@@ -90,7 +94,10 @@ func NewRootCmd(
 		fileImportService,
 		fileDeleteService,
 		fileGetService,
-		fileSyncerUploadService,
+		uploadToRemoteService,
+		downloadToLocalService,
+		syncFileService,
+		syncCollectionService,
 		remoteFetchService,
 		logger))
 
