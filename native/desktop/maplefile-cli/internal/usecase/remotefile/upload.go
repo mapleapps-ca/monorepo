@@ -14,7 +14,6 @@ import (
 // UploadRemoteFileUseCase defines the interface for uploading file data
 type UploadRemoteFileUseCase interface {
 	Execute(ctx context.Context, id primitive.ObjectID, data []byte) error
-	GetUploadURL(ctx context.Context, id primitive.ObjectID) (string, error)
 }
 
 // uploadRemoteFileUseCase implements the UploadRemoteFileUseCase interface
@@ -55,23 +54,4 @@ func (uc *uploadRemoteFileUseCase) Execute(
 	}
 
 	return nil
-}
-
-// GetUploadURL gets a pre-signed URL for uploading a file
-func (uc *uploadRemoteFileUseCase) GetUploadURL(
-	ctx context.Context,
-	id primitive.ObjectID,
-) (string, error) {
-	// Validate inputs
-	if id.IsZero() {
-		return "", errors.NewAppError("file ID is required", nil)
-	}
-
-	// Get the upload URL
-	url, err := uc.repository.GetUploadURL(ctx, id)
-	if err != nil {
-		return "", errors.NewAppError("failed to get upload URL", err)
-	}
-
-	return url, nil
 }

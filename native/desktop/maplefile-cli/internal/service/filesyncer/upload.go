@@ -188,7 +188,7 @@ func (s *fileSyncerUploadService) loadEncryptedFileData(ctx context.Context, fil
 	return nil, errors.NewAppError("no encrypted data available for upload", nil)
 }
 
-// createNewRemoteFile creates a new remote file using existing use case
+// createNewRemoteFile creates a new remote file with complete upload flow and rollback
 func (s *fileSyncerUploadService) createNewRemoteFile(
 	ctx context.Context,
 	localFile *localfile.LocalFile,
@@ -209,12 +209,16 @@ func (s *fileSyncerUploadService) createNewRemoteFile(
 		EncryptedFileKey:      localFile.EncryptedFileKey,
 		EncryptionVersion:     localFile.EncryptionVersion,
 		EncryptedHash:         localFile.EncryptedHash,
-		FileData:              encryptedData, // This will trigger S3 upload
+		FileData:              encryptedData, // This will trigger backend upload
 	}
 
-	// Execute the complete create + upload flow
+	// Execute the complete create + upload flow (with automatic rollback on failure)
 	remoteFile, err := s.createRemoteFileUseCase.Execute(ctx, createInput)
 	if err != nil {
+		s.logger.Error("Failed to create and upload remote file",
+			zap.String("localFileID", localFile.ID.Hex()),
+			zap.String("encryptedFileID", localFile.EncryptedFileID),
+			zap.Error(err))
 		return nil, errors.NewAppError("failed to create and upload remote file", err)
 	}
 
@@ -245,12 +249,20 @@ func (s *fileSyncerUploadService) updateExistingRemoteFile(
 	// Fetch existing remote file to verify it exists
 	existingRemote, err := s.fetchRemoteFileUseCase.ByID(ctx, localFile.RemoteID)
 	if err != nil {
+		s.logger.Error("Failed to fetch existing remote file for update",
+			zap.String("localFileID", localFile.ID.Hex()),
+			zap.String("remoteFileID", localFile.RemoteID.Hex()),
+			zap.Error(err))
 		return nil, errors.NewAppError("failed to fetch existing remote file for update", err)
 	}
 
 	// Upload the new data to the existing remote file
 	if err := s.uploadRemoteFileUseCase.Execute(ctx, localFile.RemoteID, encryptedData); err != nil {
-		return nil, errors.NewAppError("failed to upload updated file data to S3", err)
+		s.logger.Error("Failed to upload updated file data",
+			zap.String("localFileID", localFile.ID.Hex()),
+			zap.String("remoteFileID", localFile.RemoteID.Hex()),
+			zap.Error(err))
+		return nil, errors.NewAppError("failed to upload updated file data to backend/S3", err)
 	}
 
 	s.logger.Info("Successfully uploaded updated file data",

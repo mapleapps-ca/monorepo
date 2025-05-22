@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
@@ -14,167 +15,141 @@ import (
 	"go.uber.org/zap"
 )
 
-// GetUploadURL gets a pre-signed URL for uploading a file
-func (r *remoteFileRepository) GetUploadURL(ctx context.Context, fileID primitive.ObjectID) (string, error) {
+// UploadFileByEncryptedID uploads file data using the encrypted file ID
+func (r *remoteFileRepository) UploadFileByEncryptedID(ctx context.Context, encryptedFileID string, data []byte) error {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
 		r.logger.Error("Failed to get cloud provider address",
 			zap.Error(err),
-			zap.Any("fileID", fileID),
+			zap.String("encryptedFileID", encryptedFileID),
 		)
-		return "", errors.NewAppError("failed to get cloud provider address", err)
+		return errors.NewAppError("failed to get cloud provider address", err)
 	}
 
 	// Get access token
 	accessToken, err := r.getAccessToken(ctx)
 	if err != nil {
-		r.logger.Error("Failed to get access token for upload URL",
+		r.logger.Error("Failed to get access token for file upload",
 			zap.Error(err),
-			zap.Any("fileID", fileID),
+			zap.String("encryptedFileID", encryptedFileID),
 		)
-		return "", err
+		return err
 	}
 
-	// Create HTTP request
-	uploadURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/upload-url", serverURL, fileID.Hex())
-	req, err := http.NewRequestWithContext(ctx, "GET", uploadURL, nil)
+	r.logger.Info("Starting file upload to backend using encrypted file ID",
+		zap.String("encryptedFileID", encryptedFileID),
+		zap.Int("dataSize", len(data)))
+
+	// Create multipart form data
+	var requestBody bytes.Buffer
+	writer := multipart.NewWriter(&requestBody)
+
+	// Create form file field
+	fileWriter, err := writer.CreateFormFile("file", "encrypted_file.bin")
 	if err != nil {
-		r.logger.Error("Failed making HTTP request for upload URL",
+		r.logger.Error("Failed to create form file field",
 			zap.Error(err),
-			zap.Any("upload_url", uploadURL),
-			zap.Any("fileID", fileID),
+			zap.String("encryptedFileID", encryptedFileID),
 		)
-		return "", errors.NewAppError("failed to create HTTP request", err)
+		return errors.NewAppError("failed to create form file field", err)
 	}
 
+	// Write file data
+	if _, err := fileWriter.Write(data); err != nil {
+		r.logger.Error("Failed to write file data to form",
+			zap.Error(err),
+			zap.String("encryptedFileID", encryptedFileID),
+		)
+		return errors.NewAppError("failed to write file data to form", err)
+	}
+
+	// Close the multipart writer
+	if err := writer.Close(); err != nil {
+		r.logger.Error("Failed to close multipart writer",
+			zap.Error(err),
+			zap.String("encryptedFileID", encryptedFileID),
+		)
+		return errors.NewAppError("failed to close multipart writer", err)
+	}
+
+	// Create HTTP request using encrypted file ID in URL
+	uploadURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/data", serverURL, encryptedFileID)
+	req, err := http.NewRequestWithContext(ctx, "POST", uploadURL, &requestBody)
+	if err != nil {
+		r.logger.Error("Failed to create upload request",
+			zap.Error(err),
+			zap.String("encryptedFileID", encryptedFileID),
+		)
+		return errors.NewAppError("failed to create upload request", err)
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Authorization", "JWT "+accessToken)
 
 	// Execute the request
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
-		r.logger.Error("Failed to connect to server for upload URL",
+		r.logger.Error("Failed to execute upload request",
 			zap.Error(err),
-			zap.Any("upload_url", uploadURL),
-			zap.Any("fileID", fileID),
+			zap.String("encryptedFileID", encryptedFileID),
 		)
-		return "", errors.NewAppError("failed to connect to server", err)
+		return errors.NewAppError("failed to execute upload request", err)
 	}
 	defer resp.Body.Close()
 
-	// Read response body
+	// Read response body for error details
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		r.logger.Error("Failed to read response body for upload URL",
+		r.logger.Error("Failed to read upload response body",
 			zap.Error(err),
-			zap.Any("upload_url", uploadURL),
-			zap.Int("status", resp.StatusCode),
-			zap.Any("fileID", fileID),
+			zap.String("encryptedFileID", encryptedFileID),
 		)
-		return "", errors.NewAppError("failed to read response", err)
+		return errors.NewAppError("failed to read upload response body", err)
 	}
 
-	// Check for error status codes
-	if resp.StatusCode != http.StatusOK {
-		r.logger.Error("Server returned error status for upload URL",
+	// Check for success status codes
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		r.logger.Error("Backend returned error status during file upload",
 			zap.Int("status", resp.StatusCode),
 			zap.String("statusText", resp.Status),
 			zap.ByteString("responseBody", body),
-			zap.Any("upload_url", uploadURL),
-			zap.Any("fileID", fileID),
+			zap.String("encryptedFileID", encryptedFileID),
 		)
-		return "", errors.NewAppError(fmt.Sprintf("server returned error status: %s", resp.Status), nil)
+		return errors.NewAppError(fmt.Sprintf("backend upload failed with status: %s, body: %s", resp.Status, string(body)), nil)
 	}
 
-	// Parse the response
+	// Parse success response
 	var response struct {
-		URL string `json:"url"`
+		Success       bool   `json:"success"`
+		Message       string `json:"message"`
+		FileObjectKey string `json:"file_object_key"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
-		r.logger.Error("Failed to parse response body for upload URL",
+		r.logger.Warn("Failed to parse upload response, but upload succeeded",
 			zap.Error(err),
-			zap.ByteString("responseBody", body),
-			zap.Any("upload_url", uploadURL),
-			zap.Int("status", resp.StatusCode),
-			zap.Any("fileID", fileID),
+			zap.String("encryptedFileID", encryptedFileID),
 		)
-		return "", errors.NewAppError("failed to parse response", err)
+		// Don't return error since upload succeeded
 	}
 
-	return response.URL, nil
-}
-
-// UploadFile uploads file data directly to S3 using presigned URL
-func (r *remoteFileRepository) UploadFile(ctx context.Context, fileID primitive.ObjectID, data []byte) error {
-	// Step 1: Get pre-signed upload URL from backend
-	uploadURL, err := r.GetUploadURL(ctx, fileID)
-	if err != nil {
-		// Error is already logged within GetUploadURL
-		return err
-	}
-
-	r.logger.Info("Starting S3 upload using presigned URL",
-		zap.String("fileID", fileID.Hex()),
-		zap.Int("dataSize", len(data)),
-		zap.String("uploadURL", uploadURL[:min(len(uploadURL), 100)]+"...")) // Log first 100 chars for security
-
-	// Step 2: Upload directly to S3 using presigned URL
-	req, err := http.NewRequestWithContext(ctx, "PUT", uploadURL, bytes.NewBuffer(data))
-	if err != nil {
-		r.logger.Error("Failed to create S3 upload request",
-			zap.Error(err),
-			zap.String("fileID", fileID.Hex()),
-		)
-		return errors.NewAppError("failed to create S3 upload request", err)
-	}
-
-	// Set appropriate headers for S3
-	req.Header.Set("Content-Type", "application/octet-stream")
-	req.ContentLength = int64(len(data))
-
-	// Execute the S3 upload
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		r.logger.Error("Failed to upload file to S3",
-			zap.Error(err),
-			zap.String("fileID", fileID.Hex()),
-		)
-		return errors.NewAppError("failed to upload file to S3", err)
-	}
-	defer resp.Body.Close()
-
-	// Check for S3 upload success
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		body, readErr := io.ReadAll(resp.Body)
-		if readErr != nil {
-			r.logger.Error("S3 returned error status during upload, failed to read body",
-				zap.Error(readErr),
-				zap.Int("status", resp.StatusCode),
-				zap.String("statusText", resp.Status),
-				zap.String("fileID", fileID.Hex()),
-			)
-			return errors.NewAppError(fmt.Sprintf("S3 upload failed with status: %s, failed to read body", resp.Status), nil)
-		}
-		r.logger.Error("S3 returned error status during file upload",
-			zap.Int("status", resp.StatusCode),
-			zap.String("statusText", resp.Status),
-			zap.ByteString("responseBody", body),
-			zap.String("fileID", fileID.Hex()),
-		)
-		return errors.NewAppError(fmt.Sprintf("S3 upload failed with status: %s, body: %s", resp.Status, string(body)), nil)
-	}
-
-	r.logger.Info("Successfully uploaded file to S3",
-		zap.String("fileID", fileID.Hex()),
-		zap.Int("uploadedBytes", len(data)))
+	r.logger.Info("Successfully uploaded file to backend/S3",
+		zap.String("encryptedFileID", encryptedFileID),
+		zap.Int("uploadedBytes", len(data)),
+		zap.String("fileObjectKey", response.FileObjectKey))
 
 	return nil
 }
 
-// Helper function for min
-func min(a, b int) int {
-	if a < b {
-		return a
+// UploadFile uploads file data using MongoDB ObjectID (legacy method, kept for compatibility)
+func (r *remoteFileRepository) UploadFile(ctx context.Context, fileID primitive.ObjectID, data []byte) error {
+	// First, get the file to obtain its encrypted file ID
+	file, err := r.Fetch(ctx, fileID)
+	if err != nil {
+		return errors.NewAppError("failed to fetch file to get encrypted file ID", err)
 	}
-	return b
+
+	// Use the encrypted file ID for upload
+	return r.UploadFileByEncryptedID(ctx, file.EncryptedFileID, data)
 }

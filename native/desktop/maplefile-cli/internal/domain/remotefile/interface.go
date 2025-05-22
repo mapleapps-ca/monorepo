@@ -17,9 +17,9 @@ type RemoteFileRepository interface {
 	Delete(ctx context.Context, id primitive.ObjectID) error
 
 	// Upload/download operations
-	GetUploadURL(ctx context.Context, fileID primitive.ObjectID) (string, error)
 	GetDownloadURL(ctx context.Context, fileID primitive.ObjectID) (string, error)
 	UploadFile(ctx context.Context, fileID primitive.ObjectID, data []byte) error
+	UploadFileByEncryptedID(ctx context.Context, encryptedFileID string, data []byte) error
 	DownloadFile(ctx context.Context, fileID primitive.ObjectID) ([]byte, error)
 }
 

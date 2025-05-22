@@ -21,7 +21,6 @@ type UploadOutput struct {
 // UploadService defines the interface for uploading file data
 type UploadService interface {
 	Upload(ctx context.Context, id string, data []byte) (*UploadOutput, error)
-	GetUploadURL(ctx context.Context, id string) (*UploadOutput, error)
 }
 
 // uploadService implements the UploadService interface
@@ -66,31 +65,5 @@ func (s *uploadService) Upload(ctx context.Context, id string, data []byte) (*Up
 	return &UploadOutput{
 		Success: true,
 		Message: "File data uploaded successfully",
-	}, nil
-}
-
-// GetUploadURL gets a pre-signed URL for uploading a file
-func (s *uploadService) GetUploadURL(ctx context.Context, id string) (*UploadOutput, error) {
-	// Validate inputs
-	if id == "" {
-		return nil, errors.NewAppError("file ID is required", nil)
-	}
-
-	// Convert ID to ObjectID
-	fileID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return nil, errors.NewAppError("invalid file ID format", err)
-	}
-
-	// Get the upload URL
-	url, err := s.uploadFileUseCase.GetUploadURL(ctx, fileID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &UploadOutput{
-		Success: true,
-		Message: "Upload URL generated successfully",
-		URL:     url,
 	}, nil
 }

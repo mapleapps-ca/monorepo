@@ -3,6 +3,7 @@ package remotefile
 
 import (
 	"context"
+	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
@@ -47,7 +48,7 @@ func NewCreateRemoteFileUseCase(
 	}
 }
 
-// Execute creates a new remote file with complete upload flow
+// Execute creates a new remote file with complete upload flow and rollback on failure
 func (uc *createRemoteFileUseCase) Execute(
 	ctx context.Context,
 	input CreateRemoteFileInput,
@@ -69,7 +70,7 @@ func (uc *createRemoteFileUseCase) Execute(
 		return nil, errors.NewAppError("encrypted file key is required", nil)
 	}
 
-	uc.logger.Info("Creating remote file",
+	uc.logger.Info("Creating remote file with data upload",
 		zap.String("encryptedFileID", input.EncryptedFileID),
 		zap.String("collectionID", input.CollectionID.Hex()),
 		zap.Int("fileDataSize", len(input.FileData)))
@@ -96,32 +97,49 @@ func (uc *createRemoteFileUseCase) Execute(
 		zap.String("remoteFileID", response.ID.Hex()),
 		zap.String("encryptedFileID", input.EncryptedFileID))
 
-	// Step 2: Upload file data to S3 if provided
+	// Step 2: Upload file data using encrypted file ID if provided
 	if input.FileData != nil && len(input.FileData) > 0 {
-		uc.logger.Info("Uploading file data to S3",
+		uc.logger.Info("Uploading file data to backend/S3 using encrypted file ID",
 			zap.String("remoteFileID", response.ID.Hex()),
+			zap.String("encryptedFileID", input.EncryptedFileID),
 			zap.Int("dataSize", len(input.FileData)))
 
-		if err := uc.repository.UploadFile(ctx, response.ID, input.FileData); err != nil {
-			uc.logger.Error("Failed to upload file data to S3",
+		// Use encrypted file ID for upload (not MongoDB ObjectID)
+		if err := uc.repository.UploadFileByEncryptedID(ctx, input.EncryptedFileID, input.FileData); err != nil {
+			uc.logger.Error("Failed to upload file data, rolling back file creation",
 				zap.String("remoteFileID", response.ID.Hex()),
+				zap.String("encryptedFileID", input.EncryptedFileID),
 				zap.Error(err))
 
-			// Don't return error immediately - the file metadata was created successfully
-			// But log the upload failure and continue
-			uc.logger.Warn("File metadata created but data upload failed - file will need to be uploaded separately",
-				zap.String("remoteFileID", response.ID.Hex()))
+			// Rollback: Delete the created file metadata
+			deleteErr := uc.repository.Delete(ctx, response.ID)
+			if deleteErr != nil {
+				uc.logger.Error("Failed to rollback file creation after upload failure",
+					zap.String("remoteFileID", response.ID.Hex()),
+					zap.String("encryptedFileID", input.EncryptedFileID),
+					zap.Error(deleteErr))
+				// Return original upload error, but mention rollback failure
+				return nil, errors.NewAppError(
+					fmt.Sprintf("file upload failed and rollback also failed: upload error: %v, rollback error: %v",
+						err, deleteErr), nil)
+			}
 
-			// Return the response but indicate upload failure in logs
-			// The caller can retry the upload later using the upload endpoint
-		} else {
-			uc.logger.Info("File data uploaded successfully to S3",
+			uc.logger.Info("Successfully rolled back file creation after upload failure",
 				zap.String("remoteFileID", response.ID.Hex()),
-				zap.Int("uploadedBytes", len(input.FileData)))
+				zap.String("encryptedFileID", input.EncryptedFileID))
+
+			// Return the original upload error
+			return nil, errors.NewAppError("failed to upload file data, file creation rolled back", err)
 		}
+
+		uc.logger.Info("File data uploaded successfully to backend/S3",
+			zap.String("remoteFileID", response.ID.Hex()),
+			zap.String("encryptedFileID", input.EncryptedFileID),
+			zap.Int("uploadedBytes", len(input.FileData)))
 	} else {
 		uc.logger.Debug("No file data provided, skipping upload",
-			zap.String("remoteFileID", response.ID.Hex()))
+			zap.String("remoteFileID", response.ID.Hex()),
+			zap.String("encryptedFileID", input.EncryptedFileID))
 	}
 
 	return response, nil
