@@ -8,6 +8,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localfile"
+	dom_localfile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotefile"
 	uc_localfile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	uc_remotefile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/remotefile"
@@ -36,7 +37,7 @@ type UploadService interface {
 // fileSyncerUploadService implements the UploadService interface
 type fileSyncerUploadService struct {
 	logger                  *zap.Logger
-	localFileRepo           localfile.LocalFileRepository
+	localFileRepo           dom_localfile.LocalFileRepository
 	getLocalFileUseCase     uc_localfile.GetLocalFileUseCase
 	updateLocalFileUseCase  uc_localfile.UpdateLocalFileUseCase
 	createRemoteFileUseCase uc_remotefile.CreateRemoteFileUseCase
@@ -47,7 +48,7 @@ type fileSyncerUploadService struct {
 // NewFileSyncerUploadService creates a new service for uploading local files
 func NewFileSyncerUploadService(
 	logger *zap.Logger,
-	localFileRepo localfile.LocalFileRepository,
+	localFileRepo dom_localfile.LocalFileRepository,
 	getLocalFileUseCase uc_localfile.GetLocalFileUseCase,
 	updateLocalFileUseCase uc_localfile.UpdateLocalFileUseCase,
 	createRemoteFileUseCase uc_remotefile.CreateRemoteFileUseCase,
@@ -98,37 +99,28 @@ func (s *fileSyncerUploadService) Upload(ctx context.Context, input UploadInput)
 	var remoteFileResponse *remotefile.RemoteFileResponse
 	var action string
 
-	// Determine action based on sync status
-	switch localFile.SyncStatus {
-	case localfile.SyncStatusLocalOnly:
+	// Determine action based on whether the local file has a `remote_id` or not.
+	if localFile.RemoteID.IsZero() {
 		// Create new remote file using existing use case
 		remoteFileResponse, err = s.createNewRemoteFile(ctx, localFile, encryptedData)
 		if err != nil {
 			return nil, err
 		}
 		action = "created"
-
-	case localfile.SyncStatusSynced, localfile.SyncStatusModifiedLocally:
-		if !input.ForceUpdate && localFile.SyncStatus == localfile.SyncStatusSynced {
-			return nil, errors.NewAppError("file is already synced; use --force to re-upload", nil)
-		}
-
+	} else {
 		// Update existing remote file using existing use cases
 		remoteFileResponse, err = s.updateExistingRemoteFile(ctx, localFile, encryptedData)
 		if err != nil {
 			return nil, err
 		}
 		action = "updated"
-
-	default:
-		return nil, errors.NewAppError("invalid sync status for upload", nil)
 	}
 
 	// Update local file sync status using existing use case
 	updatedLocalFile, err := s.updateLocalFileUseCase.UpdateSyncStatus(
 		ctx,
 		localFile.ID,
-		remoteFileResponse.ID,
+		remoteFileResponse.ID, // A.K.A. "RemoteID" inside `localFile` domain entity.
 		localfile.SyncStatusSynced,
 	)
 	if err != nil {
