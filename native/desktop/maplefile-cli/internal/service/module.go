@@ -66,6 +66,9 @@ func ServiceModule() fx.Option {
 		fx.Provide(remotefile.NewDownloadService),
 
 		// File synchronization service
-		fx.Provide(filesyncer.NewFileSyncerUploadService),
+		fx.Provide(filesyncer.NewUploadToRemoteService),
+		fx.Provide(filesyncer.NewDownloadToLocalService),
+		fx.Provide(filesyncer.NewSyncFileService),
+		fx.Provide(filesyncer.NewSyncCollectionService),
 	)
 }

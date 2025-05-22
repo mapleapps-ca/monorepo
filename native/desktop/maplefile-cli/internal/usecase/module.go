@@ -6,7 +6,6 @@ import (
 
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
@@ -72,11 +71,5 @@ func UseCaseModule() fx.Option {
 		fx.Provide(remotefile.NewDeleteRemoteFileUseCase),
 		fx.Provide(remotefile.NewUploadRemoteFileUseCase),
 		fx.Provide(remotefile.NewDownloadRemoteFileUseCase),
-
-		// File syncer use cases - replaced monolithic use case with focused ones
-		fx.Provide(filesyncer.NewUploadToRemoteUseCase),
-		fx.Provide(filesyncer.NewDownloadToLocalUseCase),
-		fx.Provide(filesyncer.NewSyncFileUseCase),
-		fx.Provide(filesyncer.NewSyncCollectionUseCase),
 	)
 }
