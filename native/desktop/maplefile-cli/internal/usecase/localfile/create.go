@@ -15,13 +15,15 @@ import (
 
 // CreateLocalFileInput defines the input for creating a local file
 type CreateLocalFileInput struct {
+	RemoteID          primitive.ObjectID
 	CollectionID      primitive.ObjectID
 	EncryptedMetadata string
 	DecryptedName     string
 	DecryptedMimeType string
 	EncryptedFileKey  keys.EncryptedFileKey
 	EncryptionVersion string
-	FileData          []byte
+	EncryptedFileData []byte
+	DecryptedFileData []byte
 	CreateThumbnail   bool
 	ThumbnailData     []byte
 }
@@ -62,18 +64,19 @@ func (uc *createLocalFileUseCase) Execute(
 		return nil, errors.NewAppError("encrypted metadata is required", nil)
 	}
 
-	if len(input.FileData) == 0 {
+	if len(input.EncryptedFileData) == 0 && len(input.EncryptedFileData) == 0 {
 		return nil, errors.NewAppError("file data is required", nil)
 	}
 
 	// Create a new local file
 	file := &localfile.LocalFile{
 		ID:                primitive.NewObjectID(),
+		RemoteID:          input.RemoteID,
 		CollectionID:      input.CollectionID,
 		EncryptedMetadata: input.EncryptedMetadata,
 		DecryptedName:     input.DecryptedName,
 		DecryptedMimeType: input.DecryptedMimeType,
-		DecryptedFileSize: int64(len(input.FileData)),
+		DecryptedFileSize: int64(len(input.DecryptedFileData)),
 		EncryptedFileSize: 0,
 		EncryptedFileKey:  input.EncryptedFileKey,
 		EncryptionVersion: input.EncryptionVersion,
@@ -88,12 +91,16 @@ func (uc *createLocalFileUseCase) Execute(
 		return nil, errors.NewAppError("failed to create file metadata", err)
 	}
 
-	// Save the file data
-	if err := uc.repository.SaveFileData(ctx, file, input.FileData); err != nil {
-		// If saving file data fails, try to clean up the metadata
-		_ = uc.repository.Delete(ctx, file.ID)
-		return nil, errors.NewAppError("failed to save file data", err)
+	if input.DecryptedFileData != nil {
+
 	}
+
+	// // Save the file data
+	// if err := uc.repository.SaveFileData(ctx, file, input.FileData); err != nil {
+	// 	// If saving file data fails, try to clean up the metadata
+	// 	_ = uc.repository.Delete(ctx, file.ID)
+	// 	return nil, errors.NewAppError("failed to save file data", err)
+	// }
 
 	// Save thumbnail if provided
 	if input.CreateThumbnail && input.ThumbnailData != nil && len(input.ThumbnailData) > 0 {

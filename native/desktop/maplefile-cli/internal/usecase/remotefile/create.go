@@ -15,7 +15,7 @@ import (
 
 // CreateRemoteFileInput defines the input for creating a remote file
 type CreateRemoteFileInput struct {
-	LocalFileID           primitive.ObjectID
+	LocalID               primitive.ObjectID
 	CollectionID          primitive.ObjectID
 	EncryptedFileSize     int64
 	EncryptedOriginalSize string
@@ -71,6 +71,7 @@ func (uc *createRemoteFileUseCase) Execute(
 
 	// Step 1: Create file metadata on backend
 	request := &remotefile.RemoteCreateFileRequest{
+		LocalID:               input.LocalID,
 		CollectionID:          input.CollectionID,
 		EncryptedFileSize:     input.EncryptedFileSize,
 		EncryptedOriginalSize: input.EncryptedOriginalSize,
@@ -89,14 +90,13 @@ func (uc *createRemoteFileUseCase) Execute(
 	uc.logger.Info("Remote file metadata created successfully",
 		zap.String("remoteFileID", response.ID.Hex()))
 
-	// Step 2: Upload file data using encrypted file ID if provided
+	// Step 2: Upload file data using ID if provided
 	if input.FileData != nil && len(input.FileData) > 0 {
 		uc.logger.Info("Uploading file data to backend/S3 using encrypted file ID",
 			zap.String("remoteFileID", response.ID.Hex()),
 			zap.Int("dataSize", len(input.FileData)))
 
-		// Use encrypted file ID for upload (not MongoDB ObjectID)
-		if err := uc.repository.UploadFile(ctx, input.ID, input.FileData); err != nil {
+		if err := uc.repository.UploadFileByLocalID(ctx, input.LocalID, input.FileData); err != nil {
 			uc.logger.Error("Failed to upload file data, rolling back file creation",
 				zap.String("remoteFileID", response.ID.Hex()),
 				zap.Error(err))

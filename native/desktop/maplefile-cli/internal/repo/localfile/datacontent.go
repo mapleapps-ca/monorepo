@@ -160,24 +160,43 @@ func (r *localFileRepository) createDecryptedFile(sourcePath, destPath string, f
 	return nil
 }
 
-// SaveFileData saves file data to the local filesystem
-func (r *localFileRepository) SaveFileData(ctx context.Context, file *localfile.LocalFile, data []byte) error {
-	r.logger.Debug("Saving file data to local filesystem",
+// saveEncryptedFileDataInternal handles saving data for StorageModeEncryptedOnly.
+// It is called by SaveFileData when the mode is EncryptedOnly.
+func (r *localFileRepository) SaveEncryptedFileDataInternal(ctx context.Context, dataPath string, file *localfile.LocalFile, data []byte) error {
+	r.logger.Debug("Saving encrypted file data internally",
 		zap.String("fileID", file.ID.Hex()),
-		zap.Int("dataSize", len(data)),
-		zap.String("storageMode", file.StorageMode))
-
-	// Get the app data path
-	dataPath, err := r.getAppDataPath(ctx)
-	if err != nil {
-		return err
-	}
+		zap.Int("dataSize", len(data)))
 
 	// For encrypted files, use .bin extension
 	encryptedFileName := fmt.Sprintf("%s_encrypted.bin", file.ID.Hex())
 	encryptedPath := filepath.Join(dataPath, encryptedFileName)
 
-	// For decrypted files, preserve the original extension
+	// In a real implementation, encrypt the data here before writing
+	// For simplicity, we're just writing the provided data as-is
+	if err := os.WriteFile(encryptedPath, data, 0644); err != nil {
+		return errors.NewAppError("failed to write encrypted file data", err)
+	}
+
+	file.EncryptedFilePath = encryptedPath
+	file.EncryptedFileSize = int64(len(data))
+	file.DecryptedFilePath = "" // Clear decrypted path
+	file.DecryptedFileSize = 0
+
+	r.logger.Debug("Encrypted file data saved successfully internally",
+		zap.String("fileID", file.ID.Hex()),
+		zap.String("encryptedPath", encryptedPath))
+
+	return nil
+}
+
+// saveDecryptedFileDataInternal handles saving data for StorageModeDecryptedOnly.
+// It is called by SaveFileData when the mode is DecryptedOnly.
+func (r *localFileRepository) SaveDecryptedFileDataInternal(ctx context.Context, dataPath string, file *localfile.LocalFile, data []byte) error {
+	r.logger.Debug("Saving decrypted file data internally",
+		zap.String("fileID", file.ID.Hex()),
+		zap.Int("dataSize", len(data)))
+
+	// For decrypted files, preserve the original extension from DecryptedName
 	fileExt := filepath.Ext(file.DecryptedName)
 	if fileExt == "" {
 		fileExt = ".bin" // Fallback if no extension is found
@@ -185,72 +204,72 @@ func (r *localFileRepository) SaveFileData(ctx context.Context, file *localfile.
 	decryptedFileName := fmt.Sprintf("%s_decrypted%s", file.ID.Hex(), fileExt)
 	decryptedPath := filepath.Join(dataPath, decryptedFileName)
 
-	// Ensure the parent directory exists
-	if err := os.MkdirAll(filepath.Dir(encryptedPath), 0755); err != nil {
-		return errors.NewAppError("failed to create directory for file", err)
+	if err := os.WriteFile(decryptedPath, data, 0644); err != nil {
+		return errors.NewAppError("failed to write decrypted file data", err)
 	}
 
-	// Behavior depends on storage mode
-	switch file.StorageMode {
-	case localfile.StorageModeEncryptedOnly:
-		// Create only encrypted version
-		// In a real implementation, encrypt the data here
-		// For simplicity, we're just writing it as-is
-		if err := os.WriteFile(encryptedPath, data, 0644); err != nil {
-			return errors.NewAppError("failed to write encrypted file", err)
-		}
+	file.DecryptedFilePath = decryptedPath
+	file.DecryptedFileSize = int64(len(data))
+	file.EncryptedFilePath = "" // Clear encrypted path
+	file.EncryptedFileSize = 0
 
-		file.EncryptedFilePath = encryptedPath
-		file.EncryptedFileSize = int64(len(data))
-		file.DecryptedFilePath = "" // Clear decrypted path
-		file.DecryptedFileSize = 0
-
-	case localfile.StorageModeDecryptedOnly:
-		// Create only decrypted version with correct file extension
-		if err := os.WriteFile(decryptedPath, data, 0644); err != nil {
-			return errors.NewAppError("failed to write decrypted file", err)
-		}
-
-		file.DecryptedFilePath = decryptedPath
-		file.DecryptedFileSize = int64(len(data))
-		file.EncryptedFilePath = "" // Clear encrypted path
-		file.EncryptedFileSize = 0
-
-	case localfile.StorageModeHybrid:
-		// Create both versions
-		// In a real implementation, encrypt for one file and leave the other unencrypted
-		// For simplicity, we're writing the same data to both
-		if err := os.WriteFile(encryptedPath, data, 0644); err != nil {
-			return errors.NewAppError("failed to write encrypted file", err)
-		}
-
-		if err := os.WriteFile(decryptedPath, data, 0644); err != nil {
-			// If decrypted version fails, clean up encrypted version
-			os.Remove(encryptedPath)
-			return errors.NewAppError("failed to write decrypted file", err)
-		}
-
-		file.EncryptedFilePath = encryptedPath
-		file.DecryptedFilePath = decryptedPath
-		file.DecryptedFileSize = int64(len(data)) // In real implementation only save file-size of the encrypted file.
-		file.EncryptedFileSize = int64(len(data)) // In real implementation only save file-size of the decrypted file.
-
-	default:
-		return errors.NewAppError("unsupported storage mode", nil)
-	}
-
-	// Update the file metadata
-	file.ModifiedAt = time.Now()
-	file.IsModifiedLocally = true
-
-	// Save the updated file metadata
-	if err := r.Save(ctx, file); err != nil {
-		return errors.NewAppError("failed to update file metadata after saving data", err)
-	}
-
-	r.logger.Info("File data saved successfully",
+	r.logger.Debug("Decrypted file data saved successfully internally",
 		zap.String("fileID", file.ID.Hex()),
-		zap.String("storageMode", file.StorageMode))
+		zap.String("decryptedPath", decryptedPath))
+
+	return nil
+}
+
+// saveHybridFileDataInternal handles saving data for StorageModeHybrid.
+// It is called by SaveFileData when the mode is Hybrid.
+func (r *localFileRepository) SaveHybridFileDataInternal(ctx context.Context, dataPath string, file *localfile.LocalFile, data []byte) error {
+	r.logger.Debug("Saving hybrid file data internally",
+		zap.String("fileID", file.ID.Hex()),
+		zap.Int("dataSize", len(data)))
+
+	// For encrypted files, use .bin extension
+	encryptedFileName := fmt.Sprintf("%s_encrypted.bin", file.ID.Hex())
+	encryptedPath := filepath.Join(dataPath, encryptedFileName)
+
+	// For decrypted files, preserve the original extension from DecryptedName
+	fileExt := filepath.Ext(file.DecryptedName)
+	if fileExt == "" {
+		fileExt = ".bin" // Fallback if no extension is found
+	}
+	decryptedFileName := fmt.Sprintf("%s_decrypted%s", file.ID.Hex(), fileExt)
+	decryptedPath := filepath.Join(dataPath, decryptedFileName)
+
+	// --- START NOTE ---
+	// In a real implementation, you would encrypt `data` for the encrypted file
+	// and use the raw `data` (or a different version) for the decrypted file.
+	// Following the original code's behavior, we write the *same* input `data` to both files for simplicity.
+	// The recorded file sizes (EncryptedFileSize, DecryptedFileSize) should reflect the *actual* sizes
+	// of the data written to each file after potential encryption/decryption.
+	// --- END NOTE ---
+
+	// Write the encrypted version (using input data as placeholder for encrypted data)
+	if err := os.WriteFile(encryptedPath, data, 0644); err != nil {
+		return errors.NewAppError("failed to write encrypted file in hybrid mode", err)
+	}
+	file.EncryptedFilePath = encryptedPath
+	file.EncryptedFileSize = int64(len(data)) // Placeholder: Should be actual encrypted size
+
+	// Write the decrypted version (using input data)
+	if err := os.WriteFile(decryptedPath, data, 0644); err != nil {
+		// If decrypted version fails, clean up encrypted version
+		os.Remove(encryptedPath)
+		file.EncryptedFilePath = "" // Clear path if cleanup successful or attempted
+		file.EncryptedFileSize = 0
+		return errors.NewAppError("failed to write decrypted file in hybrid mode", err)
+	}
+	file.DecryptedFilePath = decryptedPath
+	file.DecryptedFileSize = int64(len(data)) // Placeholder: Should be actual decrypted size
+
+	r.logger.Debug("Hybrid file data saved successfully internally",
+		zap.String("fileID", file.ID.Hex()),
+		zap.String("encryptedPath", encryptedPath),
+		zap.String("decryptedPath", decryptedPath))
+
 	return nil
 }
 
@@ -286,6 +305,50 @@ func (r *localFileRepository) LoadFileData(ctx context.Context, file *localfile.
 
 	r.logger.Debug("File data loaded successfully",
 		zap.String("fileID", file.ID.Hex()),
+		zap.Int("dataSize", len(data)))
+	return data, nil
+}
+
+// LoadEncryptedFileData loads encrypted file data from the local filesystem
+func (r *localFileRepository) LoadDecryptedFileDataAtFilePath(ctx context.Context, decryptedFilePath string) ([]byte, error) {
+	r.logger.Debug("Loading decrypted file data from local filesystem",
+		zap.String("decryptedFilePath", decryptedFilePath))
+
+	// Check if the file exists
+	if _, err := os.Stat(decryptedFilePath); os.IsNotExist(err) {
+		return nil, errors.NewAppError("decrypted file data not found on local filesystem", err)
+	}
+
+	// Read the file data
+	data, err := os.ReadFile(decryptedFilePath)
+	if err != nil {
+		return nil, errors.NewAppError("decrypted failed to read file data", err)
+	}
+
+	r.logger.Debug("Decrypted file data loaded successfully",
+		zap.String("decryptedFilePath", decryptedFilePath),
+		zap.Int("dataSize", len(data)))
+	return data, nil
+}
+
+// LoadEncryptedFileData loads encrypted file data from the local filesystem
+func (r *localFileRepository) LoadEncryptedFileDataAtFilePath(ctx context.Context, encryptedFilePath string) ([]byte, error) {
+	r.logger.Debug("Loading encrypted file data from local filesystem",
+		zap.String("encryptedFilePath", encryptedFilePath))
+
+	// Check if the file exists
+	if _, err := os.Stat(encryptedFilePath); os.IsNotExist(err) {
+		return nil, errors.NewAppError("encrypted file data not found on local filesystem", err)
+	}
+
+	// Read the file data
+	data, err := os.ReadFile(encryptedFilePath)
+	if err != nil {
+		return nil, errors.NewAppError("encrypted failed to read file data", err)
+	}
+
+	r.logger.Debug("Encrypted file data loaded successfully",
+		zap.String("encryptedFilePath", encryptedFilePath),
 		zap.Int("dataSize", len(data)))
 	return data, nil
 }

@@ -63,7 +63,7 @@ type RemoteFile struct {
 
 // RemoteCreateFileRequest represents the data needed to create a file
 type RemoteCreateFileRequest struct {
-	LocalFileID           primitive.ObjectID    `json:"local_file_id"`
+	LocalID               primitive.ObjectID    `json:"loca_id"`
 	CollectionID          primitive.ObjectID    `json:"collection_id"`
 	EncryptedFileSize     int64                 `json:"encrypted_file_size"`
 	EncryptedOriginalSize string                `json:"encrypted_original_size"`

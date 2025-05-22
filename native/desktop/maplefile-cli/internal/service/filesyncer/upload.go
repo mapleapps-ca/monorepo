@@ -77,10 +77,10 @@ func (s *uploadToRemoteService) Execute(
 		return nil, errors.NewAppError("failed to get local file", err)
 	}
 
-	// Get the file data
-	fileData, err := s.localFileGetUseCase.GetFileData(ctx, localFile)
+	// Get the local file data
+	localFileEncryptedData, err := s.localFileGetUseCase.GetEncryptedFileData(ctx, localFile)
 	if err != nil {
-		return nil, errors.NewAppError("failed to get file data", err)
+		return nil, errors.NewAppError("failed to get local file encrypted data", err)
 	}
 
 	// Prepare result
@@ -114,7 +114,7 @@ func (s *uploadToRemoteService) Execute(
 			EncryptedFileKey:  localFile.EncryptedFileKey,
 			EncryptionVersion: localFile.EncryptionVersion,
 			EncryptedHash:     localFile.EncryptedHash,
-			FileData:          fileData, // Upload file data with creation
+			FileData:          localFileEncryptedData, // Upload file data with creation
 		}
 
 		remoteFileResponse, err = s.remoteFileCreateUseCase.Execute(ctx, createInput)
@@ -149,7 +149,7 @@ func (s *uploadToRemoteService) Execute(
 		}
 	} else {
 		// Update existing remote file
-		err = s.remoteFileUploadUseCase.Execute(ctx, remoteFile.ID, fileData)
+		err = s.remoteFileUploadUseCase.Execute(ctx, remoteFile.ID, localFileEncryptedData)
 		if err != nil {
 			return nil, errors.NewAppError("failed to upload file data to existing remote file", err)
 		}

@@ -21,8 +21,11 @@ type LocalFileRepository interface {
 
 	Delete(ctx context.Context, id primitive.ObjectID) error
 
-	SaveFileData(ctx context.Context, file *LocalFile, data []byte) error
-	LoadFileData(ctx context.Context, file *LocalFile) ([]byte, error)
+	SaveEncryptedFileDataInternal(ctx context.Context, dataPath string, file *LocalFile, data []byte) error
+	SaveDecryptedFileDataInternal(ctx context.Context, dataPath string, file *LocalFile, data []byte) error
+	SaveHybridFileDataInternal(ctx context.Context, dataPath string, file *LocalFile, data []byte) error
+	LoadDecryptedFileDataAtFilePath(ctx context.Context, decryptedFilePath string) ([]byte, error)
+	LoadEncryptedFileDataAtFilePath(ctx context.Context, encryptedFilePath string) ([]byte, error)
 
 	ImportFile(ctx context.Context, filePath string, file *LocalFile) error
 

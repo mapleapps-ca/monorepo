@@ -131,7 +131,7 @@ func (r *remoteFileRepository) UploadFileByRemoteID(ctx context.Context, remoteI
 }
 
 // UploadFile uploads file data using MongoDB ObjectID (legacy method, kept for compatibility)
-func (r *remoteFileRepository) UploadFile(ctx context.Context, fileID primitive.ObjectID, data []byte) error {
+func (r *remoteFileRepository) UploadFileByLocalID(ctx context.Context, fileID primitive.ObjectID, data []byte) error {
 	// First, get the file to obtain its remote file
 	remotefile, err := r.Fetch(ctx, fileID)
 	if err != nil {

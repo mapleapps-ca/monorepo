@@ -14,7 +14,6 @@ import (
 // FetchRemoteFileUseCase defines the interface for fetching a remote file
 type FetchRemoteFileUseCase interface {
 	ByID(ctx context.Context, id primitive.ObjectID) (*remotefile.RemoteFile, error)
-	ByEncryptedFileID(ctx context.Context, encryptedFileID string) (*remotefile.RemoteFile, error)
 	DownloadFileData(ctx context.Context, id primitive.ObjectID) ([]byte, error)
 }
 
@@ -53,29 +52,6 @@ func (uc *fetchRemoteFileUseCase) ByID(
 
 	if file == nil {
 		return nil, errors.NewAppError("remote file not found", nil)
-	}
-
-	return file, nil
-}
-
-// ByEncryptedFileID fetches a remote file by its encrypted file ID
-func (uc *fetchRemoteFileUseCase) ByEncryptedFileID(
-	ctx context.Context,
-	encryptedFileID string,
-) (*remotefile.RemoteFile, error) {
-	// Validate inputs
-	if encryptedFileID == "" {
-		return nil, errors.NewAppError("encrypted file ID is required", nil)
-	}
-
-	// Fetch the file from the repository
-	file, err := uc.repository.GetByEncryptedFileID(ctx, encryptedFileID)
-	if err != nil {
-		return nil, errors.NewAppError("failed to fetch remote file by encrypted file ID", err)
-	}
-
-	if file == nil {
-		return nil, errors.NewAppError("remote file with the specified encrypted file ID not found", nil)
 	}
 
 	return file, nil

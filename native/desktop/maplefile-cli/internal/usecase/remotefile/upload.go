@@ -41,16 +41,16 @@ func (uc *uploadRemoteFileUseCase) Execute(
 ) error {
 	// Validate inputs
 	if id.IsZero() {
-		return errors.NewAppError("file ID is required", nil)
+		return errors.NewAppError("remote file ID is required", nil)
 	}
 
 	if data == nil || len(data) == 0 {
-		return errors.NewAppError("file data is required", nil)
+		return errors.NewAppError("remote file data is required", nil)
 	}
 
 	// Upload the file data
-	if err := uc.repository.UploadFile(ctx, id, data); err != nil {
-		return errors.NewAppError("failed to upload file data", err)
+	if err := uc.repository.UploadFileByRemoteID(ctx, id, data); err != nil {
+		return errors.NewAppError("failed to upload remote file data", err)
 	}
 
 	return nil

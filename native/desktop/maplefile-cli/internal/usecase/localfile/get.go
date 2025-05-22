@@ -15,7 +15,8 @@ import (
 type GetLocalFileUseCase interface {
 	ByID(ctx context.Context, id primitive.ObjectID) (*localfile.LocalFile, error)
 	ByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*localfile.LocalFile, error)
-	GetFileData(ctx context.Context, file *localfile.LocalFile) ([]byte, error)
+	GetEncryptedFileData(ctx context.Context, file *localfile.LocalFile) ([]byte, error)
+	GetDecryptedFileData(ctx context.Context, file *localfile.LocalFile) ([]byte, error)
 	GetThumbnail(ctx context.Context, file *localfile.LocalFile) ([]byte, error)
 }
 
@@ -82,8 +83,8 @@ func (uc *getLocalFileUseCase) ByRemoteID(
 	return file, nil
 }
 
-// GetFileData retrieves the file data for a local file
-func (uc *getLocalFileUseCase) GetFileData(
+// GetDecryptedFileData retrieves the file data for a local file
+func (uc *getLocalFileUseCase) GetDecryptedFileData(
 	ctx context.Context,
 	file *localfile.LocalFile,
 ) ([]byte, error) {
@@ -93,7 +94,7 @@ func (uc *getLocalFileUseCase) GetFileData(
 	}
 
 	// Load the file data
-	data, err := uc.repository.LoadFileData(ctx, file)
+	data, err := uc.repository.LoadDecryptedFileDataAtFilePath(ctx, file.DecryptedFilePath)
 	if err != nil {
 		return nil, errors.NewAppError("failed to load file data", err)
 	}
@@ -101,7 +102,26 @@ func (uc *getLocalFileUseCase) GetFileData(
 	return data, nil
 }
 
-// GetThumbnail retrieves the thumbnail data for a local file
+// GetEn retrieves the file data for a local file
+func (uc *getLocalFileUseCase) GetEncryptedFileData(
+	ctx context.Context,
+	file *localfile.LocalFile,
+) ([]byte, error) {
+	// Validate inputs
+	if file == nil {
+		return nil, errors.NewAppError("file is required", nil)
+	}
+
+	// Load the file data
+	data, err := uc.repository.LoadEncryptedFileDataAtFilePath(ctx, file.EncryptedFilePath)
+	if err != nil {
+		return nil, errors.NewAppError("failed to load file data", err)
+	}
+
+	return data, nil
+}
+
+// GetDecryptedThumbnail retrieves the thumbnail data for a local file
 func (uc *getLocalFileUseCase) GetThumbnail(
 	ctx context.Context,
 	file *localfile.LocalFile,
@@ -112,7 +132,7 @@ func (uc *getLocalFileUseCase) GetThumbnail(
 	}
 
 	// Load the thumbnail data
-	data, err := uc.repository.LoadFileData(ctx, file)
+	data, err := uc.repository.LoadDecryptedFileDataAtFilePath(ctx, file.LocalThumbnailPath)
 	if err != nil {
 		return nil, errors.NewAppError("failed to load thumbnail data", err)
 	}

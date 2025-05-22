@@ -93,20 +93,20 @@ func (s *downloadToLocalService) Execute(
 	}
 
 	// Download the file data
-	fileData, err := s.remoteFileDownloadUseCase.Execute(ctx, input.RemoteID)
+	encryptedFileData, err := s.remoteFileDownloadUseCase.Execute(ctx, input.RemoteID)
 	if err != nil {
-		return nil, errors.NewAppError("failed to download file data", err)
+		return nil, errors.NewAppError("failed to download encrypted file data", err)
 	}
 
 	if localFile == nil {
 		// Create a new local file
 		createInput := localfileUseCase.CreateLocalFileInput{
-			EncryptedFileID:   remoteFile.EncryptedFileID,
+			RemoteID:          remoteFile.ID,
 			CollectionID:      remoteFile.CollectionID,
 			EncryptedMetadata: remoteFile.EncryptedMetadata,
 			EncryptedFileKey:  remoteFile.EncryptedFileKey,
 			EncryptionVersion: remoteFile.EncryptionVersion,
-			FileData:          fileData,
+			FileData:          encryptedFileData,
 			// No decrypted name or mime type - will be set during decryption
 		}
 

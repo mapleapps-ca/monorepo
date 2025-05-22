@@ -81,28 +81,28 @@ Examples:
 				return
 			}
 
-			file := localFileOutput.File
+			localfile := localFileOutput.File
 
 			// Display file information
-			fmt.Printf("📁 File: %s\n", file.DecryptedName)
-			fmt.Printf("🔐 Storage Mode: %s\n", file.StorageMode)
-			fmt.Printf("📊 Sync Status: %s\n", getSyncStatusText(file.SyncStatus))
-			fmt.Printf("💾 File Size (of encrypted data): %d bytes\n", file.EncryptedFileSize)
+			fmt.Printf("📁 File: %s\n", localfile.DecryptedName)
+			fmt.Printf("🔐 Storage Mode: %s\n", localfile.StorageMode)
+			fmt.Printf("📊 Sync Status: %s\n", getSyncStatusText(localfile.SyncStatus))
+			fmt.Printf("💾 File Size (of encrypted data): %d bytes\n", localfile.EncryptedFileSize)
 
 			// Validate file can be uploaded
-			if file.StorageMode == "decrypted_only" {
+			if localfile.StorageMode == "decrypted_only" {
 				fmt.Println("❌ Error: Cannot upload decrypted-only files.")
 				fmt.Println("Only encrypted files can be uploaded to the remote backend for security.")
 				return
 			}
 
-			if file.EncryptedFilePath == "" && (file.StorageMode == "encrypted_only" || file.StorageMode == "hybrid") {
+			if localfile.EncryptedFilePath == "" && (localfile.StorageMode == "encrypted_only" || localfile.StorageMode == "hybrid") {
 				fmt.Println("❌ Error: File has no encrypted data available.")
 				return
 			}
 
 			// Check if force is needed
-			if file.SyncStatus == dom_localfile.SyncStatusSynced && !force {
+			if localfile.SyncStatus == dom_localfile.SyncStatusSynced && !force {
 				fmt.Println("⚠️  File is already synced with remote backend.")
 				fmt.Println("Use --force flag to re-upload the file.")
 				return
@@ -111,7 +111,7 @@ Examples:
 			// Confirm upload
 			if !force {
 				var action string
-				switch file.SyncStatus {
+				switch localfile.SyncStatus {
 				case dom_localfile.SyncStatusLocalOnly:
 					action = "create a new remote file"
 				case dom_localfile.SyncStatusModifiedLocally:
@@ -131,13 +131,13 @@ Examples:
 
 			logger.Debug("Uploading local file",
 				zap.String("fileID", fileID),
-				zap.String("fileName", file.DecryptedName),
-				zap.String("storageMode", file.StorageMode),
+				zap.String("fileName", localfile.DecryptedName),
+				zap.String("storageMode", localfile.StorageMode),
 				zap.Bool("force", force))
 
 			// Prepare upload input
 			uploadInput := filesyncer.UploadToRemoteInput{
-				LocalID: id,
+				LocalID: localFileID,
 			}
 
 			// Upload the file
