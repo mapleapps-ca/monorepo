@@ -7,7 +7,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/bannedipaddress"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/emailer"
-	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/user"
 )
 
@@ -34,17 +33,6 @@ func Module() fx.Option {
 			user.NewUserGetByEmailUseCase,
 			user.NewUserDeleteByIDUseCase,
 			user.NewUserDeleteUserByEmailUseCase,
-
-			// File use cases
-			file.NewCreateFileUseCase,
-			file.NewCreateManyFilesUseCase,
-			file.NewGetFileUseCase,
-			file.NewListFilesByCollectionUseCase,
-			file.NewUpdateFileUseCase,
-			file.NewDeleteFileUseCase,
-			file.NewDeleteManyFilesUseCase,
-			file.NewStoreEncryptedDataUseCase,
-			file.NewGetEncryptedDataUseCase,
 
 			// Collection use cases
 			collection.NewAddCollectionMemberUseCase,

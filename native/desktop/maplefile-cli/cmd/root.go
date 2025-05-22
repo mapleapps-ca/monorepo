@@ -9,8 +9,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/collections"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/completelogin"
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/filesyncer"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/remote"
@@ -22,12 +20,9 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
-	srv_filesyncer "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
-	localfileService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	registerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotecollection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotefile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
 
@@ -46,16 +41,6 @@ func NewRootCmd(
 	remoteListService remotecollection.ListService,
 	downloadService collectionsyncer.DownloadService,
 	collectionListService localcollection.ListService,
-	fileImportService localfileService.ImportService,
-	fileListService localfileService.ListService,
-	fileDeleteService localfileService.DeleteService,
-	fileGetService localfileService.GetService,
-	remoteFetchService remotefile.FetchService,
-	// File syncer services with correct interfaces
-	uploadToRemoteService srv_filesyncer.UploadToRemoteService,
-	downloadToLocalService srv_filesyncer.DownloadToLocalService,
-	syncFileService srv_filesyncer.SyncFileService,
-	syncCollectionService srv_filesyncer.SyncCollectionService,
 	// other services...
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
@@ -82,23 +67,6 @@ func NewRootCmd(
 		remoteCollectionService,
 		downloadService,
 		collectionListService,
-		logger))
-	rootCmd.AddCommand(localfile.LocalFileCmd(
-		fileImportService,
-		fileDeleteService,
-		fileGetService,
-		fileListService,
-		remoteFetchService,
-		logger))
-	rootCmd.AddCommand(filesyncer.FileSyncerCmd(
-		fileImportService,
-		fileDeleteService,
-		fileGetService,
-		uploadToRemoteService,
-		downloadToLocalService,
-		syncFileService,
-		syncCollectionService,
-		remoteFetchService,
 		logger))
 
 	return rootCmd

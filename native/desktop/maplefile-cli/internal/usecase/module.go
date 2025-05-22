@@ -7,11 +7,9 @@ import (
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localcollection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/remotecollection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/remotefile"
 	userUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
@@ -55,21 +53,5 @@ func UseCaseModule() fx.Option {
 
 		// Token refresh usecase
 		fx.Provide(refreshtoken.NewRefreshTokenUseCase),
-
-		// Local file use cases
-		fx.Provide(localfile.NewCreateLocalFileUseCase),
-		fx.Provide(localfile.NewGetLocalFileUseCase),
-		fx.Provide(localfile.NewListLocalFilesUseCase),
-		fx.Provide(localfile.NewUpdateLocalFileUseCase),
-		fx.Provide(localfile.NewDeleteLocalFileUseCase),
-		fx.Provide(localfile.NewImportLocalFileUseCase),
-
-		// Remote file use cases
-		fx.Provide(remotefile.NewCreateRemoteFileUseCase),
-		fx.Provide(remotefile.NewFetchRemoteFileUseCase),
-		fx.Provide(remotefile.NewListRemoteFilesUseCase),
-		fx.Provide(remotefile.NewDeleteRemoteFileUseCase),
-		fx.Provide(remotefile.NewUploadRemoteFileUseCase),
-		fx.Provide(remotefile.NewDownloadRemoteFileUseCase),
 	)
 }

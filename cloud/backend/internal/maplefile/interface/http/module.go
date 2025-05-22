@@ -7,7 +7,6 @@ import (
 	unifiedhttp "github.com/mapleapps-ca/monorepo/cloud/backend/internal/manifold/interface/http"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/collection"
 	commonhttp "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/common"
-	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/me"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
 )
@@ -43,19 +42,6 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(collection.NewShareCollectionHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewRemoveMemberHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewListSharedCollectionsHTTPHandler),
-
-			// File handlers - Basic CRUD
-			unifiedhttp.AsRoute(file.NewCreateFileHTTPHandler),
-			unifiedhttp.AsRoute(file.NewCreateManyFilesHTTPHandler),
-			unifiedhttp.AsRoute(file.NewGetFileHTTPHandler),
-			unifiedhttp.AsRoute(file.NewUpdateFileHTTPHandler),
-			unifiedhttp.AsRoute(file.NewDeleteFileHTTPHandler),
-			unifiedhttp.AsRoute(file.NewDeleteManyFilesHTTPHandler),
-			unifiedhttp.AsRoute(file.NewListFilesByCollectionHTTPHandler),
-
-			// File handlers - Data operations
-			unifiedhttp.AsRoute(file.NewStoreFileDataHTTPHandler),
-			unifiedhttp.AsRoute(file.NewGetFileDataHTTPHandler),
 		),
 	)
 }
