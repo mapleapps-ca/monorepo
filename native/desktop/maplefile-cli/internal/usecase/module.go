@@ -73,7 +73,10 @@ func UseCaseModule() fx.Option {
 		fx.Provide(remotefile.NewUploadRemoteFileUseCase),
 		fx.Provide(remotefile.NewDownloadRemoteFileUseCase),
 
-		// File syncer use case
-		fx.Provide(filesyncer.NewFileSyncerUseCase), //TODO: REWRITE INTO YOUR SERVICE.
+		// File syncer use cases - replaced monolithic use case with focused ones
+		fx.Provide(filesyncer.NewUploadToRemoteUseCase),
+		fx.Provide(filesyncer.NewDownloadToLocalUseCase),
+		fx.Provide(filesyncer.NewSyncFileUseCase),
+		fx.Provide(filesyncer.NewSyncCollectionUseCase),
 	)
 }
