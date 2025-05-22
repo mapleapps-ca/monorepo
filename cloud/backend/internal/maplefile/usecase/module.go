@@ -1,4 +1,3 @@
-// cloud/backend/internal/maplefile/usecase/module.go
 package usecase
 
 import (
@@ -7,6 +6,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/bannedipaddress"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/emailer"
+	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/filemetadata"
+	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/fileobjectstorage"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/user"
 )
 
@@ -52,6 +53,26 @@ func Module() fx.Option {
 			collection.NewRemoveMemberFromHierarchyUseCase,
 			collection.NewUpdateCollectionUseCase,
 			collection.NewUpdateMemberPermissionUseCase,
+
+			// File Metadata use cases
+			filemetadata.NewCreateFileMetadataUseCase,
+			filemetadata.NewCreateManyFileMetadataUseCase,
+			filemetadata.NewGetFileMetadataUseCase,
+			filemetadata.NewGetFileMetadataByIDsUseCase,
+			filemetadata.NewGetFileMetadataByCollectionUseCase,
+			filemetadata.NewUpdateFileMetadataUseCase,
+			filemetadata.NewDeleteFileMetadataUseCase,
+			filemetadata.NewDeleteManyFileMetadataUseCase,
+			filemetadata.NewCheckFileExistsUseCase,
+			filemetadata.NewCheckFileAccessUseCase,
+
+			// File Object Storage use cases
+			fileobjectstorage.NewStoreEncryptedDataUseCase,
+			fileobjectstorage.NewGetEncryptedDataUseCase,
+			fileobjectstorage.NewDeleteEncryptedDataUseCase,
+			fileobjectstorage.NewGeneratePresignedURLUseCase,
+			fileobjectstorage.NewDeleteMultipleEncryptedDataUseCase,
+			fileobjectstorage.NewStoreMultipleEncryptedDataUseCase,
 		),
 	)
 }
