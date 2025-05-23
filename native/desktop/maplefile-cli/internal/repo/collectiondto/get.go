@@ -14,7 +14,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 )
 
-func (r *collectionDTORepository) GetByID(ctx context.Context, request *collectiondto.GetCollectionRequestDTO) (*collectiondto.CollectionDTO, error) {
+func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, request *collectiondto.GetCollectionRequestDTO) (*collectiondto.CollectionDTO, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {

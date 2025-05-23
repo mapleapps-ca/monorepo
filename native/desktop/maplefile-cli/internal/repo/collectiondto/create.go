@@ -16,7 +16,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 )
 
-func (r *collectionDTORepository) Create(ctx context.Context, request *collectiondto.CreateCollectionRequestDTO) (*primitive.ObjectID, error) {
+func (r *collectionDTORepository) CreateInCloud(ctx context.Context, request *collectiondto.CreateCollectionRequestDTO) (*primitive.ObjectID, error) {
 	// Get server URL from configuration
 	r.logger.Debug("Getting cloud provider address from config")
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
