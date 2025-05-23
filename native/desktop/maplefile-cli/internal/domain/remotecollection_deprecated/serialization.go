@@ -11,7 +11,7 @@ import (
 func (c *RemoteCollection) Serialize() ([]byte, error) {
 	dataBytes, err := cbor.Marshal(c)
 	if err != nil {
-		return nil, fmt.Errorf("failed to remote collection: %v", err)
+		return nil, fmt.Errorf("failed to cloud collection: %v", err)
 	}
 	return dataBytes, nil
 }
@@ -25,7 +25,7 @@ func NewFromDeserialized(data []byte) (*RemoteCollection, error) {
 
 	coll := &RemoteCollection{}
 	if err := cbor.Unmarshal(data, &coll); err != nil {
-		return nil, fmt.Errorf("failed to deserialize remote collection: %v", err)
+		return nil, fmt.Errorf("failed to deserialize cloud collection: %v", err)
 	}
 	return coll, nil
 }

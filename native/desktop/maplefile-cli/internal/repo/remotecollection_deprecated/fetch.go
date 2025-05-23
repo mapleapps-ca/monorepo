@@ -16,7 +16,7 @@ import (
 )
 
 func (r *collectionRepository) Fetch(ctx context.Context, id primitive.ObjectID) (*collection.RemoteCollection, error) {
-	r.logger.Debug("Fetching collection from remote server",
+	r.logger.Debug("Fetching collection from cloud server",
 		zap.String("collectionID", id.Hex()))
 
 	// Get server URL from configuration
@@ -89,7 +89,7 @@ func (r *collectionRepository) Fetch(ctx context.Context, id primitive.ObjectID)
 		// Local fields are not set yet since they need to be decrypted
 	}
 
-	r.logger.Info("Successfully fetched collection from remote server",
+	r.logger.Info("Successfully fetched collection from cloud server",
 		zap.String("collectionID", id.Hex()))
 	return remoteColl, nil
 }

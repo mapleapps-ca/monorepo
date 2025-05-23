@@ -44,7 +44,7 @@ func NewUploadService(
 	}
 }
 
-// Upload uploads a local collection to the remote server
+// Upload uploads a local collection to the cloud server
 func (s *uploadService) Upload(ctx context.Context, localID string) (*UploadOutput, error) {
 	// Validate inputs
 	if localID == "" {
@@ -68,7 +68,7 @@ func (s *uploadService) Upload(ctx context.Context, localID string) (*UploadOutp
 		return nil, errors.NewAppError("local collection not found", nil)
 	}
 
-	// Create input for the remote collection creation
+	// Create input for the cloud collection creation
 	input := &remotecollection.RemoteCreateCollectionRequest{
 		EncryptedName:          collection.EncryptedName,
 		Type:                   collection.Type,
@@ -81,25 +81,25 @@ func (s *uploadService) Upload(ctx context.Context, localID string) (*UploadOutp
 		input.ParentID = collection.ParentID
 	}
 
-	// Create or update the remote collection
+	// Create or update the cloud collection
 	var response *remotecollection.RemoteCollectionResponse
 
-	// If we already have a remote ID, update the existing remote collection
-	if !collection.RemoteID.IsZero() {
-		// In a real implementation, you'd have an update method on the remote repository
+	// If we already have a cloud ID, update the existing cloud collection
+	if !collection.CloudID.IsZero() {
+		// In a real implementation, you'd have an update method on the cloud repository
 		// For now, we'll just create a new one to complete the pattern
 		response, err = s.remoteRepository.Create(ctx, input)
 	} else {
-		// Create a new remote collection
+		// Create a new cloud collection
 		response, err = s.remoteRepository.Create(ctx, input)
 	}
 
 	if err != nil {
-		return nil, errors.NewAppError("failed to create/update remote collection", err)
+		return nil, errors.NewAppError("failed to create/update cloud collection", err)
 	}
 
 	// Update the local collection with sync info
-	collection.RemoteID = response.ID // Set the remote ID reference
+	collection.CloudID = response.ID // Set the cloud ID reference
 	collection.LastSyncedAt = time.Now()
 	collection.IsModifiedLocally = false
 
@@ -114,7 +114,7 @@ func (s *uploadService) Upload(ctx context.Context, localID string) (*UploadOutp
 	}, nil
 }
 
-// UploadAll uploads all locally modified collections to the remote server
+// UploadAll uploads all locally modified collections to the cloud server
 func (s *uploadService) UploadAll(ctx context.Context) (int, error) {
 	// Create a filter for locally modified collections
 	status := collection.SyncStatusModifiedLocally

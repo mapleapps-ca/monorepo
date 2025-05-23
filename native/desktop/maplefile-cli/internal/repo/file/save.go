@@ -14,7 +14,7 @@ import (
 func (r *fileRepository) Save(ctx context.Context, file *file.Collection) error {
 	r.logger.Debug("Saving file to local storage",
 		zap.String("fileID", file.ID.Hex()),
-		zap.String("remoteID", file.RemoteID.Hex()))
+		zap.String("cloudID", file.CloudID.Hex()))
 
 	// Update modified timestamp
 	file.ModifiedAt = time.Now()

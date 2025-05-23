@@ -17,19 +17,19 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
-// CreateInput represents the input for creating a remote collection
+// CreateInput represents the input for creating a cloud collection
 type CreateInput struct {
 	Name           string `json:"name"`
 	CollectionType string `json:"collection_type"`
 	ParentID       string `json:"parent_id,omitempty"`
 }
 
-// CreateOutput represents the result of creating a remote collection
+// CreateOutput represents the result of creating a cloud collection
 type CreateOutput struct {
 	Collection *remotecollection.RemoteCollectionResponse `json:"collection"`
 }
 
-// CreateService defines the interface for creating remote collections
+// CreateService defines the interface for creating cloud collections
 type CreateService interface {
 	Create(ctx context.Context, input CreateInput) (*CreateOutput, error)
 }
@@ -42,7 +42,7 @@ type createService struct {
 	createUseCase uc.CreateRemoteCollectionUseCase
 }
 
-// NewCreateService creates a new service for creating remote collections
+// NewCreateService creates a new service for creating cloud collections
 func NewCreateService(
 	logger *zap.Logger,
 	configService config.ConfigService,
@@ -57,7 +57,7 @@ func NewCreateService(
 	}
 }
 
-// Create creates a new remote collection
+// Create creates a new cloud collection
 func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateOutput, error) {
 	// Validate inputs
 	if input.Name == "" {
@@ -140,7 +140,7 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 	// Call the use case to create the collection
 	response, err := s.createUseCase.Execute(ctx, useCaseInput)
 	if err != nil {
-		s.logger.Error("failed to create remote collection", zap.String("name", input.Name), zap.Error(err))
+		s.logger.Error("failed to create cloud collection", zap.String("name", input.Name), zap.Error(err))
 		return nil, err
 	}
 

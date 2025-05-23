@@ -1,4 +1,4 @@
-// internal/service/collectionsyncer/find_by_remote_id.go
+// internal/service/collectionsyncer/find_by_cloud_id.go
 package collectionsyncer
 
 import (
@@ -11,53 +11,53 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 )
 
-// FindByRemoteIDService defines the interface for finding a local collection by its remote ID
-type FindByRemoteIDService interface {
-	FindByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*collection.Collection, error)
+// FindByCloudIDService defines the interface for finding a local collection by its cloud ID
+type FindByCloudIDService interface {
+	FindByCloudID(ctx context.Context, cloudID primitive.ObjectID) (*collection.Collection, error)
 }
 
-// findByRemoteIDService implements the FindByRemoteIDService interface
-type findByRemoteIDService struct {
+// findByCloudIDService implements the FindByCloudIDService interface
+type findByCloudIDService struct {
 	logger          *zap.Logger
 	localRepository collection.CollectionRepository
 }
 
-// NewFindByRemoteIDService creates a new service for finding local collections by remote ID
-func NewFindByRemoteIDService(
+// NewFindByCloudIDService creates a new service for finding local collections by cloud ID
+func NewFindByCloudIDService(
 	logger *zap.Logger,
 	localRepository collection.CollectionRepository,
-) FindByRemoteIDService {
-	return &findByRemoteIDService{
+) FindByCloudIDService {
+	return &findByCloudIDService{
 		logger:          logger,
 		localRepository: localRepository,
 	}
 }
 
-// FindByRemoteID finds a local collection by its remote ID
-func (s *findByRemoteIDService) FindByRemoteID(
+// FindByCloudID finds a local collection by its cloud ID
+func (s *findByCloudIDService) FindByCloudID(
 	ctx context.Context,
-	remoteID primitive.ObjectID,
+	cloudID primitive.ObjectID,
 ) (*collection.Collection, error) {
 	// Validate inputs
-	if remoteID.IsZero() {
-		return nil, errors.NewAppError("remote ID is required", nil)
+	if cloudID.IsZero() {
+		return nil, errors.NewAppError("cloud ID is required", nil)
 	}
 
 	// Get all local collections
 	// In a real implementation, this would likely use a more efficient filter
-	// that directly queries by remoteID instead of getting all collections
+	// that directly queries by cloudID instead of getting all collections
 	collections, err := s.localRepository.List(ctx, collection.CollectionFilter{})
 	if err != nil {
 		return nil, errors.NewAppError("failed to list local collections", err)
 	}
 
-	// Find the one matching the remote ID
-	// Assuming that Collection has a RemoteID field to store the ID of the
-	// corresponding remote collection
+	// Find the one matching the cloud ID
+	// Assuming that Collection has a CloudID field to store the ID of the
+	// corresponding cloud collection
 	for _, collection := range collections {
-		// Note: This would need the Collection struct to have a RemoteID field
+		// Note: This would need the Collection struct to have a CloudID field
 		// This field might not exist yet in your current model
-		if collection.RemoteID == remoteID {
+		if collection.CloudID == cloudID {
 			return collection, nil
 		}
 	}

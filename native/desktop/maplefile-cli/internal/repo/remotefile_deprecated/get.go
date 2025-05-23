@@ -13,8 +13,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// GetByRemoteID retrieves a file by its remote ID
-func (r *remoteFileRepository) GetByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*remotefile.RemoteFile, error) {
+// GetByCloudID retrieves a file by its cloud ID
+func (r *remoteFileRepository) GetByCloudID(ctx context.Context, cloudID primitive.ObjectID) (*remotefile.RemoteFile, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -28,7 +28,7 @@ func (r *remoteFileRepository) GetByRemoteID(ctx context.Context, remoteID primi
 	}
 
 	// Create HTTP request
-	fetchURL := fmt.Sprintf("%s/maplefile/api/v1/files/id/%s", serverURL, remoteID)
+	fetchURL := fmt.Sprintf("%s/maplefile/api/v1/files/id/%s", serverURL, cloudID)
 	req, err := http.NewRequestWithContext(ctx, "GET", fetchURL, nil)
 	if err != nil {
 		return nil, errors.NewAppError("failed to create HTTP request", err)

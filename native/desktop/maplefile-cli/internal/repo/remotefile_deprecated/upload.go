@@ -15,8 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// UploadFileByEncryptedID uploads file data using the remote file ID
-func (r *remoteFileRepository) UploadFileByRemoteID(ctx context.Context, remoteID primitive.ObjectID, data []byte) error {
+// UploadFileByEncryptedID uploads file data using the cloud file ID
+func (r *remoteFileRepository) UploadFileByCloudID(ctx context.Context, cloudID primitive.ObjectID, data []byte) error {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -68,7 +68,7 @@ func (r *remoteFileRepository) UploadFileByRemoteID(ctx context.Context, remoteI
 	}
 
 	// Create HTTP request using encrypted file ID in URL
-	uploadURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/data", serverURL, remoteID.Hex())
+	uploadURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/data", serverURL, cloudID.Hex())
 	req, err := http.NewRequestWithContext(ctx, "POST", uploadURL, &requestBody)
 	if err != nil {
 		r.logger.Error("Failed to create upload request",
@@ -132,12 +132,12 @@ func (r *remoteFileRepository) UploadFileByRemoteID(ctx context.Context, remoteI
 
 // UploadFile uploads file data using MongoDB ObjectID (legacy method, kept for compatibility)
 func (r *remoteFileRepository) UploadFileByLocalID(ctx context.Context, fileID primitive.ObjectID, data []byte) error {
-	// First, get the file to obtain its remote file
+	// First, get the file to obtain its cloud file
 	remotefile, err := r.Fetch(ctx, fileID)
 	if err != nil {
 		return errors.NewAppError("failed to fetch file to get encrypted file ID", err)
 	}
 
 	// Use the encrypted file ID for upload
-	return r.UploadFileByRemoteID(ctx, remotefile.ID, data)
+	return r.UploadFileByCloudID(ctx, remotefile.ID, data)
 }

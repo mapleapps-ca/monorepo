@@ -1,7 +1,7 @@
 // internal/domain/remotefile/constants.go
 package remotefile
 
-// FileStatus defines the status of a file in the remote system
+// FileStatus defines the status of a file in the cloud system
 type FileStatus int
 
 const (

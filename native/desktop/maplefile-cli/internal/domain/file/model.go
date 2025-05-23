@@ -14,8 +14,8 @@ type Collection struct {
 	// Identifiers
 	// Local primary key
 	ID primitive.ObjectID `json:"id"`
-	// Remote reference ID - stores the unique identifier of the corresponding remote file. This gets updated when the file is synced with the remote server.
-	RemoteID primitive.ObjectID `json:"remote_id,omitempty"`
+	// CloudID is the unique identifier of the corresponding cloud file set by the cloud server. This gets updated when the file is synced with the cloud server.
+	CloudID primitive.ObjectID `json:"cloud_id,omitempty"`
 	// Collection this file belongs to
 	CollectionID primitive.ObjectID `json:"collection_id"`
 	// Owner of the file

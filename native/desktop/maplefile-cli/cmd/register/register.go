@@ -26,8 +26,8 @@ This command requires you to provide an email, password, first name, and last na
 You can optionally provide timezone, country, phone number, a beta access code,
 specify agreement to terms, promotions, and tracking, and specify the registration module.
 
-Registration information will be saved locally before being sent to the remote server.
-Use the --skip-remote flag to only save locally without registering with the remote server.`,
+Registration information will be saved locally before being sent to the cloud server.
+Use the --skip-cloud flag to only save locally without registering with the cloud server.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
 
@@ -77,7 +77,7 @@ Use the --skip-remote flag to only save locally without registering with the rem
 			// Display success message
 			if skipRemoteRegistration {
 				fmt.Println("\n✅ Registration information saved locally.")
-				fmt.Println("To complete registration with the remote server, run the command again without the --skip-remote flag.")
+				fmt.Println("To complete registration with the cloud server, run the command again without the --skip-cloud flag.")
 			} else {
 				fmt.Println("\n✅ Registration successful!")
 				if output.ServerResponse != "" {
@@ -104,7 +104,7 @@ Use the --skip-remote flag to only save locally without registering with the rem
 	cmd.Flags().BoolVar(&agreePromotions, "agree-promotions", false, "Agree to receive promotions")
 	cmd.Flags().BoolVar(&agreeTracking, "agree-tracking", false, "Agree to tracking across third-party apps and services")
 	cmd.Flags().IntVarP(&module, "module", "m", 0, "Module the user is registering for")
-	cmd.Flags().BoolVar(&skipRemoteRegistration, "skip-remote", false, "Skip remote registration and only save locally")
+	cmd.Flags().BoolVar(&skipRemoteRegistration, "skip-cloud", false, "Skip cloud registration and only save locally")
 
 	// Mark required flags
 	cmd.MarkFlagRequired("email")

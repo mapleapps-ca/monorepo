@@ -13,7 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Fetch retrieves a file from the remote server by ID
+// Fetch retrieves a file from the cloud server by ID
 func (r *remoteFileRepository) Fetch(ctx context.Context, id primitive.ObjectID) (*remotefile.RemoteFile, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)

@@ -90,13 +90,13 @@ Examples:
 					displayName = "[Encrypted]"
 				}
 
-				fmt.Printf("%d. %s (Local ID: %s, Remote ID: %s, Type: %s)\n", i+1, displayName, collection.ID.Hex(), collection.RemoteID.Hex(), collection.Type)
+				fmt.Printf("%d. %s (Local ID: %s, Cloud ID: %s, Type: %s)\n", i+1, displayName, collection.ID.Hex(), collection.CloudID.Hex(), collection.Type)
 
 				if verbose {
 					fmt.Printf("   Created: %s\n", collection.CreatedAt.Format("2006-01-02 15:04:05"))
 					fmt.Printf("   Modified: %s\n", collection.ModifiedAt.Format("2006-01-02 15:04:05"))
-					if !collection.RemoteID.IsZero() {
-						fmt.Printf("   Remote ID: %s\n", collection.RemoteID.Hex())
+					if !collection.CloudID.IsZero() {
+						fmt.Printf("   Cloud ID: %s\n", collection.CloudID.Hex())
 					}
 					if !collection.ParentID.IsZero() {
 						fmt.Printf("   Parent ID: %s\n", collection.ParentID.Hex())

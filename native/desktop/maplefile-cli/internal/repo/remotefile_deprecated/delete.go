@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Delete deletes a file from the remote server
+// Delete deletes a file from the cloud server
 func (r *remoteFileRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)

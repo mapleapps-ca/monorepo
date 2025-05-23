@@ -20,16 +20,16 @@ type DownloadOutput struct {
 
 // DownloadService defines the interface for downloading collections
 type DownloadService interface {
-	Download(ctx context.Context, remoteID string) (*DownloadOutput, error)
+	Download(ctx context.Context, cloudID string) (*DownloadOutput, error)
 	DownloadAll(ctx context.Context) (int, error)
 }
 
 // downloadService implements the DownloadService interface
 type downloadService struct {
-	logger                *zap.Logger
-	localRepository       collection.CollectionRepository
-	remoteRepository      remotecollection.RemoteCollectionRepository
-	findByRemoteIDService FindByRemoteIDService
+	logger               *zap.Logger
+	localRepository      collection.CollectionRepository
+	remoteRepository     remotecollection.RemoteCollectionRepository
+	findByCloudIDService FindByCloudIDService
 }
 
 // NewDownloadService creates a new service for downloading collections
@@ -37,53 +37,53 @@ func NewDownloadService(
 	logger *zap.Logger,
 	localRepository collection.CollectionRepository,
 	remoteRepository remotecollection.RemoteCollectionRepository,
-	findByRemoteIDService FindByRemoteIDService,
+	findByCloudIDService FindByCloudIDService,
 ) DownloadService {
 	return &downloadService{
-		logger:                logger,
-		localRepository:       localRepository,
-		remoteRepository:      remoteRepository,
-		findByRemoteIDService: findByRemoteIDService,
+		logger:               logger,
+		localRepository:      localRepository,
+		remoteRepository:     remoteRepository,
+		findByCloudIDService: findByCloudIDService,
 	}
 }
 
-// Download downloads a remote collection to local storage
-func (s *downloadService) Download(ctx context.Context, remoteID string) (*DownloadOutput, error) {
+// Download downloads a cloud collection to local storage
+func (s *downloadService) Download(ctx context.Context, cloudID string) (*DownloadOutput, error) {
 	// Validate inputs
-	if remoteID == "" {
-		return nil, errors.NewAppError("remote collection ID is required", nil)
+	if cloudID == "" {
+		return nil, errors.NewAppError("cloud collection ID is required", nil)
 	}
 
-	// Convert remote ID string to ObjectID
-	remoteObjectID, err := primitive.ObjectIDFromHex(remoteID)
+	// Convert cloud ID string to ObjectID
+	remoteObjectID, err := primitive.ObjectIDFromHex(cloudID)
 	if err != nil {
-		s.logger.Error("Invalid remote ID format", zap.String("remoteID", remoteID), zap.Error(err))
-		return nil, errors.NewAppError("invalid remote ID format", err)
+		s.logger.Error("Invalid cloud ID format", zap.String("cloudID", cloudID), zap.Error(err))
+		return nil, errors.NewAppError("invalid cloud ID format", err)
 	}
 
 	// Check if we already have a local copy
-	existingLocal, err := s.findByRemoteIDService.FindByRemoteID(ctx, remoteObjectID)
+	existingLocal, err := s.findByCloudIDService.FindByCloudID(ctx, remoteObjectID)
 	if err != nil {
 		return nil, errors.NewAppError("failed to check for existing local copy", err)
 	}
 
-	// Fetch the remote collection
+	// Fetch the cloud collection
 	remoteCollection, err := s.remoteRepository.Fetch(ctx, remoteObjectID)
 	if err != nil {
-		return nil, errors.NewAppError("failed to fetch remote collection", err)
+		return nil, errors.NewAppError("failed to fetch cloud collection", err)
 	}
 
 	if remoteCollection == nil {
-		return nil, errors.NewAppError("remote collection not found", nil)
+		return nil, errors.NewAppError("cloud collection not found", nil)
 	}
 
 	// If we have a local copy, update it
 	if existingLocal != nil {
 		s.logger.Debug("Updating existing local collection",
 			zap.String("localID", existingLocal.ID.Hex()),
-			zap.String("remoteID", remoteID))
+			zap.String("cloudID", cloudID))
 
-		// Update fields from remote
+		// Update fields from cloud
 		existingLocal.EncryptedName = remoteCollection.EncryptedName
 		existingLocal.Type = remoteCollection.Type
 		existingLocal.EncryptedCollectionKey = remoteCollection.EncryptedCollectionKey
@@ -105,7 +105,7 @@ func (s *downloadService) Download(ctx context.Context, remoteID string) (*Downl
 	// Create a new local collection
 	collection := &collection.Collection{
 		ID:                     primitive.NewObjectID(),
-		RemoteID:               remoteCollection.ID, // Store the remote ID for future sync operations
+		CloudID:                remoteCollection.ID, // Store the cloud ID for future sync operations
 		OwnerID:                remoteCollection.OwnerID,
 		EncryptedName:          remoteCollection.EncryptedName,
 		Type:                   remoteCollection.Type,
@@ -130,15 +130,15 @@ func (s *downloadService) Download(ctx context.Context, remoteID string) (*Downl
 	}, nil
 }
 
-// DownloadAll downloads all remote collections to local storage
+// DownloadAll downloads all cloud collections to local storage
 func (s *downloadService) DownloadAll(ctx context.Context) (int, error) {
-	// Create an empty filter to get all remote collections
+	// Create an empty filter to get all cloud collections
 	filter := remotecollection.CollectionFilter{}
 
-	// Get all remote collections
+	// Get all cloud collections
 	remoteCollections, err := s.remoteRepository.List(ctx, filter)
 	if err != nil {
-		return 0, errors.NewAppError("failed to list remote collections", err)
+		return 0, errors.NewAppError("failed to list cloud collections", err)
 	}
 
 	// Download each collection

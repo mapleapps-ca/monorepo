@@ -40,7 +40,7 @@ func UseCaseModule() fx.Option {
 		fx.Provide(collection.NewMoveCollectionUseCase),
 		fx.Provide(collection.NewGetCollectionPathUseCase),
 
-		// // Remote collection use cases
+		// // Cloud collection use cases
 		// fx.Provide(remotecollection.NewCreateRemoteCollectionUseCase),
 		// fx.Provide(remotecollection.NewFetchRemoteCollectionUseCase),
 		// fx.Provide(remotecollection.NewListRemoteCollectionsUseCase),

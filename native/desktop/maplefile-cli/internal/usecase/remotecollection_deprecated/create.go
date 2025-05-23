@@ -13,7 +13,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotecollection"
 )
 
-// CreateRemoteCollectionInput defines the input for creating a remote collection
+// CreateRemoteCollectionInput defines the input for creating a cloud collection
 type CreateRemoteCollectionInput struct {
 	EncryptedName          string
 	Type                   string
@@ -22,7 +22,7 @@ type CreateRemoteCollectionInput struct {
 	EncryptedCollectionKey keys.EncryptedCollectionKey
 }
 
-// CreateRemoteCollectionUseCase defines the interface for creating a remote collection
+// CreateRemoteCollectionUseCase defines the interface for creating a cloud collection
 type CreateRemoteCollectionUseCase interface {
 	Execute(ctx context.Context, input CreateRemoteCollectionInput) (*remotecollection.RemoteCollectionResponse, error)
 }
@@ -33,7 +33,7 @@ type createRemoteCollectionUseCase struct {
 	repository remotecollection.RemoteCollectionRepository
 }
 
-// NewCreateRemoteCollectionUseCase creates a new use case for creating remote collections
+// NewCreateRemoteCollectionUseCase creates a new use case for creating cloud collections
 func NewCreateRemoteCollectionUseCase(
 	logger *zap.Logger,
 	repository remotecollection.RemoteCollectionRepository,
@@ -44,7 +44,7 @@ func NewCreateRemoteCollectionUseCase(
 	}
 }
 
-// Execute creates a new remote collection
+// Execute creates a new cloud collection
 func (uc *createRemoteCollectionUseCase) Execute(
 	ctx context.Context,
 	input CreateRemoteCollectionInput,
@@ -84,7 +84,7 @@ func (uc *createRemoteCollectionUseCase) Execute(
 	// Call the repository to create the collection
 	response, err := uc.repository.Create(ctx, request)
 	if err != nil {
-		return nil, errors.NewAppError("failed to create remote collection", err)
+		return nil, errors.NewAppError("failed to create cloud collection", err)
 	}
 
 	return response, nil

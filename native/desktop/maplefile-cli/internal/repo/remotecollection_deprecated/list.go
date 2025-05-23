@@ -16,7 +16,7 @@ import (
 )
 
 func (r *collectionRepository) List(ctx context.Context, filter collection.CollectionFilter) ([]*collection.RemoteCollection, error) {
-	r.logger.Debug("Listing collections from remote server", zap.Any("filter", filter))
+	r.logger.Debug("Listing collections from cloud server", zap.Any("filter", filter))
 
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
@@ -111,7 +111,7 @@ func (r *collectionRepository) List(ctx context.Context, filter collection.Colle
 		collections = append(collections, remoteColl)
 	}
 
-	r.logger.Info("Successfully listed collections from remote server",
+	r.logger.Info("Successfully listed collections from cloud server",
 		zap.Int("count", len(collections)))
 	return collections, nil
 }

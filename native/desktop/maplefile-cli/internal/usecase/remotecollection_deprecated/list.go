@@ -11,7 +11,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotecollection"
 )
 
-// ListRemoteCollectionsUseCase defines the interface for listing remote collections
+// ListRemoteCollectionsUseCase defines the interface for listing cloud collections
 type ListRemoteCollectionsUseCase interface {
 	Execute(ctx context.Context, filter remotecollection.CollectionFilter) ([]*remotecollection.RemoteCollection, error)
 	ListRoots(ctx context.Context) ([]*remotecollection.RemoteCollection, error)
@@ -24,7 +24,7 @@ type listRemoteCollectionsUseCase struct {
 	repository remotecollection.RemoteCollectionRepository
 }
 
-// NewListRemoteCollectionsUseCase creates a new use case for listing remote collections
+// NewListRemoteCollectionsUseCase creates a new use case for listing cloud collections
 func NewListRemoteCollectionsUseCase(
 	logger *zap.Logger,
 	repository remotecollection.RemoteCollectionRepository,
@@ -35,7 +35,7 @@ func NewListRemoteCollectionsUseCase(
 	}
 }
 
-// Execute lists remote collections based on filter criteria
+// Execute lists cloud collections based on filter criteria
 func (uc *listRemoteCollectionsUseCase) Execute(
 	ctx context.Context,
 	filter remotecollection.CollectionFilter,
@@ -43,13 +43,13 @@ func (uc *listRemoteCollectionsUseCase) Execute(
 	// List collections from the repository
 	collections, err := uc.repository.List(ctx, filter)
 	if err != nil {
-		return nil, errors.NewAppError("failed to list remote collections", err)
+		return nil, errors.NewAppError("failed to list cloud collections", err)
 	}
 
 	return collections, nil
 }
 
-// ListRoots lists root-level remote collections
+// ListRoots lists root-level cloud collections
 func (uc *listRemoteCollectionsUseCase) ListRoots(
 	ctx context.Context,
 ) ([]*remotecollection.RemoteCollection, error) {
@@ -63,7 +63,7 @@ func (uc *listRemoteCollectionsUseCase) ListRoots(
 	return uc.Execute(ctx, filter)
 }
 
-// ListByParent lists remote collections with the specified parent
+// ListByParent lists cloud collections with the specified parent
 func (uc *listRemoteCollectionsUseCase) ListByParent(
 	ctx context.Context,
 	parentID primitive.ObjectID,

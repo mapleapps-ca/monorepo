@@ -11,10 +11,10 @@ import (
 
 // RemoteFile represents a file stored in the cloud backend.
 type RemoteFile struct {
-	// Remote primary key
+	// Cloud primary key
 	ID primitive.ObjectID `json:"id"`
 
-	// LocalID is the local file ID associated with this remote file.
+	// LocalID is the local file ID associated with this cloud file.
 	LocalID primitive.ObjectID `json:"local_id"`
 
 	// Collection this file belongs to
@@ -51,7 +51,7 @@ type RemoteFile struct {
 	// When was this file last modified
 	ModifiedAt time.Time `json:"modified_at"`
 
-	// Current status of the file in the remote system
+	// Current status of the file in the cloud system
 	Status FileStatus `json:"status"`
 
 	// Presigned download URL (if available)

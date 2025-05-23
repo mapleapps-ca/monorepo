@@ -13,7 +13,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotefile"
 )
 
-// Create creates a new file in the remote server
+// Create creates a new file in the cloud server
 func (r *remoteFileRepository) Create(ctx context.Context, request *remotefile.RemoteCreateFileRequest) (*remotefile.RemoteFileResponse, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)

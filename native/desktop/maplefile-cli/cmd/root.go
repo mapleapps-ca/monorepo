@@ -6,12 +6,12 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/cloud"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/collections"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/completelogin"
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/remote"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/requestloginott"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyemail"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyloginott"
@@ -51,7 +51,7 @@ func NewRootCmd(
 	// Attach sub-commands to our main root
 	rootCmd.AddCommand(version.VersionCmd())
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
-	rootCmd.AddCommand(remote.RemoteCmd(configService, logger))
+	rootCmd.AddCommand(cloud.RemoteCmd(configService, logger))
 	rootCmd.AddCommand(register.RegisterCmd(regService))
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(emailVerificationService, logger))
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))

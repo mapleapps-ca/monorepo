@@ -22,7 +22,7 @@ type remoteFileRepository struct {
 	httpClient     *http.Client
 }
 
-// NewRemoteFileRepository creates a new repository for remote file operations
+// NewRemoteFileRepository creates a new repository for cloud file operations
 func NewRemoteFileRepository(
 	logger *zap.Logger,
 	configService config.ConfigService,

@@ -11,7 +11,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotecollection"
 )
 
-// FetchRemoteCollectionUseCase defines the interface for fetching a remote collection
+// FetchRemoteCollectionUseCase defines the interface for fetching a cloud collection
 type FetchRemoteCollectionUseCase interface {
 	Execute(ctx context.Context, id primitive.ObjectID) (*remotecollection.RemoteCollection, error)
 }
@@ -22,7 +22,7 @@ type fetchRemoteCollectionUseCase struct {
 	repository remotecollection.RemoteCollectionRepository
 }
 
-// NewFetchRemoteCollectionUseCase creates a new use case for fetching remote collections
+// NewFetchRemoteCollectionUseCase creates a new use case for fetching cloud collections
 func NewFetchRemoteCollectionUseCase(
 	logger *zap.Logger,
 	repository remotecollection.RemoteCollectionRepository,
@@ -33,7 +33,7 @@ func NewFetchRemoteCollectionUseCase(
 	}
 }
 
-// Execute fetches a remote collection by ID
+// Execute fetches a cloud collection by ID
 func (uc *fetchRemoteCollectionUseCase) Execute(
 	ctx context.Context,
 	id primitive.ObjectID,
@@ -46,11 +46,11 @@ func (uc *fetchRemoteCollectionUseCase) Execute(
 	// Fetch the collection from the repository
 	collection, err := uc.repository.Fetch(ctx, id)
 	if err != nil {
-		return nil, errors.NewAppError("failed to fetch remote collection", err)
+		return nil, errors.NewAppError("failed to fetch cloud collection", err)
 	}
 
 	if collection == nil {
-		return nil, errors.NewAppError("remote collection not found", nil)
+		return nil, errors.NewAppError("cloud collection not found", nil)
 	}
 
 	return collection, nil

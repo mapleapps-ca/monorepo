@@ -92,7 +92,7 @@ func RepoModule() fx.Option {
 		),
 
 		// //----------------------------------------------
-		// // Remote collection repository
+		// // Cloud collection repository
 		// //----------------------------------------------
 		// fx.Provide(remotecollection.NewRemoteCollectionRepository),
 
@@ -107,7 +107,7 @@ func RepoModule() fx.Option {
 		),
 
 		// //----------------------------------------------
-		// // Remote file repository
+		// // Cloud file repository
 		// //----------------------------------------------
 		// fx.Provide(remotefile.NewRemoteFileRepository),
 

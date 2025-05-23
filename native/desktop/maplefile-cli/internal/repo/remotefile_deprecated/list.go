@@ -89,7 +89,7 @@ func (r *remoteFileRepository) ListByCollection(ctx context.Context, collectionI
 	return files, nil
 }
 
-// List lists remote files based on filter criteria
+// List lists cloud files based on filter criteria
 func (r *remoteFileRepository) List(ctx context.Context, filter remotefile.RemoteFileFilter) ([]*remotefile.RemoteFile, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)

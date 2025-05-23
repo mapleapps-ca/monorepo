@@ -11,7 +11,7 @@ import (
 func (f *RemoteFile) Serialize() ([]byte, error) {
 	dataBytes, err := cbor.Marshal(f)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize remote file: %v", err)
+		return nil, fmt.Errorf("failed to serialize cloud file: %v", err)
 	}
 	return dataBytes, nil
 }
@@ -25,7 +25,7 @@ func NewFromDeserialized(data []byte) (*RemoteFile, error) {
 
 	file := &RemoteFile{}
 	if err := cbor.Unmarshal(data, &file); err != nil {
-		return nil, fmt.Errorf("failed to deserialize remote file: %v", err)
+		return nil, fmt.Errorf("failed to deserialize cloud file: %v", err)
 	}
 	return file, nil
 }

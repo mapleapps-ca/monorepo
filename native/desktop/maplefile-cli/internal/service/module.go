@@ -34,13 +34,13 @@ func ServiceModule() fx.Option {
 		fx.Provide(collection.NewDeleteService),
 		fx.Provide(collection.NewMoveService),
 
-		// // Remote collection services
+		// // Cloud collection services
 		// fx.Provide(remotecollection.NewCreateService),
 		// fx.Provide(remotecollection.NewFetchService),
 		// fx.Provide(remotecollection.NewListService),
 
 		// // Collection synchronization services
-		// fx.Provide(collectionsyncer.NewFindByRemoteIDService),
+		// fx.Provide(collectionsyncer.NewFindByCloudIDService),
 		// fx.Provide(collectionsyncer.NewDownloadService),
 		// fx.Provide(collectionsyncer.NewUploadService),
 	)

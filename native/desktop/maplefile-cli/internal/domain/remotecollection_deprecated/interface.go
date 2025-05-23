@@ -7,7 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// RemoteCollectionRepository defines the interface for interacting with collections on the remote cloud backend.
+// RemoteCollectionRepository defines the interface for interacting with collections on the cloud cloud backend.
 type RemoteCollectionRepository interface {
 	Create(ctx context.Context, request *RemoteCreateCollectionRequest) (*RemoteCollectionResponse, error)
 	Fetch(ctx context.Context, id primitive.ObjectID) (*RemoteCollection, error)

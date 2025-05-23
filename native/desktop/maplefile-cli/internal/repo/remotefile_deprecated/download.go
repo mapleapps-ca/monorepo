@@ -43,7 +43,7 @@ func (r *remoteFileRepository) GetDownloadURL(ctx context.Context, fileID primit
 	return file.DownloadURL, nil
 }
 
-// DownloadFile downloads file data from the remote server using the presigned URL
+// DownloadFile downloads file data from the cloud server using the presigned URL
 func (r *remoteFileRepository) DownloadFile(ctx context.Context, fileID primitive.ObjectID) ([]byte, error) {
 	r.logger.Info("Starting file download using presigned URL",
 		zap.String("fileID", fileID.Hex()))

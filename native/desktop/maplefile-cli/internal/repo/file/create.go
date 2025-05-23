@@ -14,7 +14,7 @@ import (
 // Create creates a new local file
 func (r *fileRepository) Create(ctx context.Context, file *dom_file.Collection) error {
 	r.logger.Debug("Creating new local file",
-		zap.String("remoteID", file.RemoteID.Hex()))
+		zap.String("cloudID", file.CloudID.Hex()))
 
 	// Ensure file has an ID
 	if file.ID.IsZero() {

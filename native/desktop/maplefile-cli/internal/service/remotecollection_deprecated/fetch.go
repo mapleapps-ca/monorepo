@@ -12,12 +12,12 @@ import (
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/remotecollection"
 )
 
-// FetchOutput represents the result of fetching a remote collection
+// FetchOutput represents the result of fetching a cloud collection
 type FetchOutput struct {
 	Collection *remotecollection.RemoteCollection `json:"collection"`
 }
 
-// FetchService defines the interface for fetching remote collections
+// FetchService defines the interface for fetching cloud collections
 type FetchService interface {
 	Fetch(ctx context.Context, id string) (*FetchOutput, error)
 }
@@ -28,7 +28,7 @@ type fetchService struct {
 	fetchUseCase uc.FetchRemoteCollectionUseCase
 }
 
-// NewFetchService creates a new service for fetching remote collections
+// NewFetchService creates a new service for fetching cloud collections
 func NewFetchService(
 	logger *zap.Logger,
 	fetchUseCase uc.FetchRemoteCollectionUseCase,
@@ -39,7 +39,7 @@ func NewFetchService(
 	}
 }
 
-// Fetch retrieves a remote collection by ID
+// Fetch retrieves a cloud collection by ID
 func (s *fetchService) Fetch(ctx context.Context, id string) (*FetchOutput, error) {
 	// Validate input
 	if id == "" {
@@ -57,7 +57,7 @@ func (s *fetchService) Fetch(ctx context.Context, id string) (*FetchOutput, erro
 	// Call the use case to fetch the collection
 	collection, err := s.fetchUseCase.Execute(ctx, objectID)
 	if err != nil {
-		s.logger.Error("failed to fetch remote collection", zap.String("id", id), zap.Error(err))
+		s.logger.Error("failed to fetch cloud collection", zap.String("id", id), zap.Error(err))
 		return nil, err
 	}
 
