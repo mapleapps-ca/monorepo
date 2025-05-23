@@ -85,5 +85,13 @@ func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *u
 	// Store ChallengeID
 	user.VerificationID = data.ChallengeID
 
+	// Store extra security data such as KDF parameters and key rotation policy.
+	user.KDFParams = data.KDFParams
+	user.LastPasswordChange = data.LastPasswordChange
+	user.KDFParamsNeedUpgrade = data.KDFParamsNeedUpgrade
+	user.CurrentKeyVersion = data.CurrentKeyVersion
+	user.LastKeyRotation = data.LastKeyRotation
+	user.KeyRotationPolicy = data.KeyRotationPolicy
+
 	return nil
 }

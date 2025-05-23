@@ -16,6 +16,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	domain "github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/domain/federateduser"
+	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/domain/keys"
 	uc_user "github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/usecase/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/security/crypto"
@@ -30,12 +31,20 @@ type GatewayVerifyLoginOTTRequestIDO struct {
 }
 
 type GatewayVerifyLoginOTTResponseIDO struct {
-	Salt                string `json:"salt"`
-	PublicKey           string `json:"publicKey"`
-	EncryptedMasterKey  string `json:"encryptedMasterKey"`
-	EncryptedPrivateKey string `json:"encryptedPrivateKey"`
-	EncryptedChallenge  string `json:"encryptedChallenge"`
-	ChallengeID         string `json:"challengeId"`
+	Salt                string         `json:"salt"`
+	KDFParams           keys.KDFParams `json:"kdf_params" bson:"kdf_params"`
+	PublicKey           string         `json:"publicKey"`
+	EncryptedMasterKey  string         `json:"encryptedMasterKey"`
+	EncryptedPrivateKey string         `json:"encryptedPrivateKey"`
+	EncryptedChallenge  string         `json:"encryptedChallenge"`
+	ChallengeID         string         `json:"challengeId"`
+
+	// KDF upgrade and key rotation fields.
+	LastPasswordChange   time.Time               `json:"last_password_change" bson:"last_password_change"`
+	KDFParamsNeedUpgrade bool                    `json:"kdf_params_need_upgrade" bson:"kdf_params_need_upgrade"`
+	CurrentKeyVersion    int                     `json:"current_key_version" bson:"current_key_version"`
+	LastKeyRotation      *time.Time              `json:"last_key_rotation,omitempty" bson:"last_key_rotation,omitempty"`
+	KeyRotationPolicy    *keys.KeyRotationPolicy `json:"key_rotation_policy,omitempty" bson:"key_rotation_policy,omitempty"`
 }
 
 // ChallengeData structure to be stored in cache
@@ -230,12 +239,20 @@ func (s *gatewayVerifyLoginOTTServiceImpl) Execute(sessCtx context.Context, req 
 
 	// Return encrypted keys and challenge for client-side password verification
 	return &GatewayVerifyLoginOTTResponseIDO{
+		// Base64 encoded encrypted keys and challenge
 		Salt:                saltBase64,
+		KDFParams:           user.KDFParams,
 		PublicKey:           publicKeyBase64,
 		EncryptedMasterKey:  encryptedMasterKeyBase64,
 		EncryptedPrivateKey: encryptedPrivateKeyBase64,
 		EncryptedChallenge:  encryptedChallenge,
 		ChallengeID:         challengeID,
+		// KDF upgrade and key rotation fields.
+		LastPasswordChange:   user.LastPasswordChange,
+		KDFParamsNeedUpgrade: user.KDFParamsNeedUpgrade,
+		CurrentKeyVersion:    user.CurrentKeyVersion,
+		LastKeyRotation:      user.LastKeyRotation,
+		KeyRotationPolicy:    user.KeyRotationPolicy,
 	}, nil
 }
 
