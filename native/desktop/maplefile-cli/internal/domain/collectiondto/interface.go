@@ -17,6 +17,14 @@ type CreateCollectionRequestDTO struct {
 	Collection *CollectionDTO
 }
 
+type GetCollectionRequestDTO struct {
+	// --- Authentication
+	UserData *user.User
+
+	// --- Payload
+	ID primitive.ObjectID
+}
+
 // CollectionDTORepository defines the interface for interacting with the cloud service
 // to manage CollectionDTOs. These DTOs represent encrypted collection data
 // exchanged between the local device and the cloud server.
@@ -30,7 +38,7 @@ type CollectionDTORepository interface {
 	// GetByID fetches a CollectionDTO by its unique identifier from the cloud service.
 	// It returns the CollectionDTO if found, or an error if not found or another issue occurs.
 	// A specific error (e.g., domain.ErrNotFound) should be returned if the ID does not exist.
-	GetByID(ctx context.Context, id primitive.ObjectID) (*CollectionDTO, error)
+	GetByID(ctx context.Context, req *GetCollectionRequestDTO) (*CollectionDTO, error)
 
 	// List lists CollectionDTOs from the cloud service based on the provided filter criteria.
 	// An empty filter should return all accessible CollectionDTOs.

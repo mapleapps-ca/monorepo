@@ -24,7 +24,6 @@ func (r *collectionDTORepository) Create(ctx context.Context, request *collectio
 		r.logger.Error("Failed to get cloud provider address from config", zap.Error(err))
 		return nil, errors.NewAppError("failed to get cloud provider address", err)
 	}
-	r.logger.Debug("Successfully retrieved cloud provider address", zap.String("serverURL", serverURL))
 
 	// Defensive programming
 	if request.UserData == nil {
