@@ -12,6 +12,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
+	dom_tx "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
@@ -38,6 +39,7 @@ type CreateService interface {
 type createService struct {
 	logger                  *zap.Logger
 	configService           config.ConfigService
+	transactionManager      dom_tx.Manager
 	getUserByEmailUseCase   uc_user.GetByEmailUseCase
 	createCollectionUseCase uc_collection.CreateCollectionUseCase
 }
@@ -46,12 +48,14 @@ type createService struct {
 func NewCreateService(
 	logger *zap.Logger,
 	configService config.ConfigService,
+	transactionManager dom_tx.Manager,
 	getUserByEmailUseCase uc_user.GetByEmailUseCase,
 	createCollectionUseCase uc_collection.CreateCollectionUseCase,
 ) CreateService {
 	return &createService{
 		logger:                  logger,
 		configService:           configService,
+		transactionManager:      transactionManager,
 		getUserByEmailUseCase:   getUserByEmailUseCase,
 		createCollectionUseCase: createCollectionUseCase,
 	}
@@ -59,6 +63,10 @@ func NewCreateService(
 
 // Create handles the creation of a local collection
 func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateOutput, error) {
+	//
+	// STEP 1: Validate inputs
+	//
+
 	// Validate inputs
 	if input.Name == "" {
 		s.logger.Error("collection name is required", zap.Any("input", input))
@@ -72,6 +80,10 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 		s.logger.Error("invalid collection type", zap.String("type", input.CollectionType))
 		return nil, errors.NewAppError("collection type must be either 'folder' or 'album'", nil)
 	}
+
+	//
+	// STEP 2: Get related records or error.
+	//
 
 	// Get the authenticated user's email
 	email, err := s.configService.GetEmail(ctx)
@@ -92,10 +104,20 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 		return nil, errors.NewAppError("user not found; please login first", nil)
 	}
 
+	//
+	// STEP 3: Begin transaction
+	//
+
+	if err := s.transactionManager.Begin(); err != nil {
+		s.logger.Error("failed to begin transaction", zap.Error(err))
+		return nil, errors.NewAppError("failed to begin transaction", err)
+	}
+
 	// Generate a collection key
 	collectionKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
 	if err != nil {
 		s.logger.Error("failed to generate collection key", zap.Error(err))
+		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to generate collection key", err)
 	}
 
@@ -109,6 +131,7 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 	ciphertext, nonce, err := crypto.EncryptWithSecretBox(collectionKey, collectionKey)
 	if err != nil {
 		s.logger.Error("failed to encrypt collection key", zap.Error(err))
+		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to encrypt collection key", err)
 	}
 
@@ -134,6 +157,7 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 		parentObjectID, err := primitive.ObjectIDFromHex(input.ParentID)
 		if err != nil {
 			s.logger.Error("invalid parent ID format", zap.String("parentID", input.ParentID), zap.Error(err))
+			s.transactionManager.Rollback()
 			return nil, errors.NewAppError("invalid parent ID format", err)
 		}
 		useCaseInput.ParentID = &parentObjectID
@@ -143,7 +167,17 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 	collection, err := s.createCollectionUseCase.Execute(ctx, useCaseInput)
 	if err != nil {
 		s.logger.Error("failed to create local collection", zap.String("name", input.Name), zap.Error(err))
+		s.transactionManager.Rollback()
 		return nil, err
+	}
+
+	//
+	// STEP X: Commit transaction and return method output.
+	//
+	if err := s.transactionManager.Commit(); err != nil {
+		s.logger.Error("failed to commit transaction", zap.Error(err))
+		s.transactionManager.Rollback()
+		return nil, errors.NewAppError("failed to commit transaction", err)
 	}
 
 	return &CreateOutput{
