@@ -9,7 +9,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/remotecollection"
 	userUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
@@ -41,10 +40,10 @@ func UseCaseModule() fx.Option {
 		fx.Provide(localcollection.NewMoveLocalCollectionUseCase),
 		fx.Provide(localcollection.NewGetLocalCollectionPathUseCase),
 
-		// Remote collection use cases
-		fx.Provide(remotecollection.NewCreateRemoteCollectionUseCase),
-		fx.Provide(remotecollection.NewFetchRemoteCollectionUseCase),
-		fx.Provide(remotecollection.NewListRemoteCollectionsUseCase),
+		// // Remote collection use cases
+		// fx.Provide(remotecollection.NewCreateRemoteCollectionUseCase),
+		// fx.Provide(remotecollection.NewFetchRemoteCollectionUseCase),
+		// fx.Provide(remotecollection.NewListRemoteCollectionsUseCase),
 
 		// Registration use cases
 		fx.Provide(registerUseCase.NewGenerateCredentialsUseCase),

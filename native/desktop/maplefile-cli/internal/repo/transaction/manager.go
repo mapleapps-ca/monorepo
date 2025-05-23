@@ -4,19 +4,15 @@ package transaction
 import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localfile"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotecollection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotefile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 )
 
 // txManager implements the transaction.Manager interface
 type txManager struct {
-	userRepo             user.Repository
-	localcollectionRepo  localcollection.LocalCollectionRepository
-	localfileRepo        localfile.LocalFileRepository
-	remotecollectionRepo remotecollection.RemoteCollectionRepository
-	remotefileRepo       remotefile.RemoteFileRepository
+	userRepo            user.Repository
+	localcollectionRepo localcollection.LocalCollectionRepository
+	localfileRepo       localfile.LocalFileRepository
 }
 
 // NewTransactionManager creates a new transaction manager
@@ -24,15 +20,11 @@ func NewTransactionManager(
 	userRepo user.Repository,
 	localcollectionRepo localcollection.LocalCollectionRepository,
 	localfileRepo localfile.LocalFileRepository,
-	remotecollectionRepo remotecollection.RemoteCollectionRepository,
-	remotefileRepo remotefile.RemoteFileRepository,
 ) transaction.Manager {
 	return &txManager{
-		userRepo:             userRepo,
-		localcollectionRepo:  localcollectionRepo,
-		localfileRepo:        localfileRepo,
-		remotecollectionRepo: remotecollectionRepo,
-		remotefileRepo:       remotefileRepo,
+		userRepo:            userRepo,
+		localcollectionRepo: localcollectionRepo,
+		localfileRepo:       localfileRepo,
 	}
 }
 

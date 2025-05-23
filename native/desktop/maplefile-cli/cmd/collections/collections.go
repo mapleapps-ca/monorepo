@@ -5,14 +5,10 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotecollection"
 )
 
 func CollectionsCmd(
-	remoteCollectionService remotecollection.CreateService,
-	downloadService collectionsyncer.DownloadService,
 	listService localcollection.ListService,
 	logger *zap.Logger,
 ) *cobra.Command {
@@ -27,9 +23,6 @@ func CollectionsCmd(
 	}
 
 	// Add collection subcommands
-	cmd.AddCommand(createRootCollectionCmd(remoteCollectionService, downloadService, logger))
-	cmd.AddCommand(createSubCollectionCmd(remoteCollectionService, downloadService, logger))
-	cmd.AddCommand(downloadAllCollectionsCmd(downloadService, logger))
 	cmd.AddCommand(listCollectionsCmd(listService, logger))
 
 	return cmd

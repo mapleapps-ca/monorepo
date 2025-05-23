@@ -5,10 +5,8 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotecollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
 
@@ -36,14 +34,14 @@ func ServiceModule() fx.Option {
 		fx.Provide(localcollection.NewDeleteService),
 		fx.Provide(localcollection.NewMoveService),
 
-		// Remote collection services
-		fx.Provide(remotecollection.NewCreateService),
-		fx.Provide(remotecollection.NewFetchService),
-		fx.Provide(remotecollection.NewListService),
+		// // Remote collection services
+		// fx.Provide(remotecollection.NewCreateService),
+		// fx.Provide(remotecollection.NewFetchService),
+		// fx.Provide(remotecollection.NewListService),
 
-		// Collection synchronization services
-		fx.Provide(collectionsyncer.NewFindByRemoteIDService),
-		fx.Provide(collectionsyncer.NewDownloadService),
-		fx.Provide(collectionsyncer.NewUploadService),
+		// // Collection synchronization services
+		// fx.Provide(collectionsyncer.NewFindByRemoteIDService),
+		// fx.Provide(collectionsyncer.NewDownloadService),
+		// fx.Provide(collectionsyncer.NewUploadService),
 	)
 }

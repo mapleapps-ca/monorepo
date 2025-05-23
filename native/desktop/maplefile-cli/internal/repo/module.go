@@ -7,9 +7,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/auth"
 	localcollection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/localcollection"
-	localfile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/localfile"
-	remotecollection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/remotecollection"
-	remotefile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/remotefile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/transaction"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/leveldb"
 )
@@ -93,25 +90,25 @@ func RepoModule() fx.Option {
 			),
 		),
 
-		//----------------------------------------------
-		// Remote collection repository
-		//----------------------------------------------
-		fx.Provide(remotecollection.NewRemoteCollectionRepository),
+		// //----------------------------------------------
+		// // Remote collection repository
+		// //----------------------------------------------
+		// fx.Provide(remotecollection.NewRemoteCollectionRepository),
 
-		//----------------------------------------------
-		// Local file repository
-		//----------------------------------------------
-		fx.Provide(
-			fx.Annotate(
-				localfile.NewLocalFileRepository,
-				fx.ParamTags(``, ``, `name:"file_db"`),
-			),
-		),
+		// //----------------------------------------------
+		// // Local file repository
+		// //----------------------------------------------
+		// fx.Provide(
+		// 	fx.Annotate(
+		// 		localfile.NewLocalFileRepository,
+		// 		fx.ParamTags(``, ``, `name:"file_db"`),
+		// 	),
+		// ),
 
-		//----------------------------------------------
-		// Remote file repository
-		//----------------------------------------------
-		fx.Provide(remotefile.NewRemoteFileRepository),
+		// //----------------------------------------------
+		// // Remote file repository
+		// //----------------------------------------------
+		// fx.Provide(remotefile.NewRemoteFileRepository),
 
 		//----------------------------------------------
 		// Transaction manager

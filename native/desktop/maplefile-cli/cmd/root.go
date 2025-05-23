@@ -19,10 +19,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
 	registerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/remotecollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
 
@@ -37,9 +35,6 @@ func NewRootCmd(
 	loginOTTVerificationService auth.LoginOTTVerificationService,
 	completeLoginService auth.CompleteLoginService,
 	tokenRefreshSvc tokenservice.TokenRefreshService,
-	remoteCollectionService remotecollection.CreateService,
-	remoteListService remotecollection.ListService,
-	downloadService collectionsyncer.DownloadService,
 	collectionListService localcollection.ListService,
 	// other services...
 ) *cobra.Command {
@@ -56,7 +51,7 @@ func NewRootCmd(
 	// Attach sub-commands to our main root
 	rootCmd.AddCommand(version.VersionCmd())
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
-	rootCmd.AddCommand(remote.RemoteCmd(configService, remoteListService, logger))
+	rootCmd.AddCommand(remote.RemoteCmd(configService, logger))
 	rootCmd.AddCommand(register.RegisterCmd(regService))
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(emailVerificationService, logger))
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
@@ -64,10 +59,9 @@ func NewRootCmd(
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, userRepo, tokenRefreshSvc))
 	rootCmd.AddCommand(collections.CollectionsCmd(
-		remoteCollectionService,
-		downloadService,
 		collectionListService,
-		logger))
+		logger,
+	))
 
 	return rootCmd
 }
