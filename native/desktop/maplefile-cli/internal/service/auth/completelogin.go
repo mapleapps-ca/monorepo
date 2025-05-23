@@ -66,8 +66,15 @@ func (s *completeLoginService) CompleteLogin(ctx context.Context, email, passwor
 		return nil, errors.NewAppError("failed to commit transaction", err)
 	}
 
-	// Save our authenticated email to configuration
-	s.configService.SetLoggedInUserEmail(ctx, email)
+	// Save our authenticated credentials to configuration
+	s.configService.SetLoggedInUserCredentials(
+		ctx,
+		email,
+		tokenResp.AccessToken,
+		&tokenResp.AccessTokenExpiryTime,
+		tokenResp.RefreshToken,
+		&tokenResp.RefreshTokenExpiryTime,
+	)
 
 	// Log success
 	s.logger.Info("Login completed successfully",

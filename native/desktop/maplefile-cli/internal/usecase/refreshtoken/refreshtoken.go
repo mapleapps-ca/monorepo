@@ -44,23 +44,23 @@ func NewRefreshTokenUseCase(
 // Execute performs the token refresh operation
 func (uc *refreshTokenUseCaseImpl) Execute(ctx context.Context) error {
 	// Get the current user's email from configuration
-	email, err := uc.configService.GetLoggedInUserEmail(ctx)
+	credentials, err := uc.configService.GetLoggedInUserCredentials(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting authenticated user email: %w", err)
 	}
 
-	if email == "" {
+	if credentials.Email == "" {
 		return fmt.Errorf("no authenticated user found")
 	}
 
 	// Get the user details from the repository
-	userData, err := uc.userRepo.GetByEmail(ctx, email)
+	userData, err := uc.userRepo.GetByEmail(ctx, credentials.Email)
 	if err != nil {
 		return fmt.Errorf("error retrieving user data: %w", err)
 	}
 
 	if userData == nil {
-		return fmt.Errorf("user with email %s not found", email)
+		return fmt.Errorf("user with email %s not found", credentials.Email)
 	}
 
 	// Check if the user has a refresh token

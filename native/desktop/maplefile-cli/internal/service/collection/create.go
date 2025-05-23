@@ -43,6 +43,7 @@ type createService struct {
 	logger                         *zap.Logger
 	configService                  config.ConfigService
 	transactionManager             dom_tx.Manager
+	getUserByIsLoggedInUseCase     uc_user.GetByIsLoggedInUseCase
 	createCollectionInCloudUseCase collectiondto.CreateCollectionInCloudUseCase
 	getUserByEmailUseCase          uc_user.GetByEmailUseCase
 	createCollectionUseCase        uc_collection.CreateCollectionUseCase
@@ -53,6 +54,7 @@ func NewCreateService(
 	logger *zap.Logger,
 	configService config.ConfigService,
 	transactionManager dom_tx.Manager,
+	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	createCollectionInCloudUseCase collectiondto.CreateCollectionInCloudUseCase,
 	getUserByEmailUseCase uc_user.GetByEmailUseCase,
 	createCollectionUseCase uc_collection.CreateCollectionUseCase,
@@ -61,6 +63,7 @@ func NewCreateService(
 		logger:                         logger,
 		configService:                  configService,
 		transactionManager:             transactionManager,
+		getUserByIsLoggedInUseCase:     getUserByIsLoggedInUseCase,
 		createCollectionInCloudUseCase: createCollectionInCloudUseCase,
 		getUserByEmailUseCase:          getUserByEmailUseCase,
 		createCollectionUseCase:        createCollectionUseCase,
@@ -98,23 +101,16 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 	// STEP 2: Get related records or error.
 	//
 
-	// Get the authenticated user's email
-	email, err := s.configService.GetLoggedInUserEmail(ctx)
-	if err != nil {
-		s.logger.Error("failed to get current user email", zap.Error(err))
-		return nil, errors.NewAppError("failed to get current user", err)
-	}
-
 	// Get user data
-	userData, err := s.getUserByEmailUseCase.Execute(ctx, email)
+	userData, err := s.getUserByIsLoggedInUseCase.Execute(ctx)
 	if err != nil {
-		s.logger.Error("failed to get user data", zap.String("email", email), zap.Error(err))
+		s.logger.Error("failed to get authenticated user", zap.Error(err))
 		return nil, errors.NewAppError("failed to get user data", err)
 	}
 
 	if userData == nil {
-		s.logger.Error("user not found", zap.String("email", email))
-		return nil, errors.NewAppError("user not found; please login first", nil)
+		s.logger.Error("authenticated user not found")
+		return nil, errors.NewAppError("authenticated user not found; please login first", nil)
 	}
 
 	//

@@ -30,16 +30,16 @@ func NewGetByIsLoggedInUseCase(configService config.ConfigService, userRepo user
 // Execute retrieves a user by email
 func (uc *getByIsLoggedInUseCaseImpl) Execute(ctx context.Context) (*user.User, error) {
 	// Get the current user's email from configuration
-	email, err := uc.configService.GetLoggedInUserEmail(ctx)
+	credentials, err := uc.configService.GetLoggedInUserCredentials(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error getting authenticated user email: %w", err)
+		return nil, fmt.Errorf("error getting authenticated user credentials: %w", err)
 	}
 
-	if email == "" {
+	if credentials.Email == "" {
 		return nil, fmt.Errorf("no authenticated user found")
 	}
 
-	user, err := uc.userRepo.GetByEmail(ctx, email)
+	user, err := uc.userRepo.GetByEmail(ctx, credentials.Email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}

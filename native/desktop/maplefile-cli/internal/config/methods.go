@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // Implementation of ConfigService methods
@@ -52,23 +53,36 @@ func (s *configService) SetCloudProviderAddress(ctx context.Context, address str
 }
 
 // SetLoggedInUserEmail updates the authenticated users email.
-func (s *configService) SetLoggedInUserEmail(ctx context.Context, email string) error {
+func (s *configService) SetLoggedInUserCredentials(
+	ctx context.Context,
+	email string,
+	accessToken string,
+	accessTokenExpiryTime *time.Time,
+	refreshToken string,
+	refreshTokenExpiryTime *time.Time,
+) error {
 	config, err := s.getConfig(ctx)
 	if err != nil {
 		return err
 	}
 
-	config.Email = email
+	config.Credentials = &Credentials{
+		Email:                  email,
+		AccessToken:            accessToken,
+		AccessTokenExpiryTime:  accessTokenExpiryTime,
+		RefreshToken:           refreshToken,
+		RefreshTokenExpiryTime: accessTokenExpiryTime,
+	}
 	return s.saveConfig(ctx, config)
 }
 
-// GetLoggedInUserEmail returns the authenticated users email.
-func (s *configService) GetLoggedInUserEmail(ctx context.Context) (string, error) {
+// GetLoggedInUserCredentials returns the authenticated user's credentials.
+func (s *configService) GetLoggedInUserCredentials(ctx context.Context) (*Credentials, error) {
 	config, err := s.getConfig(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return config.Email, nil
+	return config.Credentials, nil
 }
 
 // Ensure our implementation satisfies the interface

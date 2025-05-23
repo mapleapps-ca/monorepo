@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"go.uber.org/fx"
 )
@@ -19,14 +20,18 @@ const (
 
 // Config holds all application configuration in a flat structure
 type Config struct {
-	// AppDirPath is the path to the directory where all files for this application are saved.
-	AppDirPath string `json:"app_dir_path"`
-
 	// CloudProviderAddress is the URI backend to make all calls to from this application.= for E2EE cloud operations.
-	CloudProviderAddress string `json:"cloud_provider_address"`
+	CloudProviderAddress string       `json:"cloud_provider_address"`
+	Credentials          *Credentials `json:"credentials"`
+}
 
+type Credentials struct {
 	// Email is the unique registered email of the user whom successfully logged into the system.
-	Email string `json:"email"`
+	Email                  string     `json:"email"`
+	AccessToken            string     `json:"access_token"`
+	AccessTokenExpiryTime  *time.Time `json:"access_token_expiry_time"`
+	RefreshToken           string     `json:"refresh_token"`
+	RefreshTokenExpiryTime *time.Time `json:"refresh_token_expiry_time"`
 }
 
 // ConfigService defines the unified interface for all configuration operations
@@ -34,8 +39,15 @@ type ConfigService interface {
 	GetAppDirPath(ctx context.Context) (string, error)
 	GetCloudProviderAddress(ctx context.Context) (string, error)
 	SetCloudProviderAddress(ctx context.Context, address string) error
-	GetLoggedInUserEmail(ctx context.Context) (string, error)
-	SetLoggedInUserEmail(ctx context.Context, email string) error
+	GetLoggedInUserCredentials(ctx context.Context) (*Credentials, error)
+	SetLoggedInUserCredentials(
+		ctx context.Context,
+		email string,
+		accessToken string,
+		accessTokenExpiryTime *time.Time,
+		refreshToken string,
+		refreshTokenExpiryTime *time.Time,
+	) error
 }
 
 // repository defines the interface for loading and saving configuration
@@ -159,7 +171,12 @@ func getDefaultConfig() *Config {
 
 	return &Config{
 		CloudProviderAddress: "http://localhost:8000",
-		AppDirPath:           appConfigDir,
-		Email:                "", // Leave blank because no user was authenticated.
+		Credentials: &Credentials{
+			Email:                  "",  // Leave blank because no user was authenticated.
+			AccessToken:            "",  // Leave blank because no user was authenticated.
+			AccessTokenExpiryTime:  nil, // Leave blank because no user was authenticated.
+			RefreshToken:           "",  // Leave blank because no user was authenticated.
+			RefreshTokenExpiryTime: nil, // Leave blank because no user was authenticated.
+		},
 	}
 }
