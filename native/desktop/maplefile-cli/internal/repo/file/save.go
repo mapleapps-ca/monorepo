@@ -13,8 +13,7 @@ import (
 // Save updates an existing local file
 func (r *fileRepository) Save(ctx context.Context, file *dom_file.File) error {
 	r.logger.Debug("Saving file to local storage",
-		zap.String("fileID", file.ID.Hex()),
-		zap.String("cloudID", file.CloudID.Hex()))
+		zap.String("fileID", file.ID.Hex()))
 
 	// Update modified timestamp
 	file.ModifiedAt = time.Now()

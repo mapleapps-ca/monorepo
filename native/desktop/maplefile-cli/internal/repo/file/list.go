@@ -45,11 +45,6 @@ func (r *fileRepository) List(ctx context.Context, filter file.FileFilter) ([]*d
 			return nil // Skip, collection doesn't match
 		}
 
-		// Filter by cloudID if specified
-		if filter.CloudID != nil && file.CloudID != *filter.CloudID {
-			return nil // Skip, cloud ID doesn't match
-		}
-
 		// Filter by sync status if specified
 		if filter.SyncStatus != nil && file.SyncStatus != *filter.SyncStatus {
 			return nil // Skip, sync status doesn't match

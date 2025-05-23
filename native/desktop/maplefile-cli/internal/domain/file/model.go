@@ -12,10 +12,8 @@ import (
 // File represents a file on the user's local device.
 type File struct {
 	// Identifiers
-	// Local primary key
+	// ID is the unique identifier of the corresponding cloud file set by the cloud server. This gets updated when the file is synced with the cloud server.
 	ID primitive.ObjectID `json:"id"`
-	// CloudID is the unique identifier of the corresponding cloud file set by the cloud server. This gets updated when the file is synced with the cloud server.
-	CloudID primitive.ObjectID `json:"cloud_id,omitempty"`
 	// Collection this file belongs to
 	CollectionID primitive.ObjectID `json:"collection_id"`
 	// Owner of the file

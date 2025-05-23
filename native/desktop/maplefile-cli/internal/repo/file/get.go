@@ -44,24 +44,3 @@ func (r *fileRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*d
 		zap.String("fileID", id.Hex()))
 	return file, nil
 }
-
-// GetByCloudID retrieves a local file by its cloud ID
-func (r *fileRepository) GetByCloudID(ctx context.Context, cloudID primitive.ObjectID) (*dom_file.File, error) {
-	r.logger.Debug("Retrieving file by cloud ID from local storage", zap.String("cloudID", cloudID.Hex()))
-
-	// Get all files and filter
-	files, err := r.List(ctx, file.FileFilter{})
-	if err != nil {
-		return nil, errors.NewAppError("failed to list local files", err)
-	}
-
-	// Find the file with matching cloud ID
-	for _, file := range files {
-		if file.CloudID == cloudID {
-			return file, nil
-		}
-	}
-
-	r.logger.Debug("File with cloud ID not found in local storage", zap.String("cloudID", cloudID.Hex()))
-	return nil, nil
-}

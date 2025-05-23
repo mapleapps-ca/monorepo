@@ -14,7 +14,6 @@ type FileRepository interface {
 	Save(ctx context.Context, file *File) error
 
 	GetByID(ctx context.Context, id primitive.ObjectID) (*File, error)
-	GetByCloudID(ctx context.Context, cloudID primitive.ObjectID) (*File, error)
 
 	List(ctx context.Context, filter FileFilter) ([]*File, error)
 	ListByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*File, error)
@@ -40,7 +39,6 @@ type FileRepository interface {
 // FileFilter defines filtering options for listing local files
 type FileFilter struct {
 	CollectionID *primitive.ObjectID `json:"collection_id,omitempty"`
-	CloudID      *primitive.ObjectID `json:"cloud_id,omitempty"`
 	SyncStatus   *SyncStatus         `json:"sync_status,omitempty"`
 	NameContains *string             `json:"name_contains,omitempty"`
 	MimeType     *string             `json:"mime_type,omitempty"`
