@@ -66,9 +66,15 @@ type LocalFile struct {
 	// Controls which file versions are kept (encrypted, decrypted, or both)
 	StorageMode string `json:"storage_mode"`
 
-	// Timestamps
+	// Timestamps and conflict resolution
 	// When was this file created locally
 	CreatedAt time.Time `json:"created_at"`
+	// CreatedByUserID is the ID of the user who created this file.
+	CreatedByUserID primitive.ObjectID `json:"created_by_user_id"`
 	// When was this file last modified
 	ModifiedAt time.Time `json:"modified_at"`
+	// ModifiedByUserID is the ID of the user whom has last modified this file.
+	ModifiedByUserID primitive.ObjectID `json:"modified_by_user_id"`
+	// The current version of the file.
+	Version uint64 `json:"version"`
 }
