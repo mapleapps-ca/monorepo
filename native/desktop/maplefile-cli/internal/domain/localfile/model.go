@@ -11,61 +11,64 @@ import (
 
 // LocalFile represents a file on the user's local device.
 type LocalFile struct {
+	// Identifiers
 	// Local primary key
 	ID primitive.ObjectID `json:"id"`
-
-	// Remote reference ID - stores the ID of the corresponding remote file
+	// Remote reference ID - stores the unique identifier of the corresponding remote file. This gets updated when the file is synced with the remote server.
 	RemoteID primitive.ObjectID `json:"remote_id,omitempty"`
-
 	// Collection this file belongs to
 	CollectionID primitive.ObjectID `json:"collection_id"`
-
 	// Owner of the file
 	OwnerID primitive.ObjectID `json:"owner_id"`
 
-	// Encrypted metadata (JSON blob encrypted by client)
-	// Contains file name, mime type, etc.
+	// Encryption, Decryption and Content Details
+	// Client-side encrypted JSON blob containing file-specific metadata like the original file name,
+	// MIME type, size of the *unencrypted* data, etc. Encrypted by the client using the file key.
 	EncryptedMetadata string `json:"encrypted_metadata"`
-
+	// File-specific encryption key, encrypted with the collection key
+	EncryptedFileKey keys.EncryptedFileKey `json:"encrypted_file_key"`
+	// Version identifier for the encryption scheme used
+	EncryptionVersion string `json:"encryption_version"`
+	// Hash of the encrypted file for integrity checking
+	EncryptedHash string `json:"encrypted_hash"`
 	// Decrypted metadata for local use
 	DecryptedName     string `json:"decrypted_name"`
 	DecryptedMimeType string `json:"decrypted_mime_type"`
 
-	// File-specific encryption key, encrypted with the collection key
-	EncryptedFileKey keys.EncryptedFileKey `json:"encrypted_file_key"`
+	// Encrypted File Storage Details
+	// The path on the local filesystem where the encrypted file is stored
+	EncryptedFilePath string `json:"encrypted_file_path"`
+	// Size of the encrypted file in bytes. To be used for accounting and billing purposes.
+	EncryptedFileSize int64 `json:"encrypted_file_size"`
 
-	// Version identifier for the encryption scheme used
-	EncryptionVersion string `json:"encryption_version"`
+	// Decrypted File Storage Details
+	// The path on the local filesystem where the decrypted file is stored
+	DecryptedFilePath string `json:"decrypted_file_path"`
+	// Size of the decrypted file in bytes.
+	DecryptedFileSize int64 `json:"decrypted_file_size"`
 
-	// Hash of the encrypted file for integrity checking
-	EncryptedHash string `json:"encrypted_hash"`
-
+	// Encrypted Thumbnail Storage Details
 	// The path where the thumbnail is stored locally (if it exists)
-	LocalThumbnailPath string `json:"local_thumbnail_path,omitempty"`
+	EncryptedThumbnailPath string `json:"encrypted_thumbnail_path,omitempty"`
+	// Size of the encrypted thumbnail in bytes. To be used for accounting and billing purposes.
+	EncryptedThumbnailSize int64 `json:"encrypted_thumbnai_size"`
 
-	// When was this file created locally
-	CreatedAt time.Time `json:"created_at"`
-
-	// When was this file last modified
-	ModifiedAt time.Time `json:"modified_at"`
+	// Decrypted Thumbnail Storage Details
+	// The path where the thumbnail is stored locally (if it exists)
+	DecryptedThumbnailPath string `json:"decrypted_thumbnail_path,omitempty"`
+	// Size of the decrypted thumbnail in bytes. To be used for accounting and billing purposes.
+	DecryptedThumbnailSize int64 `json:"decrypted_thumbnail_size"`
 
 	// Fields for tracking synchronization state
 	LastSyncedAt      time.Time  `json:"last_synced_at"`
 	IsModifiedLocally bool       `json:"is_modified_locally"`
 	SyncStatus        SyncStatus `json:"sync_status"`
-
-	// The path on the local filesystem where the encrypted file is stored
-	EncryptedFilePath string `json:"encrypted_file_path"`
-
-	// Size of the encrypted file in bytes. To be used for accounting and billing purposes.
-	EncryptedFileSize int64 `json:"encrypted_file_size"`
-
-	// The path on the local filesystem where the decrypted file is stored
-	DecryptedFilePath string `json:"decrypted_file_path"`
-
-	// Size of the decrypted file in bytes.
-	DecryptedFileSize int64 `json:"decrypted_file_size"`
-
 	// Controls which file versions are kept (encrypted, decrypted, or both)
 	StorageMode string `json:"storage_mode"`
+
+	// Timestamps
+	// When was this file created locally
+	CreatedAt time.Time `json:"created_at"`
+	// When was this file last modified
+	ModifiedAt time.Time `json:"modified_at"`
 }
