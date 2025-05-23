@@ -7,6 +7,7 @@ import (
 	unifiedhttp "github.com/mapleapps-ca/monorepo/cloud/backend/internal/manifold/interface/http"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/collection"
 	commonhttp "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/common"
+	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/me"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
 )
@@ -42,6 +43,15 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(collection.NewShareCollectionHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewRemoveMemberHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewListSharedCollectionsHTTPHandler),
+
+			// File handlers
+			unifiedhttp.AsRoute(file.NewUploadFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewDeleteFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewDeleteMultipleFilesHTTPHandler),
+			unifiedhttp.AsRoute(file.NewDownloadFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewGetFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewListFilesByCollectionHTTPHandler),
+			unifiedhttp.AsRoute(file.NewUpdateFileHTTPHandler),
 		),
 	)
 }
