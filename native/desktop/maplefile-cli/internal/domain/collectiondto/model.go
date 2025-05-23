@@ -38,7 +38,6 @@ const (
 // It can represent both root collections and embedded subcollections.
 type CollectionDTO struct {
 	// ID is the unique identifier for the collection in the cloud database.
-	// This is the MongoDB document ID.
 	ID primitive.ObjectID `bson:"_id" json:"id"`
 
 	// OwnerID is the ID of the user who originally created and owns this collection.
