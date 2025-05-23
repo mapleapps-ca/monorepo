@@ -8,14 +8,13 @@ import (
 	"io"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 )
 
-func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, id primitive.ObjectID, accessToken string) (*collectiondto.CollectionDTO, error) {
+func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, request *collectiondto.GetCollectionRequestDTO) (*collectiondto.CollectionDTO, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -24,13 +23,21 @@ func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, id primi
 	}
 
 	// Defensive programming
-	if id.IsZero() {
-		r.logger.Error("id is required")
-		return nil, errors.NewAppError("id is required", nil)
+	if request.UserData == nil {
+		r.logger.Error("User data not found", zap.String("email", request.UserData.Email))
+		return nil, errors.NewAppError("user not found; please login first", nil)
+	}
+
+	// Check if access token is valid
+	r.logger.Debug("Checking if access token is valid")
+	accessToken, err := r.getAccessToken(ctx, request.UserData)
+	if err != nil {
+		r.logger.Error("Failed to get access token", zap.String("email", request.UserData.Email), zap.Error(err))
+		return nil, errors.NewAppError("failed to get access token", err)
 	}
 
 	// Create HTTP request
-	fetchURL := fmt.Sprintf("%s/maplefile/api/v1/collections/%s", serverURL, id.Hex())
+	fetchURL := fmt.Sprintf("%s/maplefile/api/v1/collections/%s", serverURL, request.ID.Hex())
 	req, err := http.NewRequestWithContext(ctx, "GET", fetchURL, nil)
 	if err != nil {
 		r.logger.Error("Failed to create HTTP request", zap.String("url", fetchURL), zap.Error(err))
@@ -71,6 +78,6 @@ func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, id primi
 	}
 
 	r.logger.Info("Successfully fetched collection from cloud server",
-		zap.String("collectionID", id.Hex()))
+		zap.String("collectionID", request.ID.Hex()))
 	return &response, nil
 }

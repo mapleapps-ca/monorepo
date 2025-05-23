@@ -22,6 +22,7 @@ func ServiceModule() fx.Option {
 		fx.Provide(auth.NewLoginOTTService),
 		fx.Provide(auth.NewLoginOTTVerificationService),
 		fx.Provide(auth.NewCompleteLoginService),
+		fx.Provide(auth.NewGetAccessTokenWithRefreshService),
 
 		// Token refresh service
 		fx.Provide(tokenservice.NewTokenRefreshService),

@@ -1,34 +1,54 @@
-// monorepo/native/desktop/maplefile-cli/internal/repo/collectiondto/auth.go
-package collectiondto
+// monorepo/native/desktop/maplefile-cli/internal/service/token/token.go
+package auth
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 )
 
-// getAccessToken retrieves a valid access token for API calls
-func (r *collectionDTORepository) getAccessToken(ctx context.Context, userData *user.User) (string, error) {
-	// Get authenticated user's email
-	email, err := r.configService.GetEmail(ctx)
-	if err != nil {
-		r.logger.Error("Failed to get authenticated user email", zap.Error(err))
-		return "", errors.NewAppError("failed to get authenticated user", err)
-	}
+type GetAccessTokenWithRefreshService interface {
+	Execute(ctx context.Context, userData *user.User) (string, error)
+}
 
-	if userData == nil {
-		r.logger.Error("User data not found", zap.String("email", email))
-		return "", errors.NewAppError("user not found; please login first", nil)
+// getAccessTokenWithRefreshServiceImpl implements the TokenService interface
+type getAccessTokenWithRefreshServiceImpl struct {
+	logger         *zap.Logger
+	configService  config.ConfigService
+	userRepo       user.Repository
+	tokenRefresher auth.TokenRefresher
+	httpClient     *http.Client
+}
+
+// NewGetAccessTokenWithRefreshService creates a new repository for token operations
+func NewGetAccessTokenWithRefreshService(
+	logger *zap.Logger,
+	configService config.ConfigService,
+	userRepo user.Repository,
+	tokenRefresher auth.TokenRefresher,
+) GetAccessTokenWithRefreshService {
+	return &getAccessTokenWithRefreshServiceImpl{
+		logger:         logger,
+		configService:  configService,
+		userRepo:       userRepo,
+		tokenRefresher: tokenRefresher,
+		httpClient:     &http.Client{Timeout: 30 * time.Second},
 	}
+}
+
+// Execute retrieves a valid access token (if it expired) for API calls and refreshes if possible, else returns an error.
+func (r *getAccessTokenWithRefreshServiceImpl) Execute(ctx context.Context, userData *user.User) (string, error) {
 
 	// Check if access token is valid
 	if userData.AccessToken == "" || r.isTokenExpiredOrExpiringSoon(userData.AccessTokenExpiryTime) {
-		r.logger.Info("Access token is invalid or expiring soon, refreshing",
-			zap.String("email", email))
+		r.logger.Info("Access token is invalid or expiring soon, refreshing")
 
 		if err := r.refreshTokenIfNeeded(ctx, userData); err != nil {
 			r.logger.Error("Failed to refresh token", zap.Error(err))
@@ -40,13 +60,13 @@ func (r *collectionDTORepository) getAccessToken(ctx context.Context, userData *
 }
 
 // Helper to check if token is expired or expiring soon
-func (r *collectionDTORepository) isTokenExpiredOrExpiringSoon(expiryTime time.Time) bool {
+func (r *getAccessTokenWithRefreshServiceImpl) isTokenExpiredOrExpiringSoon(expiryTime time.Time) bool {
 	// Create this helper method to make token checks more readable
 	return time.Now().After(expiryTime)
 }
 
 // refreshTokenIfNeeded checks if the access token is expired and refreshes it if needed
-func (r *collectionDTORepository) refreshTokenIfNeeded(ctx context.Context, userData *user.User) error {
+func (r *getAccessTokenWithRefreshServiceImpl) refreshTokenIfNeeded(ctx context.Context, userData *user.User) error {
 	// Check if token is expired or will expire soon (within 30 seconds as a buffer)
 	if userData.AccessToken == "" || time.Now().Add(30*time.Second).After(userData.AccessTokenExpiryTime) {
 		r.logger.Info("Access token expired or will expire soon, attempting to refresh",

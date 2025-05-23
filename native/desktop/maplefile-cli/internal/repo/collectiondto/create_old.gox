@@ -16,7 +16,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 )
 
-func (r *collectionDTORepository) CreateInCloud(ctx context.Context, collectionDTO *collectiondto.CollectionDTO, accessToken string) (*primitive.ObjectID, error) {
+func (r *collectionDTORepository) CreateInCloud(ctx context.Context, request *collectiondto.CreateCollectionRequestDTO) (*primitive.ObjectID, error) {
 	// Get server URL from configuration
 	r.logger.Debug("Getting cloud provider address from config")
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
@@ -25,11 +25,25 @@ func (r *collectionDTORepository) CreateInCloud(ctx context.Context, collectionD
 		return nil, errors.NewAppError("failed to get cloud provider address", err)
 	}
 
+	// Defensive programming
+	if request.UserData == nil {
+		r.logger.Error("User data not found", zap.String("email", request.UserData.Email))
+		return nil, errors.NewAppError("user not found; please login first", nil)
+	}
+
+	// Check if access token is valid
+	r.logger.Debug("Checking if access token is valid")
+	accessToken, err := r.getAccessToken(ctx, request.UserData)
+	if err != nil {
+		r.logger.Error("Failed to get access token", zap.String("email", request.UserData.Email), zap.Error(err))
+		return nil, errors.NewAppError("failed to get access token", err)
+	}
+
 	// Convert request to JSON
 	r.logger.Debug("Marshalling create collection request to JSON")
-	jsonData, err := json.Marshal(collectionDTO)
+	jsonData, err := json.Marshal(request.Collection)
 	if err != nil {
-		r.logger.Error("Failed to marshal request to JSON", zap.Any("request", collectionDTO), zap.Error(err))
+		r.logger.Error("Failed to marshal request to JSON", zap.Any("request", request.Collection), zap.Error(err))
 		return nil, errors.NewAppError("failed to marshal request", err)
 	}
 	r.logger.Debug("Successfully marshalled request to JSON")
@@ -38,7 +52,8 @@ func (r *collectionDTORepository) CreateInCloud(ctx context.Context, collectionD
 	createURL := fmt.Sprintf("%s/maplefile/api/v1/collections", serverURL)
 	r.logger.Info("Making HTTP request to create collection",
 		zap.String("method", "POST"),
-		zap.String("url", createURL))
+		zap.String("url", createURL),
+		zap.String("email", request.UserData.Email))
 
 	req, err := http.NewRequestWithContext(ctx, "POST", createURL, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -84,10 +99,10 @@ func (r *collectionDTORepository) CreateInCloud(ctx context.Context, collectionD
 	r.logger.Debug("HTTP response status is successful")
 
 	// Parse the response
-	r.logger.Debug("Parsing HTTP response body into CollectionDTO")
+	r.logger.Debug("Parsing HTTP response body into RemoteCollectionResponse")
 	var response collectiondto.CollectionDTO
 	if err := json.Unmarshal(body, &response); err != nil {
-		r.logger.Error("Failed to parse response body into CollectionDTO", zap.ByteString("body", body), zap.Error(err))
+		r.logger.Error("Failed to parse response body into RemoteCollectionResponse", zap.ByteString("body", body), zap.Error(err))
 		return nil, errors.NewAppError("failed to parse response", err)
 	}
 	r.logger.Debug("Successfully parsed HTTP response body")
