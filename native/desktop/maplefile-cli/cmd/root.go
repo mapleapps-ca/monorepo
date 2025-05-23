@@ -19,7 +19,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	registerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
@@ -35,7 +35,7 @@ func NewRootCmd(
 	loginOTTVerificationService auth.LoginOTTVerificationService,
 	completeLoginService auth.CompleteLoginService,
 	tokenRefreshSvc tokenservice.TokenRefreshService,
-	collectionListService localcollection.ListService,
+	collectionListService collection.ListService,
 	// other services...
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{

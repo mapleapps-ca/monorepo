@@ -5,7 +5,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
@@ -27,12 +27,12 @@ func ServiceModule() fx.Option {
 		fx.Provide(tokenservice.NewTokenRefreshService),
 
 		// Local collection services
-		fx.Provide(localcollection.NewCreateService),
-		fx.Provide(localcollection.NewGetService),
-		fx.Provide(localcollection.NewListService),
-		fx.Provide(localcollection.NewUpdateService),
-		fx.Provide(localcollection.NewDeleteService),
-		fx.Provide(localcollection.NewMoveService),
+		fx.Provide(collection.NewCreateService),
+		fx.Provide(collection.NewGetService),
+		fx.Provide(collection.NewListService),
+		fx.Provide(collection.NewUpdateService),
+		fx.Provide(collection.NewDeleteService),
+		fx.Provide(collection.NewMoveService),
 
 		// // Remote collection services
 		// fx.Provide(remotecollection.NewCreateService),

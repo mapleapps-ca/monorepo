@@ -5,8 +5,8 @@ import (
 	"go.uber.org/fx"
 
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localcollection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
 	userUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
@@ -32,13 +32,13 @@ func UseCaseModule() fx.Option {
 		fx.Provide(userUseCase.NewListAllUseCase),
 
 		// Local collection use cases
-		fx.Provide(localcollection.NewCreateLocalCollectionUseCase),
-		fx.Provide(localcollection.NewGetLocalCollectionUseCase),
-		fx.Provide(localcollection.NewListLocalCollectionsUseCase),
-		fx.Provide(localcollection.NewUpdateLocalCollectionUseCase),
-		fx.Provide(localcollection.NewDeleteLocalCollectionUseCase),
-		fx.Provide(localcollection.NewMoveLocalCollectionUseCase),
-		fx.Provide(localcollection.NewGetLocalCollectionPathUseCase),
+		fx.Provide(collection.NewCreateCollectionUseCase),
+		fx.Provide(collection.NewGetCollectionUseCase),
+		fx.Provide(collection.NewListCollectionsUseCase),
+		fx.Provide(collection.NewUpdateCollectionUseCase),
+		fx.Provide(collection.NewDeleteCollectionUseCase),
+		fx.Provide(collection.NewMoveCollectionUseCase),
+		fx.Provide(collection.NewGetCollectionPathUseCase),
 
 		// // Remote collection use cases
 		// fx.Provide(remotecollection.NewCreateRemoteCollectionUseCase),

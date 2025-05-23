@@ -9,13 +9,13 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localcollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotecollection"
 )
 
 // DownloadOutput represents the result of downloading a collection
 type DownloadOutput struct {
-	Collection *localcollection.LocalCollection `json:"collection"`
+	Collection *collection.Collection `json:"collection"`
 }
 
 // DownloadService defines the interface for downloading collections
@@ -27,7 +27,7 @@ type DownloadService interface {
 // downloadService implements the DownloadService interface
 type downloadService struct {
 	logger                *zap.Logger
-	localRepository       localcollection.LocalCollectionRepository
+	localRepository       collection.CollectionRepository
 	remoteRepository      remotecollection.RemoteCollectionRepository
 	findByRemoteIDService FindByRemoteIDService
 }
@@ -35,7 +35,7 @@ type downloadService struct {
 // NewDownloadService creates a new service for downloading collections
 func NewDownloadService(
 	logger *zap.Logger,
-	localRepository localcollection.LocalCollectionRepository,
+	localRepository collection.CollectionRepository,
 	remoteRepository remotecollection.RemoteCollectionRepository,
 	findByRemoteIDService FindByRemoteIDService,
 ) DownloadService {
@@ -103,7 +103,7 @@ func (s *downloadService) Download(ctx context.Context, remoteID string) (*Downl
 	}
 
 	// Create a new local collection
-	localCollection := &localcollection.LocalCollection{
+	collection := &collection.Collection{
 		ID:                     primitive.NewObjectID(),
 		RemoteID:               remoteCollection.ID, // Store the remote ID for future sync operations
 		OwnerID:                remoteCollection.OwnerID,
@@ -120,13 +120,13 @@ func (s *downloadService) Download(ctx context.Context, remoteID string) (*Downl
 	}
 
 	// Create the local collection
-	err = s.localRepository.Create(ctx, localCollection)
+	err = s.localRepository.Create(ctx, collection)
 	if err != nil {
 		return nil, errors.NewAppError("failed to create local collection", err)
 	}
 
 	return &DownloadOutput{
-		Collection: localCollection,
+		Collection: collection,
 	}, nil
 }
 

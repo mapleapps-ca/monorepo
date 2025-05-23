@@ -7,12 +7,12 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localcollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 )
 
 // DecryptCollectionNameUseCase defines the interface for decrypting collection names
 type DecryptCollectionNameUseCase interface {
-	Execute(ctx context.Context, collection *localcollection.LocalCollection, collectionKey []byte) (string, error)
+	Execute(ctx context.Context, collection *collection.Collection, collectionKey []byte) (string, error)
 }
 
 // decryptCollectionNameUseCase implements the DecryptCollectionNameUseCase interface
@@ -35,7 +35,7 @@ func NewDecryptCollectionNameUseCase(
 // Execute decrypts a collection name
 func (uc *decryptCollectionNameUseCase) Execute(
 	ctx context.Context,
-	collection *localcollection.LocalCollection,
+	collection *collection.Collection,
 	collectionKey []byte,
 ) (string, error) {
 	// Validate inputs

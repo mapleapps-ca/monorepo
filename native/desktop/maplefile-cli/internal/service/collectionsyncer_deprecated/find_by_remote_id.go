@@ -8,24 +8,24 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localcollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 )
 
 // FindByRemoteIDService defines the interface for finding a local collection by its remote ID
 type FindByRemoteIDService interface {
-	FindByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*localcollection.LocalCollection, error)
+	FindByRemoteID(ctx context.Context, remoteID primitive.ObjectID) (*collection.Collection, error)
 }
 
 // findByRemoteIDService implements the FindByRemoteIDService interface
 type findByRemoteIDService struct {
 	logger          *zap.Logger
-	localRepository localcollection.LocalCollectionRepository
+	localRepository collection.CollectionRepository
 }
 
 // NewFindByRemoteIDService creates a new service for finding local collections by remote ID
 func NewFindByRemoteIDService(
 	logger *zap.Logger,
-	localRepository localcollection.LocalCollectionRepository,
+	localRepository collection.CollectionRepository,
 ) FindByRemoteIDService {
 	return &findByRemoteIDService{
 		logger:          logger,
@@ -37,7 +37,7 @@ func NewFindByRemoteIDService(
 func (s *findByRemoteIDService) FindByRemoteID(
 	ctx context.Context,
 	remoteID primitive.ObjectID,
-) (*localcollection.LocalCollection, error) {
+) (*collection.Collection, error) {
 	// Validate inputs
 	if remoteID.IsZero() {
 		return nil, errors.NewAppError("remote ID is required", nil)
@@ -46,16 +46,16 @@ func (s *findByRemoteIDService) FindByRemoteID(
 	// Get all local collections
 	// In a real implementation, this would likely use a more efficient filter
 	// that directly queries by remoteID instead of getting all collections
-	collections, err := s.localRepository.List(ctx, localcollection.LocalCollectionFilter{})
+	collections, err := s.localRepository.List(ctx, collection.CollectionFilter{})
 	if err != nil {
 		return nil, errors.NewAppError("failed to list local collections", err)
 	}
 
 	// Find the one matching the remote ID
-	// Assuming that LocalCollection has a RemoteID field to store the ID of the
+	// Assuming that Collection has a RemoteID field to store the ID of the
 	// corresponding remote collection
 	for _, collection := range collections {
-		// Note: This would need the LocalCollection struct to have a RemoteID field
+		// Note: This would need the Collection struct to have a RemoteID field
 		// This field might not exist yet in your current model
 		if collection.RemoteID == remoteID {
 			return collection, nil

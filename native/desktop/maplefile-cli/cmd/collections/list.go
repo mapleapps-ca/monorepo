@@ -9,12 +9,12 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 )
 
 // listCollectionsCmd creates a command for listing collections
 func listCollectionsCmd(
-	listService localcollection.ListService,
+	listService collection.ListService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var parentID string
@@ -48,7 +48,7 @@ Examples:
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
-			var output *localcollection.ListOutput
+			var output *collection.ListOutput
 			var err error
 
 			if showModified {

@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localcollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/remotecollection"
 )
 
@@ -27,14 +27,14 @@ type UploadService interface {
 // uploadService implements the UploadService interface
 type uploadService struct {
 	logger           *zap.Logger
-	localRepository  localcollection.LocalCollectionRepository
+	localRepository  collection.CollectionRepository
 	remoteRepository remotecollection.RemoteCollectionRepository
 }
 
 // NewUploadService creates a new service for uploading collections
 func NewUploadService(
 	logger *zap.Logger,
-	localRepository localcollection.LocalCollectionRepository,
+	localRepository collection.CollectionRepository,
 	remoteRepository remotecollection.RemoteCollectionRepository,
 ) UploadService {
 	return &uploadService{
@@ -59,33 +59,33 @@ func (s *uploadService) Upload(ctx context.Context, localID string) (*UploadOutp
 	}
 
 	// Get the local collection
-	localCollection, err := s.localRepository.GetByID(ctx, localObjectID)
+	collection, err := s.localRepository.GetByID(ctx, localObjectID)
 	if err != nil {
 		return nil, errors.NewAppError("failed to get local collection", err)
 	}
 
-	if localCollection == nil {
+	if collection == nil {
 		return nil, errors.NewAppError("local collection not found", nil)
 	}
 
 	// Create input for the remote collection creation
 	input := &remotecollection.RemoteCreateCollectionRequest{
-		EncryptedName:          localCollection.EncryptedName,
-		Type:                   localCollection.Type,
-		EncryptedCollectionKey: localCollection.EncryptedCollectionKey,
-		EncryptedPathSegments:  localCollection.EncryptedPathSegments,
+		EncryptedName:          collection.EncryptedName,
+		Type:                   collection.Type,
+		EncryptedCollectionKey: collection.EncryptedCollectionKey,
+		EncryptedPathSegments:  collection.EncryptedPathSegments,
 	}
 
 	// Set parent ID if it's not zero
-	if !localCollection.ParentID.IsZero() {
-		input.ParentID = localCollection.ParentID
+	if !collection.ParentID.IsZero() {
+		input.ParentID = collection.ParentID
 	}
 
 	// Create or update the remote collection
 	var response *remotecollection.RemoteCollectionResponse
 
 	// If we already have a remote ID, update the existing remote collection
-	if !localCollection.RemoteID.IsZero() {
+	if !collection.RemoteID.IsZero() {
 		// In a real implementation, you'd have an update method on the remote repository
 		// For now, we'll just create a new one to complete the pattern
 		response, err = s.remoteRepository.Create(ctx, input)
@@ -99,12 +99,12 @@ func (s *uploadService) Upload(ctx context.Context, localID string) (*UploadOutp
 	}
 
 	// Update the local collection with sync info
-	localCollection.RemoteID = response.ID // Set the remote ID reference
-	localCollection.LastSyncedAt = time.Now()
-	localCollection.IsModifiedLocally = false
+	collection.RemoteID = response.ID // Set the remote ID reference
+	collection.LastSyncedAt = time.Now()
+	collection.IsModifiedLocally = false
 
 	// Save the updated local collection
-	err = s.localRepository.Save(ctx, localCollection)
+	err = s.localRepository.Save(ctx, collection)
 	if err != nil {
 		return nil, errors.NewAppError("failed to update local collection sync status", err)
 	}
@@ -117,8 +117,8 @@ func (s *uploadService) Upload(ctx context.Context, localID string) (*UploadOutp
 // UploadAll uploads all locally modified collections to the remote server
 func (s *uploadService) UploadAll(ctx context.Context) (int, error) {
 	// Create a filter for locally modified collections
-	status := localcollection.SyncStatusModifiedLocally
-	filter := localcollection.LocalCollectionFilter{
+	status := collection.SyncStatusModifiedLocally
+	filter := collection.CollectionFilter{
 		SyncStatus: &status,
 	}
 

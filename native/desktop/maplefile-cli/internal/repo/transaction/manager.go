@@ -2,29 +2,29 @@
 package transaction
 
 import (
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localcollection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/localfile"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 )
 
 // txManager implements the transaction.Manager interface
 type txManager struct {
-	userRepo            user.Repository
-	localcollectionRepo localcollection.LocalCollectionRepository
-	localfileRepo       localfile.LocalFileRepository
+	userRepo       user.Repository
+	collectionRepo collection.CollectionRepository
+	fileRepo       file.FileRepository
 }
 
 // NewTransactionManager creates a new transaction manager
 func NewTransactionManager(
 	userRepo user.Repository,
-	localcollectionRepo localcollection.LocalCollectionRepository,
-	localfileRepo localfile.LocalFileRepository,
+	collectionRepo collection.CollectionRepository,
+	fileRepo file.FileRepository,
 ) transaction.Manager {
 	return &txManager{
-		userRepo:            userRepo,
-		localcollectionRepo: localcollectionRepo,
-		localfileRepo:       localfileRepo,
+		userRepo:       userRepo,
+		collectionRepo: collectionRepo,
+		fileRepo:       fileRepo,
 	}
 }
 
@@ -34,15 +34,15 @@ func (tm *txManager) Begin() error {
 	if err != nil {
 		return err
 	}
-	err = tm.localcollectionRepo.OpenTransaction()
+	err = tm.collectionRepo.OpenTransaction()
 	if err != nil {
 		return err
 	}
-	err = tm.localfileRepo.OpenTransaction()
+	err = tm.fileRepo.OpenTransaction()
 	if err != nil {
 		return err
 	}
-	// err = tm.localfileRepo.OpenTransaction()
+	// err = tm.fileRepo.OpenTransaction()
 	// if err != nil {
 	// 	return err
 	// }
@@ -58,15 +58,15 @@ func (tm *txManager) Commit() error {
 	if err != nil {
 		return err
 	}
-	err = tm.localcollectionRepo.CommitTransaction()
+	err = tm.collectionRepo.CommitTransaction()
 	if err != nil {
 		return err
 	}
-	err = tm.localfileRepo.CommitTransaction()
+	err = tm.fileRepo.CommitTransaction()
 	if err != nil {
 		return err
 	}
-	// err = tm.localfileRepo.CommitTransaction()
+	// err = tm.fileRepo.CommitTransaction()
 	// if err != nil {
 	// 	return err
 	// }
@@ -80,8 +80,8 @@ func (tm *txManager) Commit() error {
 func (tm *txManager) Rollback() {
 	//TODO:
 	tm.userRepo.DiscardTransaction()
-	tm.localcollectionRepo.DiscardTransaction()
-	tm.localfileRepo.DiscardTransaction()
+	tm.collectionRepo.DiscardTransaction()
+	tm.fileRepo.DiscardTransaction()
 	// remotecollectionRepo: remotecollectionRepo,
 	// remotefileRepo:       remotefileRepo,
 }

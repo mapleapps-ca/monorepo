@@ -5,11 +5,11 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localcollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 )
 
 func CollectionsCmd(
-	listService localcollection.ListService,
+	listService collection.ListService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{

@@ -6,7 +6,8 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/auth"
-	localcollection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/localcollection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/transaction"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/leveldb"
 )
@@ -85,7 +86,7 @@ func RepoModule() fx.Option {
 		//----------------------------------------------
 		fx.Provide(
 			fx.Annotate(
-				localcollection.NewLocalCollectionRepository,
+				collection.NewCollectionRepository,
 				fx.ParamTags(``, ``, ``, ``, `name:"collection_db"`),
 			),
 		),
@@ -95,15 +96,15 @@ func RepoModule() fx.Option {
 		// //----------------------------------------------
 		// fx.Provide(remotecollection.NewRemoteCollectionRepository),
 
-		// //----------------------------------------------
-		// // Local file repository
-		// //----------------------------------------------
-		// fx.Provide(
-		// 	fx.Annotate(
-		// 		localfile.NewLocalFileRepository,
-		// 		fx.ParamTags(``, ``, `name:"file_db"`),
-		// 	),
-		// ),
+		//----------------------------------------------
+		// File repository
+		//----------------------------------------------
+		fx.Provide(
+			fx.Annotate(
+				file.NewFileRepository,
+				fx.ParamTags(``, ``, `name:"file_db"`),
+			),
+		),
 
 		// //----------------------------------------------
 		// // Remote file repository
