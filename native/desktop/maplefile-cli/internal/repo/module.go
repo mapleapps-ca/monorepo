@@ -7,9 +7,11 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/transaction"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/leveldb"
+	// "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/filedto"
 )
 
 // RepoModule provides the repository-layer-related dependencies
@@ -91,10 +93,10 @@ func RepoModule() fx.Option {
 			),
 		),
 
-		// //----------------------------------------------
-		// // Cloud collection repository
-		// //----------------------------------------------
-		// fx.Provide(remotecollection.NewRemoteCollectionRepository),
+		//----------------------------------------------
+		// Cloud collection repository
+		//----------------------------------------------
+		fx.Provide(collectiondto.NewCollectionDTORepository),
 
 		//----------------------------------------------
 		// File repository
@@ -106,10 +108,10 @@ func RepoModule() fx.Option {
 			),
 		),
 
-		// //----------------------------------------------
-		// // Cloud file repository
-		// //----------------------------------------------
-		// fx.Provide(remotefile.NewRemoteFileRepository),
+		//----------------------------------------------
+		// Cloud file repository
+		//----------------------------------------------
+		// fx.Provide(filedto.NewFileDTORepository),
 
 		//----------------------------------------------
 		// Transaction manager
