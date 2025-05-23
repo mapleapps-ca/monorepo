@@ -115,6 +115,10 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 	encryptedCollectionKey := keys.EncryptedCollectionKey{
 		Ciphertext: ciphertext,
 		Nonce:      nonce,
+		//TODO: DONT FORGET TO IMPLEMENT THIS:
+		// KeyVersion   int                      `json:"key_version" bson:"key_version"`
+		// RotatedAt    *time.Time               `json:"rotated_at,omitempty" bson:"rotated_at,omitempty"`
+		// PreviousKeys []EncryptedHistoricalKey `json:"previous_keys,omitempty" bson:"previous_keys,omitempty"`
 	}
 
 	// Prepare the use case input
