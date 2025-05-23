@@ -31,6 +31,7 @@ func UseCaseModule() fx.Option {
 		fx.Provide(userUseCase.NewUpsertByEmailUseCase),
 		fx.Provide(userUseCase.NewDeleteByEmailUseCase),
 		fx.Provide(userUseCase.NewListAllUseCase),
+		fx.Provide(userUseCase.NewGetByIsLoggedInUseCase),
 
 		// Cloud-based collection use cases
 		fx.Provide(collectiondto.NewCreateCollectionInCloudUseCase),

@@ -57,7 +57,7 @@ Example:
 			}
 
 			// Get the updated user data to display expiry information
-			email, _ := configService.GetEmail(ctx)
+			email, _ := configService.GetLoggedInUserEmail(ctx)
 			userData, _ := userRepo.GetByEmail(ctx, email)
 
 			fmt.Println("\n✅ Authentication tokens refreshed successfully!")

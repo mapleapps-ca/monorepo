@@ -51,8 +51,8 @@ func (s *configService) SetCloudProviderAddress(ctx context.Context, address str
 	return s.saveConfig(ctx, config)
 }
 
-// SetEmail updates the authenticated users email.
-func (s *configService) SetEmail(ctx context.Context, email string) error {
+// SetLoggedInUserEmail updates the authenticated users email.
+func (s *configService) SetLoggedInUserEmail(ctx context.Context, email string) error {
 	config, err := s.getConfig(ctx)
 	if err != nil {
 		return err
@@ -62,8 +62,8 @@ func (s *configService) SetEmail(ctx context.Context, email string) error {
 	return s.saveConfig(ctx, config)
 }
 
-// GetEmail returns the authenticated users email.
-func (s *configService) GetEmail(ctx context.Context) (string, error) {
+// GetLoggedInUserEmail returns the authenticated users email.
+func (s *configService) GetLoggedInUserEmail(ctx context.Context) (string, error) {
 	config, err := s.getConfig(ctx)
 	if err != nil {
 		return "", err

@@ -17,11 +17,11 @@ import (
 )
 
 type UpdateCollectionRequestDTO struct {
-	ID                     primitive.ObjectID          `json:"id"`
-	EncryptedName          string                      `json:"encrypted_name"`
-	Type                   string                      `json:"type,omitempty"`
-	EncryptedPathSegments  []string                    `json:"encrypted_path_segments,omitempty"`
-	EncryptedCollectionKey keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
+	ID                     primitive.ObjectID           `json:"id"`
+	EncryptedName          string                       `json:"encrypted_name"`
+	Type                   string                       `json:"type,omitempty"`
+	EncryptedPathSegments  []string                     `json:"encrypted_path_segments,omitempty"`
+	EncryptedCollectionKey *keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
 }
 
 type UpdateCollectionService interface {

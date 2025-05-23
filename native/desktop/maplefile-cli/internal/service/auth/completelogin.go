@@ -67,7 +67,7 @@ func (s *completeLoginService) CompleteLogin(ctx context.Context, email, passwor
 	}
 
 	// Save our authenticated email to configuration
-	s.configService.SetEmail(ctx, email)
+	s.configService.SetLoggedInUserEmail(ctx, email)
 
 	// Log success
 	s.logger.Info("Login completed successfully",

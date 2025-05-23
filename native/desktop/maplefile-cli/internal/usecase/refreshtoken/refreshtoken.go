@@ -44,7 +44,7 @@ func NewRefreshTokenUseCase(
 // Execute performs the token refresh operation
 func (uc *refreshTokenUseCaseImpl) Execute(ctx context.Context) error {
 	// Get the current user's email from configuration
-	email, err := uc.configService.GetEmail(ctx)
+	email, err := uc.configService.GetLoggedInUserEmail(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting authenticated user email: %w", err)
 	}

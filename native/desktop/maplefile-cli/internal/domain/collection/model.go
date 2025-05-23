@@ -9,7 +9,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
-// Collection represents a collection in the system (on the user's device).
+// Collection represents a folder or album
+// Can be used for both root collections and embedded subcollections
 type Collection struct {
 	// Local primary key
 	ID primitive.ObjectID `json:"id"`

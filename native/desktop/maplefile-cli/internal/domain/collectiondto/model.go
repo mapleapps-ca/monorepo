@@ -38,7 +38,7 @@ const (
 // It can represent both root collections and embedded subcollections.
 type CollectionDTO struct {
 	// Identifiers
-	// ID is the unique identifier for the collection in the cloud backend..
+	// ID is the unique identifier for the collection in the cloud backend.
 	ID primitive.ObjectID `bson:"_id" json:"id"`
 	// OwnerID is the ID of the user who originally created and owns this collection.
 	// The owner has administrative privileges by default.

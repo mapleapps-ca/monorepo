@@ -34,8 +34,8 @@ type ConfigService interface {
 	GetAppDirPath(ctx context.Context) (string, error)
 	GetCloudProviderAddress(ctx context.Context) (string, error)
 	SetCloudProviderAddress(ctx context.Context, address string) error
-	GetEmail(ctx context.Context) (string, error)
-	SetEmail(ctx context.Context, email string) error
+	GetLoggedInUserEmail(ctx context.Context) (string, error)
+	SetLoggedInUserEmail(ctx context.Context, email string) error
 }
 
 // repository defines the interface for loading and saving configuration

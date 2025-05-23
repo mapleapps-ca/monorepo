@@ -99,7 +99,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 	//
 
 	// Get the authenticated user's email
-	email, err := s.configService.GetEmail(ctx)
+	email, err := s.configService.GetLoggedInUserEmail(ctx)
 	if err != nil {
 		s.logger.Error("failed to get current user email", zap.Error(err))
 		return nil, errors.NewAppError("failed to get current user", err)
