@@ -110,7 +110,7 @@ func (uc *generateCredentialsUseCase) Execute(ctx context.Context, password stri
 		Nonce:         encryptedMasterKey.Nonce,
 		RotatedAt:     currentTime,
 		RotatedReason: "Initial user registration",
-		Algorithm:     "chacha20poly1305",
+		Algorithm:     "chacha20poly1305", //TODO: Confirm this is the algorithm used.
 	}
 
 	return &Credentials{

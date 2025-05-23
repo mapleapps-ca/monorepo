@@ -4,6 +4,7 @@ package collection
 import (
 	"context"
 	"encoding/base64"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
@@ -14,15 +15,17 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_tx "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // CreateInput represents the input for creating a local collection
 type CreateInput struct {
-	Name           string `json:"name"`
-	CollectionType string `json:"collection_type"`
-	ParentID       string `json:"parent_id,omitempty"`
+	Name           string             `json:"name"`
+	CollectionType string             `json:"collection_type"`
+	ParentID       string             `json:"parent_id,omitempty"`
+	OwnerID        primitive.ObjectID `bson:"owner_id" json:"owner_id"`
 }
 
 // CreateOutput represents the result of creating a local collection
@@ -32,16 +35,17 @@ type CreateOutput struct {
 
 // CreateService defines the interface for creating local collections
 type CreateService interface {
-	Create(ctx context.Context, input CreateInput) (*CreateOutput, error)
+	Create(ctx context.Context, input *CreateInput) (*CreateOutput, error)
 }
 
 // createService implements the CreateService interface
 type createService struct {
-	logger                  *zap.Logger
-	configService           config.ConfigService
-	transactionManager      dom_tx.Manager
-	getUserByEmailUseCase   uc_user.GetByEmailUseCase
-	createCollectionUseCase uc_collection.CreateCollectionUseCase
+	logger                         *zap.Logger
+	configService                  config.ConfigService
+	transactionManager             dom_tx.Manager
+	createCollectionInCloudUseCase collectiondto.CreateCollectionInCloudUseCase
+	getUserByEmailUseCase          uc_user.GetByEmailUseCase
+	createCollectionUseCase        uc_collection.CreateCollectionUseCase
 }
 
 // NewCreateService creates a new local collection creation service
@@ -49,30 +53,39 @@ func NewCreateService(
 	logger *zap.Logger,
 	configService config.ConfigService,
 	transactionManager dom_tx.Manager,
+	createCollectionInCloudUseCase collectiondto.CreateCollectionInCloudUseCase,
 	getUserByEmailUseCase uc_user.GetByEmailUseCase,
 	createCollectionUseCase uc_collection.CreateCollectionUseCase,
 ) CreateService {
 	return &createService{
-		logger:                  logger,
-		configService:           configService,
-		transactionManager:      transactionManager,
-		getUserByEmailUseCase:   getUserByEmailUseCase,
-		createCollectionUseCase: createCollectionUseCase,
+		logger:                         logger,
+		configService:                  configService,
+		transactionManager:             transactionManager,
+		createCollectionInCloudUseCase: createCollectionInCloudUseCase,
+		getUserByEmailUseCase:          getUserByEmailUseCase,
+		createCollectionUseCase:        createCollectionUseCase,
 	}
 }
 
 // Create handles the creation of a local collection
-func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateOutput, error) {
+func (s *createService) Create(ctx context.Context, input *CreateInput) (*CreateOutput, error) {
 	//
 	// STEP 1: Validate inputs
 	//
 
 	// Validate inputs
+	if input == nil {
+		s.logger.Error("input is required", zap.Any("input", input))
+		return nil, errors.NewAppError("input is required", nil)
+	}
 	if input.Name == "" {
 		s.logger.Error("collection name is required", zap.Any("input", input))
 		return nil, errors.NewAppError("collection name is required", nil)
 	}
-
+	if input.OwnerID.IsZero() {
+		s.logger.Error("owner ID is required", zap.Any("input", input))
+		return nil, errors.NewAppError("owner ID is required", nil)
+	}
 	if input.CollectionType == "" {
 		// Default to folder if not specified
 		input.CollectionType = dom_collection.CollectionTypeFolder
@@ -113,6 +126,10 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 		return nil, errors.NewAppError("failed to begin transaction", err)
 	}
 
+	//
+	// STEP 4: Create encryption key and encrypted the data with it.
+	//
+
 	// Generate a collection key
 	collectionKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
 	if err != nil {
@@ -135,14 +152,31 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 		return nil, errors.NewAppError("failed to encrypt collection key", err)
 	}
 
-	encryptedCollectionKey := keys.EncryptedCollectionKey{
-		Ciphertext: ciphertext,
-		Nonce:      nonce,
-		//TODO: DONT FORGET TO IMPLEMENT THIS:
-		// KeyVersion   int                      `json:"key_version" bson:"key_version"`
-		// RotatedAt    *time.Time               `json:"rotated_at,omitempty" bson:"rotated_at,omitempty"`
-		// PreviousKeys []EncryptedHistoricalKey `json:"previous_keys,omitempty" bson:"previous_keys,omitempty"`
+	currentTime := time.Now() // Capture the current time once
+	historicalKey := keys.EncryptedHistoricalKey{
+		KeyVersion:    1, // Always start at version 1.
+		Ciphertext:    ciphertext,
+		Nonce:         nonce,
+		RotatedAt:     currentTime,
+		RotatedReason: "Initial collection creation",
+		Algorithm:     "chacha20poly1305", //TODO: Confirm this is the algorithm used.
 	}
+
+	encryptedCollectionKey := keys.EncryptedCollectionKey{
+		Ciphertext:   ciphertext,
+		Nonce:        nonce,
+		KeyVersion:   1,            // Always start at version 1.
+		RotatedAt:    &currentTime, // Pass the address of the captured time
+		PreviousKeys: []keys.EncryptedHistoricalKey{historicalKey},
+	}
+
+	//
+	// STEP 5: Create our collection data transfer object and submit to the cloud to return the "Cloud ID" of this collection to store locally.
+	//
+
+	//
+	// STEP 6: Create collection record in our local database.
+	//
 
 	// Prepare the use case input
 	useCaseInput := uc_collection.CreateCollectionInput{

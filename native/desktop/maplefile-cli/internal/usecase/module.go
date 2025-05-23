@@ -6,6 +6,7 @@ import (
 
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
@@ -31,7 +32,10 @@ func UseCaseModule() fx.Option {
 		fx.Provide(userUseCase.NewDeleteByEmailUseCase),
 		fx.Provide(userUseCase.NewListAllUseCase),
 
-		// Local collection use cases
+		// Cloud-based collection use cases
+		fx.Provide(collectiondto.NewCreateCollectionInCloudUseCase),
+
+		// Local-based collection use cases
 		fx.Provide(collection.NewCreateCollectionUseCase),
 		fx.Provide(collection.NewGetCollectionUseCase),
 		fx.Provide(collection.NewListCollectionsUseCase),
