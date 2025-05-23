@@ -10,10 +10,10 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
+	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
+	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
+	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
@@ -26,7 +26,7 @@ type CreateInput struct {
 
 // CreateOutput represents the result of creating a local collection
 type CreateOutput struct {
-	Collection *collection.Collection `json:"collection"`
+	Collection *dom_collection.Collection `json:"collection"`
 }
 
 // CreateService defines the interface for creating local collections
@@ -36,24 +36,24 @@ type CreateService interface {
 
 // createService implements the CreateService interface
 type createService struct {
-	logger        *zap.Logger
-	configService config.ConfigService
-	userRepo      user.Repository
-	useCase       uc.CreateCollectionUseCase
+	logger                  *zap.Logger
+	configService           config.ConfigService
+	getUserByEmailUseCase   uc_user.GetByEmailUseCase
+	createCollectionUseCase uc_collection.CreateCollectionUseCase
 }
 
 // NewCreateService creates a new local collection creation service
 func NewCreateService(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	userRepo user.Repository,
-	useCase uc.CreateCollectionUseCase,
+	getUserByEmailUseCase uc_user.GetByEmailUseCase,
+	createCollectionUseCase uc_collection.CreateCollectionUseCase,
 ) CreateService {
 	return &createService{
-		logger:        logger,
-		configService: configService,
-		userRepo:      userRepo,
-		useCase:       useCase,
+		logger:                  logger,
+		configService:           configService,
+		getUserByEmailUseCase:   getUserByEmailUseCase,
+		createCollectionUseCase: createCollectionUseCase,
 	}
 }
 
@@ -67,8 +67,8 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 
 	if input.CollectionType == "" {
 		// Default to folder if not specified
-		input.CollectionType = collection.CollectionTypeFolder
-	} else if input.CollectionType != collection.CollectionTypeFolder && input.CollectionType != collection.CollectionTypeAlbum {
+		input.CollectionType = dom_collection.CollectionTypeFolder
+	} else if input.CollectionType != dom_collection.CollectionTypeFolder && input.CollectionType != dom_collection.CollectionTypeAlbum {
 		s.logger.Error("invalid collection type", zap.String("type", input.CollectionType))
 		return nil, errors.NewAppError("collection type must be either 'folder' or 'album'", nil)
 	}
@@ -81,7 +81,7 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 	}
 
 	// Get user data
-	userData, err := s.userRepo.GetByEmail(ctx, email)
+	userData, err := s.getUserByEmailUseCase.Execute(ctx, email)
 	if err != nil {
 		s.logger.Error("failed to get user data", zap.String("email", email), zap.Error(err))
 		return nil, errors.NewAppError("failed to get user data", err)
@@ -122,7 +122,7 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 	}
 
 	// Prepare the use case input
-	useCaseInput := uc.CreateCollectionInput{
+	useCaseInput := uc_collection.CreateCollectionInput{
 		EncryptedName:          encryptedName,
 		DecryptedName:          input.Name, // Store the decrypted name for display
 		Type:                   input.CollectionType,
@@ -140,7 +140,7 @@ func (s *createService) Create(ctx context.Context, input CreateInput) (*CreateO
 	}
 
 	// Call the use case to create the collection
-	collection, err := s.useCase.Execute(ctx, useCaseInput)
+	collection, err := s.createCollectionUseCase.Execute(ctx, useCaseInput)
 	if err != nil {
 		s.logger.Error("failed to create local collection", zap.String("name", input.Name), zap.Error(err))
 		return nil, err
