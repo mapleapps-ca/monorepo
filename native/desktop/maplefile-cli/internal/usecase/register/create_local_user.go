@@ -9,6 +9,8 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // CreateLocalUserInput contains the inputs for creating a user
@@ -65,6 +67,14 @@ func (uc *createLocalUserUseCase) Execute(ctx context.Context, input CreateLocal
 		EncryptedRecoveryKey:              input.Credentials.EncryptedRecoveryKey,
 		MasterKeyEncryptedWithRecoveryKey: input.Credentials.MasterKeyEncryptedWithRecoveryKey,
 		VerificationID:                    input.Credentials.VerificationID,
+
+		// KDFParams related
+		KDFParams: dom_user.KDFParams{
+			Algorithm:   crypto.Argon2IDAlgorithm,
+			Iterations:  crypto.Argon2OpsLimit,
+			Memory:      crypto.Argon2MemLimit,
+			Parallelism: crypto.Argon2Parallelism,
+		},
 
 		// Terms agreements
 		AgreeTermsOfService: input.AgreeTerms,

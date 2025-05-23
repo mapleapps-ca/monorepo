@@ -63,6 +63,8 @@ type User struct {
 	MasterKeyEncryptedWithRecoveryKey keys.MasterKeyEncryptedWithRecoveryKey `json:"master_key_encrypted_with_recovery_key" bson:"master_key_encrypted_with_recovery_key"`
 	EncryptedChallenge                []byte                                 `json:"encrypted_challenge,omitempty" bson:"encrypted_challenge,omitempty"`
 	VerificationID                    string                                 `json:"verificationID"`
+	// KDFParams stores the key derivation function parameters used to derive the user's password hash.
+	KDFParams KDFParams `json:"kdf_params" bson:"kdf_params"`
 
 	// --- JWT Authentication
 	AccessToken            string    `json:"access_token"`
@@ -102,6 +104,16 @@ type User struct {
 
 	// OTPBackupCodeHashAlgorithm tracks the hashing algorithm used.
 	OTPBackupCodeHashAlgorithm string `bson:"otp_backup_code_hash_algorithm" json:"-"`
+}
+
+// KDFParams stores the key derivation function parameters used to derive the user's password hash. Without storing KDF parameters, you can't derive the same key from the password consistently, especially if you need to upgrade parameters later.
+type KDFParams struct {
+	Algorithm   string `json:"algorithm"`   // "argon2id"
+	Iterations  uint32 `json:"iterations"`  // 3
+	Memory      uint32 `json:"memory"`      // 64*1024 (64MB)
+	Parallelism uint8  `json:"parallelism"` // 4
+	SaltLength  uint32 `json:"salt_length"` // 16
+	Version     string `json:"version"`     // "1.0"
 }
 
 // UserFilter represents the filter criteria for listing users

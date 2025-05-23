@@ -25,6 +25,14 @@ const (
 	BoxNonceSize = 24
 	// SaltSize is the size of the salt for password hashing (16 bytes)
 	SaltSize = 16
+
+	// Argon2 parameters - must match between platforms
+	Argon2IDAlgorithm = "argon2id"
+	Argon2MemLimit    = 67108864 // 64 MB
+	Argon2OpsLimit    = 4
+	Argon2Parallelism = 1
+	Argon2KeySize     = 32
+	Argon2SaltSize    = 16
 )
 
 // KeyParams defines the parameters for key derivation

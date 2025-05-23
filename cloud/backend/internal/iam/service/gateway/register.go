@@ -298,6 +298,14 @@ func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserFor
 		MasterKeyEncryptedWithRecoveryKey: masterKeyEncryptedWithRecoveryKey,
 		VerificationID:                    req.VerificationID,
 
+		// --- KDFParams ---
+		KDFParams: dom_user.KDFParams{
+			Algorithm:   crypto.Argon2IDAlgorithm,
+			Iterations:  crypto.Argon2OpsLimit,
+			Memory:      crypto.Argon2MemLimit,
+			Parallelism: crypto.Argon2Parallelism,
+		},
+
 		// --- The rest of the stuff... ---
 		ID:                  userID,
 		FirstName:           req.FirstName,
