@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
+	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/security/crypto"
 )
 
 // KDFParams stores the key derivation function parameters
