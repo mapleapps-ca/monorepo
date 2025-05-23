@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // MasterKey represents the root encryption key for a user
@@ -13,8 +14,34 @@ type MasterKey struct {
 
 // EncryptedMasterKey is the master key encrypted with the key encryption key
 type EncryptedMasterKey struct {
-	Ciphertext []byte `json:"ciphertext" bson:"ciphertext"`
-	Nonce      []byte `json:"nonce" bson:"nonce"`
+	Ciphertext   []byte                   `json:"ciphertext" bson:"ciphertext"`
+	Nonce        []byte                   `json:"nonce" bson:"nonce"`
+	KeyVersion   int                      `json:"key_version" bson:"key_version"`
+	RotatedAt    *time.Time               `json:"rotated_at,omitempty" bson:"rotated_at,omitempty"`
+	PreviousKeys []EncryptedHistoricalKey `json:"previous_keys,omitempty" bson:"previous_keys,omitempty"`
+}
+
+func (emk *EncryptedMasterKey) GetCurrentVersion() int {
+	return emk.KeyVersion
+}
+
+func (emk *EncryptedMasterKey) GetKeyByVersion(version int) *EncryptedHistoricalKey {
+	if version == emk.KeyVersion {
+		// Return current key as historical format
+		return &EncryptedHistoricalKey{
+			KeyVersion: emk.KeyVersion,
+			Ciphertext: emk.Ciphertext,
+			Nonce:      emk.Nonce,
+			Algorithm:  "chacha20poly1305", // or your current algorithm
+		}
+	}
+
+	for _, key := range emk.PreviousKeys {
+		if key.KeyVersion == version {
+			return &key
+		}
+	}
+	return nil
 }
 
 // KeyEncryptionKey derived from user password
@@ -59,8 +86,20 @@ type CollectionKey struct {
 
 // EncryptedCollectionKey is the collection key encrypted with master key
 type EncryptedCollectionKey struct {
-	Ciphertext []byte `json:"ciphertext" bson:"ciphertext"`
-	Nonce      []byte `json:"nonce" bson:"nonce"`
+	Ciphertext   []byte                   `json:"ciphertext" bson:"ciphertext"`
+	Nonce        []byte                   `json:"nonce" bson:"nonce"`
+	KeyVersion   int                      `json:"key_version" bson:"key_version"`
+	RotatedAt    *time.Time               `json:"rotated_at,omitempty" bson:"rotated_at,omitempty"`
+	PreviousKeys []EncryptedHistoricalKey `json:"previous_keys,omitempty" bson:"previous_keys,omitempty"`
+}
+
+func (eck *EncryptedCollectionKey) NeedsRotation(policy KeyRotationPolicy) bool {
+	if eck.RotatedAt == nil {
+		return true // Never rotated
+	}
+
+	keyAge := time.Since(*eck.RotatedAt)
+	return keyAge > policy.MaxKeyAge
 }
 
 // UnmarshalJSON custom unmarshaller for EncryptedCollectionKey to handle URL-safe base64 strings.
@@ -115,8 +154,20 @@ type FileKey struct {
 
 // EncryptedFileKey is the file key encrypted with collection key
 type EncryptedFileKey struct {
-	Ciphertext []byte `json:"ciphertext" bson:"ciphertext"`
-	Nonce      []byte `json:"nonce" bson:"nonce"`
+	Ciphertext   []byte                   `json:"ciphertext" bson:"ciphertext"`
+	Nonce        []byte                   `json:"nonce" bson:"nonce"`
+	KeyVersion   int                      `json:"key_version" bson:"key_version"`
+	RotatedAt    *time.Time               `json:"rotated_at,omitempty" bson:"rotated_at,omitempty"`
+	PreviousKeys []EncryptedHistoricalKey `json:"previous_keys,omitempty" bson:"previous_keys,omitempty"`
+}
+
+func (eck *EncryptedFileKey) NeedsRotation(policy KeyRotationPolicy) bool {
+	if eck.RotatedAt == nil {
+		return true // Never rotated
+	}
+
+	keyAge := time.Since(*eck.RotatedAt)
+	return keyAge > policy.MaxKeyAge
 }
 
 // UnmarshalJSON custom unmarshaller for EncryptedFileKey to handle URL-safe base64 strings.

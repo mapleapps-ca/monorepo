@@ -9,8 +9,6 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // CreateLocalUserInput contains the inputs for creating a user
@@ -41,8 +39,29 @@ func NewCreateLocalUserUseCase() CreateLocalUserUseCase {
 
 // Execute creates a new local user
 func (uc *createLocalUserUseCase) Execute(ctx context.Context, input CreateLocalUserInput) (*user.User, error) {
+	currentTime := time.Now() // Capture the current time once
+
 	// Create a new user entity
 	newUser := &user.User{
+		// E2EE related fields
+		PasswordSalt:       input.Credentials.Salt,
+		KDFParams:          keys.DefaultKDFParams(),
+		EncryptedMasterKey: input.Credentials.EncryptedMasterKey,
+		PublicKey: keys.PublicKey{
+			Key:            input.Credentials.PublicKey,
+			VerificationID: input.Credentials.VerificationID,
+		},
+		EncryptedPrivateKey:               input.Credentials.EncryptedPrivateKey,
+		EncryptedRecoveryKey:              input.Credentials.EncryptedRecoveryKey,
+		MasterKeyEncryptedWithRecoveryKey: input.Credentials.MasterKeyEncryptedWithRecoveryKey,
+		VerificationID:                    input.Credentials.VerificationID,
+		LastPasswordChange:                time.Now(),
+		KDFParamsNeedUpgrade:              false,
+		CurrentKeyVersion:                 1,
+		LastKeyRotation:                   &currentTime,
+		KeyRotationPolicy:                 nil,
+
+		// --- The rest of the stuff... ---
 		ID:               primitive.NewObjectID(),
 		Email:            input.Email,
 		FirstName:        input.FirstName,
@@ -55,26 +74,6 @@ func (uc *createLocalUserUseCase) Execute(ctx context.Context, input CreateLocal
 		Phone:            input.Phone,
 		Country:          input.Country,
 		Timezone:         input.Timezone,
-
-		// E2EE related fields
-		PasswordSalt:       input.Credentials.Salt,
-		EncryptedMasterKey: input.Credentials.EncryptedMasterKey,
-		PublicKey: keys.PublicKey{
-			Key:            input.Credentials.PublicKey,
-			VerificationID: input.Credentials.VerificationID,
-		},
-		EncryptedPrivateKey:               input.Credentials.EncryptedPrivateKey,
-		EncryptedRecoveryKey:              input.Credentials.EncryptedRecoveryKey,
-		MasterKeyEncryptedWithRecoveryKey: input.Credentials.MasterKeyEncryptedWithRecoveryKey,
-		VerificationID:                    input.Credentials.VerificationID,
-
-		// KDFParams related
-		KDFParams: dom_user.KDFParams{
-			Algorithm:   crypto.Argon2IDAlgorithm,
-			Iterations:  crypto.Argon2OpsLimit,
-			Memory:      crypto.Argon2MemLimit,
-			Parallelism: crypto.Argon2Parallelism,
-		},
 
 		// Terms agreements
 		AgreeTermsOfService: input.AgreeTerms,

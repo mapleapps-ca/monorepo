@@ -55,13 +55,25 @@ type FederatedUser struct {
 	AgreeToTrackingAcrossThirdPartyAppsAndServices bool               `bson:"agree_to_tracking_across_third_party_apps_and_services" json:"agree_to_tracking_across_third_party_apps_and_services,omitempty"`
 
 	// --- E2EE Related ---
-	PasswordSalt                      []byte                                 `json:"password_salt" bson:"password_salt"`
+	PasswordSalt []byte `json:"password_salt" bson:"password_salt"`
+	// KDFParams stores the key derivation function parameters used to derive the user's password hash.
+	KDFParams                         keys.KDFParams                         `json:"kdf_params" bson:"kdf_params"`
 	EncryptedMasterKey                keys.EncryptedMasterKey                `json:"encrypted_master_key" bson:"encrypted_master_key"`
 	PublicKey                         keys.PublicKey                         `json:"public_key" bson:"public_key"`
 	EncryptedPrivateKey               keys.EncryptedPrivateKey               `json:"encrypted_private_key" bson:"encrypted_private_key"`
 	EncryptedRecoveryKey              keys.EncryptedRecoveryKey              `json:"encrypted_recovery_key" bson:"encrypted_recovery_key"`
 	MasterKeyEncryptedWithRecoveryKey keys.MasterKeyEncryptedWithRecoveryKey `json:"master_key_encrypted_with_recovery_key" bson:"master_key_encrypted_with_recovery_key"`
+	EncryptedChallenge                []byte                                 `json:"encrypted_challenge,omitempty" bson:"encrypted_challenge,omitempty"`
 	VerificationID                    string                                 `json:"verificationID"`
+
+	// Track KDF upgrade status
+	LastPasswordChange   time.Time `json:"last_password_change" bson:"last_password_change"`
+	KDFParamsNeedUpgrade bool      `json:"kdf_params_need_upgrade" bson:"kdf_params_need_upgrade"`
+
+	// Key rotation tracking fields
+	CurrentKeyVersion int                     `json:"current_key_version" bson:"current_key_version"`
+	LastKeyRotation   *time.Time              `json:"last_key_rotation,omitempty" bson:"last_key_rotation,omitempty"`
+	KeyRotationPolicy *keys.KeyRotationPolicy `json:"key_rotation_policy,omitempty" bson:"key_rotation_policy,omitempty"`
 
 	// --- Metadata ---
 	CreatedFromIPAddress  string             `bson:"created_from_ip_address" json:"created_from_ip_address"`
@@ -95,19 +107,6 @@ type FederatedUser struct {
 
 	// OTPBackupCodeHashAlgorithm tracks the hashing algorithm used.
 	OTPBackupCodeHashAlgorithm string `bson:"otp_backup_code_hash_algorithm" json:"-"`
-
-	// KDFParams stores the key derivation function parameters used to derive the user's password hash.
-	KDFParams KDFParams `json:"kdf_params" bson:"kdf_params"`
-}
-
-// KDFParams stores the key derivation function parameters used to derive the user's password hash. Without storing KDF parameters, you can't derive the same key from the password consistently, especially if you need to upgrade parameters later.
-type KDFParams struct {
-	Algorithm   string `json:"algorithm"`   // "argon2id"
-	Iterations  uint32 `json:"iterations"`  // 3
-	Memory      uint32 `json:"memory"`      // 64*1024 (64MB)
-	Parallelism uint8  `json:"parallelism"` // 4
-	SaltLength  uint32 `json:"salt_length"` // 16
-	Version     string `json:"version"`     // "1.0"
 }
 
 // FederatedUserFilter represents the filter criteria for listing users

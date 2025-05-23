@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	"golang.org/x/crypto/nacl/box"
 
@@ -101,6 +102,17 @@ func (uc *generateCredentialsUseCase) Execute(ctx context.Context, password stri
 	// Create verification ID from public key
 	verificationID := base64.URLEncoding.EncodeToString(publicKey)[:12]
 
+	// Store current key in history
+	currentTime := time.Now() // Capture the current time once
+	historicalKey := keys.EncryptedHistoricalKey{
+		KeyVersion:    1,
+		Ciphertext:    encryptedMasterKey.Ciphertext,
+		Nonce:         encryptedMasterKey.Nonce,
+		RotatedAt:     currentTime,
+		RotatedReason: "Initial user registration",
+		Algorithm:     "chacha20poly1305",
+	}
+
 	return &Credentials{
 		Salt:             salt,
 		MasterKey:        masterKey,
@@ -109,8 +121,11 @@ func (uc *generateCredentialsUseCase) Execute(ctx context.Context, password stri
 		PrivateKey:       privateKey,
 		RecoveryKey:      recoveryKey,
 		EncryptedMasterKey: keys.EncryptedMasterKey{
-			Ciphertext: encryptedMasterKey.Ciphertext,
-			Nonce:      encryptedMasterKey.Nonce,
+			Ciphertext:   encryptedMasterKey.Ciphertext,
+			Nonce:        encryptedMasterKey.Nonce,
+			KeyVersion:   1,
+			RotatedAt:    &currentTime, // Pass the address of the captured time
+			PreviousKeys: []keys.EncryptedHistoricalKey{historicalKey},
 		},
 		EncryptedPrivateKey: keys.EncryptedPrivateKey{
 			Ciphertext: encryptedPrivateKey.Ciphertext,

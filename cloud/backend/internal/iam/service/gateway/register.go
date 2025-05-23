@@ -231,9 +231,24 @@ func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserFor
 	if len(encMasterKeyBytes) < crypto.NonceSize {
 		return nil, fmt.Errorf("encrypted master key data too short")
 	}
+
+	// Store current key in history
+	currentTime := time.Now() // Capture the current time once for initial user registration time.
+	historicalKey := keys.EncryptedHistoricalKey{
+		KeyVersion:    1,
+		Nonce:         encMasterKeyBytes[:crypto.NonceSize],
+		Ciphertext:    encMasterKeyBytes[crypto.NonceSize:],
+		RotatedAt:     currentTime,
+		RotatedReason: "Initial user registration",
+		Algorithm:     "chacha20poly1305",
+	}
+
 	encryptedMasterKey := keys.EncryptedMasterKey{
-		Nonce:      encMasterKeyBytes[:crypto.NonceSize],
-		Ciphertext: encMasterKeyBytes[crypto.NonceSize:],
+		Nonce:        encMasterKeyBytes[:crypto.NonceSize],
+		Ciphertext:   encMasterKeyBytes[crypto.NonceSize:],
+		KeyVersion:   1,
+		RotatedAt:    &currentTime, // Pass the address of the captured time
+		PreviousKeys: []keys.EncryptedHistoricalKey{historicalKey},
 	}
 
 	// Process EncryptedPrivateKey
@@ -288,23 +303,22 @@ func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserFor
 	}
 
 	userID := primitive.NewObjectID()
+
 	u := &dom_user.FederatedUser{
 		// --- E2EE ---
 		PasswordSalt:                      saltBytes,
+		KDFParams:                         keys.DefaultKDFParams(),
 		PublicKey:                         publicKey,
 		EncryptedMasterKey:                encryptedMasterKey,
 		EncryptedPrivateKey:               encryptedPrivateKey,
 		EncryptedRecoveryKey:              encryptedRecoveryKey,
 		MasterKeyEncryptedWithRecoveryKey: masterKeyEncryptedWithRecoveryKey,
 		VerificationID:                    req.VerificationID,
-
-		// --- KDFParams ---
-		KDFParams: dom_user.KDFParams{
-			Algorithm:   crypto.Argon2IDAlgorithm,
-			Iterations:  crypto.Argon2OpsLimit,
-			Memory:      crypto.Argon2MemLimit,
-			Parallelism: crypto.Argon2Parallelism,
-		},
+		LastPasswordChange:                time.Now(),
+		KDFParamsNeedUpgrade:              false,
+		CurrentKeyVersion:                 1,
+		LastKeyRotation:                   &currentTime,
+		KeyRotationPolicy:                 nil,
 
 		// --- The rest of the stuff... ---
 		ID:                  userID,

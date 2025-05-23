@@ -51,18 +51,19 @@ func (r *localFileRepository) Delete(ctx context.Context, id primitive.ObjectID)
 		}
 	}
 
-	// Delete thumbnail if it exists
-	if file.LocalThumbnailPath != "" {
-		if err := os.Remove(file.LocalThumbnailPath); err != nil && !os.IsNotExist(err) {
-			r.logger.Error("Failed to delete thumbnail data",
-				zap.String("localThumbnailPath", file.LocalThumbnailPath),
-				zap.Error(err))
-			// Continue with metadata deletion even if thumbnail deletion fails
-		} else {
-			r.logger.Debug("Deleted thumbnail data",
-				zap.String("localThumbnailPath", file.LocalThumbnailPath))
-		}
-	}
+	//TODO: REPAIR
+	// // Delete thumbnail if it exists
+	// if file.LocalThumbnailPath != "" {
+	// 	if err := os.Remove(file.LocalThumbnailPath); err != nil && !os.IsNotExist(err) {
+	// 		r.logger.Error("Failed to delete thumbnail data",
+	// 			zap.String("localThumbnailPath", file.LocalThumbnailPath),
+	// 			zap.Error(err))
+	// 		// Continue with metadata deletion even if thumbnail deletion fails
+	// 	} else {
+	// 		r.logger.Debug("Deleted thumbnail data",
+	// 			zap.String("localThumbnailPath", file.LocalThumbnailPath))
+	// 	}
+	// }
 
 	// Generate key for this file
 	key := r.generateKey(id.Hex())
