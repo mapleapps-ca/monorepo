@@ -2,16 +2,120 @@
 package collectiondto
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.uber.org/zap"
 
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 )
 
-func (s *collectionDTORepository) Create(ctx context.Context, collection *collectiondto.CollectionDTO) (*primitive.ObjectID, error) {
-	// Stub implementation: Always return a zero ObjectID and nil error.
-	// In a real stub or mock, you would implement test-specific logic.
-	var zeroID primitive.ObjectID
-	return &zeroID, nil
+func (r *collectionDTORepository) Create(ctx context.Context, request *collectiondto.CreateCollectionRequestDTO) (*primitive.ObjectID, error) {
+	r.logger.Debug("Starting create process")
+
+	// Get server URL from configuration
+	r.logger.Debug("Getting cloud provider address from config")
+	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
+	if err != nil {
+		r.logger.Error("Failed to get cloud provider address from config", zap.Error(err))
+		return nil, errors.NewAppError("failed to get cloud provider address", err)
+	}
+	r.logger.Debug("Successfully retrieved cloud provider address", zap.String("serverURL", serverURL))
+
+	if request.UserData == nil {
+		r.logger.Error("User data not found for email", zap.String("email", request.UserData.Email))
+		return nil, errors.NewAppError("user not found; please login first", nil)
+	}
+	r.logger.Debug("Successfully retrieved user data")
+
+	// Check if access token is valid
+	r.logger.Debug("Checking if access token is valid")
+	if request.UserData.AccessToken == "" || time.Now().After(request.UserData.AccessTokenExpiryTime) {
+		r.logger.Info("Access token is invalid or expired, attempting to refresh")
+		if err := r.refreshTokenIfNeeded(ctx, request.UserData); err != nil {
+			r.logger.Error("Failed to refresh authentication token", zap.String("email", request.UserData.Email), zap.Error(err))
+			return nil, errors.NewAppError("authentication token has expired; please refresh token", nil)
+		}
+		r.logger.Info("Successfully refreshed authentication token")
+	} else {
+		r.logger.Debug("Access token is valid")
+	}
+
+	// Convert request to JSON
+	r.logger.Debug("Marshalling create collection request to JSON")
+	jsonData, err := json.Marshal(request.Collection)
+	if err != nil {
+		r.logger.Error("Failed to marshal request to JSON", zap.Any("request", request.Collection), zap.Error(err))
+		return nil, errors.NewAppError("failed to marshal request", err)
+	}
+	r.logger.Debug("Successfully marshalled request to JSON")
+
+	// Create HTTP request
+	createURL := fmt.Sprintf("%s/maplefile/api/v1/collections", serverURL)
+	r.logger.Info("Making HTTP request to create collection",
+		zap.String("method", "POST"),
+		zap.String("url", createURL),
+		zap.String("email", request.UserData.Email))
+
+	req, err := http.NewRequestWithContext(ctx, "POST", createURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		r.logger.Error("Failed to create HTTP request for creating collection", zap.String("url", createURL), zap.Error(err))
+		return nil, errors.NewAppError("failed to create HTTP request", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "JWT "+request.UserData.AccessToken) // Log this carefully if sensitive
+	r.logger.Debug("HTTP request headers set")
+
+	// Execute the request
+	r.logger.Debug("Executing HTTP request to create collection")
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		r.logger.Error("Failed to execute HTTP request to create collection", zap.String("url", createURL), zap.Error(err))
+		return nil, errors.NewAppError("failed to connect to server", err)
+	}
+	defer resp.Body.Close()
+	r.logger.Info("Received HTTP response", zap.String("status", resp.Status), zap.Int("statusCode", resp.StatusCode))
+
+	// Read response body
+	r.logger.Debug("Reading HTTP response body")
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		r.logger.Error("Failed to read HTTP response body", zap.Error(err))
+		return nil, errors.NewAppError("failed to read response", err)
+	}
+	r.logger.Debug("Successfully read HTTP response body", zap.ByteString("body", body)) // Be careful logging raw body if sensitive
+
+	// Check for error status codes
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		r.logger.Error("Server returned an error status code", zap.String("status", resp.Status), zap.Int("statusCode", resp.StatusCode), zap.ByteString("body", body))
+		var errorResponse map[string]interface{}
+		if err := json.Unmarshal(body, &errorResponse); err == nil {
+			if errMsg, ok := errorResponse["message"].(string); ok {
+				r.logger.Error("Server returned error message in response body", zap.String("message", errMsg))
+				return nil, errors.NewAppError(fmt.Sprintf("server error: %s", errMsg), nil)
+			}
+		}
+		return nil, errors.NewAppError(fmt.Sprintf("server returned error status: %s", resp.Status), nil)
+	}
+	r.logger.Debug("HTTP response status is successful")
+
+	// Parse the response
+	r.logger.Debug("Parsing HTTP response body into RemoteCollectionResponse")
+	var response collectiondto.CollectionDTO
+	if err := json.Unmarshal(body, &response); err != nil {
+		r.logger.Error("Failed to parse response body into RemoteCollectionResponse", zap.ByteString("body", body), zap.Error(err))
+		return nil, errors.NewAppError("failed to parse response", err)
+	}
+	r.logger.Debug("Successfully parsed HTTP response body")
+
+	r.logger.Info("Successfully created collection", zap.Any("response", response))
+	return &response.ID, nil
 }
