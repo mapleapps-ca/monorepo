@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
@@ -18,8 +17,6 @@ import (
 )
 
 func (r *collectionDTORepository) Create(ctx context.Context, request *collectiondto.CreateCollectionRequestDTO) (*primitive.ObjectID, error) {
-	r.logger.Debug("Starting create process")
-
 	// Get server URL from configuration
 	r.logger.Debug("Getting cloud provider address from config")
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
@@ -29,23 +26,18 @@ func (r *collectionDTORepository) Create(ctx context.Context, request *collectio
 	}
 	r.logger.Debug("Successfully retrieved cloud provider address", zap.String("serverURL", serverURL))
 
+	// Defensive programming
 	if request.UserData == nil {
-		r.logger.Error("User data not found for email", zap.String("email", request.UserData.Email))
+		r.logger.Error("User data not found", zap.String("email", request.UserData.Email))
 		return nil, errors.NewAppError("user not found; please login first", nil)
 	}
-	r.logger.Debug("Successfully retrieved user data")
 
 	// Check if access token is valid
 	r.logger.Debug("Checking if access token is valid")
-	if request.UserData.AccessToken == "" || time.Now().After(request.UserData.AccessTokenExpiryTime) {
-		r.logger.Info("Access token is invalid or expired, attempting to refresh")
-		if err := r.refreshTokenIfNeeded(ctx, request.UserData); err != nil {
-			r.logger.Error("Failed to refresh authentication token", zap.String("email", request.UserData.Email), zap.Error(err))
-			return nil, errors.NewAppError("authentication token has expired; please refresh token", nil)
-		}
-		r.logger.Info("Successfully refreshed authentication token")
-	} else {
-		r.logger.Debug("Access token is valid")
+	accessToken, err := r.getAccessToken(ctx, request.UserData)
+	if err != nil {
+		r.logger.Error("Failed to get access token", zap.String("email", request.UserData.Email), zap.Error(err))
+		return nil, errors.NewAppError("failed to get access token", err)
 	}
 
 	// Convert request to JSON
@@ -71,7 +63,7 @@ func (r *collectionDTORepository) Create(ctx context.Context, request *collectio
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "JWT "+request.UserData.AccessToken) // Log this carefully if sensitive
+	req.Header.Set("Authorization", "JWT "+accessToken) // Log this carefully if sensitive
 	r.logger.Debug("HTTP request headers set")
 
 	// Execute the request

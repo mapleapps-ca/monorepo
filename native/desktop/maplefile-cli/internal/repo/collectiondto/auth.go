@@ -12,19 +12,12 @@ import (
 )
 
 // getAccessToken retrieves a valid access token for API calls
-func (r *collectionDTORepository) getAccessToken(ctx context.Context) (string, error) {
+func (r *collectionDTORepository) getAccessToken(ctx context.Context, userData *user.User) (string, error) {
 	// Get authenticated user's email
 	email, err := r.configService.GetEmail(ctx)
 	if err != nil {
 		r.logger.Error("Failed to get authenticated user email", zap.Error(err))
 		return "", errors.NewAppError("failed to get authenticated user", err)
-	}
-
-	// Get user data to retrieve auth token
-	userData, err := r.userRepo.GetByEmail(ctx, email)
-	if err != nil {
-		r.logger.Error("Failed to retrieve user data", zap.String("email", email), zap.Error(err))
-		return "", errors.NewAppError("failed to retrieve user data", err)
 	}
 
 	if userData == nil {
