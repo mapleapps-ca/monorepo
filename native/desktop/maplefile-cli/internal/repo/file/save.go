@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
+	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	"go.uber.org/zap"
 )
 
 // Save updates an existing local file
-func (r *fileRepository) Save(ctx context.Context, file *file.Collection) error {
+func (r *fileRepository) Save(ctx context.Context, file *dom_file.File) error {
 	r.logger.Debug("Saving file to local storage",
 		zap.String("fileID", file.ID.Hex()),
 		zap.String("cloudID", file.CloudID.Hex()))

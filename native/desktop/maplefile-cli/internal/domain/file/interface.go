@@ -9,28 +9,28 @@ import (
 
 // FileRepository defines the interface for interacting with local files
 type FileRepository interface {
-	Create(ctx context.Context, file *Collection) error
+	Create(ctx context.Context, file *File) error
 
-	Save(ctx context.Context, file *Collection) error
+	Save(ctx context.Context, file *File) error
 
-	GetByID(ctx context.Context, id primitive.ObjectID) (*Collection, error)
-	GetByCloudID(ctx context.Context, cloudID primitive.ObjectID) (*Collection, error)
+	GetByID(ctx context.Context, id primitive.ObjectID) (*File, error)
+	GetByCloudID(ctx context.Context, cloudID primitive.ObjectID) (*File, error)
 
-	List(ctx context.Context, filter FileFilter) ([]*Collection, error)
-	ListByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*Collection, error)
+	List(ctx context.Context, filter FileFilter) ([]*File, error)
+	ListByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*File, error)
 
 	Delete(ctx context.Context, id primitive.ObjectID) error
 
-	SaveEncryptedFileDataInternal(ctx context.Context, dataPath string, file *Collection, data []byte) error
-	SaveDecryptedFileDataInternal(ctx context.Context, dataPath string, file *Collection, data []byte) error
-	SaveHybridFileDataInternal(ctx context.Context, dataPath string, file *Collection, data []byte) error
+	SaveEncryptedFileDataInternal(ctx context.Context, dataPath string, file *File, data []byte) error
+	SaveDecryptedFileDataInternal(ctx context.Context, dataPath string, file *File, data []byte) error
+	SaveHybridFileDataInternal(ctx context.Context, dataPath string, file *File, data []byte) error
 	LoadDecryptedFileDataAtFilePath(ctx context.Context, decryptedFilePath string) ([]byte, error)
 	LoadEncryptedFileDataAtFilePath(ctx context.Context, encryptedFilePath string) ([]byte, error)
 
-	ImportFile(ctx context.Context, filePath string, file *Collection) error
+	ImportFile(ctx context.Context, filePath string, file *File) error
 
-	SaveThumbnail(ctx context.Context, file *Collection, thumbnailData []byte) error
-	LoadThumbnail(ctx context.Context, file *Collection) ([]byte, error)
+	SaveThumbnail(ctx context.Context, file *File, thumbnailData []byte) error
+	LoadThumbnail(ctx context.Context, file *File) ([]byte, error)
 
 	OpenTransaction() error
 	CommitTransaction() error

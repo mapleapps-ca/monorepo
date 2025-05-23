@@ -4,11 +4,11 @@ package file
 import (
 	"context"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
+	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 // SaveThumbnail saves a thumbnail image for a file
-func (r *fileRepository) SaveThumbnail(ctx context.Context, file *file.Collection, thumbnailData []byte) error {
+func (r *fileRepository) SaveThumbnail(ctx context.Context, file *dom_file.File, thumbnailData []byte) error {
 	return nil //TODO: REPAIR
 
 	// r.logger.Debug("Saving thumbnail data to local filesystem",
@@ -52,7 +52,7 @@ func (r *fileRepository) SaveThumbnail(ctx context.Context, file *file.Collectio
 }
 
 // LoadThumbnail loads a thumbnail image for a file
-func (r *fileRepository) LoadThumbnail(ctx context.Context, file *file.Collection) ([]byte, error) {
+func (r *fileRepository) LoadThumbnail(ctx context.Context, file *dom_file.File) ([]byte, error) {
 	return nil, nil //TODO: REPAIR
 	// r.logger.Debug("Loading thumbnail data from local filesystem",
 	// 	zap.String("fileID", file.ID.Hex()),

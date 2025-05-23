@@ -9,11 +9,11 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
-// FileDTO represents an encrypted file entity stored in the backend database (MongoDB).
-// This entity holds metadata and pointers to the actual file content and thumbnail,
-// which are stored separately in S3. All sensitive file metadata and the file itself
-// are encrypted client-side before being uploaded. The backend stores only encrypted
-// data and necessary non-sensitive identifiers or sizes for management.
+// FileDTO represents a Data Transfer Object (DTO) used for transferring an encrypted file entity
+// to and from a cloud service. This entity holds metadata and pointers to the
+// actual file content and thumbnail, which are stored separately in S3. All sensitive file
+// metadata and the file itself are encrypted client-side before being uploaded. The backend
+// stores only encrypted data and necessary non-sensitive identifiers or sizes for management.
 type FileDTO struct {
 	// Identifiers
 	// Unique identifier set by the cloud service.

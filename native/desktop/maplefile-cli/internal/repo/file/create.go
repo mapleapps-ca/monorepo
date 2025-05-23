@@ -12,7 +12,7 @@ import (
 )
 
 // Create creates a new local file
-func (r *fileRepository) Create(ctx context.Context, file *dom_file.Collection) error {
+func (r *fileRepository) Create(ctx context.Context, file *dom_file.File) error {
 	r.logger.Debug("Creating new local file",
 		zap.String("cloudID", file.CloudID.Hex()))
 

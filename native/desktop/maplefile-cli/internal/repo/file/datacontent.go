@@ -12,12 +12,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 // ImportFile imports an existing file into the system
-func (r *fileRepository) ImportFile(ctx context.Context, filePath string, file *dom_file.Collection) error {
+func (r *fileRepository) ImportFile(ctx context.Context, filePath string, file *dom_file.File) error {
 	r.logger.Debug("Importing file into local storage",
 		zap.String("sourceFilePath", filePath),
 		zap.String("fileID", file.ID.Hex()),
@@ -103,7 +102,7 @@ func (r *fileRepository) determineFileExtension(filePath string) string {
 }
 
 // Helper method to create encrypted version of file
-func (r *fileRepository) createEncryptedFile(sourcePath, destPath string, file *file.Collection) error {
+func (r *fileRepository) createEncryptedFile(sourcePath, destPath string, file *dom_file.File) error {
 	// Read the source file
 	sourceData, err := os.ReadFile(sourcePath)
 	if err != nil {
@@ -139,7 +138,7 @@ func (r *fileRepository) createEncryptedFile(sourcePath, destPath string, file *
 }
 
 // Helper method to create decrypted version of file
-func (r *fileRepository) createDecryptedFile(sourcePath, destPath string, file *file.Collection) error {
+func (r *fileRepository) createDecryptedFile(sourcePath, destPath string, file *dom_file.File) error {
 	// For decrypted files, we simply copy the source file as-is
 	sourceFile, err := os.Open(sourcePath)
 	if err != nil {
@@ -164,7 +163,7 @@ func (r *fileRepository) createDecryptedFile(sourcePath, destPath string, file *
 
 // saveEncryptedFileDataInternal handles saving data for StorageModeEncryptedOnly.
 // It is called by SaveFileData when the mode is EncryptedOnly.
-func (r *fileRepository) SaveEncryptedFileDataInternal(ctx context.Context, dataPath string, file *dom_file.Collection, data []byte) error {
+func (r *fileRepository) SaveEncryptedFileDataInternal(ctx context.Context, dataPath string, file *dom_file.File, data []byte) error {
 	r.logger.Debug("Saving encrypted file data internally",
 		zap.String("fileID", file.ID.Hex()),
 		zap.Int("dataSize", len(data)))
@@ -193,7 +192,7 @@ func (r *fileRepository) SaveEncryptedFileDataInternal(ctx context.Context, data
 
 // saveDecryptedFileDataInternal handles saving data for StorageModeDecryptedOnly.
 // It is called by SaveFileData when the mode is DecryptedOnly.
-func (r *fileRepository) SaveDecryptedFileDataInternal(ctx context.Context, dataPath string, file *dom_file.Collection, data []byte) error {
+func (r *fileRepository) SaveDecryptedFileDataInternal(ctx context.Context, dataPath string, file *dom_file.File, data []byte) error {
 	r.logger.Debug("Saving decrypted file data internally",
 		zap.String("fileID", file.ID.Hex()),
 		zap.Int("dataSize", len(data)))
@@ -224,7 +223,7 @@ func (r *fileRepository) SaveDecryptedFileDataInternal(ctx context.Context, data
 
 // saveHybridFileDataInternal handles saving data for StorageModeHybrid.
 // It is called by SaveFileData when the mode is Hybrid.
-func (r *fileRepository) SaveHybridFileDataInternal(ctx context.Context, dataPath string, file *dom_file.Collection, data []byte) error {
+func (r *fileRepository) SaveHybridFileDataInternal(ctx context.Context, dataPath string, file *dom_file.File, data []byte) error {
 	r.logger.Debug("Saving hybrid file data internally",
 		zap.String("fileID", file.ID.Hex()),
 		zap.Int("dataSize", len(data)))
@@ -276,7 +275,7 @@ func (r *fileRepository) SaveHybridFileDataInternal(ctx context.Context, dataPat
 }
 
 // LoadFileData loads file data from the local filesystem
-func (r *fileRepository) LoadFileData(ctx context.Context, file *dom_file.Collection) ([]byte, error) {
+func (r *fileRepository) LoadFileData(ctx context.Context, file *dom_file.File) ([]byte, error) {
 	r.logger.Debug("Loading file data from local filesystem",
 		zap.String("fileID", file.ID.Hex()),
 		zap.String("storageMode", file.StorageMode))

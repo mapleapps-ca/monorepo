@@ -5,18 +5,20 @@ import (
 	"context"
 	"strings"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
+
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
+	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 // List retrieves local files based on filter criteria
-func (r *fileRepository) List(ctx context.Context, filter file.FileFilter) ([]*file.Collection, error) {
+func (r *fileRepository) List(ctx context.Context, filter file.FileFilter) ([]*dom_file.File, error) {
 	r.logger.Debug("Listing files from local storage",
 		zap.Any("filter", filter))
 
-	files := make([]*file.Collection, 0)
+	files := make([]*dom_file.File, 0)
 
 	// Iterate through all files in the database
 	err := r.dbClient.Iterate(func(key, value []byte) error {
@@ -81,7 +83,7 @@ func (r *fileRepository) List(ctx context.Context, filter file.FileFilter) ([]*f
 }
 
 // ListByCollection lists local files within a specific collection
-func (r *fileRepository) ListByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*file.Collection, error) {
+func (r *fileRepository) ListByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*dom_file.File, error) {
 	r.logger.Debug("Listing files by collection from local storage",
 		zap.String("collectionID", collectionID.Hex()))
 

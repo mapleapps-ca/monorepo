@@ -9,8 +9,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
-// Collection represents a file on the user's local device.
-type Collection struct {
+// File represents a file on the user's local device.
+type File struct {
 	// Identifiers
 	// Local primary key
 	ID primitive.ObjectID `json:"id"`

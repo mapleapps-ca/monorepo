@@ -6,12 +6,13 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
+	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 )
 
 // GetByID retrieves a local file by ID
-func (r *fileRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*file.Collection, error) {
+func (r *fileRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*dom_file.File, error) {
 	r.logger.Debug("Retrieving file from local storage", zap.String("fileID", id.Hex()))
 
 	// Generate key for this file
@@ -45,7 +46,7 @@ func (r *fileRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*f
 }
 
 // GetByCloudID retrieves a local file by its cloud ID
-func (r *fileRepository) GetByCloudID(ctx context.Context, cloudID primitive.ObjectID) (*file.Collection, error) {
+func (r *fileRepository) GetByCloudID(ctx context.Context, cloudID primitive.ObjectID) (*dom_file.File, error) {
 	r.logger.Debug("Retrieving file by cloud ID from local storage", zap.String("cloudID", cloudID.Hex()))
 
 	// Get all files and filter
