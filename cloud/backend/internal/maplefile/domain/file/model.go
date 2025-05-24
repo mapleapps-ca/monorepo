@@ -64,4 +64,18 @@ type File struct {
 	ModifiedByUserID primitive.ObjectID `json:"modified_by_user_id"`
 	// The current version of the file.
 	Version uint64 `json:"version"`
+
+	// State management.
+	State string `bson:"state" json:"state"`
 }
+
+const (
+	// StatePending is the initial state of a file before it is uploaded.
+	StatePending = "pending"
+	// StateActive indicates that the file is fully uploaded and ready for use.
+	StateActive = "active"
+	// StateDeleted marks the file as deleted, but still accessible for a period.
+	StateDeleted = "deleted"
+	// StateArchived indicates that the file is no longer accessible and is permanently removed.
+	StateArchived = "archived"
+)
