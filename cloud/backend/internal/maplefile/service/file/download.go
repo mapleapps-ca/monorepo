@@ -36,12 +36,12 @@ type DownloadFileService interface {
 }
 
 type downloadFileServiceImpl struct {
-	config                      *config.Configuration
-	logger                      *zap.Logger
-	collectionRepo              dom_collection.CollectionRepository
-	getMetadataUseCase          uc_filemetadata.GetFileMetadataUseCase
-	getDataUseCase              uc_fileobjectstorage.GetEncryptedDataUseCase
-	generatePresignedURLUseCase uc_fileobjectstorage.GeneratePresignedURLUseCase
+	config                              *config.Configuration
+	logger                              *zap.Logger
+	collectionRepo                      dom_collection.CollectionRepository
+	getMetadataUseCase                  uc_filemetadata.GetFileMetadataUseCase
+	getDataUseCase                      uc_fileobjectstorage.GetEncryptedDataUseCase
+	generatePresignedDownloadURLUseCase uc_fileobjectstorage.GeneratePresignedDownloadURLUseCase
 }
 
 func NewDownloadFileService(
@@ -50,15 +50,15 @@ func NewDownloadFileService(
 	collectionRepo dom_collection.CollectionRepository,
 	getMetadataUseCase uc_filemetadata.GetFileMetadataUseCase,
 	getDataUseCase uc_fileobjectstorage.GetEncryptedDataUseCase,
-	generatePresignedURLUseCase uc_fileobjectstorage.GeneratePresignedURLUseCase,
+	generatePresignedDownloadURLUseCase uc_fileobjectstorage.GeneratePresignedDownloadURLUseCase,
 ) DownloadFileService {
 	return &downloadFileServiceImpl{
-		config:                      config,
-		logger:                      logger,
-		collectionRepo:              collectionRepo,
-		getMetadataUseCase:          getMetadataUseCase,
-		getDataUseCase:              getDataUseCase,
-		generatePresignedURLUseCase: generatePresignedURLUseCase,
+		config:                              config,
+		logger:                              logger,
+		collectionRepo:                      collectionRepo,
+		getMetadataUseCase:                  getMetadataUseCase,
+		getDataUseCase:                      getDataUseCase,
+		generatePresignedDownloadURLUseCase: generatePresignedDownloadURLUseCase,
 	}
 }
 
@@ -132,7 +132,7 @@ func (svc *downloadFileServiceImpl) Execute(ctx context.Context, req *DownloadFi
 
 	if req.UsePresignedURL {
 		// Generate presigned URL
-		url, err := svc.generatePresignedURLUseCase.Execute(file.EncryptedFileObjectKey, req.URLDuration)
+		url, err := svc.generatePresignedDownloadURLUseCase.Execute(ctx, file.EncryptedFileObjectKey, req.URLDuration)
 		if err != nil {
 			svc.logger.Error("Failed to generate presigned URL",
 				zap.Any("error", err),

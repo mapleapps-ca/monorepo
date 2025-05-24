@@ -142,7 +142,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	uploadURLDuration := 1 * time.Hour // URLs valid for 1 hour
 	expirationTime := time.Now().Add(uploadURLDuration)
 
-	presignedUploadURL, err := svc.generatePresignedUploadURLUseCase.Execute(storagePath, uploadURLDuration)
+	presignedUploadURL, err := svc.generatePresignedUploadURLUseCase.Execute(ctx, storagePath, uploadURLDuration)
 	if err != nil {
 		svc.logger.Error("Failed to generate presigned upload URL",
 			zap.Any("error", err),
@@ -154,7 +154,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	// Generate thumbnail upload URL (optional)
 	var presignedThumbnailURL string
 	if req.ExpectedThumbnailSizeInBytes > 0 {
-		presignedThumbnailURL, err = svc.generatePresignedUploadURLUseCase.Execute(thumbnailStoragePath, uploadURLDuration)
+		presignedThumbnailURL, err = svc.generatePresignedUploadURLUseCase.Execute(ctx, thumbnailStoragePath, uploadURLDuration)
 		if err != nil {
 			svc.logger.Warn("Failed to generate thumbnail presigned upload URL, continuing without it",
 				zap.Any("error", err),
