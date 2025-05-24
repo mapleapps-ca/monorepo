@@ -44,6 +44,10 @@ type S3ObjectStorage interface {
 	ListAllObjects(ctx context.Context) (*s3.ListObjectsOutput, error)
 	FindMatchingObjectKey(s3Objects *s3.ListObjectsOutput, partialKey string) string
 	IsPublicBucket() bool
+	// GeneratePresignedUploadURL creates a presigned URL for uploading objects
+	GeneratePresignedUploadURL(ctx context.Context, key string, duration time.Duration) (string, error)
+	ObjectExists(ctx context.Context, key string) (bool, error)
+	GetObjectSize(ctx context.Context, key string) (int64, error)
 }
 
 type s3ObjectStorage struct {
@@ -392,4 +396,124 @@ func (s *s3ObjectStorage) FindMatchingObjectKey(s3Objects *s3.ListObjectsOutput,
 		}
 	}
 	return ""
+}
+
+// GeneratePresignedUploadURL creates a presigned URL for uploading objects to S3
+func (s *s3ObjectStorage) GeneratePresignedUploadURL(ctx context.Context, key string, duration time.Duration) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	presignedUrl, err := s.PresignClient.PresignPutObject(ctx,
+		&s3.PutObjectInput{
+			Bucket: aws.String(s.BucketName),
+			Key:    aws.String(key),
+			ACL:    types.ObjectCannedACL(ACLPrivate), // Always private for file uploads
+		},
+		s3.WithPresignExpires(duration))
+	if err != nil {
+		s.Logger.Error("Failed to generate presigned upload URL",
+			zap.String("key", key),
+			zap.Duration("duration", duration),
+			zap.Error(err))
+		return "", err
+	}
+
+	s.Logger.Debug("Generated presigned upload URL",
+		zap.String("key", key),
+		zap.Duration("duration", duration))
+
+	return presignedUrl.URL, nil
+}
+
+// ObjectExists checks if an object exists at the given key using HeadObject
+func (s *s3ObjectStorage) ObjectExists(ctx context.Context, key string) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	_, err := s.S3Client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(s.BucketName),
+		Key:    aws.String(key),
+	})
+
+	if err != nil {
+		var apiError smithy.APIError
+		if errors.As(err, &apiError) {
+			switch apiError.(type) {
+			case *types.NotFound:
+				// Object doesn't exist
+				s.Logger.Debug("Object does not exist",
+					zap.String("key", key))
+				return false, nil
+			case *types.NoSuchKey:
+				// Object doesn't exist
+				s.Logger.Debug("Object does not exist (NoSuchKey)",
+					zap.String("key", key))
+				return false, nil
+			default:
+				// Some other error occurred
+				s.Logger.Error("Error checking object existence",
+					zap.String("key", key),
+					zap.Error(err))
+				return false, err
+			}
+		}
+		// Non-API error
+		s.Logger.Error("Error checking object existence",
+			zap.String("key", key),
+			zap.Error(err))
+		return false, err
+	}
+
+	s.Logger.Debug("Object exists",
+		zap.String("key", key))
+	return true, nil
+}
+
+// GetObjectSize returns the size of an object at the given key using HeadObject
+func (s *s3ObjectStorage) GetObjectSize(ctx context.Context, key string) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	result, err := s.S3Client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(s.BucketName),
+		Key:    aws.String(key),
+	})
+
+	if err != nil {
+		var apiError smithy.APIError
+		if errors.As(err, &apiError) {
+			switch apiError.(type) {
+			case *types.NotFound:
+				s.Logger.Debug("Object not found when getting size",
+					zap.String("key", key))
+				return 0, errors.New("object not found")
+			case *types.NoSuchKey:
+				s.Logger.Debug("Object not found when getting size (NoSuchKey)",
+					zap.String("key", key))
+				return 0, errors.New("object not found")
+			default:
+				s.Logger.Error("Error getting object size",
+					zap.String("key", key),
+					zap.Error(err))
+				return 0, err
+			}
+		}
+		s.Logger.Error("Error getting object size",
+			zap.String("key", key),
+			zap.Error(err))
+		return 0, err
+	}
+
+	if result.ContentLength == nil {
+		s.Logger.Warn("Object size is nil",
+			zap.String("key", key))
+		return 0, errors.New("object size unavailable")
+	}
+
+	size := *result.ContentLength
+	s.Logger.Debug("Retrieved object size",
+		zap.String("key", key),
+		zap.Int64("size", size))
+
+	return size, nil
 }

@@ -1,7 +1,8 @@
-// cloud/backend/internal/maplefile/usecase/fileobjectstorage/generate_presigned_url.go
+// cloud/backend/internal/maplefile/usecase/fileobjectstorage/get_object_size.go
 package fileobjectstorage
 
 import (
+	"context"
 	"time"
 
 	"go.uber.org/zap"
@@ -11,25 +12,25 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type GeneratePresignedURLUseCase interface {
-	Execute(storagePath string, duration time.Duration) (string, error)
+type GeneratePresignedUploadURLUseCase interface {
+	Execute(ctx context.Context, storagePath string, duration time.Duration) (string, error)
 }
 
-type generatePresignedURLUseCaseImpl struct {
+type generatePresignedUploadURLUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
 	repo   dom_file.FileObjectStorageRepository
 }
 
-func NewGeneratePresignedURLUseCase(
+func NewGeneratePresignedUploadURLUseCase(
 	config *config.Configuration,
 	logger *zap.Logger,
 	repo dom_file.FileObjectStorageRepository,
-) GeneratePresignedURLUseCase {
-	return &generatePresignedURLUseCaseImpl{config, logger, repo}
+) GeneratePresignedUploadURLUseCase {
+	return &generatePresignedUploadURLUseCaseImpl{config, logger, repo}
 }
 
-func (uc *generatePresignedURLUseCaseImpl) Execute(storagePath string, duration time.Duration) (string, error) {
+func (uc *generatePresignedUploadURLUseCaseImpl) Execute(ctx context.Context, storagePath string, duration time.Duration) (string, error) {
 	//
 	// STEP 1: Validation.
 	//
@@ -53,21 +54,17 @@ func (uc *generatePresignedURLUseCaseImpl) Execute(storagePath string, duration 
 	}
 
 	//
-	// STEP 2: Generate presigned URL.
+	// STEP 2: Generate and get presigned upload URL.
 	//
 
 	url, err := uc.repo.GeneratePresignedURL(storagePath, duration)
 	if err != nil {
-		uc.logger.Error("Failed to generate presigned URL",
+		uc.logger.Error("Failed to generate presigned upload URL",
 			zap.String("storage_path", storagePath),
 			zap.Duration("duration", duration),
 			zap.Error(err))
 		return "", err
 	}
-
-	uc.logger.Debug("Successfully generated presigned URL",
-		zap.String("storage_path", storagePath),
-		zap.Duration("duration", duration))
 
 	return url, nil
 }

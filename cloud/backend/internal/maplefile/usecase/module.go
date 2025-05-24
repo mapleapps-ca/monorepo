@@ -70,9 +70,12 @@ func Module() fx.Option {
 			fileobjectstorage.NewStoreEncryptedDataUseCase,
 			fileobjectstorage.NewGetEncryptedDataUseCase,
 			fileobjectstorage.NewDeleteEncryptedDataUseCase,
-			fileobjectstorage.NewGeneratePresignedURLUseCase,
 			fileobjectstorage.NewDeleteMultipleEncryptedDataUseCase,
 			fileobjectstorage.NewStoreMultipleEncryptedDataUseCase,
+			fileobjectstorage.NewGeneratePresignedUploadURLUseCase,
+			fileobjectstorage.NewGeneratePresignedDownloadURLUseCase,
+			fileobjectstorage.NewVerifyObjectExistsUseCase,
+			fileobjectstorage.NewGetObjectSizeUseCase,
 		),
 	)
 }

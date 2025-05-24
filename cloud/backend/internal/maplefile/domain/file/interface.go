@@ -47,4 +47,14 @@ type FileObjectStorageRepository interface {
 	// GeneratePresignedURL creates a temporary, time-limited URL that allows direct access
 	// to the file data located at the given storage path, without requiring further authentication.
 	GeneratePresignedURL(storagePath string, duration time.Duration) (string, error)
+	// GeneratePresignedDownloadURL creates a temporary, time-limited URL that allows direct download
+	// of the file data located at the given storage path, with proper content disposition headers.
+	GeneratePresignedDownloadURL(storagePath string, duration time.Duration) (string, error)
+	// GeneratePresignedUploadURL creates a temporary, time-limited URL that allows clients to upload
+	// encrypted file data directly to the storage system at the specified storage path.
+	GeneratePresignedUploadURL(storagePath string, duration time.Duration) (string, error)
+	// VerifyObjectExists checks if an object exists at the given storage path.
+	VerifyObjectExists(storagePath string) (bool, error)
+	// GetObjectSize returns the size in bytes of the object at the given storage path.
+	GetObjectSize(storagePath string) (int64, error)
 }
