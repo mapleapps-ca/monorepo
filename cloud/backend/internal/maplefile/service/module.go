@@ -36,7 +36,7 @@ func Module() fx.Option {
 			collection.NewRemoveMemberService,
 			collection.NewListSharedCollectionsService,
 
-			// File services - Original workflow
+			// File services
 			file.NewUploadFileService,
 			file.NewDeleteFileService,
 			file.NewDeleteMultipleFilesService,
@@ -44,10 +44,9 @@ func Module() fx.Option {
 			file.NewGetFileService,
 			file.NewListFilesByCollectionService,
 			file.NewUpdateFileService,
-
-			// File services - New three-step workflow
 			file.NewCreatePendingFileService,
 			file.NewCompleteFileUploadService,
+			file.NewGetPresignedUploadURLService,
 		),
 	)
 }

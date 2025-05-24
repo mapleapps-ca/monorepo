@@ -52,6 +52,9 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(file.NewGetFileHTTPHandler),
 			unifiedhttp.AsRoute(file.NewListFilesByCollectionHTTPHandler),
 			unifiedhttp.AsRoute(file.NewUpdateFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewCreatePendingFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewCompleteFileUploadHTTPHandler),
+			unifiedhttp.AsRoute(file.NewGetPresignedUploadURLHTTPHandler),
 		),
 	)
 }

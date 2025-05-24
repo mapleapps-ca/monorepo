@@ -20,11 +20,12 @@ var (
 func init() {
 	// Exact matches
 	exactPaths = map[string]bool{
-		"/maplefile/api/v1/me":          true,
-		"/maplefile/api/v1/me/delete":   true,
-		"/maplefile/api/v1/dashboard":   true,
-		"/maplefile/api/v1/collections": true,
-		"/maplefile/api/v1/files":       true,
+		"/maplefile/api/v1/me":            true,
+		"/maplefile/api/v1/me/delete":     true,
+		"/maplefile/api/v1/dashboard":     true,
+		"/maplefile/api/v1/collections":   true,
+		"/maplefile/api/v1/files":         true,
+		"/maplefile/api/v1/files/pending": true, // Three-step workflow file-create endpoint: Start
 	}
 
 	// Pattern matches
@@ -38,6 +39,8 @@ func init() {
 		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+$",             // Regex designed for collection IDs
 		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/data$",        // Regex designed for collection IDs
 		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/upload-url$",  // Regex designed for collection IDs
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/complete$",    // Three-step workflow file-create endpoint: Finish
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/download$",    // Download endpoint
 	}
 
 	// Precompile patterns
