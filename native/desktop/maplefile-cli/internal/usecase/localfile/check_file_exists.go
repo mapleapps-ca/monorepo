@@ -3,47 +3,55 @@ package localfile
 
 import (
 	"context"
+	"os"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	fileUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 )
 
-// CheckFileExistsUseCase defines the interface for checking if a local file exists
+// CheckFileExistsUseCase defines the interface for checking if files exist on the local file system
 type CheckFileExistsUseCase interface {
-	Execute(ctx context.Context, fileID primitive.ObjectID) (bool, error)
+	Execute(ctx context.Context, filePath string) (bool, error)
 }
 
 // checkFileExistsUseCase implements the CheckFileExistsUseCase interface
 type checkFileExistsUseCase struct {
-	logger             *zap.Logger
-	checkExistsUseCase fileUseCase.CheckFileExistsUseCase
+	logger *zap.Logger
 }
 
 // NewCheckFileExistsUseCase creates a new use case for checking file existence
 func NewCheckFileExistsUseCase(
 	logger *zap.Logger,
-	checkExistsUseCase fileUseCase.CheckFileExistsUseCase,
 ) CheckFileExistsUseCase {
 	return &checkFileExistsUseCase{
-		logger:             logger,
-		checkExistsUseCase: checkExistsUseCase,
+		logger: logger,
 	}
 }
 
-// Execute checks if a file exists in the database
+// Execute checks if a file exists on the file system
 func (uc *checkFileExistsUseCase) Execute(
 	ctx context.Context,
-	fileID primitive.ObjectID,
+	filePath string,
 ) (bool, error) {
-	uc.logger.Debug("Checking if local file exists", zap.String("fileID", fileID.Hex()))
+	uc.logger.Debug("Checking if file exists", zap.String("filePath", filePath))
 
-	exists, err := uc.checkExistsUseCase.Execute(ctx, fileID)
-	if err != nil {
-		return false, errors.NewAppError("failed to check if local file exists", err)
+	if filePath == "" {
+		return false, errors.NewAppError("file path is required", nil)
 	}
 
-	return exists, nil
+	_, err := os.Stat(filePath)
+	if err == nil {
+		uc.logger.Debug("File exists", zap.String("filePath", filePath))
+		return true, nil
+	}
+
+	if os.IsNotExist(err) {
+		uc.logger.Debug("File does not exist", zap.String("filePath", filePath))
+		return false, nil
+	}
+
+	// Some other error occurred
+	uc.logger.Error("Error checking file existence", zap.String("filePath", filePath), zap.Error(err))
+	return false, errors.NewAppError("failed to check file existence", err)
 }

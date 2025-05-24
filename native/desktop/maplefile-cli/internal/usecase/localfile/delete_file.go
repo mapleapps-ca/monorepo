@@ -3,47 +3,53 @@ package localfile
 
 import (
 	"context"
+	"os"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	fileUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 )
 
-// DeleteFileUseCase defines the interface for deleting a local file
+// DeleteFileUseCase defines the interface for deleting files from the local file system
 type DeleteFileUseCase interface {
-	Execute(ctx context.Context, fileID primitive.ObjectID) error
+	Execute(ctx context.Context, filePath string) error
 }
 
 // deleteFileUseCase implements the DeleteFileUseCase interface
 type deleteFileUseCase struct {
-	logger            *zap.Logger
-	fileDeleteUseCase fileUseCase.DeleteFileUseCase
+	logger *zap.Logger
 }
 
-// NewDeleteFileUseCase creates a new use case for deleting a local file
+// NewDeleteFileUseCase creates a new use case for deleting files
 func NewDeleteFileUseCase(
 	logger *zap.Logger,
-	fileDeleteUseCase fileUseCase.DeleteFileUseCase,
 ) DeleteFileUseCase {
 	return &deleteFileUseCase{
-		logger:            logger,
-		fileDeleteUseCase: fileDeleteUseCase,
+		logger: logger,
 	}
 }
 
-// Execute deletes a single local file
+// Execute deletes a file from the file system
 func (uc *deleteFileUseCase) Execute(
 	ctx context.Context,
-	fileID primitive.ObjectID,
+	filePath string,
 ) error {
-	uc.logger.Debug("Deleting local file", zap.String("fileID", fileID.Hex()))
+	uc.logger.Debug("Deleting file", zap.String("filePath", filePath))
 
-	err := uc.fileDeleteUseCase.Execute(ctx, fileID)
-	if err != nil {
-		return errors.NewAppError("failed to delete local file", err)
+	if filePath == "" {
+		return errors.NewAppError("file path is required", nil)
 	}
 
+	err := os.Remove(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			uc.logger.Warn("File does not exist", zap.String("filePath", filePath))
+			return errors.NewAppError("file does not exist", err)
+		}
+		uc.logger.Error("Failed to delete file", zap.String("filePath", filePath), zap.Error(err))
+		return errors.NewAppError("failed to delete file", err)
+	}
+
+	uc.logger.Debug("Successfully deleted file", zap.String("filePath", filePath))
 	return nil
 }

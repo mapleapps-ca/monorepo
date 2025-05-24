@@ -8,7 +8,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
@@ -37,8 +36,9 @@ func UseCaseModule() fx.Option {
 
 		// Cloud-based collection use cases
 		fx.Provide(collectiondto.NewCreateCollectionInCloudUseCase),
-		// fx.Provide(remotecollection.NewFetchRemoteCollectionUseCase), //TODO: IMPL.
-		// fx.Provide(remotecollection.NewListRemoteCollectionsUseCase), //TODO: IMPL.
+		// fx.Provide(remotecollection.NewCreateRemoteCollectionUseCase),
+		// fx.Provide(remotecollection.NewFetchRemoteCollectionUseCase),
+		// fx.Provide(remotecollection.NewListRemoteCollectionsUseCase),
 
 		// Local-based collection use cases
 		fx.Provide(collection.NewCreateCollectionUseCase),
@@ -49,36 +49,16 @@ func UseCaseModule() fx.Option {
 		fx.Provide(collection.NewMoveCollectionUseCase),
 		fx.Provide(collection.NewGetCollectionPathUseCase),
 
-		// Core file use cases (repository level)
-		fx.Provide(file.NewCreateFileUseCase),
-		fx.Provide(file.NewCreateFilesUseCase),
-		fx.Provide(file.NewGetFileUseCase),
-		fx.Provide(file.NewGetFilesByIDsUseCase),
-		fx.Provide(file.NewListFilesByCollectionUseCase),
-		fx.Provide(file.NewUpdateFileUseCase),
-		fx.Provide(file.NewDeleteFileUseCase),
-		fx.Provide(file.NewDeleteFilesUseCase),
-		fx.Provide(file.NewCheckFileExistsUseCase),
-		fx.Provide(file.NewCheckFileAccessUseCase),
-
-		// Local file use cases (business logic level)
-		// Read operations
-		fx.Provide(localfile.NewGetFileUseCase),
-		fx.Provide(localfile.NewCheckFileExistsUseCase),
-		fx.Provide(localfile.NewCheckUserAccessUseCase),
-		fx.Provide(localfile.NewGetFilesByIDsUseCase),
-		fx.Provide(localfile.NewGetFilesByCollectionUseCase),
-		fx.Provide(localfile.NewValidateFilePathsUseCase),
-
-		// Write operations
-		fx.Provide(localfile.NewCreateFileUseCase),
-		fx.Provide(localfile.NewUpdateFileUseCase),
+		// Local file system use cases (actual file operations)
+		fx.Provide(localfile.NewReadFileUseCase),
+		fx.Provide(localfile.NewWriteFileUseCase),
 		fx.Provide(localfile.NewDeleteFileUseCase),
-		fx.Provide(localfile.NewCreateFilesUseCase),
-		fx.Provide(localfile.NewDeleteFilesUseCase),
-		fx.Provide(localfile.NewDeleteFilesByCollectionUseCase),
-		fx.Provide(localfile.NewChangeStorageModeUseCase),
-		fx.Provide(localfile.NewCleanupOrphanedFilesUseCase),
+		fx.Provide(localfile.NewCopyFileUseCase),
+		fx.Provide(localfile.NewMoveFileUseCase),
+		fx.Provide(localfile.NewCheckFileExistsUseCase),
+		fx.Provide(localfile.NewGetFileInfoUseCase),
+		fx.Provide(localfile.NewCreateDirectoryUseCase),
+		fx.Provide(localfile.NewListDirectoryUseCase),
 
 		// Registration use cases
 		fx.Provide(registerUseCase.NewGenerateCredentialsUseCase),
