@@ -43,8 +43,5 @@ func ServiceModule() fx.Option {
 		// fx.Provide(collectionsyncer.NewFindByCloudIDService),
 		// fx.Provide(collectionsyncer.NewDownloadService),
 		// fx.Provide(collectionsyncer.NewUploadService),
-
-		// Local file services
-		fx.Provide(localfile.NewAddService),
 	)
 }
