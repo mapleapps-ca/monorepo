@@ -7,6 +7,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/crypto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 )
@@ -37,6 +38,9 @@ func ServiceModule() fx.Option {
 
 		// Local file services
 		fx.Provide(localfile.NewAddService),
+
+		// Upload file services
+		fx.Provide(fileupload.NewUploadService),
 
 		// // Cloud collection services
 		// fx.Provide(remotecollection.NewCreateService),
