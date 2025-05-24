@@ -33,21 +33,9 @@ type FileDTORepository interface {
 	// to 'active' state. This is Step 3 of the three-step upload process.
 	CompleteFileUploadInCloud(ctx context.Context, fileID primitive.ObjectID, request *CompleteFileUploadRequest) (*CompleteFileUploadResponse, error)
 
-	// Additional Upload Management
-
 	// GetPresignedUploadURLFromCloud generates new presigned upload URLs for an existing file.
 	// This can be used to re-upload or replace file content.
 	GetPresignedUploadURLFromCloud(ctx context.Context, fileID primitive.ObjectID, request *GetPresignedUploadURLRequest) (*GetPresignedUploadURLResponse, error)
-
-	// Legacy/Convenience Methods
-
-	// UploadToCloud is a convenience method that combines all three steps of the upload process.
-	// If file.ID is zero/empty, it creates a new pending file, uploads the content, and completes the upload.
-	// If file.ID is non-zero, it updates the existing file.
-	// This method is provided for backward compatibility and simple use cases.
-	UploadToCloud(ctx context.Context, file *FileDTO, fileData []byte, thumbnailData []byte) (*primitive.ObjectID, error)
-
-	// Download and Management Methods
 
 	// DownloadByIDFromCloud downloads a FileDTO by its unique identifier from the cloud service.
 	DownloadByIDFromCloud(ctx context.Context, id primitive.ObjectID) (*FileDTO, error)
