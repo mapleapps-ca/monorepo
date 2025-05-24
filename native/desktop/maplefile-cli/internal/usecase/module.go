@@ -9,6 +9,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
@@ -73,6 +74,10 @@ func UseCaseModule() fx.Option {
 		fx.Provide(localfile.NewCreateDirectoryUseCase),
 		fx.Provide(localfile.NewListDirectoryUseCase),
 		fx.Provide(localfile.NewPathUtilsUseCase),
+
+		// File upload use cases
+		fx.Provide(fileupload.NewEncryptFileUseCase),
+		fx.Provide(fileupload.NewPrepareFileUploadUseCase),
 
 		// Registration use cases
 		fx.Provide(registerUseCase.NewGenerateCredentialsUseCase),

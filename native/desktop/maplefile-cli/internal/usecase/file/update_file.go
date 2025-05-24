@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
@@ -24,6 +25,7 @@ type UpdateFileInput struct {
 	EncryptedThumbnailPath *string
 	ThumbnailPath          *string
 	StorageMode            *string
+	SyncStatus             *file.SyncStatus
 }
 
 // UpdateFileUseCase defines the interface for updating a local file
