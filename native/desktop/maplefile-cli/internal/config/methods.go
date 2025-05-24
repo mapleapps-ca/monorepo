@@ -71,7 +71,7 @@ func (s *configService) SetLoggedInUserCredentials(
 		AccessToken:            accessToken,
 		AccessTokenExpiryTime:  accessTokenExpiryTime,
 		RefreshToken:           refreshToken,
-		RefreshTokenExpiryTime: accessTokenExpiryTime,
+		RefreshTokenExpiryTime: refreshTokenExpiryTime,
 	}
 	return s.saveConfig(ctx, config)
 }
