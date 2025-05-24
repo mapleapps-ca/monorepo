@@ -225,6 +225,8 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 		ModifiedAt:             collectionDTO.ModifiedAt,
 		ModifiedByUserID:       collectionDTO.ModifiedByUserID,
 		Version:                collectionDTO.Version,
+		// Decrypted fields saved here:
+		Name: input.Name,
 	}
 
 	// Call the use case to create the collection
