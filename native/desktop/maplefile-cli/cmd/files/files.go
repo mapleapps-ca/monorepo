@@ -1,5 +1,5 @@
 // monorepo/native/desktop/maplefile-cli/cmd/file/file.go
-package file
+package files
 
 import (
 	"github.com/spf13/cobra"
@@ -7,11 +7,11 @@ import (
 )
 
 // FileCmd creates a command for local file operations
-func FileCmd(
+func FilesCmd(
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "file",
+		Use:   "files",
 		Short: "Manage local files",
 		Long:  `Import and manage files on the local filesystem without synchronization.`,
 		Run: func(cmd *cobra.Command, args []string) {
