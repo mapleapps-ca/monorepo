@@ -4,24 +4,19 @@ package files
 import (
 	"context"
 	"fmt"
-	"mime"
-	"time"
 
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 )
 
 // addFileCmd creates a command for importing a file into the MapleFile Cloud.
 func addFileCmd(
 	logger *zap.Logger,
-	readFileUseCase localfile.ReadFileUseCase,
-	checkFileExistsUseCase localfile.CheckFileExistsUseCase,
-	getFileInfoUseCase localfile.GetFileInfoUseCase,
-	pathUtilsUseCase localfile.PathUtilsUseCase,
+	addService localfile.AddService,
 ) *cobra.Command {
 	var filePath string
 	var collectionID string
@@ -58,7 +53,7 @@ Examples:
 			ctx := context.Background()
 
 			// ========================================
-			// Step 1: Validate and clean the file path
+			// Step 1: Validate required flags
 			// ========================================
 			if filePath == "" {
 				fmt.Println("❌ Error: File path is required.")
@@ -72,155 +67,59 @@ Examples:
 				return
 			}
 
-			// Clean the path (handles . and .. and redundant separators)
-			cleanFilePath := pathUtilsUseCase.Clean(ctx, filePath)
-			logger.Debug("Cleaned file path",
-				zap.String("original", filePath),
-				zap.String("cleaned", cleanFilePath))
-
-			// ========================================
-			// Step 2: Check if file exists (cross-platform)
-			// ========================================
-			fmt.Printf("🔍 Checking if file exists: %s\n", cleanFilePath)
-
-			exists, err := checkFileExistsUseCase.Execute(ctx, cleanFilePath)
-			if err != nil {
-				fmt.Printf("❌ Error checking file existence: %v\n", err)
-				return
-			}
-
-			if !exists {
-				fmt.Printf("❌ Error: File does not exist: %s\n", cleanFilePath)
-				return
-			}
-
-			// ========================================
-			// Step 3: Get file information (cross-platform)
-			// ========================================
-			fmt.Printf("📋 Getting file information...\n")
-
-			fileInfo, err := getFileInfoUseCase.Execute(ctx, cleanFilePath)
-			if err != nil {
-				fmt.Printf("❌ Error getting file info: %v\n", err)
-				return
-			}
-
-			if fileInfo.IsDirectory {
-				fmt.Println("❌ Error: The specified path is a directory, not a file.")
-				return
-			}
-
-			// Display file information
-			fmt.Printf("📁 File: %s\n", fileInfo.Name)
-			fmt.Printf("📏 Size: %d bytes\n", fileInfo.Size)
-			fmt.Printf("📅 Modified: %s\n", fileInfo.ModifiedAt.Format("2006-01-02 15:04:05"))
-			fmt.Printf("🔐 Permissions: %s\n", fileInfo.Permissions)
-
-			// ========================================
-			// Step 4: Read file content (cross-platform)
-			// ========================================
-			fmt.Printf("📖 Reading file content...\n")
-
-			fileContent, err := readFileUseCase.Execute(ctx, cleanFilePath)
-			if err != nil {
-				fmt.Printf("❌ Error reading file: %v\n", err)
-				return
-			}
-
-			fmt.Printf("✅ Successfully read %d bytes from file\n", len(fileContent))
-
-			// ========================================
-			// Step 5: Process file metadata
-			// ========================================
-
-			// If name not provided, use the original filename
-			if name == "" {
-				name = pathUtilsUseCase.GetFileName(ctx, cleanFilePath)
-			}
-
-			// Detect MIME type from file extension
-			fileExtension := pathUtilsUseCase.GetFileExtension(ctx, cleanFilePath)
-			mimeType := mime.TypeByExtension(fileExtension)
-			if mimeType == "" {
-				mimeType = "application/octet-stream" // Default for unknown types
-			}
-
-			// Validate storage mode
-			if storageMode != dom_file.StorageModeEncryptedOnly &&
-				storageMode != dom_file.StorageModeDecryptedOnly &&
-				storageMode != dom_file.StorageModeHybrid {
-				fmt.Println("❌ Error: Invalid storage mode. Must be 'encrypted_only', 'hybrid', or 'decrypted_only'.")
-				return
-			}
-
-			// ========================================
-			// Step 6: Display processing summary
-			// ========================================
-			fmt.Printf("\n📊 File Processing Summary:\n")
-			fmt.Printf("  Original Path: %s\n", filePath)
-			fmt.Printf("  Clean Path: %s\n", cleanFilePath)
-			fmt.Printf("  File Name: %s\n", name)
-			fmt.Printf("  File Size: %d bytes\n", fileInfo.Size)
-			fmt.Printf("  MIME Type: %s\n", mimeType)
-			fmt.Printf("  Storage Mode: %s\n", storageMode)
-			fmt.Printf("  Collection ID: %s\n", collectionID)
-
-			// ========================================
-			// Step 7: Cross-platform path examples
-			// ========================================
-			fmt.Printf("\n🌐 Cross-Platform Path Info:\n")
-
-			// Check if path is absolute
-			isAbsolute := pathUtilsUseCase.IsAbsolute(ctx, cleanFilePath)
-			fmt.Printf("  Is Absolute Path: %t\n", isAbsolute)
-
-			// Get directory and filename separately
-			directory := pathUtilsUseCase.GetDirectory(ctx, cleanFilePath)
-			filename := pathUtilsUseCase.GetFileName(ctx, cleanFilePath)
-			fmt.Printf("  Directory: %s\n", directory)
-			fmt.Printf("  Filename: %s\n", filename)
-
-			// Show path in different formats
-			unixStylePath := pathUtilsUseCase.ToSlash(ctx, cleanFilePath)
-			fmt.Printf("  Unix-style path: %s\n", unixStylePath)
-
-			// ========================================
-			// Step 8: Create domain file object (placeholder)
-			// ========================================
-			// Here you would create your domain file object and save it
-			// This is where you'd integrate with your file creation use case
-
+			// Convert collection ID string to ObjectID
 			collectionObjectID, err := primitive.ObjectIDFromHex(collectionID)
 			if err != nil {
 				fmt.Printf("❌ Error: Invalid collection ID format: %v\n", err)
 				return
 			}
 
-			// Example of creating a domain file object
-			domainFile := &dom_file.File{
-				ID:           primitive.NewObjectID(),
-				CollectionID: collectionObjectID,
-				OwnerID:      primitive.NewObjectID(), // You'd get this from current user
-				Name:         name,
-				MimeType:     mimeType,
-				FilePath:     cleanFilePath,
-				FileSize:     fileInfo.Size,
-				StorageMode:  storageMode,
-				CreatedAt:    time.Now(),
-				ModifiedAt:   time.Now(),
-				SyncStatus:   dom_file.SyncStatusLocalOnly,
-				// You would set encrypted fields here based on your encryption logic
+			// Set default storage mode if not provided
+			if storageMode == "" {
+				storageMode = dom_file.StorageModeEncryptedOnly
 			}
 
-			fmt.Printf("\n✅ File successfully processed and ready for import!\n")
-			fmt.Printf("🆔 Generated File ID: %s\n", domainFile.ID.Hex())
+			// ========================================
+			// Step 2: Prepare service input
+			// ========================================
+			// TODO: Get actual owner ID from authenticated user
+			// For now, using a placeholder ObjectID
+			ownerID := primitive.NewObjectID()
 
-			// TODO: Integrate with your file creation use case here
-			// err = createFileUseCase.Execute(ctx, domainFile)
-			// if err != nil {
-			//     fmt.Printf("❌ Error creating file: %v\n", err)
-			//     return
-			// }
+			input := &localfile.AddInput{
+				FilePath:     filePath,
+				CollectionID: collectionObjectID,
+				OwnerID:      ownerID,
+				Name:         name,
+				StorageMode:  storageMode,
+			}
+
+			// ========================================
+			// Step 3: Execute the service
+			// ========================================
+			fmt.Printf("🔄 Processing file: %s\n", filePath)
+
+			output, err := addService.Add(ctx, input)
+			if err != nil {
+				fmt.Printf("❌ Error adding file: %v\n", err)
+				return
+			}
+
+			// ========================================
+			// Step 4: Display success information
+			// ========================================
+			fmt.Printf("\n✅ File successfully added to MapleFile!\n")
+			fmt.Printf("🆔 File ID: %s\n", output.File.ID.Hex())
+			fmt.Printf("📁 File Name: %s\n", output.File.Name)
+			fmt.Printf("📏 File Size: %d bytes\n", output.File.FileSize)
+			fmt.Printf("🗂️  MIME Type: %s\n", output.File.MimeType)
+			fmt.Printf("🔐 Storage Mode: %s\n", output.File.StorageMode)
+			fmt.Printf("📂 Collection ID: %s\n", output.File.CollectionID.Hex())
+			fmt.Printf("💾 Copied to: %s\n", output.CopiedFilePath)
+			fmt.Printf("🔄 Sync Status: %s\n", output.File.SyncStatus)
+			fmt.Printf("📅 Created: %s\n", output.File.CreatedAt.Format("2006-01-02 15:04:05"))
+
+			fmt.Printf("\n🎉 Your file is now safely stored in MapleFile and ready for synchronization!\n")
 		},
 	}
 

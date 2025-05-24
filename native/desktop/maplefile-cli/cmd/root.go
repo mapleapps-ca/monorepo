@@ -22,8 +22,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	svc_auth "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	svc_localfile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	svc_register "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 )
 
 // NewRootCmd creates a new root command with all dependencies injected
@@ -39,11 +39,7 @@ func NewRootCmd(
 	completeLoginService svc_auth.CompleteLoginService,
 	createCollectionService collection.CreateService,
 	collectionListService collection.ListService,
-	// Local file use cases
-	readFileUseCase localfile.ReadFileUseCase,
-	checkFileExistsUseCase localfile.CheckFileExistsUseCase,
-	getFileInfoUseCase localfile.GetFileInfoUseCase,
-	pathUtilsUseCase localfile.PathUtilsUseCase,
+	addService svc_localfile.AddService,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "maplefile-cli",
@@ -72,10 +68,7 @@ func NewRootCmd(
 	))
 	rootCmd.AddCommand(files.FilesCmd(
 		logger,
-		readFileUseCase,
-		checkFileExistsUseCase,
-		getFileInfoUseCase,
-		pathUtilsUseCase,
+		addService,
 	))
 	return rootCmd
 }
