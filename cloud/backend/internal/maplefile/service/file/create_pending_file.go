@@ -32,6 +32,20 @@ type CreatePendingFileRequestDTO struct {
 	ExpectedThumbnailSizeInBytes int64 `json:"expected_thumbnail_size_in_bytes,omitempty"`
 }
 
+type FileResponseDTO struct {
+	ID                            primitive.ObjectID    `json:"id"`
+	CollectionID                  primitive.ObjectID    `json:"collection_id"`
+	OwnerID                       primitive.ObjectID    `json:"owner_id"`
+	EncryptedMetadata             string                `json:"encrypted_metadata"`
+	EncryptedFileKey              keys.EncryptedFileKey `json:"encrypted_file_key"`
+	EncryptionVersion             string                `json:"encryption_version"`
+	EncryptedHash                 string                `json:"encrypted_hash"`
+	EncryptedFileSizeInBytes      int64                 `json:"encrypted_file_size_in_bytes"`
+	EncryptedThumbnailSizeInBytes int64                 `json:"encrypted_thumbnail_size_in_bytes"`
+	CreatedAt                     time.Time             `json:"created_at"`
+	ModifiedAt                    time.Time             `json:"modified_at"`
+}
+
 type CreatePendingFileResponseDTO struct {
 	File                    *FileResponseDTO `json:"file"`
 	PresignedUploadURL      string           `json:"presigned_upload_url"`
@@ -225,4 +239,21 @@ func generateStoragePath(ownerID, fileID string) string {
 // Helper function to generate consistent thumbnail storage path
 func generateThumbnailStoragePath(ownerID, fileID string) string {
 	return fmt.Sprintf("users/%s/files/%s_thumb", ownerID, fileID)
+}
+
+// Helper function to map a File domain model to a FileResponseDTO
+func mapFileToDTO(file *dom_file.File) *FileResponseDTO {
+	return &FileResponseDTO{
+		ID:                            file.ID,
+		CollectionID:                  file.CollectionID,
+		OwnerID:                       file.OwnerID,
+		EncryptedMetadata:             file.EncryptedMetadata,
+		EncryptedFileKey:              file.EncryptedFileKey,
+		EncryptionVersion:             file.EncryptionVersion,
+		EncryptedHash:                 file.EncryptedHash,
+		EncryptedFileSizeInBytes:      file.EncryptedFileSizeInBytes,
+		EncryptedThumbnailSizeInBytes: file.EncryptedThumbnailSizeInBytes,
+		CreatedAt:                     file.CreatedAt,
+		ModifiedAt:                    file.ModifiedAt,
+	}
 }

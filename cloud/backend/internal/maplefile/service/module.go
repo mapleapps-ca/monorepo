@@ -37,7 +37,7 @@ func Module() fx.Option {
 			collection.NewListSharedCollectionsService,
 
 			// File services
-			file.NewUploadFileService,
+			// file.NewUploadFileService, // Deprecated
 			file.NewDeleteFileService,
 			file.NewDeleteMultipleFilesService,
 			file.NewDownloadFileService,
