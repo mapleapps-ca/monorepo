@@ -74,8 +74,8 @@ const (
 	StatePending = "pending"
 	// StateActive indicates that the file is fully uploaded and ready for use.
 	StateActive = "active"
-	// StateDeleted marks the file as deleted, but still accessible for a period.
+	// StateDeleted marks the file as deleted, but still accessible for a period but will eventually be permanently removed.
 	StateDeleted = "deleted"
-	// StateArchived indicates that the file is no longer accessible and is permanently removed.
+	// StateArchived indicates that the file is no longer accessible.
 	StateArchived = "archived"
 )
