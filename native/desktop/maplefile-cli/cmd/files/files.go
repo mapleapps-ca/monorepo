@@ -21,7 +21,7 @@ func FilesCmd(
 	}
 
 	// Add file management subcommands
-	// cmd.AddCommand(createFileCmd(importService, logger))
+	cmd.AddCommand(addFileCmd(logger))
 	// cmd.AddCommand(listFileCmd(listService, logger))
 
 	return cmd
