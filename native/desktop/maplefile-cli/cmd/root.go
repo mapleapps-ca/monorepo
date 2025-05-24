@@ -22,6 +22,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	svc_auth "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	svc_register "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 )
@@ -39,8 +40,8 @@ func NewRootCmd(
 	completeLoginService svc_auth.CompleteLoginService,
 	createCollectionService collection.CreateService,
 	collectionListService collection.ListService,
-	// Local file services
 	addFileService localfile.AddService,
+	uploadService fileupload.UploadService,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "maplefile-cli",
@@ -70,6 +71,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(files.FilesCmd(
 		logger,
 		addFileService,
+		uploadService,
 	))
 	return rootCmd
 }

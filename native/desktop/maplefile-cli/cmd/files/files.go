@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 )
 
@@ -12,6 +13,7 @@ import (
 func FilesCmd(
 	logger *zap.Logger,
 	addService localfile.AddService,
+	uploadService fileupload.UploadService,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "files",
@@ -27,6 +29,10 @@ func FilesCmd(
 	cmd.AddCommand(addFileCmd(
 		logger,
 		addService,
+	))
+	cmd.AddCommand(uploadFileCmd(
+		logger,
+		uploadService,
 	))
 
 	return cmd
