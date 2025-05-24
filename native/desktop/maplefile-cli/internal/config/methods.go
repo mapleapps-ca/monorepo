@@ -4,9 +4,6 @@ package config
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -22,14 +19,9 @@ func (s *configService) saveConfig(ctx context.Context, config *Config) error {
 	return s.repo.SaveConfig(ctx, config)
 }
 
-func (s *configService) GetAppDirPath(ctx context.Context) (string, error) {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", fmt.Errorf("Failed getting user config directory with error: %v\n", err)
-	}
-
-	// Use the app directory for storing the LevelDB database
-	return filepath.Join(configDir, AppName), nil
+// GetAppDataDirPath returns the proper application data directory path
+func (s *configService) GetAppDataDirPath(ctx context.Context) (string, error) {
+	return GetUserDataDir(AppName)
 }
 
 // GetCloudProviderAddress returns the cloud provider address

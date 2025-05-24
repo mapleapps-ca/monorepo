@@ -143,14 +143,14 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 	//
 	// STEP 4: Get app directory and create file storage structure
 	//
-	appDir, err := s.configService.GetAppDirPath(ctx)
+	appDataDir, err := s.configService.GetAppDataDirPath(ctx)
 	if err != nil {
-		s.logger.Error("Failed to get app directory path", zap.Error(err))
-		return nil, errors.NewAppError("failed to get app directory path", err)
+		s.logger.Error("Failed to get app data directory path", zap.Error(err))
+		return nil, errors.NewAppError("failed to get app data directory path", err)
 	}
 
 	// Create files storage directory (cross-platform compatible)
-	filesDir := s.pathUtilsUseCase.Join(ctx, appDir, "files")
+	filesDir := s.pathUtilsUseCase.Join(ctx, appDataDir, "files")
 	if err := s.createDirectoryUseCase.ExecuteAll(ctx, filesDir); err != nil {
 		s.logger.Error("Failed to create files directory", zap.String("filesDir", filesDir), zap.Error(err))
 		return nil, errors.NewAppError("failed to create files directory", err)

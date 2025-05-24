@@ -37,7 +37,7 @@ type Credentials struct {
 
 // ConfigService defines the unified interface for all configuration operations
 type ConfigService interface {
-	GetAppDirPath(ctx context.Context) (string, error)
+	GetAppDataDirPath(ctx context.Context) (string, error)
 	GetCloudProviderAddress(ctx context.Context) (string, error)
 	SetCloudProviderAddress(ctx context.Context, address string) error
 	GetLoggedInUserCredentials(ctx context.Context) (*Credentials, error)
