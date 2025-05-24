@@ -77,11 +77,11 @@ func RepoModule() fx.Option {
 		//----------------------------------------------
 		// Auth repositories
 		//----------------------------------------------
+		fx.Provide(auth.NewTokenRepository),
 		fx.Provide(auth.NewEmailVerificationRepository),
 		fx.Provide(auth.NewLoginOTTRepository),
 		fx.Provide(auth.NewLoginOTTVerificationRepository),
 		fx.Provide(auth.NewCompleteLoginRepository),
-		fx.Provide(auth.NewTokenRefresherRepo),
 
 		//----------------------------------------------
 		// Local collection repository

@@ -11,8 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 )
 
@@ -20,8 +19,7 @@ import (
 func RefreshTokenCmd(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	userRepo user.Repository,
-	tokenRefreshSvc tokenservice.TokenRefreshService,
+	tokenRepository auth.TokenRepository,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "refreshtoken",
@@ -45,9 +43,7 @@ Example:
 			// Create the use case with injected dependencies
 			useCase := refreshtoken.NewRefreshTokenUseCase(
 				logger,
-				configService,
-				userRepo,
-				tokenRefreshSvc,
+				tokenRepository,
 			)
 
 			// Execute the use case
@@ -57,12 +53,11 @@ Example:
 			}
 
 			// Get the updated user data to display expiry information
-			email, _ := configService.GetLoggedInUserEmail(ctx)
-			userData, _ := userRepo.GetByEmail(ctx, email)
+			creds, _ := configService.GetLoggedInUserCredentials(ctx)
 
 			fmt.Println("\n✅ Authentication tokens refreshed successfully!")
-			fmt.Printf("Access Token expires: %s\n", userData.AccessTokenExpiryTime.Format(time.RFC3339))
-			fmt.Printf("Refresh Token expires: %s\n", userData.RefreshTokenExpiryTime.Format(time.RFC3339))
+			fmt.Printf("Access Token expires: %s\n", creds.AccessTokenExpiryTime.Format(time.RFC3339))
+			fmt.Printf("Refresh Token expires: %s\n", creds.RefreshTokenExpiryTime.Format(time.RFC3339))
 		},
 	}
 

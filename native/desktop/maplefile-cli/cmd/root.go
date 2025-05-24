@@ -17,10 +17,11 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyloginott"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/version"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
+	svc_auth "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
-	registerService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
+	svc_register "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
 
@@ -28,12 +29,13 @@ import (
 func NewRootCmd(
 	logger *zap.Logger,
 	configService config.ConfigService,
+	tokenRepository auth.TokenRepository,
 	userRepo user.Repository,
-	regService registerService.RegisterService,
-	emailVerificationService auth.EmailVerificationService,
-	loginOTTService auth.LoginOTTService,
-	loginOTTVerificationService auth.LoginOTTVerificationService,
-	completeLoginService auth.CompleteLoginService,
+	regService svc_register.RegisterService,
+	emailVerificationService svc_auth.EmailVerificationService,
+	loginOTTService svc_auth.LoginOTTService,
+	loginOTTVerificationService svc_auth.LoginOTTVerificationService,
+	completeLoginService svc_auth.CompleteLoginService,
 	tokenRefreshSvc tokenservice.TokenRefreshService,
 	collectionListService collection.ListService,
 	// other services...
@@ -57,7 +59,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
 	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(loginOTTVerificationService, logger))
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
-	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, userRepo, tokenRefreshSvc))
+	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, tokenRepository))
 	rootCmd.AddCommand(collections.CollectionsCmd(
 		collectionListService,
 		logger,

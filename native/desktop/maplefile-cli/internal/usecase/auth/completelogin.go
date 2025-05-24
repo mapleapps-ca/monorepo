@@ -21,24 +21,27 @@ type CompleteLoginUseCase interface {
 
 // completeLoginUseCase implements the CompleteLoginUseCase interface
 type completeLoginUseCase struct {
-	logger        *zap.Logger
-	repository    auth.CompleteLoginRepository
-	userRepo      user.Repository
-	cryptoService auth.CryptographyOperations
+	logger          *zap.Logger
+	tokenRepository auth.TokenRepository
+	repository      auth.CompleteLoginRepository
+	userRepo        user.Repository
+	cryptoService   auth.CryptographyOperations
 }
 
 // NewCompleteLoginUseCase creates a new login completion use case
 func NewCompleteLoginUseCase(
 	logger *zap.Logger,
+	tokenRepository auth.TokenRepository,
 	repository auth.CompleteLoginRepository,
 	userRepo user.Repository,
 	cryptoService auth.CryptographyOperations,
 ) CompleteLoginUseCase {
 	return &completeLoginUseCase{
-		logger:        logger,
-		repository:    repository,
-		userRepo:      userRepo,
-		cryptoService: cryptoService,
+		logger:          logger,
+		tokenRepository: tokenRepository,
+		repository:      repository,
+		userRepo:        userRepo,
+		cryptoService:   cryptoService,
 	}
 }
 
@@ -129,13 +132,22 @@ func (uc *completeLoginUseCase) CompleteLogin(ctx context.Context, email, passwo
 		return nil, nil, err
 	}
 
-	// Update user with tokens
+	// Update user metadata.
 	userData.LastLoginAt = time.Now()
 	userData.ModifiedAt = time.Now()
-	userData.AccessToken = tokenResp.AccessToken
-	userData.AccessTokenExpiryTime = tokenResp.AccessTokenExpiryTime
-	userData.RefreshToken = tokenResp.RefreshToken
-	userData.RefreshTokenExpiryTime = tokenResp.RefreshTokenExpiryTime
+	if err := uc.userRepo.UpsertByEmail(ctx, userData); err != nil {
+		return nil, nil, err
+	}
+
+	// IMPORTANT: Save the authenticated user credentials to our token repository.
+	// DEVELOPER NOTE: The token repository is essentially utilizing the `config` package to store the credentials to the applications data folder.
+	uc.tokenRepository.Save(
+		ctx,
+		email,
+		tokenResp.AccessToken,
+		&tokenResp.AccessTokenExpiryTime,
+		tokenResp.RefreshToken,
+		&tokenResp.RefreshTokenExpiryTime)
 
 	return tokenResp, userData, nil
 }

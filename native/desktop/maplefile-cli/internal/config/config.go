@@ -25,6 +25,7 @@ type Config struct {
 	Credentials          *Credentials `json:"credentials"`
 }
 
+// Credentials holds all user credentials for authentication and authorization. Values are decrypted for convenience purposes as we assume threat actor cannot access the decrypted values on the user's device.
 type Credentials struct {
 	// Email is the unique registered email of the user whom successfully logged into the system.
 	Email                  string     `json:"email"`

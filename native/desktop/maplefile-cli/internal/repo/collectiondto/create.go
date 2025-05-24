@@ -16,7 +16,13 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 )
 
-func (r *collectionDTORepository) CreateInCloud(ctx context.Context, collectionDTO *collectiondto.CollectionDTO, accessToken string) (*primitive.ObjectID, error) {
+func (r *collectionDTORepository) CreateInCloud(ctx context.Context, collectionDTO *collectiondto.CollectionDTO) (*primitive.ObjectID, error) {
+	accessToken, err := r.tokenRepository.GetAccessToken(ctx)
+	if err != nil {
+		r.logger.Error("Failed to get access token", zap.Error(err))
+		return nil, errors.NewAppError("failed to get access token", err)
+	}
+
 	// Get server URL from configuration
 	r.logger.Debug("Getting cloud provider address from config")
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)

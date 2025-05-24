@@ -95,7 +95,7 @@ func (uc *createCollectionInCloudUseCase) Execute(ctx context.Context, dto *coll
 	//
 
 	// Call the repository to create the collection
-	cloudIDResponse, err := uc.repository.CreateInCloud(ctx, dto, accessToken)
+	cloudIDResponse, err := uc.repository.CreateInCloud(ctx, dto)
 	if err != nil {
 		return nil, errors.NewAppError("failed to create cloud collection", err)
 	}

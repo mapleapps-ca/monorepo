@@ -75,12 +75,6 @@ type User struct {
 	LastKeyRotation   *time.Time              `json:"last_key_rotation,omitempty" bson:"last_key_rotation,omitempty"`
 	KeyRotationPolicy *keys.KeyRotationPolicy `json:"key_rotation_policy,omitempty" bson:"key_rotation_policy,omitempty"`
 
-	// --- JWT Authentication
-	AccessToken            string    `json:"access_token"`
-	AccessTokenExpiryTime  time.Time `json:"access_token_expiry_time"`
-	RefreshToken           string    `json:"refresh_token"`
-	RefreshTokenExpiryTime time.Time `json:"refresh_token_expiry_time"`
-
 	// --- Metadata ---
 	CreatedFromIPAddress  string             `bson:"created_from_ip_address" json:"created_from_ip_address"`
 	CreatedByUserID       primitive.ObjectID `bson:"created_by_user_id" json:"created_by_user_id"`
