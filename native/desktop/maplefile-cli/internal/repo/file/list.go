@@ -30,7 +30,7 @@ func (r *fileRepository) List(ctx context.Context, filter file.FileFilter) ([]*d
 		}
 
 		// Deserialize the file
-		file, err := file.NewFromDeserialized(value)
+		file, err := dom_file.NewFromDeserialized(value)
 		if err != nil {
 			r.logger.Error("Failed to deserialize file while listing",
 				zap.String("key", keyStr),

@@ -3,12 +3,17 @@ package file
 
 import (
 	"context"
-	"errors"
+
+	"go.uber.org/zap"
 
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 func (r *fileRepository) Update(ctx context.Context, file *dom_file.File) error {
-	//TODO: Impl.
-	return errors.New("not implemented")
+	r.logger.Debug("Updating file in local storage",
+		zap.String("fileID", file.ID.Hex()),
+		zap.String("fileName", file.Name))
+
+	// Use the save method which handles serialization and storage
+	return r.Save(ctx, file)
 }

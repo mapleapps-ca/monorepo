@@ -3,14 +3,17 @@ package file
 
 import (
 	"context"
-	"errors"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.uber.org/zap"
 
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 func (r *fileRepository) GetByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*dom_file.File, error) {
-	//TODO: Impl.
-	return nil, errors.New("not implemented")
+	r.logger.Debug("Getting files by collection from local storage",
+		zap.String("collectionID", collectionID.Hex()))
+
+	// Use the generic List method with a collection filter
+	return r.ListByCollection(ctx, collectionID)
 }

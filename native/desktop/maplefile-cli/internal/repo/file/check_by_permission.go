@@ -3,12 +3,38 @@ package file
 
 import (
 	"context"
-	"errors"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.uber.org/zap"
 )
 
 func (r *fileRepository) CheckIfUserHasAccess(ctx context.Context, fileID primitive.ObjectID, userID primitive.ObjectID) (bool, error) {
-	//TODO: Impl.
-	return false, errors.New("not implemented")
+	r.logger.Debug("Checking user access to file",
+		zap.String("fileID", fileID.Hex()),
+		zap.String("userID", userID.Hex()))
+
+	// Get the file first
+	file, err := r.Get(ctx, fileID)
+	if err != nil {
+		r.logger.Error("Failed to get file for permission check",
+			zap.String("fileID", fileID.Hex()),
+			zap.Error(err))
+		return false, err
+	}
+
+	// File doesn't exist
+	if file == nil {
+		r.logger.Warn("File not found for permission check", zap.String("fileID", fileID.Hex()))
+		return false, nil
+	}
+
+	// Check if user is the owner
+	hasAccess := file.OwnerID == userID
+
+	r.logger.Debug("User access check completed",
+		zap.String("fileID", fileID.Hex()),
+		zap.String("userID", userID.Hex()),
+		zap.Bool("hasAccess", hasAccess))
+
+	return hasAccess, nil
 }
