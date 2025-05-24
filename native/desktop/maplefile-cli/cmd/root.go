@@ -35,6 +35,7 @@ func NewRootCmd(
 	loginOTTService svc_auth.LoginOTTService,
 	loginOTTVerificationService svc_auth.LoginOTTVerificationService,
 	completeLoginService svc_auth.CompleteLoginService,
+	createCollectionService collection.CreateService,
 	collectionListService collection.ListService,
 	// other services...
 ) *cobra.Command {
@@ -59,6 +60,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, tokenRepository))
 	rootCmd.AddCommand(collections.CollectionsCmd(
+		createCollectionService,
 		collectionListService,
 		logger,
 	))

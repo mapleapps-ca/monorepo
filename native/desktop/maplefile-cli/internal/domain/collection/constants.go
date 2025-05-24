@@ -25,7 +25,25 @@ const (
 
 	// SyncStatusModifiedLocally indicates the collection exists in both places but has local changes
 	SyncStatusModifiedLocally
+)
 
+// String returns the string representation of SyncStatus
+func (s SyncStatus) String() string {
+	switch s {
+	case SyncStatusLocalOnly:
+		return "local_only"
+	case SyncStatusCloudOnly:
+		return "cloud_only"
+	case SyncStatusSynced:
+		return "synced"
+	case SyncStatusModifiedLocally:
+		return "modified_locally"
+	default:
+		return "unknown"
+	}
+}
+
+const (
 	// Permission levels define the access rights users have to a collection.
 	// These levels dictate what actions a user can perform within the collection (e.g., viewing, adding, deleting files/subcollections, managing members).
 

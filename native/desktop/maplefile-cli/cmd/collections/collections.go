@@ -9,6 +9,7 @@ import (
 )
 
 func CollectionsCmd(
+	createService collection.CreateService,
 	listService collection.ListService,
 	logger *zap.Logger,
 ) *cobra.Command {
@@ -23,6 +24,8 @@ func CollectionsCmd(
 	}
 
 	// Add collection subcommands
+	cmd.AddCommand(createRootCollectionCmd(createService, logger))
+	cmd.AddCommand(createSubCollectionCmd(createService, logger))
 	cmd.AddCommand(listCollectionsCmd(listService, logger))
 
 	return cmd
