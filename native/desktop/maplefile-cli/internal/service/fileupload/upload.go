@@ -174,6 +174,8 @@ func (s *uploadService) createPendingFile(
 	// Create pending file
 	response, err := s.fileDTORepo.CreatePendingFileInCloud(ctx, request)
 	if err != nil {
+		s.logger.Error("failed to create pending file in cloud",
+			zap.Any("error", err))
 		return nil, errors.NewAppError("failed to create pending file in cloud", err)
 	}
 

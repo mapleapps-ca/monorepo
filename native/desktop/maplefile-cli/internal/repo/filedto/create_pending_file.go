@@ -50,7 +50,7 @@ func (r *fileDTORepository) CreatePendingFileInCloud(ctx context.Context, reques
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("JWT %s", accessToken))
 
 	// Execute the request
 	resp, err := r.httpClient.Do(req)
@@ -73,7 +73,7 @@ func (r *fileDTORepository) CreatePendingFileInCloud(ctx context.Context, reques
 				return nil, errors.NewAppError(fmt.Sprintf("server error: %s", errMsg), nil)
 			}
 		}
-		return nil, errors.NewAppError(fmt.Sprintf("server returned error status: %s", resp.Status), nil)
+		return nil, errors.NewAppError(fmt.Sprintf("server returned error status: %s | reason: %s", resp.Status, string(body)), nil)
 	}
 
 	// Parse the response
