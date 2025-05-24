@@ -86,7 +86,7 @@ func (s *updateService) Update(ctx context.Context, input UpdateInput) (*UpdateO
 
 	// Set collection type if provided
 	if input.CollectionType != nil {
-		useCaseInput.Type = input.CollectionType
+		useCaseInput.CollectionType = input.CollectionType
 	}
 
 	// Call the use case to update the collection

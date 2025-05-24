@@ -14,7 +14,7 @@ import (
 
 // CreateCollectionInCloudUseCase defines the interface for creating a cloud collection
 type CreateCollectionInCloudUseCase interface {
-	Execute(ctx context.Context, dto *collectiondto.CollectionDTO, accessToken string) (*primitive.ObjectID, error)
+	Execute(ctx context.Context, dto *collectiondto.CollectionDTO) (*primitive.ObjectID, error)
 }
 
 // createCollectionInCloudUseCase implements the CreateCollectionInCloudUseCase interface
@@ -35,7 +35,7 @@ func NewCreateCollectionInCloudUseCase(
 }
 
 // Execute creates a new cloud collection
-func (uc *createCollectionInCloudUseCase) Execute(ctx context.Context, dto *collectiondto.CollectionDTO, accessToken string) (*primitive.ObjectID, error) {
+func (uc *createCollectionInCloudUseCase) Execute(ctx context.Context, dto *collectiondto.CollectionDTO) (*primitive.ObjectID, error) {
 	//
 	// STEP 1: Validate the input
 	//
@@ -58,8 +58,8 @@ func (uc *createCollectionInCloudUseCase) Execute(ctx context.Context, dto *coll
 		if dto.EncryptedName == "" {
 			e["encrypted_name"] = "EncryptedName is required"
 		}
-		if dto.Type == "" {
-			e["type"] = "Type is required"
+		if dto.CollectionType == "" {
+			e["collection_type"] = "Collection type is required"
 		}
 		if dto.CreatedAt.IsZero() {
 			e["created_at"] = "CreatedAt is required"

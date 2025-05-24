@@ -12,8 +12,6 @@ import (
 )
 
 func (r *collectionRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*collection.Collection, error) {
-	r.logger.Debug("Retrieving collection from local storage", zap.String("collectionID", id.Hex()))
-
 	// Generate key for this collection
 	key := r.generateKey(id.Hex())
 
@@ -39,8 +37,5 @@ func (r *collectionRepository) GetByID(ctx context.Context, id primitive.ObjectI
 		return nil, errors.NewAppError("failed to deserialize collection", err)
 	}
 
-	r.logger.Debug("Successfully retrieved collection from local storage",
-		zap.String("collectionID", id.Hex()),
-		zap.String("collectionType", collection.Type))
 	return collection, nil
 }

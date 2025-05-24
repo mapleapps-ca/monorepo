@@ -33,9 +33,9 @@ type Collection struct {
 	// EncryptedName is the name of the collection, encrypted using the collection's unique key.
 	// Stored and transferred in encrypted form.
 	EncryptedName string `bson:"encrypted_name" json:"encrypted_name"`
-	// Type indicates the nature of the collection, either "folder" or "album".
+	// CollectionType indicates the nature of the collection, either "folder" or "album".
 	// Defined by CollectionTypeFolder and CollectionTypeAlbum constants.
-	Type string `bson:"type" json:"type"` // "folder" or "album"
+	CollectionType string `bson:"collection_type" json:"collection_type"` // "folder" or "album"
 	// EncryptedCollectionKey is the unique symmetric key used to encrypt the collection's data (like name and file metadata).
 	// This key is encrypted with the owner's master key for storage and transmission,
 	// allowing the owner's device to decrypt it using their master key.

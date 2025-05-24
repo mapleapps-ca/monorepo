@@ -26,7 +26,7 @@ type CreateCollectionRequestDTO struct {
 	ID                     primitive.ObjectID            `bson:"_id" json:"id"`
 	OwnerID                primitive.ObjectID            `bson:"owner_id" json:"owner_id"`
 	EncryptedName          string                        `bson:"encrypted_name" json:"encrypted_name"`
-	Type                   string                        `bson:"type" json:"type"`
+	CollectionType         string                        `bson:"collection_type" json:"collection_type"`
 	EncryptedCollectionKey *keys.EncryptedCollectionKey  `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
 	Members                []*CollectionMembershipDTO    `bson:"members" json:"members"`
 	ParentID               primitive.ObjectID            `bson:"parent_id,omitempty" json:"parent_id,omitempty"`
@@ -57,7 +57,7 @@ type CollectionResponseDTO struct {
 	ID                     primitive.ObjectID           `json:"id"`
 	OwnerID                primitive.ObjectID           `json:"owner_id"`
 	EncryptedName          string                       `json:"encrypted_name"`
-	Type                   string                       `json:"type"`
+	CollectionType         string                       `json:"collection_type"`
 	ParentID               primitive.ObjectID           `json:"parent_id,omitempty"`
 	AncestorIDs            []primitive.ObjectID         `json:"ancestor_ids,omitempty"`
 	EncryptedPathSegments  []string                     `json:"encrypted_path_segments,omitempty"`
@@ -139,7 +139,7 @@ func mapCollectionDTOToDomain(dto *CreateCollectionRequestDTO, userID primitive.
 		ID:                     dto.ID,
 		OwnerID:                dto.OwnerID,
 		EncryptedName:          dto.EncryptedName,
-		Type:                   dto.Type,
+		CollectionType:         dto.CollectionType,
 		EncryptedCollectionKey: dto.EncryptedCollectionKey,
 		ParentID:               dto.ParentID,
 		AncestorIDs:            dto.AncestorIDs,
@@ -192,10 +192,10 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	if req.EncryptedName == "" {
 		e["encrypted_name"] = "Collection name is required"
 	}
-	if req.Type == "" {
-		e["type"] = "Collection type is required"
-	} else if req.Type != dom_collection.CollectionTypeFolder && req.Type != dom_collection.CollectionTypeAlbum {
-		e["type"] = "Collection type must be either 'folder' or 'album'"
+	if req.CollectionType == "" {
+		e["collection_type"] = "Collection type is required"
+	} else if req.CollectionType != dom_collection.CollectionTypeFolder && req.CollectionType != dom_collection.CollectionTypeAlbum {
+		e["collection_type"] = "Collection type must be either 'folder' or 'album'"
 	}
 	// Check pointer and then content
 	if req.EncryptedCollectionKey == nil || req.EncryptedCollectionKey.Ciphertext == nil || len(req.EncryptedCollectionKey.Ciphertext) == 0 {
@@ -274,7 +274,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	}
 
 	// Note: Fields like ParentID, AncestorIDs, EncryptedPathSegments, EncryptedCollectionKey,
-	// EncryptedName, Type, and recursively mapped Children are copied directly from the DTO
+	// EncryptedName, CollectionType, and recursively mapped Children are copied directly from the DTO
 	// by the mapCollectionDTOToDomain function before server overrides. This fulfills the
 	// prompt's requirement to copy these fields from the DTO.
 
@@ -317,7 +317,7 @@ func mapCollectionToDTO(collection *dom_collection.Collection) *CollectionRespon
 		ID:                    collection.ID,
 		OwnerID:               collection.OwnerID,
 		EncryptedName:         collection.EncryptedName,
-		Type:                  collection.Type,
+		CollectionType:        collection.CollectionType,
 		ParentID:              collection.ParentID,
 		AncestorIDs:           collection.AncestorIDs,
 		EncryptedPathSegments: collection.EncryptedPathSegments,

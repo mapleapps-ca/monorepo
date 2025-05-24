@@ -21,7 +21,7 @@ type CollectionRepository interface {
 
 // CollectionFilter defines filtering options for listing local collections
 type CollectionFilter struct {
-	ParentID   *primitive.ObjectID `json:"parent_id,omitempty"`
-	Type       string              `json:"type,omitempty"`
-	SyncStatus *SyncStatus         `json:"sync_status,omitempty"`
+	ParentID       *primitive.ObjectID `json:"parent_id,omitempty"`
+	CollectionType string              `json:"collection_type,omitempty"`
+	SyncStatus     *SyncStatus         `json:"sync_status,omitempty"`
 }

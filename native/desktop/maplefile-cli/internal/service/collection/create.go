@@ -12,10 +12,11 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
+	dom_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_tx "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
+	uc_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
@@ -44,7 +45,7 @@ type createService struct {
 	configService                  config.ConfigService
 	transactionManager             dom_tx.Manager
 	getUserByIsLoggedInUseCase     uc_user.GetByIsLoggedInUseCase
-	createCollectionInCloudUseCase collectiondto.CreateCollectionInCloudUseCase
+	createCollectionInCloudUseCase uc_collectiondto.CreateCollectionInCloudUseCase
 	getUserByEmailUseCase          uc_user.GetByEmailUseCase
 	createCollectionUseCase        uc_collection.CreateCollectionUseCase
 }
@@ -55,7 +56,7 @@ func NewCreateService(
 	configService config.ConfigService,
 	transactionManager dom_tx.Manager,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
-	createCollectionInCloudUseCase collectiondto.CreateCollectionInCloudUseCase,
+	createCollectionInCloudUseCase uc_collectiondto.CreateCollectionInCloudUseCase,
 	getUserByEmailUseCase uc_user.GetByEmailUseCase,
 	createCollectionUseCase uc_collection.CreateCollectionUseCase,
 ) CreateService {
@@ -136,6 +137,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 
 	// Encrypt the collection name (using the collection key)
 	// Note: In a real implementation, this would use more complex encryption
+	// TODO: Implement real encryption.
 	nameBytes := []byte(input.Name)
 	encryptedName := base64.StdEncoding.EncodeToString(nameBytes)
 
@@ -170,32 +172,50 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 	// STEP 5: Create our collection data transfer object and submit to the cloud to return the "Cloud ID" of this collection to store locally.
 	//
 
+	// DEVELOPER NOTE: In future expand sharing and other features here.
+	collectionDTO := &dom_collectiondto.CollectionDTO{
+		// ID:          primitive.NewObjectID(), // Do not set ID here, it will be set by the cloud service
+		OwnerID:                userData.ID,
+		EncryptedName:          encryptedName,
+		CollectionType:         input.CollectionType,
+		EncryptedCollectionKey: &encryptedCollectionKey,
+		Members:                make([]*dom_collectiondto.CollectionMembershipDTO, 0),
+		ParentID:               primitive.NilObjectID,
+		EncryptedPathSegments:  make([]string, 0),
+		Children:               make([]*dom_collectiondto.CollectionDTO, 0),
+		CreatedAt:              time.Now(),
+		CreatedByUserID:        userData.ID,
+		ModifiedAt:             time.Now(),
+		ModifiedByUserID:       userData.ID,
+		Version:                1, // Always start at version 1, on every edit increment this value by one
+	}
+
+	collectionCloudID, err := s.createCollectionInCloudUseCase.Execute(ctx, collectionDTO)
+	if err != nil {
+		s.logger.Error("failed to create collection in the cloud", zap.Error(err))
+		s.transactionManager.Rollback()
+		return nil, errors.NewAppError("failed to create collection in the cloud", err)
+	}
+
 	//
 	// STEP 6: Create collection record in our local database.
 	//
 
-	// Prepare the use case input
-	useCaseInput := uc_collection.CreateCollectionInput{
-		EncryptedName:          encryptedName,
-		DecryptedName:          input.Name, // Store the decrypted name for display
-		Type:                   input.CollectionType,
-		EncryptedCollectionKey: encryptedCollectionKey,
-	}
+	// DEVELOPER NOTE: (1)
+	// The cloud has assigned our collection ID and hence we must save it as the unique identifier.
+	// It is important that we use what is provided by the cloud and DO NOT CREATE OUR OWN ID USING
+	// THE LOCAL DEVICE.
 
-	// If parent ID is provided, convert it to ObjectID
-	if input.ParentID != "" {
-		parentObjectID, err := primitive.ObjectIDFromHex(input.ParentID)
-		if err != nil {
-			s.logger.Error("invalid parent ID format", zap.String("parentID", input.ParentID), zap.Error(err))
-			s.transactionManager.Rollback()
-			return nil, errors.NewAppError("invalid parent ID format", err)
-		}
-		useCaseInput.ParentID = &parentObjectID
+	col := &dom_collection.Collection{
+		ID:             *collectionCloudID, // (1)
+		OwnerID:        userData.ID,
+		EncryptedName:  encryptedName,
+		CollectionType: input.CollectionType,
+		SyncStatus:     dom_collection.SyncStatusSynced,
 	}
 
 	// Call the use case to create the collection
-	collection, err := s.createCollectionUseCase.Execute(ctx, useCaseInput)
-	if err != nil {
+	if err := s.createCollectionUseCase.Execute(ctx, col); err != nil {
 		s.logger.Error("failed to create local collection", zap.String("name", input.Name), zap.Error(err))
 		s.transactionManager.Rollback()
 		return nil, err
@@ -211,6 +231,6 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 	}
 
 	return &CreateOutput{
-		Collection: collection,
+		Collection: col,
 	}, nil
 }

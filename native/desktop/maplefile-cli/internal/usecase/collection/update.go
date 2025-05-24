@@ -17,7 +17,7 @@ type UpdateCollectionInput struct {
 	ID                    primitive.ObjectID
 	EncryptedName         *string
 	DecryptedName         *string
-	Type                  *string
+	CollectionType        *string
 	EncryptedPathSegments *[]string
 }
 
@@ -68,14 +68,14 @@ func (uc *updateCollectionUseCase) Execute(
 	}
 
 	if input.DecryptedName != nil {
-		collection.DecryptedName = *input.DecryptedName
+		collection.Name = *input.DecryptedName
 	}
 
-	if input.Type != nil {
-		if *input.Type != dom_collection.CollectionTypeFolder && *input.Type != dom_collection.CollectionTypeAlbum {
+	if input.CollectionType != nil {
+		if *input.CollectionType != dom_collection.CollectionTypeFolder && *input.CollectionType != dom_collection.CollectionTypeAlbum {
 			return nil, errors.NewAppError("invalid collection type", nil)
 		}
-		collection.Type = *input.Type
+		collection.CollectionType = *input.CollectionType
 	}
 
 	if input.EncryptedPathSegments != nil {
@@ -84,7 +84,7 @@ func (uc *updateCollectionUseCase) Execute(
 
 	// Update timestamps and modification status
 	collection.ModifiedAt = time.Now()
-	collection.IsModifiedLocally = true
+	// collection.IsModifiedLocally = true // Figure out what to do here.
 
 	// Save the updated collection
 	err = uc.repository.Save(ctx, collection)

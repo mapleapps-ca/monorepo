@@ -89,7 +89,7 @@ func (uc *moveCollectionUseCase) Execute(
 
 	// Update timestamps and modification status
 	collection.ModifiedAt = time.Now()
-	collection.IsModifiedLocally = true
+	// collection.IsModifiedLocally = true //TODO: Figure something out with this.
 
 	// Save the updated collection
 	err = uc.repository.Save(ctx, collection)

@@ -12,11 +12,6 @@ import (
 )
 
 func (r *collectionRepository) Save(ctx context.Context, collection *collection.Collection) error {
-	r.logger.Debug("Saving collection to local storage",
-		zap.String("collectionID", collection.ID.Hex()),
-		zap.String("collectionType", collection.Type),
-		zap.Bool("isModifiedLocally", collection.IsModifiedLocally))
-
 	// Update modified timestamp
 	collection.ModifiedAt = time.Now()
 
@@ -37,9 +32,5 @@ func (r *collectionRepository) Save(ctx context.Context, collection *collection.
 			zap.Error(err))
 		return errors.NewAppError("failed to save collection to local storage", err)
 	}
-
-	r.logger.Info("Collection saved successfully to local storage",
-		zap.String("collectionID", collection.ID.Hex()),
-		zap.Bool("isModifiedLocally", collection.IsModifiedLocally))
 	return nil
 }

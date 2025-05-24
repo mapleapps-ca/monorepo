@@ -12,9 +12,6 @@ import (
 )
 
 func (r *collectionRepository) List(ctx context.Context, filter dom_collection.CollectionFilter) ([]*dom_collection.Collection, error) {
-	r.logger.Debug("Listing collections from local storage",
-		zap.Any("filter", filter))
-
 	collections := make([]*dom_collection.Collection, 0)
 
 	// Iterate through all collections in the database
@@ -49,8 +46,8 @@ func (r *collectionRepository) List(ctx context.Context, filter dom_collection.C
 			}
 		}
 
-		// Filter by type if specified
-		if filter.Type != "" && collection.Type != filter.Type {
+		// Filter by collection type if specified
+		if filter.CollectionType != "" && collection.CollectionType != filter.CollectionType {
 			return nil // Skip, type doesn't match
 		}
 
@@ -58,17 +55,18 @@ func (r *collectionRepository) List(ctx context.Context, filter dom_collection.C
 		if filter.SyncStatus != nil {
 			var matches bool
 
-			switch *filter.SyncStatus {
-			case dom_collection.SyncStatusLocalOnly:
-				// Consider it local-only if it's modified locally and has never been synced
-				matches = collection.IsModifiedLocally && collection.LastSyncedAt.IsZero()
-			case dom_collection.SyncStatusModifiedLocally:
-				// Modified locally but has been synced before
-				matches = collection.IsModifiedLocally && !collection.LastSyncedAt.IsZero()
-			case dom_collection.SyncStatusSynced:
-				// Not modified locally and has been synced
-				matches = !collection.IsModifiedLocally && !collection.LastSyncedAt.IsZero()
-			}
+			//TODO: IMPL.
+			// switch *filter.SyncStatus {
+			// case dom_collection.SyncStatusLocalOnly:
+			// 	// Consider it local-only if it's modified locally and has never been synced
+			// 	matches = collection.IsModifiedLocally && collection.LastSyncedAt.IsZero()
+			// case dom_collection.SyncStatusModifiedLocally:
+			// 	// Modified locally but has been synced before
+			// 	matches = collection.IsModifiedLocally && !collection.LastSyncedAt.IsZero()
+			// case dom_collection.SyncStatusSynced:
+			// 	// Not modified locally and has been synced
+			// 	matches = !collection.IsModifiedLocally && !collection.LastSyncedAt.IsZero()
+			// }
 
 			if !matches {
 				return nil // Skip, sync status doesn't match
@@ -85,7 +83,5 @@ func (r *collectionRepository) List(ctx context.Context, filter dom_collection.C
 		return nil, errors.NewAppError("failed to list collections from local storage", err)
 	}
 
-	r.logger.Info("Successfully listed collections from local storage",
-		zap.Int("count", len(collections)))
 	return collections, nil
 }

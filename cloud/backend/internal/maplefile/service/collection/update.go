@@ -19,7 +19,7 @@ import (
 type UpdateCollectionRequestDTO struct {
 	ID                     primitive.ObjectID           `json:"id"`
 	EncryptedName          string                       `json:"encrypted_name"`
-	Type                   string                       `json:"type,omitempty"`
+	CollectionType         string                       `json:"collection_type,omitempty"`
 	EncryptedPathSegments  []string                     `json:"encrypted_path_segments,omitempty"`
 	EncryptedCollectionKey *keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
 }
@@ -62,8 +62,8 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 	if req.EncryptedName == "" {
 		e["encrypted_name"] = "Collection name is required"
 	}
-	if req.Type != "" && req.Type != dom_collection.CollectionTypeFolder && req.Type != dom_collection.CollectionTypeAlbum {
-		e["type"] = "Collection type must be either 'folder' or 'album'"
+	if req.CollectionType != "" && req.CollectionType != dom_collection.CollectionTypeFolder && req.CollectionType != dom_collection.CollectionTypeAlbum {
+		e["collection_type"] = "Collection type must be either 'folder' or 'album'"
 	}
 
 	if len(e) != 0 {
@@ -126,8 +126,8 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 	collection.ModifiedAt = time.Now()
 
 	// Only update optional fields if they are provided
-	if req.Type != "" {
-		collection.Type = req.Type
+	if req.CollectionType != "" {
+		collection.CollectionType = req.CollectionType
 	}
 	if req.EncryptedPathSegments != nil && len(req.EncryptedPathSegments) > 0 {
 		collection.EncryptedPathSegments = req.EncryptedPathSegments

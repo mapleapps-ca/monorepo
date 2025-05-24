@@ -85,27 +85,24 @@ Examples:
 
 			fmt.Printf("\nFound %d collections:\n\n", output.Count)
 			for i, collection := range output.Collections {
-				displayName := collection.DecryptedName
+				displayName := collection.Name
 				if displayName == "" {
 					displayName = "[Encrypted]"
 				}
 
-				fmt.Printf("%d. %s (Local ID: %s, Cloud ID: %s, Type: %s)\n", i+1, displayName, collection.ID.Hex(), collection.CloudID.Hex(), collection.Type)
+				fmt.Printf("%d. %s (ID: %s, Collection Type: %s)\n", i+1, displayName, collection.ID.Hex(), collection.CollectionType)
 
 				if verbose {
 					fmt.Printf("   Created: %s\n", collection.CreatedAt.Format("2006-01-02 15:04:05"))
 					fmt.Printf("   Modified: %s\n", collection.ModifiedAt.Format("2006-01-02 15:04:05"))
-					if !collection.CloudID.IsZero() {
-						fmt.Printf("   Cloud ID: %s\n", collection.CloudID.Hex())
-					}
 					if !collection.ParentID.IsZero() {
 						fmt.Printf("   Parent ID: %s\n", collection.ParentID.Hex())
 					}
-					if collection.IsModifiedLocally {
-						fmt.Printf("   Status: Modified locally\n")
-					} else if !collection.LastSyncedAt.IsZero() {
-						fmt.Printf("   Last Synced: %s\n", collection.LastSyncedAt.Format("2006-01-02 15:04:05"))
-					}
+					// if collection.IsModifiedLocally { //TODO: Figure out how to handle this
+					// 	fmt.Printf("   Status: Modified locally\n")
+					// } else if !collection.LastSyncedAt.IsZero() {
+					// 	fmt.Printf("   Last Synced: %s\n", collection.LastSyncedAt.Format("2006-01-02 15:04:05"))
+					// }
 					fmt.Println()
 				}
 			}

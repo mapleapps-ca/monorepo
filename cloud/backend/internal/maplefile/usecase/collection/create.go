@@ -44,10 +44,10 @@ func (uc *createCollectionUseCaseImpl) Execute(ctx context.Context, collection *
 		if collection.EncryptedName == "" {
 			e["encrypted_name"] = "Collection name is required"
 		}
-		if collection.Type == "" {
-			e["type"] = "Collection type is required"
-		} else if collection.Type != dom_collection.CollectionTypeFolder && collection.Type != dom_collection.CollectionTypeAlbum {
-			e["type"] = "Collection type must be either 'folder' or 'album'"
+		if collection.CollectionType == "" {
+			e["collection_type"] = "Collection type is required"
+		} else if collection.CollectionType != dom_collection.CollectionTypeFolder && collection.CollectionType != dom_collection.CollectionTypeAlbum {
+			e["collection_type"] = "Collection type must be either 'folder' or 'album'"
 		}
 		if collection.EncryptedCollectionKey.Ciphertext == nil || len(collection.EncryptedCollectionKey.Ciphertext) == 0 {
 			e["encrypted_collection_key"] = "Encrypted collection key is required"

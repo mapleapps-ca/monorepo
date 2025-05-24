@@ -11,8 +11,6 @@ import (
 )
 
 func (r *collectionRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
-	r.logger.Debug("Deleting collection from local storage", zap.String("collectionID", id.Hex()))
-
 	// Generate key for this collection
 	key := r.generateKey(id.Hex())
 
@@ -24,7 +22,5 @@ func (r *collectionRepository) Delete(ctx context.Context, id primitive.ObjectID
 		return errors.NewAppError("failed to delete collection from local storage", err)
 	}
 
-	r.logger.Info("Collection deleted successfully from local storage",
-		zap.String("collectionID", id.Hex()))
 	return nil
 }

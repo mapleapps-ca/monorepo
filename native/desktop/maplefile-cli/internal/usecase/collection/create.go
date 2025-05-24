@@ -4,29 +4,16 @@ package collection
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
-
-// CreateCollectionInput defines the input for creating a local collection
-type CreateCollectionInput struct {
-	EncryptedName          string
-	DecryptedName          string // For display purposes
-	Type                   string
-	ParentID               *primitive.ObjectID
-	EncryptedPathSegments  []string
-	EncryptedCollectionKey keys.EncryptedCollectionKey
-}
 
 // CreateCollectionUseCase defines the interface for creating a local collection
 type CreateCollectionUseCase interface {
-	Execute(ctx context.Context, input CreateCollectionInput) (*collection.Collection, error)
+	Execute(ctx context.Context, data *collection.Collection) error
 }
 
 // createCollectionUseCase implements the CreateCollectionUseCase interface
@@ -47,52 +34,27 @@ func NewCreateCollectionUseCase(
 }
 
 // Execute creates a new local collection
-func (uc *createCollectionUseCase) Execute(
-	ctx context.Context,
-	input CreateCollectionInput,
-) (*collection.Collection, error) {
+func (uc *createCollectionUseCase) Execute(ctx context.Context, data *collection.Collection) error {
 	// Validate inputs
-	if input.EncryptedName == "" {
-		return nil, errors.NewAppError("encrypted name is required", nil)
+	if data.EncryptedName == "" {
+		return errors.NewAppError("encrypted name is required", nil)
 	}
 
-	if input.Type != collection.CollectionTypeFolder && input.Type != collection.CollectionTypeAlbum {
-		return nil, errors.NewAppError(fmt.Sprintf("invalid collection type: %s (must be '%s' or '%s')",
-			input.Type, collection.CollectionTypeFolder, collection.CollectionTypeAlbum), nil)
+	if data.CollectionType != collection.CollectionTypeFolder && data.CollectionType != collection.CollectionTypeAlbum {
+		return errors.NewAppError(fmt.Sprintf("invalid collection type: %s (must be '%s' or '%s')",
+			data.CollectionType, collection.CollectionTypeFolder, collection.CollectionTypeAlbum), nil)
 	}
 
-	if input.EncryptedCollectionKey.Ciphertext == nil || len(input.EncryptedCollectionKey.Ciphertext) == 0 ||
-		input.EncryptedCollectionKey.Nonce == nil || len(input.EncryptedCollectionKey.Nonce) == 0 {
-		return nil, errors.NewAppError("encrypted collection key is required", nil)
-	}
-
-	// Create a new local collection
-	collection := &collection.Collection{
-		ID:                     primitive.NewObjectID(),
-		EncryptedName:          input.EncryptedName,
-		DecryptedName:          input.DecryptedName,
-		Type:                   input.Type,
-		CreatedAt:              time.Now(),
-		ModifiedAt:             time.Now(),
-		EncryptedCollectionKey: input.EncryptedCollectionKey,
-		IsModifiedLocally:      true,
-	}
-
-	// Set parent ID if provided
-	if input.ParentID != nil {
-		collection.ParentID = *input.ParentID
-	}
-
-	// Set encrypted path segments if provided
-	if len(input.EncryptedPathSegments) > 0 {
-		collection.EncryptedPathSegments = input.EncryptedPathSegments
+	if data.EncryptedCollectionKey.Ciphertext == nil || len(data.EncryptedCollectionKey.Ciphertext) == 0 ||
+		data.EncryptedCollectionKey.Nonce == nil || len(data.EncryptedCollectionKey.Nonce) == 0 {
+		return errors.NewAppError("encrypted collection key is required", nil)
 	}
 
 	// Save the collection
-	err := uc.repository.Create(ctx, collection)
+	err := uc.repository.Create(ctx, data)
 	if err != nil {
-		return nil, errors.NewAppError("failed to create local collection", err)
+		return errors.NewAppError("failed to create local collection", err)
 	}
 
-	return collection, nil
+	return nil
 }
