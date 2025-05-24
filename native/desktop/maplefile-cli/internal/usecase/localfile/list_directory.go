@@ -4,6 +4,7 @@ package localfile
 import (
 	"context"
 	"os"
+	"path/filepath"
 
 	"go.uber.org/zap"
 
@@ -53,7 +54,7 @@ func (uc *listDirectoryUseCase) Execute(
 
 	var fileInfos []*FileInfo
 	for _, entry := range entries {
-		entryPath := dirPath + string(os.PathSeparator) + entry.Name()
+		entryPath := filepath.Join(dirPath, entry.Name())
 		info, err := uc.getFileInfoUseCase.Execute(ctx, entryPath)
 		if err != nil {
 			uc.logger.Warn("Failed to get info for directory entry",
