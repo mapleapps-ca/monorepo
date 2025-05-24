@@ -20,7 +20,6 @@ type UpdateCollectionRequestDTO struct {
 	ID                     primitive.ObjectID           `json:"id"`
 	EncryptedName          string                       `json:"encrypted_name"`
 	CollectionType         string                       `json:"collection_type,omitempty"`
-	EncryptedPathSegments  []string                     `json:"encrypted_path_segments,omitempty"`
 	EncryptedCollectionKey *keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
 }
 
@@ -128,9 +127,6 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 	// Only update optional fields if they are provided
 	if req.CollectionType != "" {
 		collection.CollectionType = req.CollectionType
-	}
-	if req.EncryptedPathSegments != nil && len(req.EncryptedPathSegments) > 0 {
-		collection.EncryptedPathSegments = req.EncryptedPathSegments
 	}
 	if req.EncryptedCollectionKey.Ciphertext != nil && len(req.EncryptedCollectionKey.Ciphertext) > 0 &&
 		req.EncryptedCollectionKey.Nonce != nil && len(req.EncryptedCollectionKey.Nonce) > 0 {

@@ -44,6 +44,10 @@ func (uc *createCollectionUseCase) Execute(ctx context.Context, data *collection
 		return errors.NewAppError(fmt.Sprintf("invalid collection type: %s (must be '%s' or '%s')",
 			data.CollectionType, collection.CollectionTypeFolder, collection.CollectionTypeAlbum), nil)
 	}
+	if data.EncryptedCollectionKey == nil {
+		uc.logger.Error("encrypted collection key is required and it was not provided!")
+		return errors.NewAppError("encrypted collection key is required", nil)
+	}
 
 	if data.EncryptedCollectionKey.Ciphertext == nil || len(data.EncryptedCollectionKey.Ciphertext) == 0 ||
 		data.EncryptedCollectionKey.Nonce == nil || len(data.EncryptedCollectionKey.Nonce) == 0 {

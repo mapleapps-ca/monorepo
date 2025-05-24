@@ -42,9 +42,6 @@ type Collection struct {
 	// AncestorIDs is an array containing the IDs of all parent collections up to the root.
 	// This field is used for efficient querying and traversal of the collection hierarchy without joins.
 	AncestorIDs []primitive.ObjectID `bson:"ancestor_ids,omitempty" json:"ancestor_ids,omitempty"` // Array of ancestor IDs for efficient querying
-	// EncryptedPathSegments is an array of the encrypted names of the collection and its ancestors, from root to this collection.
-	// This allows querying or sorting based on the path without decrypting the entire hierarchy.
-	EncryptedPathSegments []string `bson:"encrypted_path_segments" json:"encrypted_path_segments"`
 	// Children is an optional field for representing subcollections embedded directly within this DTO.
 	// This is primarily used for tree-like structures in certain API responses or operations, not for persistent storage in this format.
 	// Recursive embedding of the same type.

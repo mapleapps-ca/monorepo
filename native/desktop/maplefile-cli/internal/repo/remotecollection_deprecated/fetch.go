@@ -82,7 +82,6 @@ func (r *collectionRepository) Fetch(ctx context.Context, id primitive.ObjectID)
 		Type:                   response.Type,
 		ParentID:               response.ParentID,
 		AncestorIDs:            response.AncestorIDs,
-		EncryptedPathSegments:  response.EncryptedPathSegments,
 		EncryptedCollectionKey: response.EncryptedCollectionKey,
 		CreatedAt:              response.CreatedAt,
 		ModifiedAt:             response.ModifiedAt,

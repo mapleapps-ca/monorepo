@@ -172,16 +172,17 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 	// STEP 5: Create our collection data transfer object and submit to the cloud to return the "Cloud ID" of this collection to store locally.
 	//
 
-	// DEVELOPER NOTE: In future expand sharing and other features here.
+	// DEVELOPER NOTE:
+	// (1) In future expand sharing and other features here.
+
 	collectionDTO := &dom_collectiondto.CollectionDTO{
 		// ID:          primitive.NewObjectID(), // Do not set ID here, it will be set by the cloud service
 		OwnerID:                userData.ID,
 		EncryptedName:          encryptedName,
 		CollectionType:         input.CollectionType,
 		EncryptedCollectionKey: &encryptedCollectionKey,
-		Members:                make([]*dom_collectiondto.CollectionMembershipDTO, 0),
+		Members:                make([]*dom_collectiondto.CollectionMembershipDTO, 0), // (1)
 		ParentID:               primitive.NilObjectID,
-		EncryptedPathSegments:  make([]string, 0),
 		Children:               make([]*dom_collectiondto.CollectionDTO, 0),
 		CreatedAt:              time.Now(),
 		CreatedByUserID:        userData.ID,
@@ -205,13 +206,25 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 	// The cloud has assigned our collection ID and hence we must save it as the unique identifier.
 	// It is important that we use what is provided by the cloud and DO NOT CREATE OUR OWN ID USING
 	// THE LOCAL DEVICE.
+	//
+	// DEVELOPER NOTE: (2)
+	// In future expand sharing and other features here.
 
 	col := &dom_collection.Collection{
-		ID:             *collectionCloudID, // (1)
-		OwnerID:        userData.ID,
-		EncryptedName:  encryptedName,
-		CollectionType: input.CollectionType,
-		SyncStatus:     dom_collection.SyncStatusSynced,
+		ID:                     *collectionCloudID, // (1)
+		OwnerID:                userData.ID,
+		EncryptedName:          encryptedName,
+		CollectionType:         input.CollectionType,
+		EncryptedCollectionKey: &encryptedCollectionKey,
+		Members:                make([]*dom_collection.CollectionMembership, 0), // (2)
+		SyncStatus:             dom_collection.SyncStatusSynced,
+		ParentID:               collectionDTO.ParentID,
+		Children:               make([]*dom_collection.Collection, 0),
+		CreatedAt:              collectionDTO.CreatedAt,
+		CreatedByUserID:        userData.ID,
+		ModifiedAt:             collectionDTO.ModifiedAt,
+		ModifiedByUserID:       collectionDTO.ModifiedByUserID,
+		Version:                collectionDTO.Version,
 	}
 
 	// Call the use case to create the collection

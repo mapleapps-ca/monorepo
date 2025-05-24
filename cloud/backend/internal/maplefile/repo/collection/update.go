@@ -24,7 +24,6 @@ func (impl collectionRepositoryImpl) Update(ctx context.Context, collection *dom
 			"collection_type":          collection.CollectionType,
 			"modified_at":              collection.ModifiedAt,
 			"encrypted_collection_key": collection.EncryptedCollectionKey,
-			"encrypted_path_segments":  collection.EncryptedPathSegments,
 		},
 	}
 

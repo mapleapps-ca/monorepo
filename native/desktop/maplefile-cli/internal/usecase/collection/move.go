@@ -16,8 +16,6 @@ import (
 type MoveCollectionInput struct {
 	ID          primitive.ObjectID
 	NewParentID primitive.ObjectID
-	// New encrypted path segments if needed
-	EncryptedPathSegments []string
 }
 
 // MoveCollectionUseCase defines the interface for moving a local collection
@@ -81,11 +79,6 @@ func (uc *moveCollectionUseCase) Execute(
 
 	// Update the collection's parent ID
 	collection.ParentID = input.NewParentID
-
-	// Update path segments if provided
-	if len(input.EncryptedPathSegments) > 0 {
-		collection.EncryptedPathSegments = input.EncryptedPathSegments
-	}
 
 	// Update timestamps and modification status
 	collection.ModifiedAt = time.Now()

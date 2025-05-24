@@ -31,7 +31,6 @@ type CreateCollectionRequestDTO struct {
 	Members                []*CollectionMembershipDTO    `bson:"members" json:"members"`
 	ParentID               primitive.ObjectID            `bson:"parent_id,omitempty" json:"parent_id,omitempty"`
 	AncestorIDs            []primitive.ObjectID          `bson:"ancestor_ids,omitempty" json:"ancestor_ids,omitempty"`
-	EncryptedPathSegments  []string                      `bson:"encrypted_path_segments" json:"encrypted_path_segments"`
 	Children               []*CreateCollectionRequestDTO `bson:"children,omitempty" json:"children,omitempty"`
 	CreatedAt              time.Time                     `bson:"created_at" json:"created_at"`
 	CreatedByUserID        primitive.ObjectID            `json:"created_by_user_id"`
@@ -60,7 +59,6 @@ type CollectionResponseDTO struct {
 	CollectionType         string                       `json:"collection_type"`
 	ParentID               primitive.ObjectID           `json:"parent_id,omitempty"`
 	AncestorIDs            []primitive.ObjectID         `json:"ancestor_ids,omitempty"`
-	EncryptedPathSegments  []string                     `json:"encrypted_path_segments,omitempty"`
 	EncryptedCollectionKey *keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
 	Children               []*CollectionResponseDTO     `json:"children,omitempty"`
 	CreatedAt              time.Time                    `json:"created_at"`
@@ -143,7 +141,6 @@ func mapCollectionDTOToDomain(dto *CreateCollectionRequestDTO, userID primitive.
 		EncryptedCollectionKey: dto.EncryptedCollectionKey,
 		ParentID:               dto.ParentID,
 		AncestorIDs:            dto.AncestorIDs,
-		EncryptedPathSegments:  dto.EncryptedPathSegments,
 		CreatedAt:              dto.CreatedAt,
 		CreatedByUserID:        dto.CreatedByUserID,
 		ModifiedAt:             dto.ModifiedAt,
@@ -273,7 +270,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 		collection.Members = append(collection.Members, ownerMembership)
 	}
 
-	// Note: Fields like ParentID, AncestorIDs, EncryptedPathSegments, EncryptedCollectionKey,
+	// Note: Fields like ParentID, AncestorIDs, EncryptedCollectionKey,
 	// EncryptedName, CollectionType, and recursively mapped Children are copied directly from the DTO
 	// by the mapCollectionDTOToDomain function before server overrides. This fulfills the
 	// prompt's requirement to copy these fields from the DTO.
@@ -314,13 +311,12 @@ func mapCollectionToDTO(collection *dom_collection.Collection) *CollectionRespon
 	}
 
 	responseDTO := &CollectionResponseDTO{
-		ID:                    collection.ID,
-		OwnerID:               collection.OwnerID,
-		EncryptedName:         collection.EncryptedName,
-		CollectionType:        collection.CollectionType,
-		ParentID:              collection.ParentID,
-		AncestorIDs:           collection.AncestorIDs,
-		EncryptedPathSegments: collection.EncryptedPathSegments,
+		ID:             collection.ID,
+		OwnerID:        collection.OwnerID,
+		EncryptedName:  collection.EncryptedName,
+		CollectionType: collection.CollectionType,
+		ParentID:       collection.ParentID,
+		AncestorIDs:    collection.AncestorIDs,
 		// Note: EncryptedCollectionKey from the domain model is the owner's key.
 		// Including it in the general response DTO might be acceptable if the response
 		// is only sent to the owner and contains *their* key. Otherwise, this field

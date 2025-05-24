@@ -18,7 +18,6 @@ type RemoteCollection struct {
 	Type                   string                      `json:"type"`
 	ParentID               primitive.ObjectID          `json:"parent_id,omitempty"`
 	AncestorIDs            []primitive.ObjectID        `json:"ancestor_ids,omitempty"`
-	EncryptedPathSegments  []string                    `json:"encrypted_path_segments,omitempty"`
 	EncryptedCollectionKey keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
 	CreatedAt              time.Time                   `json:"created_at"`
 	ModifiedAt             time.Time                   `json:"modified_at"`
@@ -35,7 +34,6 @@ type RemoteCreateCollectionRequest struct {
 	EncryptedName          string                      `json:"encrypted_name"`
 	Type                   string                      `json:"type"`
 	ParentID               primitive.ObjectID          `json:"parent_id,omitempty"`
-	EncryptedPathSegments  []string                    `json:"encrypted_path_segments,omitempty"`
 	EncryptedCollectionKey keys.EncryptedCollectionKey `json:"encrypted_collection_key"`
 }
 
@@ -47,7 +45,6 @@ type RemoteCollectionResponse struct {
 	Type                   string                      `json:"type"`
 	ParentID               primitive.ObjectID          `json:"parent_id,omitempty"`
 	AncestorIDs            []primitive.ObjectID        `json:"ancestor_ids,omitempty"`
-	EncryptedPathSegments  []string                    `json:"encrypted_path_segments,omitempty"`
 	EncryptedCollectionKey keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
 	CreatedAt              time.Time                   `json:"created_at"`
 	ModifiedAt             time.Time                   `json:"modified_at"`

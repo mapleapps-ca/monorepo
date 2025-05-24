@@ -102,7 +102,6 @@ func (r *collectionRepository) List(ctx context.Context, filter collection.Colle
 			Type:                   resp.Type,
 			ParentID:               resp.ParentID,
 			AncestorIDs:            resp.AncestorIDs,
-			EncryptedPathSegments:  resp.EncryptedPathSegments,
 			EncryptedCollectionKey: resp.EncryptedCollectionKey,
 			CreatedAt:              resp.CreatedAt,
 			ModifiedAt:             resp.ModifiedAt,

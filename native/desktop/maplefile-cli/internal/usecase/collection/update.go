@@ -14,11 +14,10 @@ import (
 
 // UpdateCollectionInput defines the input for updating a local collection
 type UpdateCollectionInput struct {
-	ID                    primitive.ObjectID
-	EncryptedName         *string
-	DecryptedName         *string
-	CollectionType        *string
-	EncryptedPathSegments *[]string
+	ID             primitive.ObjectID
+	EncryptedName  *string
+	DecryptedName  *string
+	CollectionType *string
 }
 
 // UpdateCollectionUseCase defines the interface for updating a local collection
@@ -76,10 +75,6 @@ func (uc *updateCollectionUseCase) Execute(
 			return nil, errors.NewAppError("invalid collection type", nil)
 		}
 		collection.CollectionType = *input.CollectionType
-	}
-
-	if input.EncryptedPathSegments != nil {
-		collection.EncryptedPathSegments = *input.EncryptedPathSegments
 	}
 
 	// Update timestamps and modification status

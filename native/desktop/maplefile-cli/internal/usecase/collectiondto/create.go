@@ -80,9 +80,6 @@ func (uc *createCollectionInCloudUseCase) Execute(ctx context.Context, dto *coll
 				e["key_version"] = "EncryptedCollectionKey-KeyVersion is required"
 			}
 		}
-		if len(dto.EncryptedPathSegments) == 0 {
-			e["encrypted_path_segments"] = "EncryptedPathSegments is required"
-		}
 	}
 
 	// If any errors were found, return bad request error

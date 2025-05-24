@@ -18,7 +18,6 @@ type CreateRemoteCollectionInput struct {
 	EncryptedName          string
 	Type                   string
 	ParentID               *primitive.ObjectID
-	EncryptedPathSegments  []string
 	EncryptedCollectionKey keys.EncryptedCollectionKey
 }
 
