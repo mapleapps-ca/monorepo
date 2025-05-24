@@ -1,3 +1,4 @@
+// native/desktop/maplefile-cli/internal/domain/file/model.go
 package file
 
 import (

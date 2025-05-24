@@ -1,3 +1,4 @@
+// internal/domain/file/constants.go
 package file
 
 // SyncStatus defines the synchronization status of a file

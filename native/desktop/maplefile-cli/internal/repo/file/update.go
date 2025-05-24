@@ -1,4 +1,4 @@
-// monorepo/native/desktop/maplefile-cli/internal/repo/file/create.go
+// native/desktop/maplefile-cli/internal/repo/file/update.go
 package file
 
 import (
@@ -8,7 +8,7 @@ import (
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
-func (r *fileRepository) Create(ctx context.Context, file *dom_file.File) error {
+func (r *fileRepository) Update(ctx context.Context, file *dom_file.File) error {
 	//TODO: Impl.
 	return errors.New("not implemented")
 }

@@ -1,3 +1,4 @@
+// internal/domain/file/serialization.go
 package file
 
 import (

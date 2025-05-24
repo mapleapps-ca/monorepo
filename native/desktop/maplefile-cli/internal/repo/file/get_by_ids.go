@@ -1,4 +1,4 @@
-// native/desktop/maplefile-cli/internal/repo/file/get.go
+// native/desktop/maplefile-cli/internal/repo/file/get_by_ids.go
 package file
 
 import (
@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func (r *fileRepository) Get(ctx context.Context, id primitive.ObjectID) (*dom_file.File, error) {
+func (r *fileRepository) GetByIDs(ctx context.Context, ids []primitive.ObjectID) ([]*dom_file.File, error) {
 	//TODO: Impl.
 	return nil, errors.New("not implemented")
 }
