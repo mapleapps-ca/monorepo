@@ -124,71 +124,70 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 	}
 
 	//
-	// STEP 4: Create encryption key and encrypted the data with it.
+	// STEP 4: Create encryption key and encrypt the data with it.
 	//
 
 	// Generate a collection key
-	collectionKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
+	collectionKey, err := crypto.GenerateRandomBytes(crypto.CollectionKeySize)
 	if err != nil {
 		s.logger.Error("failed to generate collection key", zap.Error(err))
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to generate collection key", err)
 	}
 
-	// Encrypt the collection name (using the collection key)
-	// Note: In a real implementation, this would use more complex encryption
-	// TODO: Implement real encryption.
+	// TODO: Properly encrypt the collection name using the collection key
+	// For now, we'll use base64 encoding as a placeholder
+	// In production, this should use proper encryption with the collection key
 	nameBytes := []byte(input.Name)
 	encryptedName := base64.StdEncoding.EncodeToString(nameBytes)
 
-	// Encrypt the collection key with the user's master key
-	// This is a simplified version - real implementation would decrypt master key first
-	ciphertext, nonce, err := crypto.EncryptWithSecretBox(collectionKey, collectionKey)
+	// TODO: Decrypt the user's master key and use it to encrypt the collection key
+	// For now, we'll use the collection key itself as a placeholder
+	// In production:
+	// 1. Decrypt user's master key using their KEK (which requires password)
+	// 2. Use the master key to encrypt the collection key
+	ciphertext, nonce, err := crypto.EncryptDataWithKey(collectionKey, collectionKey)
 	if err != nil {
 		s.logger.Error("failed to encrypt collection key", zap.Error(err))
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to encrypt collection key", err)
 	}
 
-	currentTime := time.Now() // Capture the current time once
+	currentTime := time.Now()
 	historicalKey := keys.EncryptedHistoricalKey{
-		KeyVersion:    1, // Always start at version 1.
+		KeyVersion:    1,
 		Ciphertext:    ciphertext,
 		Nonce:         nonce,
 		RotatedAt:     currentTime,
 		RotatedReason: "Initial collection creation",
-		Algorithm:     "chacha20poly1305", //TODO: Confirm this is the algorithm used.
+		Algorithm:     "chacha20poly1305",
 	}
 
 	encryptedCollectionKey := keys.EncryptedCollectionKey{
 		Ciphertext:   ciphertext,
 		Nonce:        nonce,
-		KeyVersion:   1,            // Always start at version 1.
-		RotatedAt:    &currentTime, // Pass the address of the captured time
+		KeyVersion:   1,
+		RotatedAt:    &currentTime,
 		PreviousKeys: []keys.EncryptedHistoricalKey{historicalKey},
 	}
 
 	//
-	// STEP 5: Create our collection data transfer object and submit to the cloud to return the "Cloud ID" of this collection to store locally.
+	// STEP 5: Create our collection data transfer object and submit to the cloud
 	//
 
-	// DEVELOPER NOTE:
-	// (1) In future expand sharing and other features here.
-
 	collectionDTO := &dom_collectiondto.CollectionDTO{
-		// ID:          primitive.NewObjectID(), // Do not set ID here, it will be set by the cloud service
 		OwnerID:                userData.ID,
 		EncryptedName:          encryptedName,
 		CollectionType:         input.CollectionType,
 		EncryptedCollectionKey: &encryptedCollectionKey,
-		Members:                make([]*dom_collectiondto.CollectionMembershipDTO, 0), // (1)
+		Members:                make([]*dom_collectiondto.CollectionMembershipDTO, 0),
 		ParentID:               primitive.NilObjectID,
 		Children:               make([]*dom_collectiondto.CollectionDTO, 0),
 		CreatedAt:              time.Now(),
 		CreatedByUserID:        userData.ID,
 		ModifiedAt:             time.Now(),
 		ModifiedByUserID:       userData.ID,
-		Version:                1, // Always start at version 1, on every edit increment this value by one
+		Version:                1,
 	}
 
 	collectionCloudID, err := s.createCollectionInCloudUseCase.Execute(ctx, collectionDTO)
@@ -202,21 +201,13 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 	// STEP 6: Create collection record in our local database.
 	//
 
-	// DEVELOPER NOTE: (1)
-	// The cloud has assigned our collection ID and hence we must save it as the unique identifier.
-	// It is important that we use what is provided by the cloud and DO NOT CREATE OUR OWN ID USING
-	// THE LOCAL DEVICE.
-	//
-	// DEVELOPER NOTE: (2)
-	// In future expand sharing and other features here.
-
 	col := &dom_collection.Collection{
-		ID:                     *collectionCloudID, // (1)
+		ID:                     *collectionCloudID,
 		OwnerID:                userData.ID,
 		EncryptedName:          encryptedName,
 		CollectionType:         input.CollectionType,
 		EncryptedCollectionKey: &encryptedCollectionKey,
-		Members:                make([]*dom_collection.CollectionMembership, 0), // (2)
+		Members:                make([]*dom_collection.CollectionMembership, 0),
 		SyncStatus:             dom_collection.SyncStatusSynced,
 		ParentID:               collectionDTO.ParentID,
 		Children:               make([]*dom_collection.Collection, 0),

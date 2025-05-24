@@ -209,30 +209,30 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 	// STEP 7: Generate encryption keys and encrypt file data
 	//
 	// Generate file key
-	fileKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
+	fileKey, err := crypto.GenerateRandomBytes(crypto.FileKeySize)
 	if err != nil {
 		s.logger.Error("Failed to generate file key", zap.Error(err))
 		return nil, errors.NewAppError("failed to generate file key", err)
 	}
 
-	// For now, use a simple placeholder for collection key
-	// In a real implementation, you'd retrieve this from the collection
-	collectionKey, err := crypto.GenerateRandomBytes(crypto.SecretBoxKeySize)
+	// TODO: In production, retrieve the actual collection key from the collection
+	// For now, generate a placeholder collection key
+	collectionKey, err := crypto.GenerateRandomBytes(crypto.CollectionKeySize)
 	if err != nil {
 		s.logger.Error("Failed to generate collection key", zap.Error(err))
 		return nil, errors.NewAppError("failed to generate collection key", err)
 	}
 
 	// Encrypt file key with collection key
-	encryptedFileKeyCiphertext, encryptedFileKeyNonce, err := crypto.EncryptWithSecretBox(fileKey, collectionKey)
+	encryptedFileKeyData, err := crypto.EncryptWithSecretBox(fileKey, collectionKey)
 	if err != nil {
 		s.logger.Error("Failed to encrypt file key", zap.Error(err))
 		return nil, errors.NewAppError("failed to encrypt file key", err)
 	}
 
 	encryptedFileKey := keys.EncryptedFileKey{
-		Ciphertext: encryptedFileKeyCiphertext,
-		Nonce:      encryptedFileKeyNonce,
+		Ciphertext: encryptedFileKeyData.Ciphertext,
+		Nonce:      encryptedFileKeyData.Nonce,
 		KeyVersion: 1,
 	}
 
@@ -243,21 +243,16 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 		"size":      fileInfo.Size,
 	}
 
-	// Encode metadata map to JSON bytes. This serves as the format
-	// that would eventually be encrypted. For now, we store the raw bytes
-	// as a placeholder for the 'encrypted' metadata.
-	// This satisfies the requirement to "fix simple conversion" by encoding,
-	// while "skipping encryption" by storing the raw encoded data.
+	// Encode metadata to JSON
 	metadataBytes, err := json.Marshal(metadataMap)
 	if err != nil {
 		s.logger.Error("Failed to marshal metadata map to JSON", zap.Error(err))
-		// Handle this error - it prevents the rest of the logic from running
 		return nil, errors.NewAppError("failed to prepare metadata for storage", err)
 	}
 
-	// Store the raw JSON bytes (converted to string) in the field intended for encrypted data.
-	// This is NOT encrypted, just encoded and converted to string.
-	encryptedMetadataString := string(metadataBytes)
+	// TODO: Encrypt metadata with file key
+	// For now, store as base64-encoded JSON
+	encryptedMetadataString := crypto.EncodeToBase64(metadataBytes)
 
 	//
 	// STEP 8: Create domain file object
@@ -267,7 +262,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 		ID:                fileID,
 		CollectionID:      input.CollectionID,
 		OwnerID:           input.OwnerID,
-		EncryptedMetadata: encryptedMetadataString, // Assign the string here
+		EncryptedMetadata: encryptedMetadataString,
 		EncryptedFileKey:  encryptedFileKey,
 		EncryptionVersion: "v1",
 		Name:              fileName,
@@ -286,7 +281,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 	// Set paths based on storage mode
 	switch input.StorageMode {
 	case dom_file.StorageModeEncryptedOnly:
-		// In real implementation, you'd encrypt the file and store only encrypted version
+		// TODO: In production, encrypt the file and store only encrypted version
 		domainFile.EncryptedFilePath = destFilePath
 		domainFile.EncryptedFileSize = fileInfo.Size
 		domainFile.FilePath = "" // No decrypted version stored
@@ -301,7 +296,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 		// Keep both versions
 		domainFile.FilePath = destFilePath
 		domainFile.FileSize = fileInfo.Size
-		// In real implementation, you'd create encrypted version too
+		// TODO: In production, create encrypted version too
 		domainFile.EncryptedFilePath = destFilePath + ".encrypted"
 		domainFile.EncryptedFileSize = fileInfo.Size
 	}

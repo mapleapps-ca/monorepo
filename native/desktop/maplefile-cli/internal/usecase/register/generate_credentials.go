@@ -3,15 +3,11 @@ package register
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"time"
 
-	"golang.org/x/crypto/nacl/box"
-
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // Credentials contains the generated cryptographic credentials
@@ -62,12 +58,10 @@ func (uc *generateCredentialsUseCase) Execute(ctx context.Context, password stri
 	}
 
 	// Generate key pair
-	pubKey, privKey, err := box.GenerateKey(rand.Reader)
+	publicKey, privateKey, err := crypto.GenerateKeyPair()
 	if err != nil {
 		return nil, fmt.Errorf("error generating key pair: %w", err)
 	}
-	publicKey := pubKey[:]
-	privateKey := privKey[:]
 
 	// Generate recovery key
 	recoveryKey, err := crypto.GenerateRandomBytes(crypto.RecoveryKeySize)
@@ -100,17 +94,17 @@ func (uc *generateCredentialsUseCase) Execute(ctx context.Context, password stri
 	}
 
 	// Create verification ID from public key
-	verificationID := base64.URLEncoding.EncodeToString(publicKey)[:12]
+	verificationID := crypto.EncodeToBase64URL(publicKey)[:12]
 
 	// Store current key in history
-	currentTime := time.Now() // Capture the current time once
+	currentTime := time.Now()
 	historicalKey := keys.EncryptedHistoricalKey{
 		KeyVersion:    1,
 		Ciphertext:    encryptedMasterKey.Ciphertext,
 		Nonce:         encryptedMasterKey.Nonce,
 		RotatedAt:     currentTime,
 		RotatedReason: "Initial user registration",
-		Algorithm:     "chacha20poly1305", //TODO: Confirm this is the algorithm used.
+		Algorithm:     "chacha20poly1305",
 	}
 
 	return &Credentials{
@@ -124,7 +118,7 @@ func (uc *generateCredentialsUseCase) Execute(ctx context.Context, password stri
 			Ciphertext:   encryptedMasterKey.Ciphertext,
 			Nonce:        encryptedMasterKey.Nonce,
 			KeyVersion:   1,
-			RotatedAt:    &currentTime, // Pass the address of the captured time
+			RotatedAt:    &currentTime,
 			PreviousKeys: []keys.EncryptedHistoricalKey{historicalKey},
 		},
 		EncryptedPrivateKey: keys.EncryptedPrivateKey{

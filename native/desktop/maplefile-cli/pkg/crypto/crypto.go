@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 
 	"golang.org/x/crypto/argon2"
@@ -13,201 +14,322 @@ import (
 )
 
 const (
-	// SecretBoxKeySize is the size of a NaCl secretbox key (32 bytes)
-	SecretBoxKeySize = 32
-	// SecretBoxNonceSize is the size of a NaCl secretbox nonce (24 bytes)
+	// Key sizes
+	MasterKeySize        = 32 // 256-bit
+	KeyEncryptionKeySize = 32
+	RecoveryKeySize      = 32
+	CollectionKeySize    = 32
+	FileKeySize          = 32
+
+	// SecretBox (symmetric encryption) constants
+	SecretBoxKeySize   = 32
 	SecretBoxNonceSize = 24
-	// BoxPublicKeySize is the size of a NaCl box public key (32 bytes)
+	SecretBoxOverhead  = 16
+
+	// Box (asymmetric encryption) constants
 	BoxPublicKeySize = 32
-	// BoxSecretKeySize is the size of a NaCl box secret key (32 bytes)
 	BoxSecretKeySize = 32
-	// BoxNonceSize is the size of a NaCl box nonce (24 bytes)
-	BoxNonceSize = 24
-	// SaltSize is the size of the salt for password hashing (16 bytes)
-	SaltSize = 16
+	BoxNonceSize     = 24
+	BoxOverhead      = box.Overhead
+	BoxSealOverhead  = BoxPublicKeySize + BoxOverhead
 
 	// Argon2 parameters - must match between platforms
 	Argon2IDAlgorithm = "argon2id"
-	Argon2MemLimit    = 67108864 // 64 MB
-	Argon2OpsLimit    = 4
+	Argon2MemLimit    = 4 * 1024 * 1024 // 4 MB (matching your internal/common/crypto settings)
+	Argon2OpsLimit    = 1               // 1 iteration (matching your settings)
 	Argon2Parallelism = 1
 	Argon2KeySize     = 32
 	Argon2SaltSize    = 16
 )
 
-// KeyParams defines the parameters for key derivation
-type KeyParams struct {
-	Memory      uint32
-	Iterations  uint32
-	Parallelism uint8
-	SaltLength  uint32
-	KeyLength   uint32
-}
-
-// DefaultParams returns the default parameters for key derivation
-func DefaultParams() *KeyParams {
-	return &KeyParams{
-		Memory:      64 * 1024,        // 64MB
-		Iterations:  3,                // 3 iterations
-		Parallelism: 2,                // 2 parallel threads
-		SaltLength:  SaltSize,         // 16 byte salt
-		KeyLength:   SecretBoxKeySize, // 32 byte key
-	}
+// EncryptedData represents encrypted data with its nonce
+type EncryptedData struct {
+	Ciphertext []byte
+	Nonce      []byte
 }
 
 // GenerateRandomBytes generates cryptographically secure random bytes
 func GenerateRandomBytes(size int) ([]byte, error) {
+	if size <= 0 {
+		return nil, errors.New("size must be positive")
+	}
+
 	buf := make([]byte, size)
 	_, err := io.ReadFull(rand.Reader, buf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate random bytes: %w", err)
 	}
 	return buf, nil
 }
 
 // GenerateKeyPair generates a NaCl box keypair for asymmetric encryption
-func GenerateKeyPair() (*[BoxPublicKeySize]byte, *[BoxSecretKeySize]byte, error) {
-	return box.GenerateKey(rand.Reader)
+func GenerateKeyPair() (publicKey []byte, privateKey []byte, err error) {
+	pubKey, privKey, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate key pair: %w", err)
+	}
+	return pubKey[:], privKey[:], nil
 }
 
-// DeriveKeyFromPassword derives a key from a password using Argon2
-// This matches the crypto_pwhash function in libsodium
-func DeriveKeyFromPassword(password string, salt []byte, params *KeyParams) ([]byte, error) {
-	if len(salt) != int(params.SaltLength) {
-		return nil, errors.New("salt length does not match expected length")
+// DeriveKeyFromPassword derives a key from a password using Argon2id
+// This matches the parameters used in your registration and login flows
+func DeriveKeyFromPassword(password string, salt []byte) ([]byte, error) {
+	if len(salt) != Argon2SaltSize {
+		return nil, fmt.Errorf("invalid salt size: expected %d, got %d", Argon2SaltSize, len(salt))
 	}
 
 	key := argon2.IDKey(
 		[]byte(password),
 		salt,
-		params.Iterations,
-		params.Memory,
-		params.Parallelism,
-		params.KeyLength,
+		Argon2OpsLimit,
+		Argon2MemLimit,
+		Argon2Parallelism,
+		Argon2KeySize,
 	)
 
 	return key, nil
 }
 
-// EncryptWithSecretBox encrypts data using NaCl secretbox (matches crypto_secretbox_easy)
-func EncryptWithSecretBox(data []byte, key []byte) ([]byte, []byte, error) {
+// EncryptWithSecretBox encrypts data with a symmetric key using NaCl secretbox
+func EncryptWithSecretBox(data, key []byte) (*EncryptedData, error) {
 	if len(key) != SecretBoxKeySize {
-		return nil, nil, errors.New("key must be 32 bytes")
+		return nil, fmt.Errorf("invalid key size: expected %d, got %d", SecretBoxKeySize, len(key))
 	}
 
-	var keyArray [SecretBoxKeySize]byte
-	copy(keyArray[:], key)
-
-	// Generate random nonce
+	// Generate nonce
 	nonce, err := GenerateRandomBytes(SecretBoxNonceSize)
 	if err != nil {
-		return nil, nil, err
+		return nil, fmt.Errorf("failed to generate nonce: %w", err)
 	}
 
-	var nonceArray [SecretBoxNonceSize]byte
+	// Create fixed-size arrays
+	var keyArray [32]byte
+	var nonceArray [24]byte
+	copy(keyArray[:], key)
 	copy(nonceArray[:], nonce)
 
 	// Encrypt
 	ciphertext := secretbox.Seal(nil, data, &nonceArray, &keyArray)
 
-	return ciphertext, nonce, nil
+	return &EncryptedData{
+		Ciphertext: ciphertext,
+		Nonce:      nonce,
+	}, nil
 }
 
-// DecryptWithSecretBox decrypts data using NaCl secretbox (matches crypto_secretbox_open_easy)
+// EncryptDataWithKey is a helper that encrypts data and returns ciphertext and nonce separately
+// This is for backward compatibility with existing code
+func EncryptDataWithKey(data, key []byte) (ciphertext []byte, nonce []byte, err error) {
+	encData, err := EncryptWithSecretBox(data, key)
+	if err != nil {
+		return nil, nil, err
+	}
+	return encData.Ciphertext, encData.Nonce, nil
+}
+
+// DecryptWithSecretBox decrypts data with a symmetric key using NaCl secretbox
 func DecryptWithSecretBox(ciphertext, nonce, key []byte) ([]byte, error) {
 	if len(key) != SecretBoxKeySize {
-		return nil, errors.New("key must be 32 bytes")
-	}
-	if len(nonce) != SecretBoxNonceSize {
-		return nil, errors.New("nonce must be 24 bytes")
+		return nil, fmt.Errorf("invalid key size: expected %d, got %d", SecretBoxKeySize, len(key))
 	}
 
-	var keyArray [SecretBoxKeySize]byte
-	var nonceArray [SecretBoxNonceSize]byte
+	if len(nonce) != SecretBoxNonceSize {
+		return nil, fmt.Errorf("invalid nonce size: expected %d, got %d", SecretBoxNonceSize, len(nonce))
+	}
+
+	// Create fixed-size arrays
+	var keyArray [32]byte
+	var nonceArray [24]byte
 	copy(keyArray[:], key)
 	copy(nonceArray[:], nonce)
 
+	// Decrypt
 	plaintext, ok := secretbox.Open(nil, ciphertext, &nonceArray, &keyArray)
 	if !ok {
-		return nil, errors.New("decryption failed, invalid key or ciphertext")
+		return nil, errors.New("failed to decrypt: invalid key, nonce, or corrupted ciphertext")
 	}
 
 	return plaintext, nil
 }
 
-// EncryptWithBoxSeal encrypts data with a recipient's public key
-// This implements the functionality of libsodium's crypto_box_seal
-func EncryptWithBoxSeal(data []byte, recipientPK []byte) ([]byte, error) {
-	if len(recipientPK) != BoxPublicKeySize {
-		return nil, errors.New("recipient public key must be 32 bytes")
+// EncryptWithBox encrypts data using NaCl box with the recipient's public key and sender's private key
+func EncryptWithBox(message []byte, recipientPublicKey, senderPrivateKey []byte) (*EncryptedData, error) {
+	if len(recipientPublicKey) != BoxPublicKeySize {
+		return nil, fmt.Errorf("recipient public key must be %d bytes", BoxPublicKeySize)
+	}
+	if len(senderPrivateKey) != BoxSecretKeySize {
+		return nil, fmt.Errorf("sender private key must be %d bytes", BoxSecretKeySize)
+	}
+
+	// Generate nonce
+	nonce, err := GenerateRandomBytes(BoxNonceSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate nonce: %w", err)
+	}
+
+	// Create fixed-size arrays
+	var recipientPubKey [32]byte
+	var senderPrivKey [32]byte
+	var nonceArray [24]byte
+	copy(recipientPubKey[:], recipientPublicKey)
+	copy(senderPrivKey[:], senderPrivateKey)
+	copy(nonceArray[:], nonce)
+
+	// Encrypt
+	ciphertext := box.Seal(nil, message, &nonceArray, &recipientPubKey, &senderPrivKey)
+
+	return &EncryptedData{
+		Ciphertext: ciphertext,
+		Nonce:      nonce,
+	}, nil
+}
+
+// DecryptWithBox decrypts data using NaCl box with the sender's public key and recipient's private key
+func DecryptWithBox(ciphertext, nonce []byte, senderPublicKey, recipientPrivateKey []byte) ([]byte, error) {
+	if len(senderPublicKey) != BoxPublicKeySize {
+		return nil, fmt.Errorf("sender public key must be %d bytes", BoxPublicKeySize)
+	}
+	if len(recipientPrivateKey) != BoxSecretKeySize {
+		return nil, fmt.Errorf("recipient private key must be %d bytes", BoxSecretKeySize)
+	}
+	if len(nonce) != BoxNonceSize {
+		return nil, fmt.Errorf("nonce must be %d bytes", BoxNonceSize)
+	}
+
+	// Create fixed-size arrays
+	var senderPubKey [32]byte
+	var recipientPrivKey [32]byte
+	var nonceArray [24]byte
+	copy(senderPubKey[:], senderPublicKey)
+	copy(recipientPrivKey[:], recipientPrivateKey)
+	copy(nonceArray[:], nonce)
+
+	// Decrypt
+	plaintext, ok := box.Open(nil, ciphertext, &nonceArray, &senderPubKey, &recipientPrivKey)
+	if !ok {
+		return nil, errors.New("failed to decrypt: invalid keys, nonce, or corrupted ciphertext")
+	}
+
+	return plaintext, nil
+}
+
+// EncryptWithBoxSeal encrypts data with a recipient's public key using anonymous sender (sealed box)
+// This is used for encrypting data where the sender doesn't need to be authenticated
+func EncryptWithBoxSeal(message []byte, recipientPublicKey []byte) ([]byte, error) {
+	if len(recipientPublicKey) != BoxPublicKeySize {
+		return nil, fmt.Errorf("recipient public key must be %d bytes", BoxPublicKeySize)
 	}
 
 	// Create a fixed-size array for the recipient's public key
-	var recipientPKArray [BoxPublicKeySize]byte
-	copy(recipientPKArray[:], recipientPK)
+	var recipientPubKey [32]byte
+	copy(recipientPubKey[:], recipientPublicKey)
 
 	// Generate an ephemeral keypair
-	ephemeralPK, ephemeralSK, err := box.GenerateKey(rand.Reader)
+	ephemeralPubKey, ephemeralPrivKey, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate ephemeral keypair: %w", err)
 	}
 
 	// Generate a random nonce
-	var nonce [BoxNonceSize]byte
-	if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
-		return nil, err
+	nonce, err := GenerateRandomBytes(BoxNonceSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate nonce: %w", err)
 	}
+	var nonceArray [24]byte
+	copy(nonceArray[:], nonce)
 
 	// Encrypt the message
-	ciphertext := box.Seal(nil, data, &nonce, &recipientPKArray, ephemeralSK)
+	ciphertext := box.Seal(nil, message, &nonceArray, &recipientPubKey, ephemeralPrivKey)
 
-	// Return the ephemeral public key + nonce + ciphertext
+	// Result format: ephemeral_public_key || nonce || ciphertext
 	result := make([]byte, BoxPublicKeySize+BoxNonceSize+len(ciphertext))
-	copy(result[:BoxPublicKeySize], ephemeralPK[:])
-	copy(result[BoxPublicKeySize:BoxPublicKeySize+BoxNonceSize], nonce[:])
+	copy(result[:BoxPublicKeySize], ephemeralPubKey[:])
+	copy(result[BoxPublicKeySize:BoxPublicKeySize+BoxNonceSize], nonce)
 	copy(result[BoxPublicKeySize+BoxNonceSize:], ciphertext)
 
 	return result, nil
 }
 
-// DecryptWithBoxSealOpen decrypts data sealed with EncryptWithBoxSeal
-func DecryptWithBoxSealOpen(sealedData, publicKey, privateKey []byte) ([]byte, error) {
-	if len(publicKey) != BoxPublicKeySize {
-		return nil, errors.New("public key must be 32 bytes")
+// DecryptWithBoxSeal decrypts data that was encrypted with EncryptWithBoxSeal
+func DecryptWithBoxSeal(sealedData []byte, recipientPublicKey, recipientPrivateKey []byte) ([]byte, error) {
+	if len(recipientPublicKey) != BoxPublicKeySize {
+		return nil, fmt.Errorf("recipient public key must be %d bytes", BoxPublicKeySize)
 	}
-	if len(privateKey) != BoxSecretKeySize {
-		return nil, errors.New("private key must be 32 bytes")
+	if len(recipientPrivateKey) != BoxSecretKeySize {
+		return nil, fmt.Errorf("recipient private key must be %d bytes", BoxSecretKeySize)
 	}
-	if len(sealedData) < BoxPublicKeySize+BoxNonceSize {
+	if len(sealedData) < BoxPublicKeySize+BoxNonceSize+box.Overhead {
 		return nil, errors.New("sealed data too short")
 	}
 
 	// Extract components
-	ephemeralPK := sealedData[:BoxPublicKeySize]
+	ephemeralPublicKey := sealedData[:BoxPublicKeySize]
 	nonce := sealedData[BoxPublicKeySize : BoxPublicKeySize+BoxNonceSize]
 	ciphertext := sealedData[BoxPublicKeySize+BoxNonceSize:]
 
-	// Convert to fixed-size arrays
-	var pubKeyArray, ephemeralPKArray [BoxPublicKeySize]byte
-	var privKeyArray [BoxSecretKeySize]byte
-	var nonceArray [BoxNonceSize]byte
-
-	copy(pubKeyArray[:], publicKey)
-	copy(privKeyArray[:], privateKey)
-	copy(ephemeralPKArray[:], ephemeralPK)
+	// Create fixed-size arrays
+	var ephemeralPubKey [32]byte
+	var recipientPrivKey [32]byte
+	var nonceArray [24]byte
+	copy(ephemeralPubKey[:], ephemeralPublicKey)
+	copy(recipientPrivKey[:], recipientPrivateKey)
 	copy(nonceArray[:], nonce)
 
 	// Decrypt
-	plaintext, ok := box.Open(nil, ciphertext, &nonceArray, &ephemeralPKArray, &privKeyArray)
+	plaintext, ok := box.Open(nil, ciphertext, &nonceArray, &ephemeralPubKey, &recipientPrivKey)
 	if !ok {
-		return nil, errors.New("decryption failed, invalid keys or ciphertext")
+		return nil, errors.New("failed to decrypt sealed box: invalid keys or corrupted ciphertext")
 	}
 
 	return plaintext, nil
 }
 
+// DecryptWithBoxAnonymous decrypts data that was encrypted anonymously (without nonce in the data)
+// This is used in the login flow for decrypting challenges
+func DecryptWithBoxAnonymous(encryptedData []byte, recipientPublicKey, recipientPrivateKey []byte) ([]byte, error) {
+	if len(recipientPublicKey) != BoxPublicKeySize {
+		return nil, fmt.Errorf("recipient public key must be %d bytes", BoxPublicKeySize)
+	}
+	if len(recipientPrivateKey) != BoxSecretKeySize {
+		return nil, fmt.Errorf("recipient private key must be %d bytes", BoxSecretKeySize)
+	}
+
+	// Create fixed-size arrays
+	var pubKeyArray, privKeyArray [32]byte
+	copy(pubKeyArray[:], recipientPublicKey)
+	copy(privKeyArray[:], recipientPrivateKey)
+
+	// Decrypt the sealed box challenge
+	decryptedData, ok := box.OpenAnonymous(nil, encryptedData, &pubKeyArray, &privKeyArray)
+	if !ok {
+		return nil, errors.New("failed to decrypt anonymous box: invalid keys or corrupted data")
+	}
+
+	return decryptedData, nil
+}
+
+// EncodeToBase64 encodes bytes to base64 standard encoding
+func EncodeToBase64(data []byte) string {
+	return base64.StdEncoding.EncodeToString(data)
+}
+
+// EncodeToBase64URL encodes bytes to base64 URL-safe encoding without padding
+func EncodeToBase64URL(data []byte) string {
+	return base64.RawURLEncoding.EncodeToString(data)
+}
+
+// DecodeFromBase64 decodes a base64 standard encoded string to bytes
+func DecodeFromBase64(s string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(s)
+}
+
+// DecodeFromBase64URL decodes a base64 URL-safe encoded string without padding to bytes
+func DecodeFromBase64URL(s string) ([]byte, error) {
+	return base64.RawURLEncoding.DecodeString(s)
+}
+
 // CombineNonceAndCiphertext combines nonce and ciphertext into a single byte slice
-// This matches the combineNonceAndCiphertext function in the frontend
+// This is useful for storing encrypted data as a single blob
 func CombineNonceAndCiphertext(nonce, ciphertext []byte) []byte {
 	combined := make([]byte, len(nonce)+len(ciphertext))
 	copy(combined[:len(nonce)], nonce)
@@ -216,25 +338,26 @@ func CombineNonceAndCiphertext(nonce, ciphertext []byte) []byte {
 }
 
 // SplitNonceAndCiphertext splits a combined byte slice into nonce and ciphertext
-// This matches the splitNonceAndCiphertext function in the frontend
-func SplitNonceAndCiphertext(combined []byte) ([]byte, []byte, error) {
-	if len(combined) < SecretBoxNonceSize {
-		return nil, nil, errors.New("combined data too short to contain a nonce")
+// Assumes the nonce is SecretBoxNonceSize (24 bytes)
+func SplitNonceAndCiphertext(combined []byte, nonceSize int) (nonce []byte, ciphertext []byte, err error) {
+	if len(combined) < nonceSize {
+		return nil, nil, fmt.Errorf("combined data too short: expected at least %d bytes, got %d", nonceSize, len(combined))
 	}
 
-	nonce := combined[:SecretBoxNonceSize]
-	ciphertext := combined[SecretBoxNonceSize:]
+	nonce = combined[:nonceSize]
+	ciphertext = combined[nonceSize:]
 	return nonce, ciphertext, nil
 }
 
-// ToBase64 encodes bytes to base64 URL-safe string without padding
-// This matches the to_base64 function in libsodium with URLSAFE_NO_PADDING variant
-func ToBase64(data []byte) string {
-	return base64.RawURLEncoding.EncodeToString(data)
+// Helper function to convert EncryptedData to separate slices (for backward compatibility)
+func (ed *EncryptedData) Separate() (ciphertext []byte, nonce []byte) {
+	return ed.Ciphertext, ed.Nonce
 }
 
-// FromBase64 decodes a base64 URL-safe string without padding to bytes
-// This matches the from_base64 function in libsodium with URLSAFE_NO_PADDING variant
-func FromBase64(s string) ([]byte, error) {
-	return base64.RawURLEncoding.DecodeString(s)
+// ClearBytes overwrites a byte slice with zeros
+// This should be called on sensitive data like keys when they're no longer needed
+func ClearBytes(b []byte) {
+	for i := range b {
+		b[i] = 0
+	}
 }
