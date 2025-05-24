@@ -52,13 +52,13 @@ func (r *fileRepository) List(ctx context.Context, filter file.FileFilter) ([]*d
 
 		// Filter by name contains if specified
 		if filter.NameContains != nil {
-			if !strings.Contains(strings.ToLower(file.DecryptedName), strings.ToLower(*filter.NameContains)) {
+			if !strings.Contains(strings.ToLower(file.Name), strings.ToLower(*filter.NameContains)) {
 				return nil // Skip, name doesn't contain the filter string
 			}
 		}
 
 		// Filter by mime type if specified
-		if filter.MimeType != nil && file.DecryptedMimeType != *filter.MimeType {
+		if filter.MimeType != nil && file.MimeType != *filter.MimeType {
 			return nil // Skip, mime type doesn't match
 		}
 

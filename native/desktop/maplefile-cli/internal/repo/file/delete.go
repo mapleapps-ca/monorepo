@@ -39,15 +39,15 @@ func (r *fileRepository) Delete(ctx context.Context, id primitive.ObjectID) erro
 	}
 
 	// Delete the decrypted file data from the filesystem if it exists
-	if file.DecryptedFilePath != "" {
-		if err := os.Remove(file.DecryptedFilePath); err != nil && !os.IsNotExist(err) {
+	if file.FilePath != "" {
+		if err := os.Remove(file.FilePath); err != nil && !os.IsNotExist(err) {
 			r.logger.Error("Failed to delete decrypted file data",
-				zap.String("decryptedFilePath", file.DecryptedFilePath),
+				zap.String("filePath", file.FilePath),
 				zap.Error(err))
 			// Continue with metadata deletion even if file deletion fails
 		} else {
 			r.logger.Debug("Deleted decrypted file data",
-				zap.String("decryptedFilePath", file.DecryptedFilePath))
+				zap.String("filePath", file.FilePath))
 		}
 	}
 

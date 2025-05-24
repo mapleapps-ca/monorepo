@@ -29,9 +29,9 @@ type File struct {
 	EncryptionVersion string `json:"encryption_version"`
 	// Hash of the encrypted file for integrity checking
 	EncryptedHash string `json:"encrypted_hash"`
-	// Decrypted metadata for local use
-	DecryptedName     string `json:"decrypted_name"`
-	DecryptedMimeType string `json:"decrypted_mime_type"`
+	// Decrypted metadata for local use (client device side only)
+	Name     string `json:"name"`
+	MimeType string `json:"mime_type"`
 
 	// Encrypted File Storage Details
 	// The path on the local filesystem where the encrypted file is stored
@@ -39,11 +39,11 @@ type File struct {
 	// Size of the encrypted file in bytes. To be used for accounting and billing purposes.
 	EncryptedFileSize int64 `json:"encrypted_file_size"`
 
-	// Decrypted File Storage Details
+	// Decrypted File Storage Details (client device side only)
 	// The path on the local filesystem where the decrypted file is stored
-	DecryptedFilePath string `json:"decrypted_file_path"`
+	FilePath string `json:"file_path"`
 	// Size of the decrypted file in bytes.
-	DecryptedFileSize int64 `json:"decrypted_file_size"`
+	FileSize int64 `json:"file_size"`
 
 	// Encrypted Thumbnail Storage Details
 	// The path where the thumbnail is stored locally (if it exists)
@@ -51,17 +51,17 @@ type File struct {
 	// Size of the encrypted thumbnail in bytes. To be used for accounting and billing purposes.
 	EncryptedThumbnailSize int64 `json:"encrypted_thumbnai_size"`
 
-	// Decrypted Thumbnail Storage Details
+	// Decrypted Thumbnail Storage Details (client device side only)
 	// The path where the thumbnail is stored locally (if it exists)
-	DecryptedThumbnailPath string `json:"decrypted_thumbnail_path,omitempty"`
+	ThumbnailPath string `json:"thumbnail_path,omitempty"`
 	// Size of the decrypted thumbnail in bytes. To be used for accounting and billing purposes.
-	DecryptedThumbnailSize int64 `json:"decrypted_thumbnail_size"`
+	ThumbnailSize int64 `json:"thumbnail_size"`
 
 	// Fields for tracking synchronization state
 	LastSyncedAt      time.Time  `json:"last_synced_at"`
 	IsModifiedLocally bool       `json:"is_modified_locally"`
 	SyncStatus        SyncStatus `json:"sync_status"`
-	// Controls which file versions are kept (encrypted, decrypted, or both)
+	// Controls which file versions are kept (encrypted, decrypted, or both) (client device side only)
 	StorageMode string `json:"storage_mode"`
 
 	// Timestamps and conflict resolution
