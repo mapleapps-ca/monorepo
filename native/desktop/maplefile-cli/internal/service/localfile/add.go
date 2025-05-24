@@ -156,8 +156,15 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 		return nil, errors.NewAppError("failed to create files directory", err)
 	}
 
+	// Create bin subdirectory
+	binDir := s.pathUtilsUseCase.Join(ctx, filesDir, "bin")
+	if err := s.createDirectoryUseCase.ExecuteAll(ctx, binDir); err != nil {
+		s.logger.Error("Failed to create bin directory", zap.String("binDir", binDir), zap.Error(err))
+		return nil, errors.NewAppError("failed to create bin directory", err)
+	}
+
 	// Create collection-specific subdirectory
-	collectionDir := s.pathUtilsUseCase.Join(ctx, filesDir, input.CollectionID.Hex())
+	collectionDir := s.pathUtilsUseCase.Join(ctx, binDir, input.CollectionID.Hex())
 	if err := s.createDirectoryUseCase.ExecuteAll(ctx, collectionDir); err != nil {
 		s.logger.Error("Failed to create collection directory", zap.String("collectionDir", collectionDir), zap.Error(err))
 		return nil, errors.NewAppError("failed to create collection directory", err)
