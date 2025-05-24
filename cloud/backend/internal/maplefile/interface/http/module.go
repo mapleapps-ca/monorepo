@@ -45,7 +45,6 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(collection.NewListSharedCollectionsHTTPHandler),
 
 			// File handlers
-			// unifiedhttp.AsRoute(file.NewUploadFileHTTPHandler), // Deprecated
 			unifiedhttp.AsRoute(file.NewDeleteFileHTTPHandler),
 			unifiedhttp.AsRoute(file.NewDeleteMultipleFilesHTTPHandler),
 			unifiedhttp.AsRoute(file.NewDownloadFileHTTPHandler),
