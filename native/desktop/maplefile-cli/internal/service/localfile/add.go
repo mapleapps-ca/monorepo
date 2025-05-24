@@ -254,6 +254,8 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 	// For now, store as base64-encoded JSON
 	encryptedMetadataString := crypto.EncodeToBase64(metadataBytes)
 
+	encryptedHashString := crypto.EncodeToBase64([]byte("Some hash value")) // TODO - Please implement encrypted hash value
+
 	//
 	// STEP 8: Create domain file object
 	//
@@ -265,7 +267,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 		EncryptedMetadata: encryptedMetadataString,
 		EncryptedFileKey:  encryptedFileKey,
 		EncryptionVersion: "v1",
-		EncryptedHash:     "TODO - Please implement encrypted hash value",
+		EncryptedHash:     encryptedHashString,
 		Name:              fileName,
 		MimeType:          mimeType,
 		FilePath:          destFilePath, // Decrypted file path (what we copied)
