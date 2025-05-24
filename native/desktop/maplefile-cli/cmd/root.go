@@ -22,7 +22,6 @@ import (
 	svc_auth "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	svc_register "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/tokenservice"
 )
 
 // NewRootCmd creates a new root command with all dependencies injected
@@ -36,7 +35,6 @@ func NewRootCmd(
 	loginOTTService svc_auth.LoginOTTService,
 	loginOTTVerificationService svc_auth.LoginOTTVerificationService,
 	completeLoginService svc_auth.CompleteLoginService,
-	tokenRefreshSvc tokenservice.TokenRefreshService,
 	collectionListService collection.ListService,
 	// other services...
 ) *cobra.Command {

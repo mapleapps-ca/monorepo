@@ -3,13 +3,11 @@ package collection
 
 import (
 	"net/http"
-	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage"
 )
 
@@ -20,7 +18,6 @@ const collectionKeyPrefix = "local_collection:"
 type collectionRepository struct {
 	logger        *zap.Logger
 	configService config.ConfigService
-	userRepo      user.Repository
 	httpClient    *http.Client
 	dbClient      storage.Storage // Add LevelDB client for local storage
 }
@@ -29,14 +26,11 @@ type collectionRepository struct {
 func NewCollectionRepository(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	userRepo user.Repository,
 	dbClient storage.Storage, // Add storage client parameter
 ) collection.CollectionRepository {
 	return &collectionRepository{
 		logger:        logger,
 		configService: configService,
-		userRepo:      userRepo,
-		httpClient:    &http.Client{Timeout: 30 * time.Second},
 		dbClient:      dbClient,
 	}
 }

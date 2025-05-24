@@ -42,13 +42,6 @@ func (tm *txManager) Begin() error {
 	if err != nil {
 		return err
 	}
-	// err = tm.fileRepo.OpenTransaction()
-	// if err != nil {
-	// 	return err
-	// }
-	//TODO:
-	// remotecollectionRepo: ,
-	// remotefileRepo:       remotefileRepo,
 	return err
 }
 
@@ -66,22 +59,12 @@ func (tm *txManager) Commit() error {
 	if err != nil {
 		return err
 	}
-	// err = tm.fileRepo.CommitTransaction()
-	// if err != nil {
-	// 	return err
-	// }
-	//TODO:
-	// remotecollectionRepo: remotecollectionRepo,
-	// remotefileRepo:       remotefileRepo,
 	return err
 }
 
 // Rollback aborts the transaction
 func (tm *txManager) Rollback() {
-	//TODO:
 	tm.userRepo.DiscardTransaction()
 	tm.collectionRepo.DiscardTransaction()
 	tm.fileRepo.DiscardTransaction()
-	// remotecollectionRepo: remotecollectionRepo,
-	// remotefileRepo:       remotefileRepo,
 }
