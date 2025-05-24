@@ -265,6 +265,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 		EncryptedMetadata: encryptedMetadataString,
 		EncryptedFileKey:  encryptedFileKey,
 		EncryptionVersion: "v1",
+		EncryptedHash:     "TODO - Please implement encrypted hash value",
 		Name:              fileName,
 		MimeType:          mimeType,
 		FilePath:          destFilePath, // Decrypted file path (what we copied)
