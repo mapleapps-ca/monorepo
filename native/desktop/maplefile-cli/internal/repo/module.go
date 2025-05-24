@@ -89,7 +89,7 @@ func RepoModule() fx.Option {
 		fx.Provide(
 			fx.Annotate(
 				collection.NewCollectionRepository,
-				fx.ParamTags(``, ``, ``, ``, `name:"collection_db"`),
+				fx.ParamTags(``, ``, `name:"collection_db"`),
 			),
 		),
 
