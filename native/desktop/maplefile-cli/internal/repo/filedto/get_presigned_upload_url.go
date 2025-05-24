@@ -17,8 +17,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
 )
 
-// GetPresignedUploadURL generates new presigned upload URLs for an existing file
-func (r *fileDTORepository) GetPresignedUploadURL(ctx context.Context, fileID primitive.ObjectID, request *filedto.GetPresignedUploadURLRequest) (*filedto.GetPresignedUploadURLResponse, error) {
+// GetPresignedUploadURLFromCloud generates new presigned upload URLs for an existing file
+func (r *fileDTORepository) GetPresignedUploadURLFromCloud(ctx context.Context, fileID primitive.ObjectID, request *filedto.GetPresignedUploadURLRequest) (*filedto.GetPresignedUploadURLResponse, error) {
 	r.logger.Debug("Getting presigned upload URL",
 		zap.String("fileID", fileID.Hex()),
 		zap.Duration("urlDuration", request.URLDuration))

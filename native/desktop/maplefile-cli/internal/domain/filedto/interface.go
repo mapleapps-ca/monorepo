@@ -14,10 +14,10 @@ import (
 type FileDTORepository interface {
 	// Three-Step File Upload Process
 
-	// CreatePendingFile creates a pending file record in the cloud and returns
+	// CreatePendingFileInCloud creates a pending file record in the cloud and returns
 	// presigned URLs for uploading the file content directly to cloud storage.
 	// This is Step 1 of the three-step upload process.
-	CreatePendingFile(ctx context.Context, request *CreatePendingFileRequest) (*CreatePendingFileResponse, error)
+	CreatePendingFileInCloud(ctx context.Context, request *CreatePendingFileRequest) (*CreatePendingFileResponse, error)
 
 	// UploadFileToCloud uploads the actual file content to cloud storage using
 	// the presigned URL obtained from CreatePendingFile. This is Step 2 of the
@@ -28,16 +28,16 @@ type FileDTORepository interface {
 	// the presigned thumbnail URL. This is optional and part of Step 2.
 	UploadThumbnailToCloud(ctx context.Context, presignedURL string, thumbnailData []byte) error
 
-	// CompleteFileUpload completes the file upload process by notifying the cloud
+	// CompleteFileUploadInCloud completes the file upload process by notifying the cloud
 	// service that the upload is finished. This transitions the file from 'pending'
 	// to 'active' state. This is Step 3 of the three-step upload process.
-	CompleteFileUpload(ctx context.Context, fileID primitive.ObjectID, request *CompleteFileUploadRequest) (*CompleteFileUploadResponse, error)
+	CompleteFileUploadInCloud(ctx context.Context, fileID primitive.ObjectID, request *CompleteFileUploadRequest) (*CompleteFileUploadResponse, error)
 
 	// Additional Upload Management
 
-	// GetPresignedUploadURL generates new presigned upload URLs for an existing file.
+	// GetPresignedUploadURLFromCloud generates new presigned upload URLs for an existing file.
 	// This can be used to re-upload or replace file content.
-	GetPresignedUploadURL(ctx context.Context, fileID primitive.ObjectID, request *GetPresignedUploadURLRequest) (*GetPresignedUploadURLResponse, error)
+	GetPresignedUploadURLFromCloud(ctx context.Context, fileID primitive.ObjectID, request *GetPresignedUploadURLRequest) (*GetPresignedUploadURLResponse, error)
 
 	// Legacy/Convenience Methods
 

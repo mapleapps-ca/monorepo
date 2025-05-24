@@ -51,7 +51,7 @@ func (r *fileDTORepository) performThreeStepUpload(ctx context.Context, file *fi
 		ExpectedThumbnailSizeInBytes: int64(len(thumbnailData)),
 	}
 
-	createResponse, err := r.CreatePendingFile(ctx, createRequest)
+	createResponse, err := r.CreatePendingFileInCloud(ctx, createRequest)
 	if err != nil {
 		return nil, errors.NewAppError("failed to create pending file", err)
 	}
@@ -84,7 +84,7 @@ func (r *fileDTORepository) performThreeStepUpload(ctx context.Context, file *fi
 		ThumbnailUploadConfirmed:   thumbnailUploaded,
 	}
 
-	completeResponse, err := r.CompleteFileUpload(ctx, fileID, completeRequest)
+	completeResponse, err := r.CompleteFileUploadInCloud(ctx, fileID, completeRequest)
 	if err != nil {
 		return &fileID, errors.NewAppError("failed to complete file upload", err)
 	}
@@ -105,7 +105,7 @@ func (r *fileDTORepository) updateExistingFile(ctx context.Context, file *filedt
 		URLDuration: 0, // Use default duration
 	}
 
-	urlResponse, err := r.GetPresignedUploadURL(ctx, file.ID, urlRequest)
+	urlResponse, err := r.GetPresignedUploadURLFromCloud(ctx, file.ID, urlRequest)
 	if err != nil {
 		return &file.ID, errors.NewAppError("failed to get presigned upload URLs", err)
 	}
@@ -135,7 +135,7 @@ func (r *fileDTORepository) updateExistingFile(ctx context.Context, file *filedt
 		ThumbnailUploadConfirmed:   thumbnailUploaded,
 	}
 
-	_, err = r.CompleteFileUpload(ctx, file.ID, completeRequest)
+	_, err = r.CompleteFileUploadInCloud(ctx, file.ID, completeRequest)
 	if err != nil {
 		return &file.ID, errors.NewAppError("failed to complete file update", err)
 	}
