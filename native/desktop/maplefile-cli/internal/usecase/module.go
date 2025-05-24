@@ -8,6 +8,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
@@ -48,6 +49,18 @@ func UseCaseModule() fx.Option {
 		fx.Provide(collection.NewDeleteCollectionUseCase),
 		fx.Provide(collection.NewMoveCollectionUseCase),
 		fx.Provide(collection.NewGetCollectionPathUseCase),
+
+		// File database use cases (for managing file records)
+		fx.Provide(file.NewCreateFileUseCase),
+		fx.Provide(file.NewCreateFilesUseCase),
+		fx.Provide(file.NewGetFileUseCase),
+		fx.Provide(file.NewGetFilesByIDsUseCase),
+		fx.Provide(file.NewListFilesByCollectionUseCase),
+		fx.Provide(file.NewUpdateFileUseCase),
+		fx.Provide(file.NewDeleteFileUseCase),
+		fx.Provide(file.NewDeleteFilesUseCase),
+		fx.Provide(file.NewCheckFileExistsUseCase),
+		fx.Provide(file.NewCheckFileAccessUseCase),
 
 		// Local file system use cases (actual file operations)
 		fx.Provide(localfile.NewReadFileUseCase),

@@ -23,7 +23,7 @@ func ServiceModule() fx.Option {
 		fx.Provide(auth.NewLoginOTTVerificationService),
 		fx.Provide(auth.NewCompleteLoginService),
 
-		// Local collection services
+		// Collection services
 		fx.Provide(collection.NewCreateService),
 		fx.Provide(collection.NewGetService),
 		fx.Provide(collection.NewListService),
@@ -43,5 +43,8 @@ func ServiceModule() fx.Option {
 		// fx.Provide(collectionsyncer.NewFindByCloudIDService),
 		// fx.Provide(collectionsyncer.NewDownloadService),
 		// fx.Provide(collectionsyncer.NewUploadService),
+
+		// Local file services
+		fx.Provide(localfile.NewAddService),
 	)
 }
