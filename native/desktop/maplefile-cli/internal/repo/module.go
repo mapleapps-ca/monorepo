@@ -9,9 +9,9 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/file"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/filedto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/transaction"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/leveldb"
-	// "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/filedto"
 )
 
 // RepoModule provides the repository-layer-related dependencies
@@ -109,9 +109,9 @@ func RepoModule() fx.Option {
 		),
 
 		//----------------------------------------------
-		// Cloud file repository
+		// Cloud file repository (NEW)
 		//----------------------------------------------
-		// fx.Provide(filedto.NewFileDTORepository),
+		fx.Provide(filedto.NewFileDTORepository),
 
 		//----------------------------------------------
 		// Transaction manager
