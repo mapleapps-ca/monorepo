@@ -11,8 +11,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
+	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
+	userUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
 // UseCaseModule provides the service-layer--related dependencies
@@ -29,14 +29,16 @@ func UseCaseModule() fx.Option {
 		fx.Provide(authUseCase.NewCompleteLoginUseCase),
 
 		// User repository use cases
-		fx.Provide(user.NewGetByEmailUseCase),
-		fx.Provide(user.NewUpsertByEmailUseCase),
-		fx.Provide(user.NewDeleteByEmailUseCase),
-		fx.Provide(user.NewListAllUseCase),
-		fx.Provide(user.NewGetByIsLoggedInUseCase),
+		fx.Provide(userUseCase.NewGetByEmailUseCase),
+		fx.Provide(userUseCase.NewUpsertByEmailUseCase),
+		fx.Provide(userUseCase.NewDeleteByEmailUseCase),
+		fx.Provide(userUseCase.NewListAllUseCase),
+		fx.Provide(userUseCase.NewGetByIsLoggedInUseCase),
 
 		// Cloud-based collection use cases
 		fx.Provide(collectiondto.NewCreateCollectionInCloudUseCase),
+		// fx.Provide(remotecollection.NewFetchRemoteCollectionUseCase), //TODO: IMPL.
+		// fx.Provide(remotecollection.NewListRemoteCollectionsUseCase), //TODO: IMPL.
 
 		// Local-based collection use cases
 		fx.Provide(collection.NewCreateCollectionUseCase),
@@ -51,8 +53,8 @@ func UseCaseModule() fx.Option {
 		fx.Provide(file.NewCreateFileUseCase),
 		fx.Provide(file.NewCreateFilesUseCase),
 		fx.Provide(file.NewGetFileUseCase),
-		fx.Provide(file.NewGetFilesUseCase),
-		fx.Provide(file.NewListFilesUseCase),
+		fx.Provide(file.NewGetFilesByIDsUseCase),
+		fx.Provide(file.NewListFilesByCollectionUseCase),
 		fx.Provide(file.NewUpdateFileUseCase),
 		fx.Provide(file.NewDeleteFileUseCase),
 		fx.Provide(file.NewDeleteFilesUseCase),
@@ -78,15 +80,10 @@ func UseCaseModule() fx.Option {
 		fx.Provide(localfile.NewChangeStorageModeUseCase),
 		fx.Provide(localfile.NewCleanupOrphanedFilesUseCase),
 
-		// // Cloud collection use cases
-		// fx.Provide(remotecollection.NewCreateRemoteCollectionUseCase),
-		// fx.Provide(remotecollection.NewFetchRemoteCollectionUseCase),
-		// fx.Provide(remotecollection.NewListRemoteCollectionsUseCase),
-
 		// Registration use cases
-		fx.Provide(register.NewGenerateCredentialsUseCase),
-		fx.Provide(register.NewCreateLocalUserUseCase),
-		fx.Provide(register.NewSendRegistrationToServerUseCase),
+		fx.Provide(registerUseCase.NewGenerateCredentialsUseCase),
+		fx.Provide(registerUseCase.NewCreateLocalUserUseCase),
+		fx.Provide(registerUseCase.NewSendRegistrationToServerUseCase),
 
 		// Token refresh usecase
 		fx.Provide(refreshtoken.NewRefreshTokenUseCase),

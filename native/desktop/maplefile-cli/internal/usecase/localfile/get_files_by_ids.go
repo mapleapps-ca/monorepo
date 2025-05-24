@@ -19,18 +19,18 @@ type GetFilesByIDsUseCase interface {
 
 // getFilesByIDsUseCase implements the GetFilesByIDsUseCase interface
 type getFilesByIDsUseCase struct {
-	logger           *zap.Logger
-	listFilesUseCase fileUseCase.ListFilesUseCase
+	logger              *zap.Logger
+	fileGetByIDsUseCase fileUseCase.GetFilesByIDsUseCase
 }
 
 // NewGetFilesByIDsUseCase creates a new use case for getting files by IDs
 func NewGetFilesByIDsUseCase(
 	logger *zap.Logger,
-	listFilesUseCase fileUseCase.ListFilesUseCase,
+	fileGetByIDsUseCase fileUseCase.GetFilesByIDsUseCase,
 ) GetFilesByIDsUseCase {
 	return &getFilesByIDsUseCase{
-		logger:           logger,
-		listFilesUseCase: listFilesUseCase,
+		logger:              logger,
+		fileGetByIDsUseCase: fileGetByIDsUseCase,
 	}
 }
 
@@ -41,7 +41,7 @@ func (uc *getFilesByIDsUseCase) Execute(
 ) ([]*file.File, error) {
 	uc.logger.Debug("Getting local files by IDs", zap.Int("count", len(fileIDs)))
 
-	files, err := uc.listFilesUseCase.GetByIDs(ctx, fileIDs)
+	files, err := uc.fileGetByIDsUseCase.Execute(ctx, fileIDs)
 	if err != nil {
 		return nil, errors.NewAppError("failed to get local files by IDs", err)
 	}

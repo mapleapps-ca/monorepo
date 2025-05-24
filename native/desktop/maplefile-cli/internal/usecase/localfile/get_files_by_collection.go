@@ -19,18 +19,18 @@ type GetFilesByCollectionUseCase interface {
 
 // getFilesByCollectionUseCase implements the GetFilesByCollectionUseCase interface
 type getFilesByCollectionUseCase struct {
-	logger           *zap.Logger
-	listFilesUseCase fileUseCase.ListFilesUseCase
+	logger                       *zap.Logger
+	listFilesByCollectionUseCase fileUseCase.ListFilesByCollectionUseCase
 }
 
 // NewGetFilesByCollectionUseCase creates a new use case for getting files by collection
 func NewGetFilesByCollectionUseCase(
 	logger *zap.Logger,
-	listFilesUseCase fileUseCase.ListFilesUseCase,
+	listFilesByCollectionUseCase fileUseCase.ListFilesByCollectionUseCase,
 ) GetFilesByCollectionUseCase {
 	return &getFilesByCollectionUseCase{
-		logger:           logger,
-		listFilesUseCase: listFilesUseCase,
+		logger:                       logger,
+		listFilesByCollectionUseCase: listFilesByCollectionUseCase,
 	}
 }
 
@@ -41,7 +41,7 @@ func (uc *getFilesByCollectionUseCase) Execute(
 ) ([]*file.File, error) {
 	uc.logger.Debug("Getting local files by collection", zap.String("collectionID", collectionID.Hex()))
 
-	files, err := uc.listFilesUseCase.ListByCollection(ctx, collectionID)
+	files, err := uc.listFilesByCollectionUseCase.Execute(ctx, collectionID)
 	if err != nil {
 		return nil, errors.NewAppError("failed to get local files by collection", err)
 	}
