@@ -62,6 +62,7 @@ func UseCaseModule() fx.Option {
 		fx.Provide(file.NewDeleteFilesUseCase),
 		fx.Provide(file.NewCheckFileExistsUseCase),
 		fx.Provide(file.NewCheckFileAccessUseCase),
+		fx.Provide(file.NewSwapIDsUseCase),
 
 		// Local file system use cases (actual file operations)
 		fx.Provide(localfile.NewReadFileUseCase),

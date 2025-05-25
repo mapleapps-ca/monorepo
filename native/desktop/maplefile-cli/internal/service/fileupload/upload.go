@@ -42,6 +42,7 @@ type uploadService struct {
 	cryptoService            svc_crypto.CryptoService
 	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase
 	getCollectionUseCase     uc_collection.GetCollectionUseCase
+	swapIDsUseCase           uc_file.SwapIDsUseCase
 }
 
 func NewUploadService(
@@ -57,6 +58,7 @@ func NewUploadService(
 	cryptoService svc_crypto.CryptoService,
 	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
+	swapIDsUseCase uc_file.SwapIDsUseCase,
 ) UploadService {
 	return &uploadService{
 		logger:                   logger,
@@ -71,6 +73,7 @@ func NewUploadService(
 		encryptFileUseCase:       encryptFileUseCase,
 		prepareUploadUseCase:     prepareUploadUseCase,
 		cryptoService:            cryptoService,
+		swapIDsUseCase:           swapIDsUseCase,
 	}
 }
 
@@ -256,12 +259,24 @@ func (s *uploadService) updateLocalFile(ctx context.Context, file *dom_file.File
 	// Update sync status
 	newStatus := dom_file.SyncStatusSynced
 	updateInput.SyncStatus = &newStatus
+	file.SyncStatus = newStatus
+	if _, err := s.updateFileUseCase.Execute(ctx, updateInput); err != nil {
+		s.logger.Error("Failed to update local file after successful upload to the cloud",
+			zap.String("fileID", file.ID.Hex()),
+			zap.String("cloudID", cloudFileID.Hex()),
+			zap.Error(err))
+		return err
+	}
 
 	// Update cloud ID
-	file.ID = cloudFileID
-
-	_, err := s.updateFileUseCase.Execute(ctx, updateInput)
-	return err
+	if err := s.swapIDsUseCase.Execute(ctx, file.ID, cloudFileID); err != nil {
+		s.logger.Error("Failed to swap IDs of the local file after successful upload to the cloud",
+			zap.String("fileID", file.ID.Hex()),
+			zap.String("cloudID", cloudFileID.Hex()),
+			zap.Error(err))
+		return err
+	}
+	return nil
 }
 
 func (s *uploadService) failedResult(fileID primitive.ObjectID, err error) (*fileupload.FileUploadResult, error) {

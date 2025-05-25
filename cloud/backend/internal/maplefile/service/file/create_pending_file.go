@@ -88,7 +88,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	// STEP 1: Validation
 	//
 	if req == nil {
-		svc.logger.Warn("Failed validation with nil request")
+		svc.logger.Warn("⚠️ Failed validation with nil request")
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "File creation details are required")
 	}
 
@@ -110,7 +110,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	}
 
 	if len(e) != 0 {
-		svc.logger.Warn("Failed validation",
+		svc.logger.Warn("⚠️ Failed validation",
 			zap.Any("error", e))
 		return nil, httperror.NewForBadRequest(&e)
 	}
@@ -120,7 +120,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	//
 	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
 	if !ok {
-		svc.logger.Error("Failed getting user ID from context")
+		svc.logger.Error("❌ Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
 	}
 
@@ -129,7 +129,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	//
 	hasAccess, err := svc.collectionRepo.CheckAccess(ctx, req.CollectionID, userID, dom_collection.CollectionPermissionReadWrite)
 	if err != nil {
-		svc.logger.Error("Failed to check collection access",
+		svc.logger.Error("❌ Failed to check collection access",
 			zap.Any("error", err),
 			zap.Any("collection_id", req.CollectionID),
 			zap.Any("user_id", userID))
@@ -137,7 +137,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	}
 
 	if !hasAccess {
-		svc.logger.Warn("Unauthorized file creation attempt",
+		svc.logger.Warn("⚠️ Unauthorized file creation attempt",
 			zap.Any("user_id", userID),
 			zap.Any("collection_id", req.CollectionID))
 		return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have permission to create files in this collection")
@@ -158,7 +158,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 
 	presignedUploadURL, err := svc.generatePresignedUploadURLUseCase.Execute(ctx, storagePath, uploadURLDuration)
 	if err != nil {
-		svc.logger.Error("Failed to generate presigned upload URL",
+		svc.logger.Error("❌ Failed to generate presigned upload URL",
 			zap.Any("error", err),
 			zap.Any("file_id", fileID),
 			zap.String("storage_path", storagePath))
@@ -170,7 +170,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	if req.ExpectedThumbnailSizeInBytes > 0 {
 		presignedThumbnailURL, err = svc.generatePresignedUploadURLUseCase.Execute(ctx, thumbnailStoragePath, uploadURLDuration)
 		if err != nil {
-			svc.logger.Warn("Failed to generate thumbnail presigned upload URL, continuing without it",
+			svc.logger.Warn("⚠️ Failed to generate thumbnail presigned upload URL, continuing without it",
 				zap.Any("error", err),
 				zap.Any("file_id", fileID),
 				zap.String("thumbnail_storage_path", thumbnailStoragePath))
@@ -203,7 +203,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 
 	err = svc.createMetadataUseCase.Execute(file)
 	if err != nil {
-		svc.logger.Error("Failed to create pending file metadata",
+		svc.logger.Error("❌ Failed to create pending file metadata",
 			zap.Any("error", err),
 			zap.Any("file_id", fileID))
 		return nil, err
@@ -221,7 +221,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 		Message:                 "Pending file created successfully. Use the presigned URL to upload your file.",
 	}
 
-	svc.logger.Info("Pending file created successfully",
+	svc.logger.Info("✅ Pending file created successfully",
 		zap.Any("file_id", fileID),
 		zap.Any("collection_id", req.CollectionID),
 		zap.Any("owner_id", userID),

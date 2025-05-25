@@ -82,12 +82,12 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	// STEP 1: Validation
 	//
 	if req == nil {
-		svc.logger.Warn("Failed validation with nil request")
+		svc.logger.Warn("⚠️ Failed validation with nil request")
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "File completion details are required")
 	}
 
 	if req.FileID.IsZero() {
-		svc.logger.Warn("Empty file ID provided")
+		svc.logger.Warn("⚠️ Empty file ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("file_id", "File ID is required")
 	}
 
@@ -96,7 +96,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	//
 	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
 	if !ok {
-		svc.logger.Error("Failed getting user ID from context")
+		svc.logger.Error("🔴 Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
 	}
 
@@ -105,7 +105,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	//
 	file, err := svc.getMetadataUseCase.Execute(req.FileID)
 	if err != nil {
-		svc.logger.Error("Failed to get file metadata",
+		svc.logger.Error("🔴 Failed to get file metadata",
 			zap.Any("error", err),
 			zap.Any("file_id", req.FileID))
 		return nil, err
@@ -116,7 +116,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	//
 	hasAccess, err := svc.collectionRepo.CheckAccess(ctx, file.CollectionID, userID, dom_collection.CollectionPermissionReadWrite)
 	if err != nil {
-		svc.logger.Error("Failed to check collection access",
+		svc.logger.Error("🔴 Failed to check collection access",
 			zap.Any("error", err),
 			zap.Any("collection_id", file.CollectionID),
 			zap.Any("user_id", userID))
@@ -124,7 +124,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	}
 
 	if !hasAccess {
-		svc.logger.Warn("Unauthorized file completion attempt",
+		svc.logger.Warn("⚠️ Unauthorized file completion attempt",
 			zap.Any("user_id", userID),
 			zap.Any("file_id", req.FileID),
 			zap.Any("collection_id", file.CollectionID))
@@ -135,7 +135,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	// STEP 5: Verify file is in pending state
 	//
 	if file.State != dom_file.StatePending {
-		svc.logger.Warn("File is not in pending state",
+		svc.logger.Warn("⚠️ File is not in pending state",
 			zap.Any("file_id", req.FileID),
 			zap.String("current_state", file.State))
 		return nil, httperror.NewForBadRequestWithSingleField("file_id", fmt.Sprintf("File is not in pending state (current state: %s)", file.State))
@@ -146,7 +146,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	//
 	fileExists, err := svc.verifyObjectExistsUseCase.Execute(file.EncryptedFileObjectKey)
 	if err != nil {
-		svc.logger.Error("Failed to verify file exists in storage",
+		svc.logger.Error("🔴 Failed to verify file exists in storage",
 			zap.Any("error", err),
 			zap.Any("file_id", req.FileID),
 			zap.String("storage_path", file.EncryptedFileObjectKey))
@@ -154,7 +154,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	}
 
 	if !fileExists {
-		svc.logger.Warn("File does not exist in storage",
+		svc.logger.Warn("⚠️ File does not exist in storage",
 			zap.Any("file_id", req.FileID),
 			zap.String("storage_path", file.EncryptedFileObjectKey))
 		return nil, httperror.NewForBadRequestWithSingleField("file_id", "File has not been uploaded yet")
@@ -163,7 +163,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	// Get actual file size from storage
 	actualFileSize, err := svc.getObjectSizeUseCase.Execute(file.EncryptedFileObjectKey)
 	if err != nil {
-		svc.logger.Error("Failed to get file size from storage",
+		svc.logger.Error("🔴 Failed to get file size from storage",
 			zap.Any("error", err),
 			zap.Any("file_id", req.FileID),
 			zap.String("storage_path", file.EncryptedFileObjectKey))
@@ -179,7 +179,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	if file.EncryptedThumbnailObjectKey != "" {
 		thumbnailExists, err := svc.verifyObjectExistsUseCase.Execute(file.EncryptedThumbnailObjectKey)
 		if err != nil {
-			svc.logger.Warn("Failed to verify thumbnail exists, continuing without it",
+			svc.logger.Warn("⚠️ Failed to verify thumbnail exists, continuing without it",
 				zap.Any("error", err),
 				zap.Any("file_id", req.FileID),
 				zap.String("thumbnail_storage_path", file.EncryptedThumbnailObjectKey))
@@ -187,7 +187,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 		} else if thumbnailExists {
 			actualThumbnailSize, err = svc.getObjectSizeUseCase.Execute(file.EncryptedThumbnailObjectKey)
 			if err != nil {
-				svc.logger.Warn("Failed to get thumbnail size, continuing without it",
+				svc.logger.Warn("⚠️ Failed to get thumbnail size, continuing without it",
 					zap.Any("error", err),
 					zap.Any("file_id", req.FileID),
 					zap.String("thumbnail_storage_path", file.EncryptedThumbnailObjectKey))
@@ -204,7 +204,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	// STEP 8: Validate file size if client provided it
 	//
 	if req.ActualFileSizeInBytes > 0 && req.ActualFileSizeInBytes != actualFileSize {
-		svc.logger.Warn("File size mismatch between client and storage",
+		svc.logger.Warn("⚠️ File size mismatch between client and storage",
 			zap.Any("file_id", req.FileID),
 			zap.Int64("client_reported_size", req.ActualFileSizeInBytes),
 			zap.Int64("storage_actual_size", actualFileSize))
@@ -223,7 +223,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 
 	err = svc.updateMetadataUseCase.Execute(file)
 	if err != nil {
-		svc.logger.Error("Failed to update file metadata to active state",
+		svc.logger.Error("🔴 Failed to update file metadata to active state",
 			zap.Any("error", err),
 			zap.Any("file_id", req.FileID))
 		return nil, err
@@ -242,7 +242,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 		ThumbnailVerified:   thumbnailVerified,
 	}
 
-	svc.logger.Info("File upload completed successfully",
+	svc.logger.Info("✅ File upload completed successfully",
 		zap.Any("file_id", req.FileID),
 		zap.Any("collection_id", file.CollectionID),
 		zap.Any("owner_id", userID),

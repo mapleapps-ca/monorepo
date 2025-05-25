@@ -28,6 +28,8 @@ type FileRepository interface {
 	CheckIfExistsByID(ctx context.Context, id primitive.ObjectID) (bool, error)
 	// CheckIfUserHasAccess determines if a specific user (userID) has access permissions for a given file (fileID).
 	CheckIfUserHasAccess(ctx context.Context, fileID primitive.ObjectID, userID primitive.ObjectID) (bool, error)
+	// SwapIDs will replace the oldID with the newID of a File record.
+	SwapIDs(ctx context.Context, oldID primitive.ObjectID, newID primitive.ObjectID) error
 
 	OpenTransaction() error
 	CommitTransaction() error
