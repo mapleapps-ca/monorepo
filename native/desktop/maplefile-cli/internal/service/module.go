@@ -38,6 +38,7 @@ func ServiceModule() fx.Option {
 
 		// Local file services
 		fx.Provide(localfile.NewAddService),
+		fx.Provide(localfile.NewListService),
 
 		// Upload file services
 		fx.Provide(fileupload.NewUploadService),
