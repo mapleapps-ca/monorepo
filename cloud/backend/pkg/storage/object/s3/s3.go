@@ -32,8 +32,6 @@ type S3ObjectStorage interface {
 	UploadContentFromMulipart(ctx context.Context, objectKey string, file multipart.File) error
 	UploadContentFromMulipartWithVisibility(ctx context.Context, objectKey string, file multipart.File, isPublic bool) error
 	BucketExists(ctx context.Context, bucketName string) (bool, error)
-	GetDownloadablePresignedURL(ctx context.Context, key string, duration time.Duration) (string, error)
-	GetPresignedURL(ctx context.Context, key string, duration time.Duration) (string, error)
 	DeleteByKeys(ctx context.Context, key []string) error
 	Cut(ctx context.Context, sourceObjectKey string, destinationObjectKey string) error
 	CutWithVisibility(ctx context.Context, sourceObjectKey string, destinationObjectKey string, isPublic bool) error
@@ -46,6 +44,7 @@ type S3ObjectStorage interface {
 	IsPublicBucket() bool
 	// GeneratePresignedUploadURL creates a presigned URL for uploading objects
 	GeneratePresignedUploadURL(ctx context.Context, key string, duration time.Duration) (string, error)
+	GetDownloadablePresignedURL(ctx context.Context, key string, duration time.Duration) (string, error)
 	ObjectExists(ctx context.Context, key string) (bool, error)
 	GetObjectSize(ctx context.Context, key string) (int64, error)
 }
@@ -229,25 +228,6 @@ func (s *s3ObjectStorage) GetDownloadablePresignedURL(ctx context.Context, key s
 	return presignedUrl.URL, nil
 }
 
-func (s *s3ObjectStorage) GetPresignedURL(ctx context.Context, key string, duration time.Duration) (string, error) {
-	// DEVELOPERS NOTE:
-	// AWS S3 Bucket — presigned URL APIs with Go (2022) via https://ronen-niv.medium.com/aws-s3-handling-presigned-urls-2718ab247d57
-
-	bkCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	presignedUrl, err := s.PresignClient.PresignGetObject(bkCtx,
-		&s3.GetObjectInput{
-			Bucket: aws.String(s.BucketName),
-			Key:    aws.String(key),
-		},
-		s3.WithPresignExpires(duration))
-	if err != nil {
-		return "", err
-	}
-	return presignedUrl.URL, nil
-}
-
 func (s *s3ObjectStorage) DeleteByKeys(ctx context.Context, objectKeys []string) error {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
@@ -403,13 +383,14 @@ func (s *s3ObjectStorage) GeneratePresignedUploadURL(ctx context.Context, key st
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	presignedUrl, err := s.PresignClient.PresignPutObject(ctx,
-		&s3.PutObjectInput{
-			Bucket: aws.String(s.BucketName),
-			Key:    aws.String(key),
-			ACL:    types.ObjectCannedACL(ACLPrivate), // Always private for file uploads
-		},
-		s3.WithPresignExpires(duration))
+	// Create PutObjectInput without ACL to avoid requiring x-amz-acl header
+	putObjectInput := &s3.PutObjectInput{
+		Bucket: aws.String(s.BucketName),
+		Key:    aws.String(key),
+		// Removed ACL field - files inherit bucket's default privacy settings.
+	}
+
+	presignedUrl, err := s.PresignClient.PresignPutObject(ctx, putObjectInput, s3.WithPresignExpires(duration))
 	if err != nil {
 		s.Logger.Error("Failed to generate presigned upload URL",
 			zap.String("key", key),

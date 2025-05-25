@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/fileobjectstorage/get_object_size.go
+// cloud/backend/internal/maplefile/usecase/fileobjectstorage/verify_object_exists.go
 package fileobjectstorage
 
 import (
@@ -43,7 +43,7 @@ func (uc *verifyObjectExistsUseCaseImpl) Execute(storagePath string) (bool, erro
 	}
 
 	//
-	// STEP 2: Get object size.
+	// STEP 2: Verify if object exists.
 	//
 
 	exists, err := uc.repo.VerifyObjectExists(storagePath)
@@ -53,6 +53,10 @@ func (uc *verifyObjectExistsUseCaseImpl) Execute(storagePath string) (bool, erro
 			zap.Error(err))
 		return false, err
 	}
+
+	uc.logger.Debug("Object existence verified",
+		zap.String("storage_path", storagePath),
+		zap.Bool("exists", exists))
 
 	return exists, nil
 }

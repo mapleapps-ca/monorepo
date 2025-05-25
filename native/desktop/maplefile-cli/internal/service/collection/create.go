@@ -130,34 +130,34 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	// STEP 4: Create encryption key and encrypt the data with it.
 	//
 
-	// STEP 1: Derive keyEncryptionKey from password (ente.io spec)
+	// STEP 1: Derive keyEncryptionKey from password (E2EE spec)
 	keyEncryptionKey, err := s.deriveKeyEncryptionKey(userPassword, userData.PasswordSalt)
 	if err != nil {
 		return nil, errors.NewAppError("failed to derive key encryption key", err)
 	}
 	defer pkg_crypto.ClearBytes(keyEncryptionKey)
 
-	// STEP 2: Decrypt masterKey with keyEncryptionKey (ente.io spec)
+	// STEP 2: Decrypt masterKey with keyEncryptionKey (E2EE spec)
 	masterKey, err := s.decryptMasterKey(userData, keyEncryptionKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to decrypt master key - incorrect password?", err)
 	}
 	defer pkg_crypto.ClearBytes(masterKey)
 
-	// STEP 3: Generate random collectionKey (ente.io spec)
+	// STEP 3: Generate random collectionKey (E2EE spec)
 	collectionKey, err := pkg_crypto.GenerateRandomBytes(pkg_crypto.CollectionKeySize)
 	if err != nil {
 		return nil, errors.NewAppError("failed to generate collection key", err)
 	}
 	defer pkg_crypto.ClearBytes(collectionKey)
 
-	// STEP 4: Encrypt collectionKey with masterKey (ente.io spec)
+	// STEP 4: Encrypt collectionKey with masterKey (E2EE spec)
 	encryptedCollectionKey, err := pkg_crypto.EncryptWithSecretBox(collectionKey, masterKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to encrypt collection key", err)
 	}
 
-	// STEP 5: Encrypt collection metadata with collectionKey (ente.io spec)
+	// STEP 5: Encrypt collection metadata with collectionKey (E2EE spec)
 	encryptedName, err := s.encryptCollectionName(input.Name, collectionKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to encrypt collection name", err)
@@ -178,9 +178,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	//
 
 	// Create collection with properly encrypted data
-	collectionID := primitive.NewObjectID()
 	collectionDTO := &dom_collectiondto.CollectionDTO{
-		ID:             collectionID,
 		OwnerID:        input.OwnerID,
 		EncryptedName:  encryptedName,
 		CollectionType: input.CollectionType,
@@ -248,7 +246,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	}
 
 	s.logger.Info("Successfully created E2EE collection",
-		zap.String("collectionID", collectionID.Hex()),
+		zap.String("collectionID", collectionCloudID.Hex()),
 		zap.String("name", input.Name))
 
 	return &CreateOutput{
@@ -256,12 +254,12 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	}, nil
 }
 
-// Helper: Derive keyEncryptionKey from password (ente.io spec)
+// Helper: Derive keyEncryptionKey from password (E2EE spec)
 func (s *createService) deriveKeyEncryptionKey(password string, salt []byte) ([]byte, error) {
 	return pkg_crypto.DeriveKeyFromPassword(password, salt)
 }
 
-// Helper: Decrypt masterKey with keyEncryptionKey (ente.io spec)
+// Helper: Decrypt masterKey with keyEncryptionKey (E2EE spec)
 func (s *createService) decryptMasterKey(user *dom_user.User, keyEncryptionKey []byte) ([]byte, error) {
 	return pkg_crypto.DecryptWithSecretBox(
 		user.EncryptedMasterKey.Ciphertext,
@@ -270,7 +268,7 @@ func (s *createService) decryptMasterKey(user *dom_user.User, keyEncryptionKey [
 	)
 }
 
-// Helper: Encrypt collection name with collectionKey (ente.io spec)
+// Helper: Encrypt collection name with collectionKey (E2EE spec)
 func (s *createService) encryptCollectionName(name string, collectionKey []byte) (string, error) {
 	encryptedData, err := pkg_crypto.EncryptWithSecretBox([]byte(name), collectionKey)
 	if err != nil {

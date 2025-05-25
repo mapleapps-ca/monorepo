@@ -44,9 +44,6 @@ type FileObjectStorageRepository interface {
 	GetEncryptedData(storagePath string) ([]byte, error)
 	// DeleteEncryptedData removes encrypted file data from the storage system using its storage path.
 	DeleteEncryptedData(storagePath string) error
-	// GeneratePresignedURL creates a temporary, time-limited URL that allows direct access
-	// to the file data located at the given storage path, without requiring further authentication.
-	GeneratePresignedURL(storagePath string, duration time.Duration) (string, error)
 	// GeneratePresignedDownloadURL creates a temporary, time-limited URL that allows direct download
 	// of the file data located at the given storage path, with proper content disposition headers.
 	GeneratePresignedDownloadURL(storagePath string, duration time.Duration) (string, error)

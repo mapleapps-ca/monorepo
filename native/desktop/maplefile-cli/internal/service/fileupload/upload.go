@@ -165,7 +165,7 @@ func (s *uploadService) validateAndPrepareE2EE(ctx context.Context, fileID primi
 		return nil, nil, nil, errors.NewAppError("collection not found", nil)
 	}
 
-	// Decrypt collection key using complete ente.io chain
+	// Decrypt collection key using complete E2EE chain
 	collectionKey, err := s.decryptCollectionKeyChain(user, collection, userPassword)
 	if err != nil {
 		return nil, nil, nil, errors.NewAppError("failed to decrypt collection key chain", err)

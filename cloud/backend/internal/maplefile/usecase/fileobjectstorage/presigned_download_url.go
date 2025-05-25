@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/fileobjectstorage/get_object_size.go
+// cloud/backend/internal/maplefile/usecase/fileobjectstorage/presigned_download_url.go
 package fileobjectstorage
 
 import (
@@ -48,7 +48,7 @@ func (uc *generatePresignedDownloadURLUseCaseImpl) Execute(ctx context.Context, 
 		e["duration"] = "Duration cannot exceed 24 hours"
 	}
 	if len(e) != 0 {
-		uc.logger.Warn("Failed validating generate presigned URL",
+		uc.logger.Warn("Failed validating generate presigned download URL",
 			zap.Any("error", e))
 		return "", httperror.NewForBadRequest(&e)
 	}
@@ -57,7 +57,7 @@ func (uc *generatePresignedDownloadURLUseCaseImpl) Execute(ctx context.Context, 
 	// STEP 2: Generate and get presigned download URL.
 	//
 
-	url, err := uc.repo.GeneratePresignedURL(storagePath, duration)
+	url, err := uc.repo.GeneratePresignedDownloadURL(storagePath, duration)
 	if err != nil {
 		uc.logger.Error("Failed to generate presigned download URL",
 			zap.String("storage_path", storagePath),

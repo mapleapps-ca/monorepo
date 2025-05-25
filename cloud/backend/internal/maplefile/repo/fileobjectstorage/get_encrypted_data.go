@@ -1,10 +1,9 @@
-// cloud/backend/internal/maplefile/repo/fileobjectstorage/download.go
+// cloud/backend/internal/maplefile/repo/fileobjectstorage/get_encrypted_data.go
 package fileobjectstorage
 
 import (
 	"context"
 	"io"
-	"time"
 
 	"go.uber.org/zap"
 )
@@ -33,20 +32,4 @@ func (impl *fileObjectStorageRepositoryImpl) GetEncryptedData(storagePath string
 	}
 
 	return data, nil
-}
-
-// GeneratePresignedURL creates a time-limited URL for downloading the file directly
-func (impl *fileObjectStorageRepositoryImpl) GeneratePresignedURL(storagePath string, duration time.Duration) (string, error) {
-	ctx := context.Background()
-
-	// Generate presigned URL
-	url, err := impl.Storage.GetPresignedURL(ctx, storagePath, duration)
-	if err != nil {
-		impl.Logger.Error("Failed to generate presigned URL",
-			zap.String("storagePath", storagePath),
-			zap.Error(err))
-		return "", err
-	}
-
-	return url, nil
 }
