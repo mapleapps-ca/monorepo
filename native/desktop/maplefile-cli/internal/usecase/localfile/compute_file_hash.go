@@ -15,7 +15,8 @@ import (
 
 // ComputeFileHashUseCase defines the interface for getting file information
 type ComputeFileHashUseCase interface {
-	Execute(ctx context.Context, filePath string) (string, error)
+	ExecuteForBytes(ctx context.Context, filePath string) ([]byte, error)
+	ExecuteForString(ctx context.Context, filePath string) (string, error)
 }
 
 // computeFileHashUseCase implements the ComputeFileHashUseCase interface
@@ -33,34 +34,54 @@ func NewComputeFileHashUseCase(
 }
 
 // Execute gets information about a file
-func (uc *computeFileHashUseCase) Execute(ctx context.Context, filePath string) (string, error) {
+func (uc *computeFileHashUseCase) ExecuteForBytes(ctx context.Context, filePath string) ([]byte, error) {
 	uc.logger.Debug("Getting file info", zap.String("filePath", filePath))
 
 	if filePath == "" {
-		return "", errors.NewAppError("file path is required", nil)
+		return nil, errors.NewAppError("file path is required", nil)
 	}
 
 	// Open the file
 	f, err := os.Open(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to open file: %v", err)
+		return nil, fmt.Errorf("failed to open file: %v", err)
 	}
 	defer f.Close()
 
 	// Create a new SHA256 hasher
 	h := sha256.New()
 
-	// Read the file and write its contents into the hasher
-	_, err = io.Copy(h, f)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file: %v", err)
+	// Developer Note:
+	// To efficiently calculate the hash, we read the file in chunks.
+	// This allows us to process potentially large files without using too much memory at once.
+
+	buf := make([]byte, 1024*1024) // Reading in 1MB chunks
+	for {
+		n, err := f.Read(buf)
+		if err != nil && err != io.EOF {
+			return nil, fmt.Errorf("failed to read file: %v", err)
+		}
+		if n == 0 {
+			break
+		}
+		if _, err := h.Write(buf[:n]); err != nil {
+			return nil, fmt.Errorf("failed to write to hasher: %v", err)
+		}
 	}
 
 	// Get the byte representation of the hash
 	hashBytes := h.Sum(nil)
 
+	return hashBytes, nil
+}
+
+func (uc *computeFileHashUseCase) ExecuteForString(ctx context.Context, filePath string) (string, error) {
+	hashBytes, err := uc.ExecuteForBytes(ctx, filePath)
+	if err != nil {
+		return "", err
+	}
+
 	// Convert bytes to hex string
 	hashHex := fmt.Sprintf("%x", hashBytes)
-
 	return hashHex, nil
 }

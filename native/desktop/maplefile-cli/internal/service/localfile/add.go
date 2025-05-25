@@ -209,7 +209,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 	}
 
 	// Compute file hash
-	fileHash, err := s.computeFileHashUseCase.Execute(ctx, destFilePath)
+	fileHashBytes, err := s.computeFileHashUseCase.ExecuteForBytes(ctx, destFilePath)
 	if err != nil {
 		s.logger.Error("Failed to compute file hash",
 			zap.String("file_path", destFilePath),
@@ -266,7 +266,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 	// For now, store as base64-encoded JSON
 	encryptedMetadataString := crypto.EncodeToBase64(metadataBytes)
 
-	encryptedHashString := crypto.EncodeToBase64([]byte(fileHash))
+	encryptedHashString := crypto.EncodeToBase64(fileHashBytes)
 
 	//
 	// STEP 8: Create domain file object
