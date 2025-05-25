@@ -73,6 +73,7 @@ func UseCaseModule() fx.Option {
 		fx.Provide(localfile.NewGetFileInfoUseCase),
 		fx.Provide(localfile.NewCreateDirectoryUseCase),
 		fx.Provide(localfile.NewListDirectoryUseCase),
+		fx.Provide(localfile.NewComputeFileHashUseCase),
 		fx.Provide(localfile.NewPathUtilsUseCase),
 
 		// File upload use cases

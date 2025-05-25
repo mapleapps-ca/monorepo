@@ -46,6 +46,7 @@ type addService struct {
 	readFileUseCase        localfile.ReadFileUseCase
 	checkFileExistsUseCase localfile.CheckFileExistsUseCase
 	getFileInfoUseCase     localfile.GetFileInfoUseCase
+	computeFileHashUseCase localfile.ComputeFileHashUseCase
 	pathUtilsUseCase       localfile.PathUtilsUseCase
 	copyFileUseCase        localfile.CopyFileUseCase
 	createDirectoryUseCase localfile.CreateDirectoryUseCase
@@ -59,6 +60,7 @@ func NewAddService(
 	readFileUseCase localfile.ReadFileUseCase,
 	checkFileExistsUseCase localfile.CheckFileExistsUseCase,
 	getFileInfoUseCase localfile.GetFileInfoUseCase,
+	computeFileHashUseCase localfile.ComputeFileHashUseCase,
 	pathUtilsUseCase localfile.PathUtilsUseCase,
 	copyFileUseCase localfile.CopyFileUseCase,
 	createDirectoryUseCase localfile.CreateDirectoryUseCase,
@@ -70,6 +72,7 @@ func NewAddService(
 		readFileUseCase:        readFileUseCase,
 		checkFileExistsUseCase: checkFileExistsUseCase,
 		getFileInfoUseCase:     getFileInfoUseCase,
+		computeFileHashUseCase: computeFileHashUseCase,
 		pathUtilsUseCase:       pathUtilsUseCase,
 		copyFileUseCase:        copyFileUseCase,
 		createDirectoryUseCase: createDirectoryUseCase,
@@ -205,6 +208,15 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 		return nil, errors.NewAppError("failed to copy file to app directory", err)
 	}
 
+	// Compute file hash
+	fileHash, err := s.computeFileHashUseCase.Execute(ctx, destFilePath)
+	if err != nil {
+		s.logger.Error("Failed to compute file hash",
+			zap.String("file_path", destFilePath),
+			zap.Error(err))
+		return nil, errors.NewAppError("failed to compute file hash", err)
+	}
+
 	//
 	// STEP 7: Generate encryption keys and encrypt file data
 	//
@@ -254,7 +266,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput) (*AddOutput, erro
 	// For now, store as base64-encoded JSON
 	encryptedMetadataString := crypto.EncodeToBase64(metadataBytes)
 
-	encryptedHashString := crypto.EncodeToBase64([]byte("Some hash value")) // TODO - Please implement encrypted hash value
+	encryptedHashString := crypto.EncodeToBase64([]byte(fileHash))
 
 	//
 	// STEP 8: Create domain file object
