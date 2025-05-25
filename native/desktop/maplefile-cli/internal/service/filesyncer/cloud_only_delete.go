@@ -14,14 +14,14 @@ import (
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 )
 
-// CloudDeleteInput represents the input for deleting a file from cloud
-type CloudDeleteInput struct {
+// CloudOnlyDeleteInput represents the input for deleting a file from cloud
+type CloudOnlyDeleteInput struct {
 	FileID       string `json:"file_id"`
 	UserPassword string `json:"user_password"`
 }
 
-// CloudDeleteOutput represents the result of deleting a file from cloud
-type CloudDeleteOutput struct {
+// CloudOnlyDeleteOutput represents the result of deleting a file from cloud
+type CloudOnlyDeleteOutput struct {
 	FileID         primitive.ObjectID  `json:"file_id"`
 	PreviousStatus dom_file.SyncStatus `json:"previous_status"`
 	NewStatus      dom_file.SyncStatus `json:"new_status"`
@@ -29,27 +29,27 @@ type CloudDeleteOutput struct {
 	Message        string              `json:"message"`
 }
 
-// CloudDeleteService defines the interface for deleting files from cloud
-type CloudDeleteService interface {
-	DeleteFromCloud(ctx context.Context, input *CloudDeleteInput) (*CloudDeleteOutput, error)
+// CloudOnlyDeleteService defines the interface for deleting files from cloud
+type CloudOnlyDeleteService interface {
+	DeleteFromCloud(ctx context.Context, input *CloudOnlyDeleteInput) (*CloudOnlyDeleteOutput, error)
 }
 
-// cloudDeleteService implements the CloudDeleteService interface
-type cloudDeleteService struct {
+// cloudOnlyDeleteService implements the CloudOnlyDeleteService interface
+type cloudOnlyDeleteService struct {
 	logger            *zap.Logger
 	getFileUseCase    uc_file.GetFileUseCase
 	updateFileUseCase uc_file.UpdateFileUseCase
 	fileDTORepo       filedto.FileDTORepository
 }
 
-// NewCloudDeleteService creates a new service for deleting files from cloud
-func NewCloudDeleteService(
+// NewCloudOnlyDeleteService creates a new service for deleting files from cloud
+func NewCloudOnlyDeleteService(
 	logger *zap.Logger,
 	getFileUseCase uc_file.GetFileUseCase,
 	updateFileUseCase uc_file.UpdateFileUseCase,
 	fileDTORepo filedto.FileDTORepository,
-) CloudDeleteService {
-	return &cloudDeleteService{
+) CloudOnlyDeleteService {
+	return &cloudOnlyDeleteService{
 		logger:            logger,
 		getFileUseCase:    getFileUseCase,
 		updateFileUseCase: updateFileUseCase,
@@ -58,7 +58,7 @@ func NewCloudDeleteService(
 }
 
 // DeleteFromCloud handles the deletion of a file from cloud and updates local sync status
-func (s *cloudDeleteService) DeleteFromCloud(ctx context.Context, input *CloudDeleteInput) (*CloudDeleteOutput, error) {
+func (s *cloudOnlyDeleteService) DeleteFromCloud(ctx context.Context, input *CloudOnlyDeleteInput) (*CloudOnlyDeleteOutput, error) {
 	//
 	// STEP 1: Validate inputs
 	//
@@ -190,7 +190,7 @@ func (s *cloudDeleteService) DeleteFromCloud(ctx context.Context, input *CloudDe
 		zap.Any("previousStatus", previousStatus),
 		zap.Any("newStatus", newStatus))
 
-	return &CloudDeleteOutput{
+	return &CloudOnlyDeleteOutput{
 		FileID:         fileObjectID,
 		PreviousStatus: previousStatus,
 		NewStatus:      newStatus,

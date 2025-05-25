@@ -11,9 +11,9 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 )
 
-// cloudDeleteCmd creates a command for deleting files from cloud storage
-func cloudDeleteCmd(
-	cloudDeleteService filesyncer.CloudDeleteService,
+// cloudOnlyDeleteCmd creates a command for deleting files from cloud storage
+func cloudOnlyDeleteCmd(
+	cloudOnlyDeleteService filesyncer.CloudOnlyDeleteService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var fileID string
@@ -21,7 +21,7 @@ func cloudDeleteCmd(
 	var dryRun bool
 
 	var cmd = &cobra.Command{
-		Use:   "cloud-delete",
+		Use:   "cloud-only-delete",
 		Short: "Delete a file from cloud storage",
 		Long: `
 Delete a file from cloud storage and set the local sync status to local-only.
@@ -39,10 +39,10 @@ Use --dry-run to check the file status without actually deleting it.
 
 Examples:
   # Delete file from cloud
-  maplefile-cli filesync cloud-delete --file-id 507f1f77bcf86cd799439011 --password 1234567890
+  maplefile-cli filesync cloud-only-delete --file-id 507f1f77bcf86cd799439011 --password 1234567890
 
   # Check file status without deleting (dry run)
-  maplefile-cli filesync cloud-delete --file-id 507f1f77bcf86cd799439011 --password 1234567890 --dry-run
+  maplefile-cli filesync cloud-only-delete --file-id 507f1f77bcf86cd799439011 --password 1234567890 --dry-run
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Validate required fields
@@ -59,7 +59,7 @@ Examples:
 			}
 
 			// Create service input
-			input := &filesyncer.CloudDeleteInput{
+			input := &filesyncer.CloudOnlyDeleteInput{
 				FileID:       fileID,
 				UserPassword: password,
 			}
@@ -73,7 +73,7 @@ Examples:
 			}
 
 			// For dry run, we could add a separate method, but for now we'll rely on error messages
-			output, err := cloudDeleteService.DeleteFromCloud(cmd.Context(), input)
+			output, err := cloudOnlyDeleteService.DeleteFromCloud(cmd.Context(), input)
 			if err != nil {
 				if strings.Contains(err.Error(), "incorrect password") {
 					fmt.Printf("❌ Error: Incorrect password. Please check your password and try again.\n")
