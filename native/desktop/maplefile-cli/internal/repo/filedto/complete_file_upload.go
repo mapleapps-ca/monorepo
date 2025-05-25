@@ -51,16 +51,24 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 
 	req, err := http.NewRequestWithContext(ctx, "POST", requestURL, bytes.NewBuffer(jsonData))
 	if err != nil {
+		r.logger.Debug("failed to create HTTP request",
+			zap.String("fileID", fileID.Hex()),
+			zap.Error(err),
+		)
 		return nil, errors.NewAppError("failed to create HTTP request", err)
 	}
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("JWT %s", accessToken))
 
 	// Execute the request
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
+		r.logger.Debug("failed to connect to server",
+			zap.String("fileID", fileID.Hex()),
+			zap.Error(err),
+		)
 		return nil, errors.NewAppError("failed to connect to server", err)
 	}
 	defer resp.Body.Close()
@@ -68,6 +76,10 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 	// Read response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		r.logger.Debug("failed to read response",
+			zap.String("fileID", fileID.Hex()),
+			zap.Error(err),
+		)
 		return nil, errors.NewAppError("failed to read response", err)
 	}
 
@@ -76,15 +88,27 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 		var errorResponse map[string]interface{}
 		if err := json.Unmarshal(body, &errorResponse); err == nil {
 			if errMsg, ok := errorResponse["message"].(string); ok {
+				r.logger.Debug("server error",
+					zap.String("fileID", fileID.Hex()),
+					zap.String("error", errMsg),
+				)
 				return nil, errors.NewAppError(fmt.Sprintf("server error: %s", errMsg), nil)
 			}
 		}
-		return nil, errors.NewAppError(fmt.Sprintf("server returned error status: %s", resp.Status), nil)
+		r.logger.Debug("server returned error status",
+			zap.String("fileID", fileID.Hex()),
+			zap.Error(err),
+		)
+		return nil, errors.NewAppError(fmt.Sprintf("server returned error status: %s | message: %s", resp.Status, string(body)), nil)
 	}
 
 	// Parse the response
 	var response filedto.CompleteFileUploadResponse
 	if err := json.Unmarshal(body, &response); err != nil {
+		r.logger.Debug("failed to parse response",
+			zap.String("fileID", fileID.Hex()),
+			zap.Error(err),
+		)
 		return nil, errors.NewAppError("failed to parse response", err)
 	}
 

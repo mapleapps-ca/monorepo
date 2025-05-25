@@ -221,21 +221,21 @@ func (s *uploadService) completeUpload(ctx context.Context, cloudFileID primitiv
 
 	response, err := s.fileDTORepo.CompleteFileUploadInCloud(ctx, cloudFileID, request)
 	if err != nil {
-		s.logger.Debug("Failed to complete file upload",
+		s.logger.Error("Failed to complete file upload",
 			zap.String("cloudFileID", cloudFileID.Hex()),
 			zap.Error(err))
 		return errors.NewAppError("failed to complete file upload", err)
 	}
 
 	if !response.Success {
-		s.logger.Debug("Failed to complete file upload",
+		s.logger.Error("Failed to complete file upload",
 			zap.String("cloudFileID", cloudFileID.Hex()),
 			zap.String("message", response.Message))
 		return errors.NewAppError(fmt.Sprintf("cloud rejected upload completion: %s", response.Message), nil)
 	}
 
 	if !response.UploadVerified {
-		s.logger.Debug("Failed to complete file upload",
+		s.logger.Error("Failed to complete file upload",
 			zap.String("cloudFileID", cloudFileID.Hex()),
 			zap.String("message", "cloud could not verify file upload"))
 		return errors.NewAppError("cloud could not verify file upload", nil)
