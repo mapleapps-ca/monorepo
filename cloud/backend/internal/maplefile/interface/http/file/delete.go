@@ -82,6 +82,7 @@ func (h *DeleteFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) 
 	session, err := h.dbClient.StartSession()
 	if err != nil {
 		h.logger.Error("start session error",
+			zap.String("file_id", fileIDStr),
 			zap.Any("error", err))
 		httperror.ResponseError(w, err)
 		return
@@ -94,6 +95,7 @@ func (h *DeleteFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) 
 		response, err := h.service.Execute(sessCtx, dtoReq)
 		if err != nil {
 			h.logger.Error("failed to delete file",
+				zap.String("file_id", fileIDStr),
 				zap.Any("error", err))
 			return nil, err
 		}
@@ -104,6 +106,7 @@ func (h *DeleteFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) 
 	result, txErr := session.WithTransaction(ctx, transactionFunc)
 	if txErr != nil {
 		h.logger.Error("session failed error",
+			zap.String("file_id", fileIDStr),
 			zap.Any("error", txErr))
 		httperror.ResponseError(w, txErr)
 		return
@@ -114,6 +117,7 @@ func (h *DeleteFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) 
 		resp := result.(*svc_file.DeleteFileResponseDTO)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			h.logger.Error("failed to encode response",
+				zap.String("file_id", fileIDStr),
 				zap.Any("error", err))
 			httperror.ResponseError(w, err)
 			return
