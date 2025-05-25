@@ -14,6 +14,7 @@ func FilesCmd(
 	logger *zap.Logger,
 	addService localfile.AddService,
 	uploadService fileupload.UploadService,
+	listService localfile.ListService,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "files",
@@ -33,6 +34,10 @@ func FilesCmd(
 	cmd.AddCommand(uploadFileCmd(
 		logger,
 		uploadService,
+	))
+	cmd.AddCommand(listFilesCmd(
+		logger,
+		listService,
 	))
 
 	return cmd
