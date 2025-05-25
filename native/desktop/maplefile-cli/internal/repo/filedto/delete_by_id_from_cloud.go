@@ -61,16 +61,27 @@ func (r *fileDTORepository) DeleteByIDFromCloud(ctx context.Context, id primitiv
 
 	// Check for error status codes
 	if resp.StatusCode == http.StatusNotFound {
-		return errors.NewAppError("file not found", nil)
+		r.logger.Warn("File not found in cloud",
+			zap.String("fileID", id.Hex()),
+			zap.String("responseBody", string(body)))
+		return errors.NewAppError("file not found in cloud", nil)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		var errorResponse map[string]interface{}
 		if err := json.Unmarshal(body, &errorResponse); err == nil {
 			if errMsg, ok := errorResponse["message"].(string); ok {
+				r.logger.Error("Server error during file deletion",
+					zap.String("fileID", id.Hex()),
+					zap.String("serverError", errMsg),
+					zap.Int("statusCode", resp.StatusCode))
 				return errors.NewAppError(fmt.Sprintf("server error: %s", errMsg), nil)
 			}
 		}
+		r.logger.Error("Unexpected server response during file deletion",
+			zap.String("fileID", id.Hex()),
+			zap.Int("statusCode", resp.StatusCode),
+			zap.String("responseBody", string(body)))
 		return errors.NewAppError(fmt.Sprintf("server returned error status: %s", resp.Status), nil)
 	}
 

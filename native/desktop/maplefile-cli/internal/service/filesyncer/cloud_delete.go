@@ -3,6 +3,7 @@ package filesyncer
 
 import (
 	"context"
+	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
@@ -107,30 +108,40 @@ func (s *cloudDeleteService) DeleteFromCloud(ctx context.Context, input *CloudDe
 	previousStatus := file.SyncStatus
 
 	//
-	// STEP 4: Validate file sync status - only allow deletion from cloud if file is synced or cloud-only
+	// STEP 4: Validate file sync status and provide detailed feedback
 	//
+	s.logger.Info("Checking file sync status for cloud deletion",
+		zap.String("fileID", input.FileID),
+		zap.Any("currentSyncStatus", file.SyncStatus),
+		zap.String("fileName", file.Name))
+
 	switch file.SyncStatus {
 	case dom_file.SyncStatusLocalOnly:
 		s.logger.Warn("File is local-only, cannot delete from cloud",
 			zap.String("fileID", input.FileID),
+			zap.String("fileName", file.Name),
 			zap.Any("syncStatus", file.SyncStatus))
-		return nil, errors.NewAppError("file is local-only and does not exist in cloud", nil)
+		return nil, errors.NewAppError(fmt.Sprintf("file '%s' is local-only and does not exist in cloud storage", file.Name), nil)
 
 	case dom_file.SyncStatusModifiedLocally:
 		s.logger.Warn("File has local modifications, deletion from cloud may cause data loss",
 			zap.String("fileID", input.FileID),
+			zap.String("fileName", file.Name),
 			zap.Any("syncStatus", file.SyncStatus))
 		// Continue with deletion but log warning
 
 	case dom_file.SyncStatusSynced, dom_file.SyncStatusCloudOnly:
-		// These are valid states for cloud deletion
-		break
+		s.logger.Info("File is eligible for cloud deletion",
+			zap.String("fileID", input.FileID),
+			zap.String("fileName", file.Name),
+			zap.Any("syncStatus", file.SyncStatus))
 
 	default:
 		s.logger.Error("unknown sync status",
 			zap.String("fileID", input.FileID),
+			zap.String("fileName", file.Name),
 			zap.Any("syncStatus", file.SyncStatus))
-		return nil, errors.NewAppError("unknown sync status", nil)
+		return nil, errors.NewAppError(fmt.Sprintf("unknown sync status for file '%s': %v", file.Name, file.SyncStatus), nil)
 	}
 
 	//
@@ -144,7 +155,15 @@ func (s *cloudDeleteService) DeleteFromCloud(ctx context.Context, input *CloudDe
 	if err != nil {
 		s.logger.Error("failed to delete file from cloud",
 			zap.String("fileID", input.FileID),
+			zap.String("fileObjectID", fileObjectID.Hex()),
+			zap.Any("fileSyncStatus", file.SyncStatus),
 			zap.Error(err))
+
+		// Provide more specific error messages
+		if err.Error() == "file not found in cloud" {
+			return nil, errors.NewAppError("file does not exist in cloud storage", err)
+		}
+
 		return nil, errors.NewAppError("failed to delete file from cloud", err)
 	}
 
