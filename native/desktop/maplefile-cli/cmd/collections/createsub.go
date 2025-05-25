@@ -17,6 +17,7 @@ func createSubCollectionCmd(
 	logger *zap.Logger,
 ) *cobra.Command {
 	var name, collectionType, parentID string
+	var password string
 
 	var cmd = &cobra.Command{
 		Use:   "create-sub",
@@ -61,9 +62,15 @@ Examples:
 			}
 
 			// Validate parentID format
-			_, err := primitive.ObjectIDFromHex(parentID)
+			pid, err := primitive.ObjectIDFromHex(parentID)
 			if err != nil {
 				fmt.Printf("🐞 Error: Invalid parent ID format: %v\n", err)
+				return
+			}
+
+			if password == "" {
+				fmt.Println("❌ Error: Password is required for E2EE operations.")
+				fmt.Println("Use --password flag to specify your account password.")
 				return
 			}
 
@@ -73,12 +80,12 @@ Examples:
 			input := &collection.CreateInput{
 				Name:           name,
 				CollectionType: collectionType,
-				ParentID:       parentID,
+				ParentID:       pid,
 				OwnerID:        primitive.NewObjectID(), // Placeholder - service will use authenticated user ID
 			}
 
 			// Call the create service
-			output, err := createCollectionService.Create(cmd.Context(), input)
+			output, err := createCollectionService.Create(cmd.Context(), input, password)
 			if err != nil {
 				fmt.Printf("🐞 Error creating sub-collection: %v\n", err)
 				logger.Error("Failed to create sub-collection",
@@ -122,6 +129,8 @@ Examples:
 	// Mark required flags
 	cmd.MarkFlagRequired("name")
 	cmd.MarkFlagRequired("parent")
+	cmd.Flags().StringVar(&password, "password", "", "Your account password (required for E2EE)")
+	cmd.MarkFlagRequired("password")
 
 	return cmd
 }

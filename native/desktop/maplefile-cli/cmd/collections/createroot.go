@@ -3,6 +3,7 @@ package collections
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -17,6 +18,7 @@ func createRootCollectionCmd(
 	logger *zap.Logger,
 ) *cobra.Command {
 	var name, collectionType string
+	var password string
 
 	var cmd = &cobra.Command{
 		Use:   "create",
@@ -29,10 +31,10 @@ at the top level of your collection hierarchy.
 
 Examples:
   # Create a folder collection
-  maplefile-cli collections create --name "My Documents" --type folder
+  maplefile-cli collections create --name "My Documents" --type folder --password 1234567890
 
   # Create an album collection
-  maplefile-cli collections create --name "Photo Album" --type album
+  maplefile-cli collections create --name "Photo Album" --type album --password 1234567890
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Validate required fields
@@ -54,6 +56,12 @@ Examples:
 				return
 			}
 
+			if password == "" {
+				fmt.Println("❌ Error: Password is required for E2EE operations.")
+				fmt.Println("Use --password flag to specify your account password.")
+				return
+			}
+
 			// Create the service input
 			// Note: OwnerID is required by the service interface but will be overridden
 			// with the authenticated user ID from the service's internal logic
@@ -65,13 +73,17 @@ Examples:
 			}
 
 			// Call the create service
-			output, err := createCollectionService.Create(cmd.Context(), input)
+			output, err := createCollectionService.Create(cmd.Context(), input, password)
 			if err != nil {
 				fmt.Printf("🐞 Error creating collection: %v\n", err)
-				logger.Error("Failed to create collection",
-					zap.String("name", name),
-					zap.String("type", collectionType),
-					zap.Error(err))
+				if strings.Contains(err.Error(), "incorrect password") {
+					fmt.Printf("❌ Error: Incorrect password. Please check your password and try again.\n")
+				} else {
+					logger.Error("Failed to create collection",
+						zap.String("name", name),
+						zap.String("type", collectionType),
+						zap.Error(err))
+				}
 				return
 			}
 
@@ -104,6 +116,8 @@ Examples:
 
 	// Mark required flags
 	cmd.MarkFlagRequired("name")
+	cmd.Flags().StringVar(&password, "password", "", "Your account password (required for E2EE)")
+	cmd.MarkFlagRequired("password")
 
 	return cmd
 }

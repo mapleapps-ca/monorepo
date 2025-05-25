@@ -3,7 +3,6 @@ package collection
 
 import (
 	"context"
-	"encoding/base64"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -15,17 +14,18 @@ import (
 	dom_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_tx "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
+	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
+	pkg_crypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // CreateInput represents the input for creating a local collection
 type CreateInput struct {
 	Name           string             `json:"name"`
 	CollectionType string             `json:"collection_type"`
-	ParentID       string             `json:"parent_id,omitempty"`
+	ParentID       primitive.ObjectID `json:"parent_id,omitempty"`
 	OwnerID        primitive.ObjectID `bson:"owner_id" json:"owner_id"`
 }
 
@@ -36,7 +36,7 @@ type CreateOutput struct {
 
 // CreateService defines the interface for creating local collections
 type CreateService interface {
-	Create(ctx context.Context, input *CreateInput) (*CreateOutput, error)
+	Create(ctx context.Context, input *CreateInput, userPassword string) (*CreateOutput, error)
 }
 
 // createService implements the CreateService interface
@@ -72,7 +72,7 @@ func NewCreateService(
 }
 
 // Create handles the creation of a local collection
-func (s *createService) Create(ctx context.Context, input *CreateInput) (*CreateOutput, error) {
+func (s *createService) Create(ctx context.Context, input *CreateInput, userPassword string) (*CreateOutput, error) {
 	//
 	// STEP 1: Validate inputs
 	//
@@ -96,6 +96,9 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 	} else if input.CollectionType != dom_collection.CollectionTypeFolder && input.CollectionType != dom_collection.CollectionTypeAlbum {
 		s.logger.Error("invalid collection type", zap.String("type", input.CollectionType))
 		return nil, errors.NewAppError("collection type must be either 'folder' or 'album'", nil)
+	}
+	if userPassword == "" {
+		return nil, errors.NewAppError("user password is required for E2EE operations", nil)
 	}
 
 	//
@@ -127,67 +130,75 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 	// STEP 4: Create encryption key and encrypt the data with it.
 	//
 
-	// Generate a collection key
-	collectionKey, err := crypto.GenerateRandomBytes(crypto.CollectionKeySize)
+	// STEP 1: Derive keyEncryptionKey from password (ente.io spec)
+	keyEncryptionKey, err := s.deriveKeyEncryptionKey(userPassword, userData.PasswordSalt)
 	if err != nil {
-		s.logger.Error("failed to generate collection key", zap.Error(err))
-		s.transactionManager.Rollback()
+		return nil, errors.NewAppError("failed to derive key encryption key", err)
+	}
+	defer pkg_crypto.ClearBytes(keyEncryptionKey)
+
+	// STEP 2: Decrypt masterKey with keyEncryptionKey (ente.io spec)
+	masterKey, err := s.decryptMasterKey(userData, keyEncryptionKey)
+	if err != nil {
+		return nil, errors.NewAppError("failed to decrypt master key - incorrect password?", err)
+	}
+	defer pkg_crypto.ClearBytes(masterKey)
+
+	// STEP 3: Generate random collectionKey (ente.io spec)
+	collectionKey, err := pkg_crypto.GenerateRandomBytes(pkg_crypto.CollectionKeySize)
+	if err != nil {
 		return nil, errors.NewAppError("failed to generate collection key", err)
 	}
+	defer pkg_crypto.ClearBytes(collectionKey)
 
-	// TODO: Properly encrypt the collection name using the collection key
-	// For now, we'll use base64 encoding as a placeholder
-	// In production, this should use proper encryption with the collection key
-	nameBytes := []byte(input.Name)
-	encryptedName := base64.StdEncoding.EncodeToString(nameBytes)
-
-	// TODO: Decrypt the user's master key and use it to encrypt the collection key
-	// For now, we'll use the collection key itself as a placeholder
-	// In production:
-	// 1. Decrypt user's master key using their KEK (which requires password)
-	// 2. Use the master key to encrypt the collection key
-	ciphertext, nonce, err := crypto.EncryptDataWithKey(collectionKey, collectionKey)
+	// STEP 4: Encrypt collectionKey with masterKey (ente.io spec)
+	encryptedCollectionKey, err := pkg_crypto.EncryptWithSecretBox(collectionKey, masterKey)
 	if err != nil {
-		s.logger.Error("failed to encrypt collection key", zap.Error(err))
-		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to encrypt collection key", err)
+	}
+
+	// STEP 5: Encrypt collection metadata with collectionKey (ente.io spec)
+	encryptedName, err := s.encryptCollectionName(input.Name, collectionKey)
+	if err != nil {
+		return nil, errors.NewAppError("failed to encrypt collection name", err)
 	}
 
 	currentTime := time.Now()
 	historicalKey := keys.EncryptedHistoricalKey{
+		Ciphertext:    encryptedCollectionKey.Ciphertext,
+		Nonce:         encryptedCollectionKey.Nonce,
 		KeyVersion:    1,
-		Ciphertext:    ciphertext,
-		Nonce:         nonce,
 		RotatedAt:     currentTime,
 		RotatedReason: "Initial collection creation",
 		Algorithm:     "chacha20poly1305",
-	}
-
-	encryptedCollectionKey := keys.EncryptedCollectionKey{
-		Ciphertext:   ciphertext,
-		Nonce:        nonce,
-		KeyVersion:   1,
-		RotatedAt:    &currentTime,
-		PreviousKeys: []keys.EncryptedHistoricalKey{historicalKey},
 	}
 
 	//
 	// STEP 5: Create our collection data transfer object and submit to the cloud
 	//
 
+	// Create collection with properly encrypted data
+	collectionID := primitive.NewObjectID()
 	collectionDTO := &dom_collectiondto.CollectionDTO{
-		OwnerID:                userData.ID,
-		EncryptedName:          encryptedName,
-		CollectionType:         input.CollectionType,
-		EncryptedCollectionKey: &encryptedCollectionKey,
-		Members:                make([]*dom_collectiondto.CollectionMembershipDTO, 0),
-		ParentID:               primitive.NilObjectID,
-		Children:               make([]*dom_collectiondto.CollectionDTO, 0),
-		CreatedAt:              time.Now(),
-		CreatedByUserID:        userData.ID,
-		ModifiedAt:             time.Now(),
-		ModifiedByUserID:       userData.ID,
-		Version:                1,
+		ID:             collectionID,
+		OwnerID:        input.OwnerID,
+		EncryptedName:  encryptedName,
+		CollectionType: input.CollectionType,
+		ParentID:       input.ParentID,
+		Members:        make([]*dom_collectiondto.CollectionMembershipDTO, 0),
+		EncryptedCollectionKey: &keys.EncryptedCollectionKey{
+			Ciphertext:   encryptedCollectionKey.Ciphertext,
+			Nonce:        encryptedCollectionKey.Nonce,
+			KeyVersion:   1,
+			RotatedAt:    &currentTime,
+			PreviousKeys: []keys.EncryptedHistoricalKey{historicalKey},
+		},
+		Children:         make([]*dom_collectiondto.CollectionDTO, 0),
+		CreatedAt:        time.Now(),
+		CreatedByUserID:  input.OwnerID,
+		ModifiedAt:       time.Now(),
+		ModifiedByUserID: input.OwnerID,
+		Version:          1,
 	}
 
 	collectionCloudID, err := s.createCollectionInCloudUseCase.Execute(ctx, collectionDTO)
@@ -206,9 +217,8 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 		OwnerID:                userData.ID,
 		EncryptedName:          encryptedName,
 		CollectionType:         input.CollectionType,
-		EncryptedCollectionKey: &encryptedCollectionKey,
 		Members:                make([]*dom_collection.CollectionMembership, 0),
-		SyncStatus:             dom_collection.SyncStatusSynced,
+		EncryptedCollectionKey: collectionDTO.EncryptedCollectionKey,
 		ParentID:               collectionDTO.ParentID,
 		Children:               make([]*dom_collection.Collection, 0),
 		CreatedAt:              collectionDTO.CreatedAt,
@@ -217,7 +227,8 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 		ModifiedByUserID:       collectionDTO.ModifiedByUserID,
 		Version:                collectionDTO.Version,
 		// Decrypted fields saved here:
-		Name: input.Name,
+		Name:       input.Name, // Keep plaintext for local use
+		SyncStatus: dom_collection.SyncStatusSynced,
 	}
 
 	// Call the use case to create the collection
@@ -228,7 +239,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 	}
 
 	//
-	// STEP X: Commit transaction and return method output.
+	// STEP 7: Commit transaction and return method output.
 	//
 	if err := s.transactionManager.Commit(); err != nil {
 		s.logger.Error("failed to commit transaction", zap.Error(err))
@@ -236,7 +247,36 @@ func (s *createService) Create(ctx context.Context, input *CreateInput) (*Create
 		return nil, errors.NewAppError("failed to commit transaction", err)
 	}
 
+	s.logger.Info("Successfully created E2EE collection",
+		zap.String("collectionID", collectionID.Hex()),
+		zap.String("name", input.Name))
+
 	return &CreateOutput{
 		Collection: col,
 	}, nil
+}
+
+// Helper: Derive keyEncryptionKey from password (ente.io spec)
+func (s *createService) deriveKeyEncryptionKey(password string, salt []byte) ([]byte, error) {
+	return pkg_crypto.DeriveKeyFromPassword(password, salt)
+}
+
+// Helper: Decrypt masterKey with keyEncryptionKey (ente.io spec)
+func (s *createService) decryptMasterKey(user *dom_user.User, keyEncryptionKey []byte) ([]byte, error) {
+	return pkg_crypto.DecryptWithSecretBox(
+		user.EncryptedMasterKey.Ciphertext,
+		user.EncryptedMasterKey.Nonce,
+		keyEncryptionKey,
+	)
+}
+
+// Helper: Encrypt collection name with collectionKey (ente.io spec)
+func (s *createService) encryptCollectionName(name string, collectionKey []byte) (string, error) {
+	encryptedData, err := pkg_crypto.EncryptWithSecretBox([]byte(name), collectionKey)
+	if err != nil {
+		return "", err
+	}
+
+	combined := pkg_crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
+	return pkg_crypto.EncodeToBase64(combined), nil
 }

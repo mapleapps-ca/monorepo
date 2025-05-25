@@ -4,6 +4,7 @@ package files
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -22,6 +23,7 @@ func addFileCmd(
 	var collectionID string
 	var name string
 	var storageMode string
+	var password string
 
 	var cmd = &cobra.Command{
 		Use:   "add",
@@ -38,16 +40,16 @@ You can control how the file is stored using the --storage-mode flag:
 
 Examples:
   # Windows examples
-  maplefile-cli files add --file "C:\Users\John\Documents\report.pdf" --collection 507f1f77bcf86cd799439011
-  maplefile-cli files add --file "D:\Projects\MyApp\config.json" --collection 507f1f77bcf86cd799439011 --storage-mode=hybrid
+  maplefile-cli files add --file "C:\Users\John\Documents\report.pdf" --collection 507f1f77bcf86cd799439011 --password 1234567890
+  maplefile-cli files add --file "D:\Projects\MyApp\config.json" --collection 507f1f77bcf86cd799439011 --storage-mode=hybrid --password 1234567890
 
   # Linux examples
-  maplefile-cli files add --file "/home/john/documents/report.pdf" --collection 507f1f77bcf86cd799439011
-  maplefile-cli files add --file "/var/log/application.log" --collection 507f1f77bcf86cd799439011 --name "App Log"
+  maplefile-cli files add --file "/home/john/documents/report.pdf" --collection 507f1f77bcf86cd799439011 --password 1234567890
+  maplefile-cli files add --file "/var/log/application.log" --collection 507f1f77bcf86cd799439011 --name "App Log" --password 1234567890
 
   # macOS examples
-  maplefile-cli files add --file "/Users/john/Desktop/presentation.pptx" --collection 507f1f77bcf86cd799439011
-  maplefile-cli files add --file "/Applications/MyApp/data.db" --collection 507f1f77bcf86cd799439011 --storage-mode=encrypted_only
+  maplefile-cli files add --file "/Users/john/Desktop/presentation.pptx" --collection 507f1f77bcf86cd799439011 --password 1234567890
+  maplefile-cli files add --file "/Applications/MyApp/data.db" --collection 507f1f77bcf86cd799439011 --storage-mode=encrypted_only --password 1234567890
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
@@ -55,6 +57,12 @@ Examples:
 			// ========================================
 			// Step 1: Validate required flags
 			// ========================================
+			//
+			if password == "" {
+				fmt.Println("❌ Error: Password is required for E2EE operations.")
+				fmt.Println("Use --password flag to specify your account password.")
+				return
+			}
 			if filePath == "" {
 				fmt.Println("❌ Error: File path is required.")
 				fmt.Println("Use --file flag to specify the path to the file.")
@@ -99,9 +107,13 @@ Examples:
 			// ========================================
 			fmt.Printf("🔄 Processing file: %s\n", filePath)
 
-			output, err := addService.Add(ctx, input)
+			output, err := addService.Add(ctx, input, password)
 			if err != nil {
-				fmt.Printf("❌ Error adding file: %v\n", err)
+				if strings.Contains(err.Error(), "incorrect password") {
+					fmt.Printf("❌ Error: Incorrect password. Please check your password and try again.\n")
+				} else {
+					fmt.Printf("❌ Error adding file: %v\n", err)
+				}
 				return
 			}
 
@@ -133,6 +145,8 @@ Examples:
 	// Mark required flags
 	cmd.MarkFlagRequired("file")
 	cmd.MarkFlagRequired("collection")
+	cmd.Flags().StringVar(&password, "password", "", "Your account password (required for E2EE)")
+	cmd.MarkFlagRequired("password")
 
 	return cmd
 }

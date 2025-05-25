@@ -26,7 +26,7 @@ import (
 
 // UploadService handles three-step file upload to cloud
 type UploadService interface {
-	UploadFile(ctx context.Context, fileID primitive.ObjectID) (*fileupload.FileUploadResult, error)
+	UploadFile(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*fileupload.FileUploadResult, error)
 }
 
 type uploadService struct {
@@ -37,11 +37,11 @@ type uploadService struct {
 	userRepo                 user.Repository
 	getFileUseCase           uc_file.GetFileUseCase
 	updateFileUseCase        uc_file.UpdateFileUseCase
-	getCollectionUseCase     uc_collection.GetCollectionUseCase
-	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase
 	encryptFileUseCase       uc_fileupload.EncryptFileUseCase
 	prepareUploadUseCase     uc_fileupload.PrepareFileUploadUseCase
 	cryptoService            svc_crypto.CryptoService
+	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase
+	getCollectionUseCase     uc_collection.GetCollectionUseCase
 }
 
 func NewUploadService(
@@ -52,11 +52,11 @@ func NewUploadService(
 	userRepo user.Repository,
 	getFileUseCase uc_file.GetFileUseCase,
 	updateFileUseCase uc_file.UpdateFileUseCase,
-	getCollectionUseCase uc_collection.GetCollectionUseCase,
-	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	encryptFileUseCase uc_fileupload.EncryptFileUseCase,
 	prepareUploadUseCase uc_fileupload.PrepareFileUploadUseCase,
 	cryptoService svc_crypto.CryptoService,
+	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
+	getCollectionUseCase uc_collection.GetCollectionUseCase,
 ) UploadService {
 	return &uploadService{
 		logger:                   logger,
@@ -74,30 +74,39 @@ func NewUploadService(
 	}
 }
 
-func (s *uploadService) UploadFile(ctx context.Context, fileID primitive.ObjectID) (*fileupload.FileUploadResult, error) {
+func (s *uploadService) UploadFile(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*fileupload.FileUploadResult, error) {
 	// startTime := time.Now()
-
 	s.logger.Info("Starting three-step file upload", zap.String("fileID", fileID.Hex()))
 
-	// Step 0: Validate and prepare
-	file, collection, collectionKey, err := s.validateAndPrepare(ctx, fileID)
+	//
+	// Step 1: Validate and prepare
+	//
+
+	file, collection, collectionKey, err := s.validateAndPrepareE2EE(ctx, fileID, userPassword)
 	if err != nil {
 		return s.failedResult(fileID, err)
 	}
+	defer pkg_crypto.ClearBytes(collectionKey)
 
-	// Step 1: Create pending file in cloud
+	//
+	// Step 2: Create pending file in cloud
+	//
 	pendingResponse, err := s.createPendingFile(ctx, file, collection, collectionKey)
 	if err != nil {
 		return s.failedResult(fileID, err)
 	}
 
-	// Step 2: Upload file content
-	fileSize, thumbnailSize, err := s.uploadContent(ctx, file, pendingResponse, collectionKey)
+	//
+	// Step 3: Upload file content
+	//
+	fileSize, thumbnailSize, err := s.uploadEncryptedContent(ctx, file, pendingResponse)
 	if err != nil {
 		return s.failedResult(fileID, err)
 	}
 
-	// Step 3: Complete upload
+	//
+	// Step 4: Complete upload
+	//
 	if err := s.completeUpload(ctx, pendingResponse.File.ID, fileSize, thumbnailSize); err != nil {
 		return s.failedResult(fileID, err)
 	}
@@ -119,7 +128,11 @@ func (s *uploadService) UploadFile(ctx context.Context, fileID primitive.ObjectI
 	}, nil
 }
 
-func (s *uploadService) validateAndPrepare(ctx context.Context, fileID primitive.ObjectID) (*dom_file.File, *dom_collection.Collection, []byte, error) {
+func (s *uploadService) validateAndPrepareE2EE(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*dom_file.File, *dom_collection.Collection, []byte, error) {
+	// Confirm user's password is not empty.
+	if userPassword == "" {
+		return nil, nil, nil, errors.NewAppError("user password is required for E2EE operations", nil)
+	}
 	// Get file
 	file, err := s.getFileUseCase.Execute(ctx, fileID)
 	if err != nil {
@@ -134,24 +147,28 @@ func (s *uploadService) validateAndPrepare(ctx context.Context, fileID primitive
 		)
 	}
 
-	// Get collection
-	collection, err := s.getCollectionUseCase.Execute(ctx, file.CollectionID)
-	if err != nil {
-		return nil, nil, nil, errors.NewAppError("failed to get collection", err)
-	}
-
 	// Get logged in user
 	user, err := s.getUserByLoggedInUseCase.Execute(ctx)
 	if err != nil {
 		return nil, nil, nil, errors.NewAppError("failed to get logged in user", err)
 	}
-	_ = user // TODO: Use the user's master key to decrypt the collection key
+	if user == nil {
+		return nil, nil, nil, errors.NewAppError("user not found", nil)
+	}
 
-	// TODO: In production, decrypt the collection key using the user's master key
-	// For now, we'll generate a placeholder
-	collectionKey, err := pkg_crypto.GenerateRandomBytes(pkg_crypto.CollectionKeySize)
+	// Get collection
+	collection, err := s.getCollectionUseCase.Execute(ctx, file.CollectionID)
 	if err != nil {
-		return nil, nil, nil, errors.NewAppError("failed to get collection key", err)
+		return nil, nil, nil, errors.NewAppError("failed to get collection", err)
+	}
+	if collection == nil {
+		return nil, nil, nil, errors.NewAppError("collection not found", nil)
+	}
+
+	// Decrypt collection key using complete ente.io chain
+	collectionKey, err := s.decryptCollectionKeyChain(user, collection, userPassword)
+	if err != nil {
+		return nil, nil, nil, errors.NewAppError("failed to decrypt collection key chain", err)
 	}
 
 	return file, collection, collectionKey, nil
@@ -188,86 +205,6 @@ func (s *uploadService) createPendingFile(
 		zap.Time("urlExpiration", response.UploadURLExpirationTime))
 
 	return response, nil
-}
-
-func (s *uploadService) uploadContent(
-	ctx context.Context,
-	file *dom_file.File,
-	pendingResponse *filedto.CreatePendingFileResponse,
-	collectionKey []byte,
-) (int64, int64, error) {
-	s.logger.Debug("Uploading file content", zap.String("fileID", file.ID.Hex()))
-
-	// Get file key by decrypting with collection key
-	fileKey, err := s.cryptoService.DecryptFileKey(
-		ctx,
-		file.EncryptedFileKey.Ciphertext,
-		file.EncryptedFileKey.Nonce,
-		collectionKey,
-	)
-	if err != nil {
-		return 0, 0, errors.NewAppError("failed to decrypt file key", err)
-	}
-
-	// Determine file data to upload
-	var fileData []byte
-	var actualFileSize int64
-
-	switch file.StorageMode {
-	case dom_file.StorageModeEncryptedOnly, dom_file.StorageModeHybrid:
-		// Read encrypted file
-		if file.EncryptedFilePath == "" {
-			return 0, 0, errors.NewAppError("encrypted file path is empty", nil)
-		}
-
-		data, err := os.ReadFile(file.EncryptedFilePath)
-		if err != nil {
-			return 0, 0, errors.NewAppError("failed to read encrypted file", err)
-		}
-		fileData = data
-		actualFileSize = int64(len(data))
-
-	case dom_file.StorageModeDecryptedOnly:
-		// Read and encrypt on the fly
-		if file.FilePath == "" {
-			return 0, 0, errors.NewAppError("file path is empty", nil)
-		}
-
-		encryptedData, hash, err := s.encryptFileUseCase.Execute(ctx, file.FilePath, fileKey)
-		if err != nil {
-			return 0, 0, errors.NewAppError("failed to encrypt file", err)
-		}
-		fileData = encryptedData
-		actualFileSize = int64(len(encryptedData))
-		_ = hash // TODO: Verify hash matches
-	}
-
-	// Upload file content
-	if err := s.fileDTORepo.UploadFileToCloud(ctx, pendingResponse.PresignedUploadURL, fileData); err != nil {
-		return 0, 0, errors.NewAppError("failed to upload file content", err)
-	}
-
-	// Upload thumbnail if exists
-	var thumbnailSize int64
-	if file.EncryptedThumbnailPath != "" && pendingResponse.PresignedThumbnailURL != "" {
-		thumbnailData, err := os.ReadFile(file.EncryptedThumbnailPath)
-		if err != nil {
-			s.logger.Warn("Failed to read thumbnail",
-				zap.String("path", file.EncryptedThumbnailPath),
-				zap.Error(err))
-		} else {
-			if err := s.fileDTORepo.UploadThumbnailToCloud(ctx, pendingResponse.PresignedThumbnailURL, thumbnailData); err != nil {
-				s.logger.Warn("Failed to upload thumbnail", zap.Error(err))
-			} else {
-				thumbnailSize = int64(len(thumbnailData))
-			}
-		}
-	}
-
-	// Clear sensitive data
-	pkg_crypto.ClearBytes(fileKey)
-
-	return actualFileSize, thumbnailSize, nil
 }
 
 func (s *uploadService) completeUpload(ctx context.Context, cloudFileID primitive.ObjectID, fileSize, thumbnailSize int64) error {
@@ -322,4 +259,65 @@ func (s *uploadService) failedResult(fileID primitive.ObjectID, err error) (*fil
 		Success: false,
 		Error:   err,
 	}, err
+}
+
+// Same decryption chain as addService
+func (s *uploadService) decryptCollectionKeyChain(user *user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
+	// STEP 1: Derive keyEncryptionKey from password
+	keyEncryptionKey, err := pkg_crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive key encryption key: %w", err)
+	}
+	defer pkg_crypto.ClearBytes(keyEncryptionKey)
+
+	// STEP 2: Decrypt masterKey with keyEncryptionKey
+	masterKey, err := pkg_crypto.DecryptWithSecretBox(
+		user.EncryptedMasterKey.Ciphertext,
+		user.EncryptedMasterKey.Nonce,
+		keyEncryptionKey,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt master key - incorrect password?: %w", err)
+	}
+	defer pkg_crypto.ClearBytes(masterKey)
+
+	// STEP 3: Decrypt collectionKey with masterKey
+	return pkg_crypto.DecryptWithSecretBox(
+		collection.EncryptedCollectionKey.Ciphertext,
+		collection.EncryptedCollectionKey.Nonce,
+		masterKey,
+	)
+}
+
+// Upload already encrypted content (no re-encryption needed)
+func (s *uploadService) uploadEncryptedContent(ctx context.Context, file *dom_file.File, pendingResponse *filedto.CreatePendingFileResponse) (int64, int64, error) {
+	s.logger.Debug("Uploading encrypted file content", zap.String("fileID", file.ID.Hex()))
+
+	// Read already encrypted file
+	encryptedData, err := os.ReadFile(file.EncryptedFilePath)
+	if err != nil {
+		return 0, 0, errors.NewAppError("failed to read encrypted file", err)
+	}
+
+	// Upload encrypted data directly (no re-encryption)
+	if err := s.fileDTORepo.UploadFileToCloud(ctx, pendingResponse.PresignedUploadURL, encryptedData); err != nil {
+		return 0, 0, errors.NewAppError("failed to upload encrypted file content", err)
+	}
+
+	// Handle thumbnail if exists
+	var thumbnailSize int64
+	if file.EncryptedThumbnailPath != "" && pendingResponse.PresignedThumbnailURL != "" {
+		thumbnailData, err := os.ReadFile(file.EncryptedThumbnailPath)
+		if err != nil {
+			s.logger.Warn("Failed to read encrypted thumbnail", zap.Error(err))
+		} else {
+			if err := s.fileDTORepo.UploadThumbnailToCloud(ctx, pendingResponse.PresignedThumbnailURL, thumbnailData); err != nil {
+				s.logger.Warn("Failed to upload encrypted thumbnail", zap.Error(err))
+			} else {
+				thumbnailSize = int64(len(thumbnailData))
+			}
+		}
+	}
+
+	return int64(len(encryptedData)), thumbnailSize, nil
 }
