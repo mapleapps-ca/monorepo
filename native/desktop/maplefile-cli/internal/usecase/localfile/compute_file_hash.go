@@ -3,10 +3,11 @@ package localfile
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
+
+	"golang.org/x/crypto/sha3"
 
 	"go.uber.org/zap"
 
@@ -48,8 +49,8 @@ func (uc *computeFileHashUseCase) ExecuteForBytes(ctx context.Context, filePath 
 	}
 	defer f.Close()
 
-	// Create a new SHA256 hasher
-	h := sha256.New()
+	// Create a new SHA3-256 hasher
+	hasher := sha3.New256()
 
 	// Developer Note:
 	// To efficiently calculate the hash, we read the file in chunks.
@@ -64,13 +65,13 @@ func (uc *computeFileHashUseCase) ExecuteForBytes(ctx context.Context, filePath 
 		if n == 0 {
 			break
 		}
-		if _, err := h.Write(buf[:n]); err != nil {
-			return nil, fmt.Errorf("failed to write to hasher: %v", err)
+		if _, err := hasher.Write(buf[:n]); err != nil {
+			return nil, fmt.Errorf("failed to write to SHA3-256 hasher: %v", err)
 		}
 	}
 
 	// Get the byte representation of the hash
-	hashBytes := h.Sum(nil)
+	hashBytes := hasher.Sum(nil)
 
 	return hashBytes, nil
 }
