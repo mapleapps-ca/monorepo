@@ -44,6 +44,7 @@ func ServiceModule() fx.Option {
 		// File syncer services
 		fx.Provide(filesyncer.NewOffloadService),
 		fx.Provide(filesyncer.NewOnloadService),
+		fx.Provide(filesyncer.NewCloudDeleteService),
 
 		// Upload file services
 		fx.Provide(fileupload.NewUploadService),

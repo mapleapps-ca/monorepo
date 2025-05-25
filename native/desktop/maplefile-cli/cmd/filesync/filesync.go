@@ -12,6 +12,7 @@ import (
 func FileSyncCmd(
 	offloadService filesyncer.OffloadService,
 	onloadService filesyncer.OnloadService,
+	cloudDeleteService filesyncer.CloudDeleteService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -27,6 +28,7 @@ func FileSyncCmd(
 	// Add file sync subcommands
 	cmd.AddCommand(offloadCmd(offloadService, logger))
 	cmd.AddCommand(onloadCmd(onloadService, logger))
+	cmd.AddCommand(cloudDeleteCmd(cloudDeleteService, logger))
 
 	return cmd
 }

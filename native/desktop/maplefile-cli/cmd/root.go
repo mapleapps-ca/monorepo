@@ -47,6 +47,7 @@ func NewRootCmd(
 	uploadService fileupload.UploadService,
 	offloadService filesyncer.OffloadService,
 	onloadService filesyncer.OnloadService,
+	cloudDeleteService filesyncer.CloudDeleteService,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "maplefile-cli",
@@ -82,6 +83,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(filesync.FileSyncCmd(
 		offloadService,
 		onloadService,
+		cloudDeleteService,
 		logger,
 	))
 	return rootCmd
