@@ -30,6 +30,9 @@ const (
 	Argon2Parallelism = 1
 	Argon2KeySize     = 32
 	Argon2SaltSize    = 16
+
+	FileKeySize       = 32 // 256-bit file encryption keys
+	CollectionKeySize = 32 // 256-bit collection encryption keys
 )
 
 // EncryptData represents encrypted data with its nonce
@@ -129,4 +132,36 @@ func EncryptWithBoxSeal(message []byte, recipientPK []byte) ([]byte, error) {
 	copy(result[PublicKeySize+NonceSize:], ciphertext)
 
 	return result, nil
+}
+
+// DecryptWithSecretBox decrypts data with a symmetric key
+func DecryptWithSecretBox(ciphertext, nonce, key []byte) ([]byte, error) {
+	if len(key) != MasterKeySize {
+		return nil, fmt.Errorf("invalid key size: expected %d, got %d", MasterKeySize, len(key))
+	}
+
+	if len(nonce) != NonceSize {
+		return nil, fmt.Errorf("invalid nonce size: expected %d, got %d", NonceSize, len(nonce))
+	}
+
+	// Create fixed-size arrays from slices for secretbox
+	var keyArray [32]byte
+	copy(keyArray[:], key)
+
+	var nonceArray [24]byte
+	copy(nonceArray[:], nonce)
+
+	// Decrypt
+	plaintext, ok := secretbox.Open(nil, ciphertext, &nonceArray, &keyArray)
+	if !ok {
+		return nil, fmt.Errorf("decryption failed")
+	}
+
+	return plaintext, nil
+}
+
+func ClearBytes(data []byte) {
+	for i := range data {
+		data[i] = 0
+	}
 }

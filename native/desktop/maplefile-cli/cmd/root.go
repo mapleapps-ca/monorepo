@@ -11,6 +11,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/completelogin"
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/files"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/filesync"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/requestloginott"
@@ -22,6 +23,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	svc_auth "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	svc_register "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
@@ -41,7 +43,10 @@ func NewRootCmd(
 	createCollectionService collection.CreateService,
 	collectionListService collection.ListService,
 	addFileService localfile.AddService,
+	listFileService localfile.ListService,
 	uploadService fileupload.UploadService,
+	offloadService filesyncer.OffloadService,
+	onloadService filesyncer.OnloadService,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "maplefile-cli",
@@ -72,6 +77,12 @@ func NewRootCmd(
 		logger,
 		addFileService,
 		uploadService,
+	))
+	// Add the new filesync command
+	rootCmd.AddCommand(filesync.FileSyncCmd(
+		offloadService,
+		onloadService,
+		logger,
 	))
 	return rootCmd
 }
