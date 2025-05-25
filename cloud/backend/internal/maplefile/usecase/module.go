@@ -65,6 +65,8 @@ func Module() fx.Option {
 			filemetadata.NewDeleteManyFileMetadataUseCase,
 			filemetadata.NewCheckFileExistsUseCase,
 			filemetadata.NewCheckFileAccessUseCase,
+			filemetadata.NewGetFileMetadataByCreatedByUserIDUseCase,
+			filemetadata.NewGetFileMetadataByOwnerIDUseCase,
 
 			// File Object Storage use cases
 			fileobjectstorage.NewStoreEncryptedDataUseCase,

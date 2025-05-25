@@ -30,6 +30,8 @@ type FileMetadataRepository interface {
 	CheckIfExistsByID(id primitive.ObjectID) (bool, error)
 	// CheckIfUserHasAccess determines if a specific user (userID) has access permissions for a given file (fileID).
 	CheckIfUserHasAccess(fileID primitive.ObjectID, userID primitive.ObjectID) (bool, error)
+	GetByCreatedByUserID(createdByUserID primitive.ObjectID) ([]*File, error)
+	GetByOwnerID(ownerID primitive.ObjectID) ([]*File, error)
 }
 
 // FileObjectStorageRepository defines the interface for interacting with the actual encrypted file data storage.

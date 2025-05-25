@@ -30,12 +30,13 @@ type DeleteFileService interface {
 }
 
 type deleteFileServiceImpl struct {
-	config                *config.Configuration
-	logger                *zap.Logger
-	collectionRepo        dom_collection.CollectionRepository
-	getMetadataUseCase    uc_filemetadata.GetFileMetadataUseCase
-	deleteMetadataUseCase uc_filemetadata.DeleteFileMetadataUseCase
-	deleteDataUseCase     uc_fileobjectstorage.DeleteEncryptedDataUseCase
+	config                    *config.Configuration
+	logger                    *zap.Logger
+	collectionRepo            dom_collection.CollectionRepository
+	getMetadataUseCase        uc_filemetadata.GetFileMetadataUseCase
+	deleteMetadataUseCase     uc_filemetadata.DeleteFileMetadataUseCase
+	deleteDataUseCase         uc_fileobjectstorage.DeleteEncryptedDataUseCase
+	listFilesByOwnerIDService ListFilesByOwnerIDService
 }
 
 func NewDeleteFileService(
@@ -45,14 +46,16 @@ func NewDeleteFileService(
 	getMetadataUseCase uc_filemetadata.GetFileMetadataUseCase,
 	deleteMetadataUseCase uc_filemetadata.DeleteFileMetadataUseCase,
 	deleteDataUseCase uc_fileobjectstorage.DeleteEncryptedDataUseCase,
+	listFilesByOwnerIDService ListFilesByOwnerIDService,
 ) DeleteFileService {
 	return &deleteFileServiceImpl{
-		config:                config,
-		logger:                logger,
-		collectionRepo:        collectionRepo,
-		getMetadataUseCase:    getMetadataUseCase,
-		deleteMetadataUseCase: deleteMetadataUseCase,
-		deleteDataUseCase:     deleteDataUseCase,
+		config:                    config,
+		logger:                    logger,
+		collectionRepo:            collectionRepo,
+		getMetadataUseCase:        getMetadataUseCase,
+		deleteMetadataUseCase:     deleteMetadataUseCase,
+		deleteDataUseCase:         deleteDataUseCase,
+		listFilesByOwnerIDService: listFilesByOwnerIDService,
 	}
 }
 
@@ -87,6 +90,20 @@ func (svc *deleteFileServiceImpl) Execute(ctx context.Context, req *DeleteFileRe
 		svc.logger.Error("Failed to get file metadata",
 			zap.Any("error", err),
 			zap.Any("file_id", req.FileID))
+
+		svc.logger.Debug("Debugging started, will list all files that belong to the authenticated user")
+		currentFiles, err := svc.listFilesByOwnerIDService.Execute(ctx, &ListFilesByOwnerIDRequestDTO{OwnerID: userID})
+		if err != nil {
+			svc.logger.Error("Failed to list files by owner ID",
+				zap.Any("error", err),
+				zap.Any("user_id", userID))
+			return nil, err
+		}
+		for _, file := range currentFiles.Files {
+			svc.logger.Debug("File",
+				zap.Any("id", file.ID))
+		}
+
 		return nil, err
 	}
 
