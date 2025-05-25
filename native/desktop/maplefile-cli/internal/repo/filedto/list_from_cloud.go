@@ -58,7 +58,7 @@ func (r *fileDTORepository) ListFromCloud(ctx context.Context, filter filedto.Fi
 	}
 
 	// Set headers
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("JWT %s", accessToken))
 
 	// Execute the request
 	resp, err := r.httpClient.Do(req)

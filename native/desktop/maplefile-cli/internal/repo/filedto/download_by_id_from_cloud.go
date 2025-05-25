@@ -45,7 +45,7 @@ func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id primit
 	}
 
 	// Set headers
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("JWT %s", accessToken))
 
 	// Execute the request
 	resp, err := r.httpClient.Do(req)

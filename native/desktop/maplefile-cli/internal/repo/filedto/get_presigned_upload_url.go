@@ -66,7 +66,7 @@ func (r *fileDTORepository) GetPresignedUploadURLFromCloud(ctx context.Context, 
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("JWT %s", accessToken))
 
 	// Execute the request
 	resp, err := r.httpClient.Do(req)
