@@ -64,7 +64,7 @@ type FederatedUser struct {
 	EncryptedRecoveryKey              keys.EncryptedRecoveryKey              `json:"encrypted_recovery_key" bson:"encrypted_recovery_key"`
 	MasterKeyEncryptedWithRecoveryKey keys.MasterKeyEncryptedWithRecoveryKey `json:"master_key_encrypted_with_recovery_key" bson:"master_key_encrypted_with_recovery_key"`
 	EncryptedChallenge                []byte                                 `json:"encrypted_challenge,omitempty" bson:"encrypted_challenge,omitempty"`
-	VerificationID                    string                                 `json:"verificationID"`
+	VerificationID                    string                                 `json:"verification_id" bson:"verification_id"`
 
 	// Track KDF upgrade status
 	LastPasswordChange   time.Time `json:"last_password_change" bson:"last_password_change"`
@@ -112,29 +112,29 @@ type FederatedUser struct {
 // FederatedUserFilter represents the filter criteria for listing users
 type FederatedUserFilter struct {
 	// Basic filters
-	Name   *string `json:"name,omitempty"`
-	Email  *string `json:"email,omitempty"`
-	Role   int8    `json:"role,omitempty"`
-	Status int8    `json:"status,omitempty"`
+	Name   *string `json:"name,omitempty" bson:"name,omitempty"`
+	Email  *string `json:"email,omitempty" bson:"email,omitempty"`
+	Role   int8    `json:"role,omitempty" bson:"role,omitempty"`
+	Status int8    `json:"status,omitempty" bson:"status,omitempty"`
 
 	// Date range filters
-	CreatedAtStart *time.Time `json:"created_at_start,omitempty"`
-	CreatedAtEnd   *time.Time `json:"created_at_end,omitempty"`
+	CreatedAtStart *time.Time `json:"created_at_start,omitempty" bson:"created_at_start,omitempty"`
+	CreatedAtEnd   *time.Time `json:"created_at_end,omitempty" bson:"created_at_end,omitempty"`
 
 	// Pagination - cursor based
-	LastID        *primitive.ObjectID `json:"last_id,omitempty"`
-	LastCreatedAt *time.Time          `json:"last_created_at,omitempty"`
-	Limit         int64               `json:"limit,omitempty"`
+	LastID        *primitive.ObjectID `json:"last_id,omitempty" bson:"_id,omitempty"`
+	LastCreatedAt *time.Time          `json:"last_created_at,omitempty" bson:"created_at,omitempty"`
+	Limit         int64               `json:"limit,omitempty" bson:"limit,omitempty"`
 
 	// Search term for text search across multiple fields
-	SearchTerm *string `json:"search_term,omitempty"`
+	SearchTerm *string `json:"search_term,omitempty" bson:"search_term,omitempty"`
 }
 
 // FederatedUserFilterResult represents the result of a filtered list operation
 type FederatedUserFilterResult struct {
-	Users         []*FederatedUser   `json:"users"`
-	HasMore       bool               `json:"has_more"`
-	LastID        primitive.ObjectID `json:"last_id,omitempty"`
-	LastCreatedAt time.Time          `json:"last_created_at"`
-	TotalCount    uint64             `json:"total_count,omitempty"`
+	Users         []*FederatedUser   `json:"users" bson:"users"`
+	HasMore       bool               `json:"has_more" bson:"has_more"`
+	LastID        primitive.ObjectID `json:"last_id,omitempty" bson:"_id,omitempty"`
+	LastCreatedAt time.Time          `json:"last_created_at" bson:"created_at"`
+	TotalCount    uint64             `json:"total_count,omitempty" bson:"total_count,omitempty"`
 }

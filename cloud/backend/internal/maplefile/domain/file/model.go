@@ -57,13 +57,13 @@ type File struct {
 	// Timestamp when this file entity was created/uploaded.
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	// CreatedByUserID is the ID of the user who created this file.
-	CreatedByUserID primitive.ObjectID `json:"created_by_user_id"`
+	CreatedByUserID primitive.ObjectID `bson:"created_by_user_id" json:"created_by_user_id"`
 	// Timestamp when this file entity's metadata or content was last modified.
 	ModifiedAt time.Time `bson:"modified_at" json:"modified_at"`
 	// ModifiedByUserID is the ID of the user whom has last modified this file.
-	ModifiedByUserID primitive.ObjectID `json:"modified_by_user_id"`
+	ModifiedByUserID primitive.ObjectID `bson:"modified_by_user_id" json:"modified_by_user_id"`
 	// The current version of the file.
-	Version uint64 `json:"version"`
+	Version uint64 `bson:"version" json:"version"`
 
 	// State management.
 	State string `bson:"state" json:"state"`

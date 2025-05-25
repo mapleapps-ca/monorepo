@@ -52,13 +52,13 @@ type Collection struct {
 	// Recorded on the local device and synced.
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	// CreatedByUserID is the ID of the user who created this file.
-	CreatedByUserID primitive.ObjectID `json:"created_by_user_id"`
+	CreatedByUserID primitive.ObjectID `bson:"created_by_user_id" json:"created_by_user_id"`
 	// ModifiedAt is the timestamp of the last modification to the collection's metadata or content.
 	// Updated on the local device and synced.
 	ModifiedAt       time.Time          `bson:"modified_at" json:"modified_at"`
-	ModifiedByUserID primitive.ObjectID `json:"modified_by_user_id"`
+	ModifiedByUserID primitive.ObjectID `bson:"modified_by_user_id" json:"modified_by_user_id"`
 	// The current version of the file.
-	Version uint64 `json:"version"`
+	Version uint64 `bson:"version" json:"version"`
 
 	// Decrypted content details and local sync tracking
 	Name       string     `json:"name" bson:"name"`

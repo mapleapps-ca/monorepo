@@ -112,29 +112,29 @@ type User struct {
 // UserFilter represents the filter criteria for listing users
 type UserFilter struct {
 	// Basic filters
-	Name   *string `json:"name,omitempty"`
-	Email  *string `json:"email,omitempty"`
-	Role   int8    `json:"role,omitempty"`
-	Status int8    `json:"status,omitempty"`
+	Name   *string `bson:"name,omitempty" json:"name,omitempty"`
+	Email  *string `bson:"email,omitempty" json:"email,omitempty"`
+	Role   int8    `bson:"role,omitempty" json:"role,omitempty"`
+	Status int8    `bson:"status,omitempty" json:"status,omitempty"`
 
 	// Date range filters
-	CreatedAtStart *time.Time `json:"created_at_start,omitempty"`
-	CreatedAtEnd   *time.Time `json:"created_at_end,omitempty"`
+	CreatedAtStart *time.Time `bson:"created_at_start,omitempty" json:"created_at_start,omitempty"`
+	CreatedAtEnd   *time.Time `bson:"created_at_end,omitempty" json:"created_at_end,omitempty"`
 
 	// Pagination - cursor based
-	LastID        *primitive.ObjectID `json:"last_id,omitempty"`
-	LastCreatedAt *time.Time          `json:"last_created_at,omitempty"`
-	Limit         int64               `json:"limit,omitempty"`
+	LastID        *primitive.ObjectID `bson:"last_id,omitempty" json:"last_id,omitempty"`
+	LastCreatedAt *time.Time          `bson:"last_created_at,omitempty" json:"last_created_at,omitempty"`
+	Limit         int64               `bson:"limit,omitempty" json:"limit,omitempty"`
 
 	// Search term for text search across multiple fields
-	SearchTerm *string `json:"search_term,omitempty"`
+	SearchTerm *string `bson:"search_term,omitempty" json:"search_term,omitempty"`
 }
 
 // UserFilterResult represents the result of a filtered list operation
 type UserFilterResult struct {
-	Users         []*User            `json:"users"`
-	HasMore       bool               `json:"has_more"`
-	LastID        primitive.ObjectID `json:"last_id,omitempty"`
-	LastCreatedAt time.Time          `json:"last_created_at"`
-	TotalCount    uint64             `json:"total_count,omitempty"`
+	Users         []*User            `bson:"users" json:"users"`
+	HasMore       bool               `bson:"has_more" json:"has_more"`
+	LastID        primitive.ObjectID `bson:"last_id,omitempty" json:"last_id,omitempty"`
+	LastCreatedAt time.Time          `bson:"last_created_at" json:"last_created_at"`
+	TotalCount    uint64             `bson:"total_count,omitempty" json:"total_count,omitempty"`
 }

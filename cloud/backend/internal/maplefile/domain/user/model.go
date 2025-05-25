@@ -52,38 +52,38 @@ type User struct {
 	PasswordHashAlgorithm                          string             `bson:"password_hash_algorithm" json:"-"`
 	PasswordHash                                   string             `bson:"password_hash" json:"-"`
 	Role                                           int8               `bson:"role" json:"role"`
-	WasEmailVerified                               bool               `bson:"was_email_verified" json:"was_email_verified,omitempty"`
+	WasEmailVerified                               bool               `bson:"was_email_verified,omitempty" json:"was_email_verified,omitempty"`
 	EmailVerificationCode                          string             `bson:"email_verification_code,omitempty" json:"email_verification_code,omitempty"`
 	EmailVerificationExpiry                        time.Time          `bson:"email_verification_expiry,omitempty" json:"email_verification_expiry,omitempty"`
 	PasswordResetVerificationCode                  string             `bson:"password_reset_verification_code,omitempty" json:"password_reset_verification_code,omitempty"`
 	PasswordResetVerificationExpiry                time.Time          `bson:"password_reset_verification_expiry,omitempty" json:"password_reset_verification_expiry,omitempty"`
-	Phone                                          string             `bson:"phone" json:"phone,omitempty"`
-	Country                                        string             `bson:"country" json:"country,omitempty"`
+	Phone                                          string             `bson:"phone,omitempty" json:"phone,omitempty"`
+	Country                                        string             `bson:"country,omitempty" json:"country,omitempty"`
 	Timezone                                       string             `bson:"timezone" json:"timezone"`
-	Region                                         string             `bson:"region" json:"region,omitempty"`
-	City                                           string             `bson:"city" json:"city,omitempty"`
-	PostalCode                                     string             `bson:"postal_code" json:"postal_code,omitempty"`
-	AddressLine1                                   string             `bson:"address_line1" json:"address_line1,omitempty"`
-	AddressLine2                                   string             `bson:"address_line2" json:"address_line2,omitempty"`
-	HasShippingAddress                             bool               `bson:"has_shipping_address" json:"has_shipping_address,omitempty"`
-	ShippingName                                   string             `bson:"shipping_name" json:"shipping_name,omitempty"`
-	ShippingPhone                                  string             `bson:"shipping_phone" json:"shipping_phone,omitempty"`
-	ShippingCountry                                string             `bson:"shipping_country" json:"shipping_country,omitempty"`
-	ShippingRegion                                 string             `bson:"shipping_region" json:"shipping_region,omitempty"`
-	ShippingCity                                   string             `bson:"shipping_city" json:"shipping_city,omitempty"`
-	ShippingPostalCode                             string             `bson:"shipping_postal_code" json:"shipping_postal_code,omitempty"`
-	ShippingAddressLine1                           string             `bson:"shipping_address_line1" json:"shipping_address_line1,omitempty"`
-	ShippingAddressLine2                           string             `bson:"shipping_address_line2" json:"shipping_address_line2,omitempty"`
-	AgreeTermsOfService                            bool               `bson:"agree_terms_of_service" json:"agree_terms_of_service,omitempty"`
-	AgreePromotions                                bool               `bson:"agree_promotions" json:"agree_promotions,omitempty"`
-	AgreeToTrackingAcrossThirdPartyAppsAndServices bool               `bson:"agree_to_tracking_across_third_party_apps_and_services" json:"agree_to_tracking_across_third_party_apps_and_services,omitempty"`
+	Region                                         string             `bson:"region,omitempty" json:"region,omitempty"`
+	City                                           string             `bson:"city,omitempty" json:"city,omitempty"`
+	PostalCode                                     string             `bson:"postal_code,omitempty" json:"postal_code,omitempty"`
+	AddressLine1                                   string             `bson:"address_line1,omitempty" json:"address_line1,omitempty"`
+	AddressLine2                                   string             `bson:"address_line2,omitempty" json:"address_line2,omitempty"`
+	HasShippingAddress                             bool               `bson:"has_shipping_address,omitempty" json:"has_shipping_address,omitempty"`
+	ShippingName                                   string             `bson:"shipping_name,omitempty" json:"shipping_name,omitempty"`
+	ShippingPhone                                  string             `bson:"shipping_phone,omitempty" json:"shipping_phone,omitempty"`
+	ShippingCountry                                string             `bson:"shipping_country,omitempty" json:"shipping_country,omitempty"`
+	ShippingRegion                                 string             `bson:"shipping_region,omitempty" json:"shipping_region,omitempty"`
+	ShippingCity                                   string             `bson:"shipping_city,omitempty" json:"shipping_city,omitempty"`
+	ShippingPostalCode                             string             `bson:"shipping_postal_code,omitempty" json:"shipping_postal_code,omitempty"`
+	ShippingAddressLine1                           string             `bson:"shipping_address_line1,omitempty" json:"shipping_address_line1,omitempty"`
+	ShippingAddressLine2                           string             `bson:"shipping_address_line2,omitempty" json:"shipping_address_line2,omitempty"`
+	AgreeTermsOfService                            bool               `bson:"agree_terms_of_service,omitempty" json:"agree_terms_of_service,omitempty"`
+	AgreePromotions                                bool               `bson:"agree_promotions,omitempty" json:"agree_promotions,omitempty"`
+	AgreeToTrackingAcrossThirdPartyAppsAndServices bool               `bson:"agree_to_tracking_across_third_party_apps_and_services,omitempty" json:"agree_to_tracking_across_third_party_apps_and_services,omitempty"`
 	CreatedFromIPAddress                           string             `bson:"created_from_ip_address" json:"created_from_ip_address"`
 	CreatedByUserID                                primitive.ObjectID `bson:"created_by_user_id" json:"created_by_user_id"`
-	CreatedAt                                      time.Time          `bson:"created_at" json:"created_at,omitempty"`
+	CreatedAt                                      time.Time          `bson:"created_at,omitempty" json:"created_at,omitempty"`
 	CreatedByName                                  string             `bson:"created_by_name" json:"created_by_name"`
 	ModifiedFromIPAddress                          string             `bson:"modified_from_ip_address" json:"modified_from_ip_address"`
 	ModifiedByUserID                               primitive.ObjectID `bson:"modified_by_user_id" json:"modified_by_user_id"`
-	ModifiedAt                                     time.Time          `bson:"modified_at" json:"modified_at,omitempty"`
+	ModifiedAt                                     time.Time          `bson:"modified_at,omitempty" json:"modified_at,omitempty"`
 	ModifiedByName                                 string             `bson:"modified_by_name" json:"modified_by_name"`
 	Status                                         int8               `bson:"status" json:"status"`
 
@@ -118,20 +118,20 @@ type User struct {
 	OTPBackupCodeHashAlgorithm string `bson:"otp_backup_code_hash_algorithm" json:"-"`
 
 	// ProfileVerificationStatus indicates the profile verification status of this user account.
-	ProfileVerificationStatus int8 `bson:"profile_verification_status" json:"profile_verification_status,omitempty"`
+	ProfileVerificationStatus int8 `bson:"profile_verification_status,omitempty" json:"profile_verification_status,omitempty"`
 
-	HowDidYouHearAboutUs      int8   `bson:"how_did_you_hear_about_us" json:"how_did_you_hear_about_us,omitempty"`
-	HowDidYouHearAboutUsOther string `bson:"how_did_you_hear_about_us_other" json:"how_did_you_hear_about_us_other,omitempty"`
+	HowDidYouHearAboutUs      int8   `bson:"how_did_you_hear_about_us,omitempty" json:"how_did_you_hear_about_us,omitempty"`
+	HowDidYouHearAboutUsOther string `bson:"how_did_you_hear_about_us_other,omitempty" json:"how_did_you_hear_about_us_other,omitempty"`
 
-	StoreLogoS3Key         string    `bson:"store_logo_s3_key" json:"store_logo_s3_key,omitempty"`
-	StoreLogoTitle         string    `bson:"store_logo_title" json:"store_logo_title,omitempty"`
+	StoreLogoS3Key         string    `bson:"store_logo_s3_key,omitempty" json:"store_logo_s3_key,omitempty"`
+	StoreLogoTitle         string    `bson:"store_logo_title,omitempty" json:"store_logo_title,omitempty"`
 	StoreLogoFileURL       string    `bson:"-" json:"store_logo_file_url,omitempty"` // (Optional, added by endpoint)
 	StoreLogoFileURLExpiry time.Time `bson:"-" json:"store_logo_file_url_expiry"`    // (Optional, added by endpoint)
 
-	ComicBookStoreName           string `bson:"comic_book_store_name" json:"comic_book_store_name,omitempty"`
-	HowLongStoreOperating        int8   `bson:"how_long_store_operating" json:"how_long_store_operating,omitempty"`
-	RetailPartnershipReason      string `bson:"retail_partnership_reason" json:"retail_partnership_reason,omitempty"`         // "Please describe how you could become a good retail partner for the ComicCoin Blockchain"
-	ComicCoinPartnershipReason   string `bson:"comic_coin_partnership_reason" json:"comic_coin_partnership_reason,omitempty"` // "Please describe how the ComicCoin Blockchain could help you grow your business"
+	ComicBookStoreName           string `bson:"comic_book_store_name,omitempty" json:"comic_book_store_name,omitempty"`
+	HowLongStoreOperating        int8   `bson:"how_long_store_operating,omitempty" json:"how_long_store_operating,omitempty"`
+	RetailPartnershipReason      string `bson:"retail_partnership_reason,omitempty" json:"retail_partnership_reason,omitempty"`         // "Please describe how you could become a good retail partner for the ComicCoin Blockchain"
+	ComicCoinPartnershipReason   string `bson:"comic_coin_partnership_reason,omitempty" json:"comic_coin_partnership_reason,omitempty"` // "Please describe how the ComicCoin Blockchain could help you grow your business"
 	EstimatedSubmissionsPerMonth int8   `bson:"estimated_submissions_per_month" json:"estimated_submissions_per_month"`
 	HasOtherGradingService       int8   `bson:"has_other_grading_service" json:"has_other_grading_service"`
 	OtherGradingServiceName      string `bson:"other_grading_service_name" json:"other_grading_service_name"`
@@ -161,32 +161,32 @@ type UserClaimedCoinTransaction struct {
 // UserFilter represents the filter criteria for listing users
 type UserFilter struct {
 	// Basic filters
-	Name   *string `json:"name,omitempty"`
-	Email  *string `json:"email,omitempty"`
-	Role   int8    `json:"role,omitempty"`
-	Status int8    `json:"status,omitempty"`
+	Name   *string `bson:"name,omitempty" json:"name,omitempty"`
+	Email  *string `bson:"email,omitempty" json:"email,omitempty"`
+	Role   int8    `bson:"role,omitempty" json:"role,omitempty"`
+	Status int8    `bson:"status,omitempty" json:"status,omitempty"`
 
 	// Date range filters
-	CreatedAtStart *time.Time `json:"created_at_start,omitempty"`
-	CreatedAtEnd   *time.Time `json:"created_at_end,omitempty"`
+	CreatedAtStart *time.Time `bson:"created_at_start,omitempty" json:"created_at_start,omitempty"`
+	CreatedAtEnd   *time.Time `bson:"created_at_end,omitempty" json:"created_at_end,omitempty"`
 
 	// Pagination - cursor based
-	LastID        *primitive.ObjectID `json:"last_id,omitempty"`
-	LastCreatedAt *time.Time          `json:"last_created_at,omitempty"`
-	Limit         int64               `json:"limit,omitempty"`
+	LastID        *primitive.ObjectID `bson:"last_id,omitempty" json:"last_id,omitempty"`
+	LastCreatedAt *time.Time          `bson:"last_created_at,omitempty" json:"last_created_at,omitempty"`
+	Limit         int64               `bson:"limit,omitempty" json:"limit,omitempty"`
 
 	// Profile verification status filter
-	ProfileVerificationStatus int8 `json:"profile_verification_status,omitempty"`
+	ProfileVerificationStatus int8 `bson:"profile_verification_status,omitempty" json:"profile_verification_status,omitempty"`
 
 	// Search term for text search across multiple fields
-	SearchTerm *string `json:"search_term,omitempty"`
+	SearchTerm *string `bson:"search_term,omitempty" json:"search_term,omitempty"`
 }
 
 // UserFilterResult represents the result of a filtered list operation
 type UserFilterResult struct {
-	Users         []*User            `json:"users"`
-	HasMore       bool               `json:"has_more"`
-	LastID        primitive.ObjectID `json:"last_id,omitempty"`
-	LastCreatedAt time.Time          `json:"last_created_at,omitempty"`
-	TotalCount    uint64             `json:"total_count,omitempty"`
+	Users         []*User            `bson:"users" json:"users"`
+	HasMore       bool               `bson:"has_more" json:"has_more"`
+	LastID        primitive.ObjectID `bson:"last_id,omitempty" json:"last_id,omitempty"`
+	LastCreatedAt time.Time          `bson:"last_created_at,omitempty" json:"last_created_at,omitempty"`
+	TotalCount    uint64             `bson:"total_count,omitempty" json:"total_count,omitempty"`
 }
