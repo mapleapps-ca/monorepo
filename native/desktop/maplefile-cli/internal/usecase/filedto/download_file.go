@@ -60,7 +60,7 @@ func (uc *downloadFileUseCase) Execute(
 	}
 
 	// Download main file content
-	fileData, err := uc.fileDTORepo.DownloadFileFromPresignedURL(ctx, request.PresignedURL)
+	fileData, err := uc.fileDTORepo.DownloadFileViaPresignedURLFromCloud(ctx, request.PresignedURL)
 	if err != nil {
 		return nil, errors.NewAppError("failed to download file content", err)
 	}
@@ -72,7 +72,7 @@ func (uc *downloadFileUseCase) Execute(
 
 	// Download thumbnail if URL provided
 	if request.PresignedThumbnailURL != "" {
-		thumbnailData, err := uc.fileDTORepo.DownloadThumbnailFromPresignedURL(ctx, request.PresignedThumbnailURL)
+		thumbnailData, err := uc.fileDTORepo.DownloadThumbnailViaPresignedURLFromCloud(ctx, request.PresignedThumbnailURL)
 		if err != nil {
 			uc.logger.Warn("Failed to download thumbnail, continuing without it",
 				zap.Error(err))

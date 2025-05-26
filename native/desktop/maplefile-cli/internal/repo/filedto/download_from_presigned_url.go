@@ -12,8 +12,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 )
 
-// DownloadFileFromPresignedURL downloads file content from a presigned URL
-func (r *fileDTORepository) DownloadFileFromPresignedURL(ctx context.Context, presignedURL string) ([]byte, error) {
+// DownloadFileViaPresignedURLFromCloud downloads file content from a presigned URL
+func (r *fileDTORepository) DownloadFileViaPresignedURLFromCloud(ctx context.Context, presignedURL string) ([]byte, error) {
 	r.logger.Debug("Downloading file from presigned URL",
 		zap.String("presignedURL", presignedURL))
 
@@ -57,8 +57,8 @@ func (r *fileDTORepository) DownloadFileFromPresignedURL(ctx context.Context, pr
 	return fileData, nil
 }
 
-// DownloadThumbnailFromPresignedURL downloads thumbnail content from a presigned URL
-func (r *fileDTORepository) DownloadThumbnailFromPresignedURL(ctx context.Context, presignedURL string) ([]byte, error) {
+// DownloadThumbnailViaPresignedURLFromCloud downloads thumbnail content from a presigned URL
+func (r *fileDTORepository) DownloadThumbnailViaPresignedURLFromCloud(ctx context.Context, presignedURL string) ([]byte, error) {
 	r.logger.Debug("Downloading thumbnail from presigned URL",
 		zap.String("presignedURL", presignedURL))
 
@@ -68,5 +68,5 @@ func (r *fileDTORepository) DownloadThumbnailFromPresignedURL(ctx context.Contex
 	}
 
 	// Use the same logic as file download
-	return r.DownloadFileFromPresignedURL(ctx, presignedURL)
+	return r.DownloadFileViaPresignedURLFromCloud(ctx, presignedURL)
 }

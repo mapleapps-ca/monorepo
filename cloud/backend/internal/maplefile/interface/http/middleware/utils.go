@@ -41,7 +41,6 @@ func init() {
 		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/upload-url$",   // Regex designed for mongoDB IDs
 		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/download-url$", // Regex designed for mongoDB IDs
 		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/complete$",     // Three-step workflow file-create endpoint: Finish
-		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/download$",     // Download endpoint (Deprecated)
 	}
 
 	// Precompile patterns

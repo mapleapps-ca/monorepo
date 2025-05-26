@@ -43,11 +43,11 @@ type FileDTORepository interface {
 	// GetPresignedDownloadURLFromCloud generates presigned download URLs for an existing file.
 	GetPresignedDownloadURLFromCloud(ctx context.Context, fileID primitive.ObjectID, request *GetPresignedDownloadURLRequest) (*GetPresignedDownloadURLResponse, error)
 
-	// DownloadFileFromPresignedURL downloads file content from a presigned URL.
-	DownloadFileFromPresignedURL(ctx context.Context, presignedURL string) ([]byte, error)
+	// DownloadFileViaPresignedURLFromCloud downloads file content from a presigned URL.
+	DownloadFileViaPresignedURLFromCloud(ctx context.Context, presignedURL string) ([]byte, error)
 
-	// DownloadThumbnailFromPresignedURL downloads thumbnail content from a presigned URL.
-	DownloadThumbnailFromPresignedURL(ctx context.Context, presignedURL string) ([]byte, error)
+	// DownloadThumbnailViaPresignedURLFromCloud downloads thumbnail content from a presigned URL.
+	DownloadThumbnailViaPresignedURLFromCloud(ctx context.Context, presignedURL string) ([]byte, error)
 
 	// ListFromCloud lists FileDTOs from the cloud service based on the provided filter criteria.
 	ListFromCloud(ctx context.Context, filter FileFilter) ([]*FileDTO, error)
