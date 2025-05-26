@@ -19,6 +19,7 @@ import (
 	uc_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	pkg_crypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
+	sprimitive "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/mongodb"
 )
 
 // CreateInput represents the input for creating a local collection
@@ -43,6 +44,7 @@ type CreateService interface {
 type createService struct {
 	logger                         *zap.Logger
 	configService                  config.ConfigService
+	primitiveIDObjectGenerator     sprimitive.SecurePrimitiveObjectIDGenerator
 	transactionManager             dom_tx.Manager
 	getUserByIsLoggedInUseCase     uc_user.GetByIsLoggedInUseCase
 	createCollectionInCloudUseCase uc_collectiondto.CreateCollectionInCloudUseCase
@@ -54,6 +56,7 @@ type createService struct {
 func NewCreateService(
 	logger *zap.Logger,
 	configService config.ConfigService,
+	primitiveIDObjectGenerator sprimitive.SecurePrimitiveObjectIDGenerator,
 	transactionManager dom_tx.Manager,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	createCollectionInCloudUseCase uc_collectiondto.CreateCollectionInCloudUseCase,
@@ -63,6 +66,7 @@ func NewCreateService(
 	return &createService{
 		logger:                         logger,
 		configService:                  configService,
+		primitiveIDObjectGenerator:     primitiveIDObjectGenerator,
 		transactionManager:             transactionManager,
 		getUserByIsLoggedInUseCase:     getUserByIsLoggedInUseCase,
 		createCollectionInCloudUseCase: createCollectionInCloudUseCase,
@@ -133,6 +137,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	// STEP 1: Derive keyEncryptionKey from password (E2EE spec)
 	keyEncryptionKey, err := s.deriveKeyEncryptionKey(userPassword, userData.PasswordSalt)
 	if err != nil {
+		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to derive key encryption key", err)
 	}
 	defer pkg_crypto.ClearBytes(keyEncryptionKey)
@@ -140,6 +145,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	// STEP 2: Decrypt masterKey with keyEncryptionKey (E2EE spec)
 	masterKey, err := s.decryptMasterKey(userData, keyEncryptionKey)
 	if err != nil {
+		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to decrypt master key - incorrect password?", err)
 	}
 	defer pkg_crypto.ClearBytes(masterKey)
@@ -147,6 +153,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	// STEP 3: Generate random collectionKey (E2EE spec)
 	collectionKey, err := pkg_crypto.GenerateRandomBytes(pkg_crypto.CollectionKeySize)
 	if err != nil {
+		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to generate collection key", err)
 	}
 	defer pkg_crypto.ClearBytes(collectionKey)
@@ -154,12 +161,14 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	// STEP 4: Encrypt collectionKey with masterKey (E2EE spec)
 	encryptedCollectionKey, err := pkg_crypto.EncryptWithSecretBox(collectionKey, masterKey)
 	if err != nil {
+		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to encrypt collection key", err)
 	}
 
 	// STEP 5: Encrypt collection metadata with collectionKey (E2EE spec)
 	encryptedName, err := s.encryptCollectionName(input.Name, collectionKey)
 	if err != nil {
+		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to encrypt collection name", err)
 	}
 
@@ -177,8 +186,13 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	// STEP 5: Create our collection data transfer object and submit to the cloud
 	//
 
+	// Generate client-side a ID which is cryptographically secure, cross-platform, and
+	// designed for distributed systems.
+	collectionID := s.primitiveIDObjectGenerator.GenerateValidObjectID()
+
 	// Create collection with properly encrypted data
 	collectionDTO := &dom_collectiondto.CollectionDTO{
+		ID:             collectionID,
 		OwnerID:        input.OwnerID,
 		EncryptedName:  encryptedName,
 		CollectionType: input.CollectionType,

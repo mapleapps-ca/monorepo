@@ -24,6 +24,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	pkg_crypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
+	sprimitive "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/mongodb"
 )
 
 // AddInput represents the input for adding a local file
@@ -50,6 +51,7 @@ type AddService interface {
 type addService struct {
 	logger                     *zap.Logger
 	configService              config.ConfigService
+	primitiveIDObjectGenerator sprimitive.SecurePrimitiveObjectIDGenerator
 	readFileUseCase            localfile.ReadFileUseCase
 	checkFileExistsUseCase     localfile.CheckFileExistsUseCase
 	getFileInfoUseCase         localfile.GetFileInfoUseCase
@@ -67,6 +69,7 @@ type addService struct {
 func NewAddService(
 	logger *zap.Logger,
 	configService config.ConfigService,
+	primitiveIDObjectGenerator sprimitive.SecurePrimitiveObjectIDGenerator,
 	readFileUseCase localfile.ReadFileUseCase,
 	checkFileExistsUseCase localfile.CheckFileExistsUseCase,
 	getFileInfoUseCase localfile.GetFileInfoUseCase,
@@ -82,6 +85,7 @@ func NewAddService(
 	return &addService{
 		logger:                     logger,
 		configService:              configService,
+		primitiveIDObjectGenerator: primitiveIDObjectGenerator,
 		readFileUseCase:            readFileUseCase,
 		checkFileExistsUseCase:     checkFileExistsUseCase,
 		getFileInfoUseCase:         getFileInfoUseCase,
@@ -157,11 +161,17 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 	if err != nil {
 		return nil, errors.NewAppError("failed to get logged in user", err)
 	}
+	if user == nil {
+		return nil, errors.NewAppError("logged in user does not exist", nil)
+	}
 
 	// Get collection
 	collection, err := s.getCollectionUseCase.Execute(ctx, input.CollectionID)
 	if err != nil {
 		return nil, errors.NewAppError("failed to get collection", err)
+	}
+	if collection == nil {
+		return nil, errors.NewAppError("collection does not exist", nil)
 	}
 
 	// Get file information
@@ -169,6 +179,9 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 	if err != nil {
 		s.logger.Error("Failed to get file info", zap.String("filePath", cleanFilePath), zap.Error(err))
 		return nil, errors.NewAppError("failed to get file info", err)
+	}
+	if fileInfo == nil {
+		return nil, errors.NewAppError("fileInfo does not exist", nil)
 	}
 	if fileInfo.IsDirectory {
 		s.logger.Error("Path is a directory, not a file", zap.String("filePath", cleanFilePath))
@@ -221,7 +234,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 	}
 
 	// Generate unique file ID and create destination path
-	fileID := primitive.NewObjectID()
+	fileID := s.primitiveIDObjectGenerator.GenerateValidObjectID()
 	destFileName := fileID.Hex() + fileExtension
 	destFilePath := s.pathUtilsUseCase.Join(ctx, collectionDir, destFileName)
 

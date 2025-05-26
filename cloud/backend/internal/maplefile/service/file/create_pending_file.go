@@ -15,12 +15,14 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/domain/keys"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/file"
+	uc_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/collection"
 	uc_filemetadata "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/filemetadata"
 	uc_fileobjectstorage "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/fileobjectstorage"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
 type CreatePendingFileRequestDTO struct {
+	ID                primitive.ObjectID    `json:"id"`
 	CollectionID      primitive.ObjectID    `json:"collection_id"`
 	EncryptedMetadata string                `json:"encrypted_metadata"`
 	EncryptedFileKey  keys.EncryptedFileKey `json:"encrypted_file_key"`
@@ -62,7 +64,8 @@ type CreatePendingFileService interface {
 type createPendingFileServiceImpl struct {
 	config                            *config.Configuration
 	logger                            *zap.Logger
-	collectionRepo                    dom_collection.CollectionRepository
+	checkCollectionAccessUseCase      uc_collection.CheckCollectionAccessUseCase
+	checkFileExistsUseCase            uc_filemetadata.CheckFileExistsUseCase
 	createMetadataUseCase             uc_filemetadata.CreateFileMetadataUseCase
 	generatePresignedUploadURLUseCase uc_fileobjectstorage.GeneratePresignedUploadURLUseCase
 }
@@ -70,14 +73,16 @@ type createPendingFileServiceImpl struct {
 func NewCreatePendingFileService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	collectionRepo dom_collection.CollectionRepository,
+	checkCollectionAccessUseCase uc_collection.CheckCollectionAccessUseCase,
+	checkFileExistsUseCase uc_filemetadata.CheckFileExistsUseCase,
 	createMetadataUseCase uc_filemetadata.CreateFileMetadataUseCase,
 	generatePresignedUploadURLUseCase uc_fileobjectstorage.GeneratePresignedUploadURLUseCase,
 ) CreatePendingFileService {
 	return &createPendingFileServiceImpl{
 		config:                            config,
 		logger:                            logger,
-		collectionRepo:                    collectionRepo,
+		checkCollectionAccessUseCase:      checkCollectionAccessUseCase,
+		checkFileExistsUseCase:            checkFileExistsUseCase,
 		createMetadataUseCase:             createMetadataUseCase,
 		generatePresignedUploadURLUseCase: generatePresignedUploadURLUseCase,
 	}
@@ -93,6 +98,16 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	}
 
 	e := make(map[string]string)
+	if req.ID.IsZero() {
+		e["id"] = "Client-side generated ID is required"
+	}
+	doesExist, err := svc.checkFileExistsUseCase.Execute(req.ID)
+	if err != nil {
+		e["id"] = fmt.Sprintf("Client-side generated ID causes error: %v", req.ID)
+	}
+	if doesExist {
+		e["id"] = "Client-side generated ID already exists"
+	}
 	if req.CollectionID.IsZero() {
 		e["collection_id"] = "Collection ID is required"
 	}
@@ -127,7 +142,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	//
 	// STEP 3: Check if user has write access to the collection
 	//
-	hasAccess, err := svc.collectionRepo.CheckAccess(ctx, req.CollectionID, userID, dom_collection.CollectionPermissionReadWrite)
+	hasAccess, err := svc.checkCollectionAccessUseCase.Execute(ctx, req.CollectionID, userID, dom_collection.CollectionPermissionReadWrite)
 	if err != nil {
 		svc.logger.Error("❌ Failed to check collection access",
 			zap.Any("error", err),
@@ -144,11 +159,10 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	}
 
 	//
-	// STEP 4: Generate file ID and storage paths
+	// STEP 4: Generate storage paths.
 	//
-	fileID := primitive.NewObjectID()
-	storagePath := generateStoragePath(userID.Hex(), fileID.Hex())
-	thumbnailStoragePath := generateThumbnailStoragePath(userID.Hex(), fileID.Hex())
+	storagePath := generateStoragePath(userID.Hex(), req.ID.Hex())
+	thumbnailStoragePath := generateThumbnailStoragePath(userID.Hex(), req.ID.Hex())
 
 	//
 	// STEP 5: Generate presigned upload URLs
@@ -160,7 +174,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	if err != nil {
 		svc.logger.Error("❌ Failed to generate presigned upload URL",
 			zap.Any("error", err),
-			zap.Any("file_id", fileID),
+			zap.Any("file_id", req.ID),
 			zap.String("storage_path", storagePath))
 		return nil, err
 	}
@@ -172,7 +186,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 		if err != nil {
 			svc.logger.Warn("⚠️ Failed to generate thumbnail presigned upload URL, continuing without it",
 				zap.Any("error", err),
-				zap.Any("file_id", fileID),
+				zap.Any("file_id", req.ID),
 				zap.String("thumbnail_storage_path", thumbnailStoragePath))
 		}
 	}
@@ -182,7 +196,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	//
 	now := time.Now()
 	file := &dom_file.File{
-		ID:                            fileID,
+		ID:                            req.ID,
 		CollectionID:                  req.CollectionID,
 		OwnerID:                       userID,
 		EncryptedMetadata:             req.EncryptedMetadata,
@@ -205,7 +219,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	if err != nil {
 		svc.logger.Error("❌ Failed to create pending file metadata",
 			zap.Any("error", err),
-			zap.Any("file_id", fileID))
+			zap.Any("file_id", req.ID))
 		return nil, err
 	}
 
@@ -222,7 +236,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	}
 
 	svc.logger.Info("✅ Pending file created successfully",
-		zap.Any("file_id", fileID),
+		zap.Any("file_id", req.ID),
 		zap.Any("collection_id", req.CollectionID),
 		zap.Any("owner_id", userID),
 		zap.String("storage_path", storagePath),

@@ -186,6 +186,9 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	}
 
 	e := make(map[string]string)
+	if req.ID.IsZero() {
+		e["encrypted_name"] = "Client-side generated ID is required"
+	}
 	if req.EncryptedName == "" {
 		e["encrypted_name"] = "Collection name is required"
 	}

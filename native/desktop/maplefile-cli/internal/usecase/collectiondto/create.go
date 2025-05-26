@@ -45,12 +45,6 @@ func (uc *createCollectionInCloudUseCase) Execute(ctx context.Context, dto *coll
 	if dto == nil {
 		e["dto"] = "DTO is required"
 	} else {
-		// ID should not be set by the client. It's generated cloud-side.
-		if !dto.ID.IsZero() {
-			e["id"] = "ID cannot be set client-side, ID is set cloud-side"
-			uc.logger.Warn("ID cannot be set client-side, ID is set cloud-side")
-		}
-
 		// Validate required fields
 		if dto.OwnerID.IsZero() {
 			e["owner_id"] = "OwnerID is required"

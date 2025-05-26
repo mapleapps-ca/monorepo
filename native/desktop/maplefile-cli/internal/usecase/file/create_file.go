@@ -36,6 +36,9 @@ func NewCreateFileUseCase(
 // Execute creates a new local file
 func (uc *createFileUseCase) Execute(ctx context.Context, data *file.File) error {
 	// Validate inputs
+	if data.ID.IsZero() {
+		return errors.NewAppError("ID is required", nil)
+	}
 	if data.CollectionID.IsZero() {
 		return errors.NewAppError("collection ID is required", nil)
 	}

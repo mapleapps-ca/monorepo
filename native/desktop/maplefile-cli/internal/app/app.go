@@ -15,6 +15,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/mongodb"
 )
 
 // App represents the CLI application
@@ -38,6 +39,11 @@ func NewApp() *App {
 
 		// Provide the configuration service
 		config.Module(),
+
+		fx.Provide(
+			// Provide setup for `pkg` items.
+			mongodb.NewSecureObjectIDGenerator,
+		),
 
 		// Include app modules
 		repo.RepoModule(),
