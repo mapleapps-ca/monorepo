@@ -1,4 +1,3 @@
-// Deprecated
 // cloud/backend/internal/maplefile/interface/http/file/download.go
 package file
 
@@ -9,6 +8,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -19,6 +20,11 @@ import (
 	svc_file "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/service/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
+
+type DownloadFileHTTPRequestDTO struct {
+	UsePresignedURL bool   `json:"use_presigned_url"`
+	URLDurationStr  string `json:"url_duration,omitempty"` // Optional, duration as string of nanoseconds, defaults to 1 hour
+}
 
 type DownloadFileHTTPHandler struct {
 	config     *config.Configuration
@@ -59,7 +65,7 @@ func (h *DownloadFileHTTPHandler) unmarshalRequest(
 	fileID primitive.ObjectID,
 ) (*svc_file.DownloadFileRequestDTO, error) {
 	// Initialize our structure which will store the parsed request data
-	var requestData svc_file.DownloadFileRequestDTO
+	var httpRequestData DownloadFileHTTPRequestDTO
 
 	defer r.Body.Close()
 
@@ -67,7 +73,7 @@ func (h *DownloadFileHTTPHandler) unmarshalRequest(
 	teeReader := io.TeeReader(r.Body, &rawJSON) // TeeReader allows you to read the JSON and capture it
 
 	// Read the JSON string and convert it into our golang struct
-	err := json.NewDecoder(teeReader).Decode(&requestData)
+	err := json.NewDecoder(teeReader).Decode(&httpRequestData)
 	if err != nil {
 		h.logger.Error("decoding error",
 			zap.Any("err", err),
@@ -76,10 +82,27 @@ func (h *DownloadFileHTTPHandler) unmarshalRequest(
 		return nil, httperror.NewForSingleField(http.StatusBadRequest, "non_field_error", "payload structure is wrong")
 	}
 
-	// Set the file ID from the URL parameter
-	requestData.FileID = fileID
+	// Set default URL duration if not provided (1 hour in nanoseconds)
+	var urlDuration time.Duration
+	if httpRequestData.URLDurationStr == "" {
+		urlDuration = 1 * time.Hour
+	} else {
+		// Parse the string to int64 (nanoseconds)
+		durationNanos, err := strconv.ParseInt(httpRequestData.URLDurationStr, 10, 64)
+		if err != nil {
+			return nil, httperror.NewForSingleField(http.StatusBadRequest, "url_duration", "Invalid duration format")
+		}
+		urlDuration = time.Duration(durationNanos)
+	}
 
-	return &requestData, nil
+	// Convert to service DTO
+	serviceRequest := &svc_file.DownloadFileRequestDTO{
+		FileID:          fileID,
+		UsePresignedURL: httpRequestData.UsePresignedURL,
+		URLDuration:     urlDuration,
+	}
+
+	return serviceRequest, nil
 }
 
 func (h *DownloadFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {

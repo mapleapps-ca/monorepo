@@ -23,6 +23,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	svc_auth "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
@@ -45,6 +46,7 @@ func NewRootCmd(
 	addFileService localfile.AddService,
 	listFileService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,
+	downloadService filedownload.DownloadService,
 	uploadFileService fileupload.UploadService,
 	offloadService filesyncer.OffloadService,
 	onloadService filesyncer.OnloadService,
@@ -81,6 +83,7 @@ func NewRootCmd(
 		uploadFileService,
 		listFileService,
 		localOnlyDeleteService,
+		downloadService,
 	))
 	// Add the new filesync command
 	rootCmd.AddCommand(filesync.FileSyncCmd(

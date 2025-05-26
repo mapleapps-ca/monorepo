@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 )
@@ -16,6 +17,7 @@ func FilesCmd(
 	uploadService fileupload.UploadService,
 	listService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,
+	downloadService filedownload.DownloadService,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "files",
@@ -43,6 +45,10 @@ func FilesCmd(
 	cmd.AddCommand(localOnlyDeleteFilesCmd(
 		logger,
 		localOnlyDeleteService,
+	))
+	cmd.AddCommand(downloadFileCmd(
+		logger,
+		downloadService,
 	))
 	return cmd
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/crypto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
@@ -54,6 +55,7 @@ func ServiceModule() fx.Option {
 		// fx.Provide(remotecollection.NewCreateService),
 		// fx.Provide(remotecollection.NewFetchService),
 		// fx.Provide(remotecollection.NewListService),
+		fx.Provide(filedownload.NewDownloadService),
 
 		// // Collection synchronization services
 		// fx.Provide(collectionsyncer.NewFindByCloudIDService),

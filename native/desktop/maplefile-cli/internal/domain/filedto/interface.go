@@ -38,7 +38,16 @@ type FileDTORepository interface {
 	GetPresignedUploadURLFromCloud(ctx context.Context, fileID primitive.ObjectID, request *GetPresignedUploadURLRequest) (*GetPresignedUploadURLResponse, error)
 
 	// DownloadByIDFromCloud downloads a FileDTO by its unique identifier from the cloud service.
-	DownloadByIDFromCloud(ctx context.Context, id primitive.ObjectID) (*FileDTO, error)
+	DownloadByIDFromCloud(ctx context.Context, id primitive.ObjectID) (*FileDTO, error) // (Deprecated)
+
+	// GetPresignedDownloadURLFromCloud generates presigned download URLs for an existing file.
+	GetPresignedDownloadURLFromCloud(ctx context.Context, fileID primitive.ObjectID, request *GetPresignedDownloadURLRequest) (*GetPresignedDownloadURLResponse, error)
+
+	// DownloadFileFromPresignedURL downloads file content from a presigned URL.
+	DownloadFileFromPresignedURL(ctx context.Context, presignedURL string) ([]byte, error)
+
+	// DownloadThumbnailFromPresignedURL downloads thumbnail content from a presigned URL.
+	DownloadThumbnailFromPresignedURL(ctx context.Context, presignedURL string) ([]byte, error)
 
 	// ListFromCloud lists FileDTOs from the cloud service based on the provided filter criteria.
 	ListFromCloud(ctx context.Context, filter FileFilter) ([]*FileDTO, error)
@@ -118,3 +127,20 @@ type FileFilter struct {
 	// State filters files by their state (pending, active, deleted, archived).
 	State string `json:"state,omitempty"`
 }
+
+// GetPresignedDownloadURLRequest represents the request to get presigned download URLs
+type GetPresignedDownloadURLRequest struct {
+	URLDuration time.Duration `json:"url_duration,omitempty"` // Optional, defaults to 1 hour
+}
+
+// GetPresignedDownloadURLResponse represents the response with presigned download URLs
+type GetPresignedDownloadURLResponse struct {
+	File                      *FileDTO  `json:"file"`
+	PresignedDownloadURL      string    `json:"presigned_download_url"`
+	PresignedThumbnailURL     string    `json:"presigned_thumbnail_url,omitempty"`
+	DownloadURLExpirationTime time.Time `json:"download_url_expiration_time"`
+	Success                   bool      `json:"success"`
+	Message                   string    `json:"message"`
+}
+
+// Add

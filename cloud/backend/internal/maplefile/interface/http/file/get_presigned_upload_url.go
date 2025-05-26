@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -21,7 +22,7 @@ import (
 )
 
 type GetPresignedUploadURLHTTPRequestDTO struct {
-	URLDuration time.Duration `json:"url_duration,omitempty"` // Optional, defaults to 1 hour
+	URLDurationStr string `json:"url_duration,omitempty"` // Optional, duration as string of nanoseconds, defaults to 1 hour
 }
 
 type GetPresignedUploadURLHTTPHandler struct {
@@ -80,15 +81,23 @@ func (h *GetPresignedUploadURLHTTPHandler) unmarshalRequest(
 		return nil, httperror.NewForSingleField(http.StatusBadRequest, "non_field_error", "payload structure is wrong")
 	}
 
-	// Set default URL duration if not provided
-	if httpRequestData.URLDuration == 0 {
-		httpRequestData.URLDuration = 1 * time.Hour
+	// Set default URL duration if not provided (1 hour in nanoseconds)
+	var urlDuration time.Duration
+	if httpRequestData.URLDurationStr == "" {
+		urlDuration = 1 * time.Hour
+	} else {
+		// Parse the string to int64 (nanoseconds)
+		durationNanos, err := strconv.ParseInt(httpRequestData.URLDurationStr, 10, 64)
+		if err != nil {
+			return nil, httperror.NewForSingleField(http.StatusBadRequest, "url_duration", "Invalid duration format")
+		}
+		urlDuration = time.Duration(durationNanos)
 	}
 
 	// Convert to service DTO
 	serviceRequest := &svc_file.GetPresignedUploadURLRequestDTO{
 		FileID:      fileID,
-		URLDuration: httpRequestData.URLDuration,
+		URLDuration: urlDuration,
 	}
 
 	return serviceRequest, nil

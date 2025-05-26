@@ -9,11 +9,12 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/filedto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
-	registerUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
-	userUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
 // UseCaseModule provides the service-layer--related dependencies
@@ -30,11 +31,11 @@ func UseCaseModule() fx.Option {
 		fx.Provide(authUseCase.NewCompleteLoginUseCase),
 
 		// User repository use cases
-		fx.Provide(userUseCase.NewGetByEmailUseCase),
-		fx.Provide(userUseCase.NewUpsertByEmailUseCase),
-		fx.Provide(userUseCase.NewDeleteByEmailUseCase),
-		fx.Provide(userUseCase.NewListAllUseCase),
-		fx.Provide(userUseCase.NewGetByIsLoggedInUseCase),
+		fx.Provide(user.NewGetByEmailUseCase),
+		fx.Provide(user.NewUpsertByEmailUseCase),
+		fx.Provide(user.NewDeleteByEmailUseCase),
+		fx.Provide(user.NewListAllUseCase),
+		fx.Provide(user.NewGetByIsLoggedInUseCase),
 
 		// Cloud-based collection use cases
 		fx.Provide(collectiondto.NewCreateCollectionInCloudUseCase),
@@ -81,10 +82,14 @@ func UseCaseModule() fx.Option {
 		fx.Provide(fileupload.NewEncryptFileUseCase),
 		fx.Provide(fileupload.NewPrepareFileUploadUseCase),
 
+		// File DTO use cases
+		fx.Provide(filedto.NewGetPresignedDownloadURLUseCase),
+		fx.Provide(filedto.NewDownloadFileUseCase),
+
 		// Registration use cases
-		fx.Provide(registerUseCase.NewGenerateCredentialsUseCase),
-		fx.Provide(registerUseCase.NewCreateLocalUserUseCase),
-		fx.Provide(registerUseCase.NewSendRegistrationToServerUseCase),
+		fx.Provide(register.NewGenerateCredentialsUseCase),
+		fx.Provide(register.NewCreateLocalUserUseCase),
+		fx.Provide(register.NewSendRegistrationToServerUseCase),
 
 		// Token refresh usecase
 		fx.Provide(refreshtoken.NewRefreshTokenUseCase),

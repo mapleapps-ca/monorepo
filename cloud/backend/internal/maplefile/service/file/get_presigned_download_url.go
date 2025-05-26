@@ -3,7 +3,6 @@ package file
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -94,13 +93,6 @@ func (svc *getPresignedDownloadURLServiceImpl) Execute(ctx context.Context, req 
 	file, err := svc.getMetadataUseCase.Execute(req.FileID)
 	if err != nil {
 		svc.logger.Error("🔴 Failed to get file metadata",
-			zap.Any("error", err),
-			zap.Any("file_id", req.FileID))
-		return nil, err
-	}
-	if file == nil {
-		err := fmt.Errorf("file does not exist at ID: %v", req.FileID.Hex())
-		svc.logger.Warn("⚠️ Failed to get file metadata",
 			zap.Any("error", err),
 			zap.Any("file_id", req.FileID))
 		return nil, err
