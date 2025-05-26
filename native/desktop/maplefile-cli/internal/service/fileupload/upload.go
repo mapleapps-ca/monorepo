@@ -42,7 +42,6 @@ type uploadService struct {
 	cryptoService            svc_crypto.CryptoService
 	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase
 	getCollectionUseCase     uc_collection.GetCollectionUseCase
-	swapIDsUseCase           uc_file.SwapIDsUseCase
 }
 
 func NewUploadService(
@@ -58,7 +57,6 @@ func NewUploadService(
 	cryptoService svc_crypto.CryptoService,
 	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
-	swapIDsUseCase uc_file.SwapIDsUseCase,
 ) UploadService {
 	return &uploadService{
 		logger:                   logger,
@@ -73,7 +71,6 @@ func NewUploadService(
 		encryptFileUseCase:       encryptFileUseCase,
 		prepareUploadUseCase:     prepareUploadUseCase,
 		cryptoService:            cryptoService,
-		swapIDsUseCase:           swapIDsUseCase,
 	}
 }
 
@@ -99,6 +96,16 @@ func (s *uploadService) UploadFile(ctx context.Context, fileID primitive.ObjectI
 		return s.failedResult(fileID, err)
 	}
 
+	// Basic check to ensure cloud respects unified ID principle
+	if pendingResponse.File.ID != file.ID {
+		s.logger.Error("Cloud returned a different ID than expected",
+			zap.String("expectedFileID", file.ID.Hex()),
+			zap.String("cloudFileID", pendingResponse.File.ID.Hex()))
+		// Decide on handling: treat as error, or proceed using cloud ID (violates unified principle)
+		// For now, let's error out as per "unified ID" concept
+		return s.failedResult(fileID, errors.NewAppError(fmt.Sprintf("cloud did not return expected file ID. Expected %s, got %s", file.ID.Hex(), pendingResponse.File.ID.Hex()), nil))
+	}
+
 	//
 	// Step 3: Upload file content
 	//
@@ -110,20 +117,21 @@ func (s *uploadService) UploadFile(ctx context.Context, fileID primitive.ObjectI
 	//
 	// Step 4: Complete upload
 	//
-	if err := s.completeUpload(ctx, pendingResponse.File.ID, fileSize, thumbnailSize); err != nil {
+	// Use the original file ID, as it's the unified ID
+	if err := s.completeUpload(ctx, file.ID, fileSize, thumbnailSize); err != nil {
 		return s.failedResult(fileID, err)
 	}
 
-	// Update local file record
-	if err := s.updateLocalFile(ctx, file, pendingResponse.File.ID); err != nil {
+	if err := s.updateLocalFile(ctx, file); err != nil {
 		s.logger.Error("Failed to update local file after successful upload",
-			zap.String("fileID", fileID.Hex()),
+			zap.String("id", fileID.Hex()),
 			zap.Error(err))
+		// Decide if this is a fatal error or just log and continue
+		// For now, log and continue as upload itself was successful
 	}
 
 	return &fileupload.FileUploadResult{
-		FileID:             fileID,
-		CloudFileID:        pendingResponse.File.ID,
+		FileID:             fileID, // This is the unified ID
 		UploadedAt:         time.Now(),
 		FileSizeBytes:      fileSize,
 		ThumbnailSizeBytes: thumbnailSize,
@@ -185,35 +193,39 @@ func (s *uploadService) createPendingFile(
 ) (*filedto.CreatePendingFileResponse, error) {
 	s.logger.Debug("Creating pending file in cloud", zap.String("fileID", file.ID.Hex()))
 
-	// Prepare upload request
+	// Prepare upload request - ensure this use case populates the request with file.ID
 	request, err := s.prepareUploadUseCase.Execute(ctx, file, collection, collectionKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to prepare upload request", err)
 	}
 
 	// Create pending file
+	// This is expected to use the ID provided in the request (derived from file.ID)
+	// and return the same ID in response.File.ID
 	response, err := s.fileDTORepo.CreatePendingFileInCloud(ctx, request)
 	if err != nil {
 		s.logger.Error("failed to create pending file in cloud",
+			zap.String("fileID", file.ID.Hex()), // Log the ID we tried to use
 			zap.Any("error", err))
 		return nil, errors.NewAppError("failed to create pending file in cloud", err)
 	}
 
 	if !response.Success {
 		s.logger.Debug("Failed to create pending file in cloud",
+			zap.String("fileID", file.ID.Hex()), // Log the ID we tried to use
 			zap.String("cloud rejected file creation", response.Message))
 		return nil, errors.NewAppError(fmt.Sprintf("cloud rejected file creation: %s", response.Message), nil)
 	}
 
 	s.logger.Info("Created pending file in cloud",
-		zap.String("cloudFileID", response.File.ID.Hex()),
+		zap.String("fileID", response.File.ID.Hex()), // Log the cloud's response ID (should match file.ID)
 		zap.Time("urlExpiration", response.UploadURLExpirationTime))
 
 	return response, nil
 }
 
-func (s *uploadService) completeUpload(ctx context.Context, cloudFileID primitive.ObjectID, fileSize, thumbnailSize int64) error {
-	s.logger.Debug("Completing file upload", zap.String("cloudFileID", cloudFileID.Hex()))
+func (s *uploadService) completeUpload(ctx context.Context, fileID primitive.ObjectID, fileSize, thumbnailSize int64) error {
+	s.logger.Debug("Completing file upload", zap.String("fileID", fileID.Hex()))
 
 	request := &filedto.CompleteFileUploadRequest{
 		ActualFileSizeInBytes:      fileSize,
@@ -222,66 +234,62 @@ func (s *uploadService) completeUpload(ctx context.Context, cloudFileID primitiv
 		ThumbnailUploadConfirmed:   thumbnailSize > 0,
 	}
 
-	response, err := s.fileDTORepo.CompleteFileUploadInCloud(ctx, cloudFileID, request)
+	// Call complete using the fileID
+	response, err := s.fileDTORepo.CompleteFileUploadInCloud(ctx, fileID, request)
 	if err != nil {
 		s.logger.Error("Failed to complete file upload",
-			zap.String("cloudFileID", cloudFileID.Hex()),
+			zap.String("fileID", fileID.Hex()),
 			zap.Error(err))
 		return errors.NewAppError("failed to complete file upload", err)
 	}
 
 	if !response.Success {
 		s.logger.Error("Failed to complete file upload",
-			zap.String("cloudFileID", cloudFileID.Hex()),
+			zap.String("fileID", fileID.Hex()),
 			zap.String("message", response.Message))
 		return errors.NewAppError(fmt.Sprintf("cloud rejected upload completion: %s", response.Message), nil)
 	}
 
 	if !response.UploadVerified {
 		s.logger.Error("Failed to complete file upload",
-			zap.String("cloudFileID", cloudFileID.Hex()),
+			zap.String("fileID", fileID.Hex()),
 			zap.String("message", "cloud could not verify file upload"))
 		return errors.NewAppError("cloud could not verify file upload", nil)
 	}
 
 	s.logger.Info("Successfully completed file upload",
-		zap.String("cloudFileID", cloudFileID.Hex()),
+		zap.String("fileID", fileID.Hex()),
 		zap.Int64("fileSize", response.ActualFileSize))
 
 	return nil
 }
 
-func (s *uploadService) updateLocalFile(ctx context.Context, file *dom_file.File, cloudFileID primitive.ObjectID) error {
+func (s *uploadService) updateLocalFile(ctx context.Context, file *dom_file.File) error {
+	// Only update sync status and remove local paths if needed
 	updateInput := uc_file.UpdateFileInput{
-		ID: file.ID,
+		ID: file.ID, // Use the unified ID
 	}
 
 	// Update sync status
 	newStatus := dom_file.SyncStatusSynced
 	updateInput.SyncStatus = &newStatus
-	file.SyncStatus = newStatus
+	file.SyncStatus = newStatus // Update in-memory object as well
+
+	// Execute the update using the use case
 	if _, err := s.updateFileUseCase.Execute(ctx, updateInput); err != nil {
-		s.logger.Error("Failed to update local file after successful upload to the cloud",
-			zap.String("fileID", file.ID.Hex()),
-			zap.String("cloudID", cloudFileID.Hex()),
+		s.logger.Error("Failed to update local file status and paths after successful upload",
+			zap.String("id", file.ID.Hex()),
 			zap.Error(err))
+		// Return error, but the upload itself succeeded. This is a post-upload cleanup/status update error.
 		return err
 	}
 
-	// Update cloud ID
-	if err := s.swapIDsUseCase.Execute(ctx, file.ID, cloudFileID); err != nil {
-		s.logger.Error("Failed to swap IDs of the local file after successful upload to the cloud",
-			zap.String("fileID", file.ID.Hex()),
-			zap.String("cloudID", cloudFileID.Hex()),
-			zap.Error(err))
-		return err
-	}
-	return nil
+	return nil // Update was successful
 }
 
 func (s *uploadService) failedResult(fileID primitive.ObjectID, err error) (*fileupload.FileUploadResult, error) {
 	return &fileupload.FileUploadResult{
-		FileID:  fileID,
+		FileID:  fileID, // This is the unified ID
 		Success: false,
 		Error:   err,
 	}, err
@@ -335,10 +343,14 @@ func (s *uploadService) uploadEncryptedContent(ctx context.Context, file *dom_fi
 	if file.EncryptedThumbnailPath != "" && pendingResponse.PresignedThumbnailURL != "" {
 		thumbnailData, err := os.ReadFile(file.EncryptedThumbnailPath)
 		if err != nil {
-			s.logger.Warn("Failed to read encrypted thumbnail", zap.Error(err))
+			s.logger.Warn("Failed to read encrypted thumbnail",
+				zap.String("fileID", file.ID.Hex()),
+				zap.Error(err))
 		} else {
 			if err := s.fileDTORepo.UploadThumbnailToCloud(ctx, pendingResponse.PresignedThumbnailURL, thumbnailData); err != nil {
-				s.logger.Warn("Failed to upload encrypted thumbnail", zap.Error(err))
+				s.logger.Warn("Failed to upload encrypted thumbnail",
+					zap.String("fileID", file.ID.Hex()),
+					zap.Error(err))
 			} else {
 				thumbnailSize = int64(len(thumbnailData))
 			}

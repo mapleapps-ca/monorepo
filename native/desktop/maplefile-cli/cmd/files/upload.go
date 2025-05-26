@@ -79,8 +79,7 @@ Example:
 
 			// Display success
 			fmt.Printf("\n✅ File successfully uploaded to MapleFile Cloud!\n")
-			fmt.Printf("🆔 Local File ID: %s\n", result.FileID.Hex())
-			fmt.Printf("☁️  Cloud File ID: %s\n", result.CloudFileID.Hex())
+			fmt.Printf("🆔 File ID: %s\n", result.FileID.Hex())
 			fmt.Printf("📏 Uploaded Size: %d bytes\n", result.FileSizeBytes)
 			if result.ThumbnailSizeBytes > 0 {
 				fmt.Printf("🖼️  Thumbnail Size: %d bytes\n", result.ThumbnailSizeBytes)

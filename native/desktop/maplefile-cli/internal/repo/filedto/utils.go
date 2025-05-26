@@ -49,6 +49,10 @@ func ValidateCreatePendingFileRequest(request *filedto.CreatePendingFileRequest)
 		return fmt.Errorf("request cannot be nil")
 	}
 
+	if request.ID.IsZero() {
+		return fmt.Errorf("ID is required")
+	}
+
 	if request.CollectionID.IsZero() {
 		return fmt.Errorf("collection ID is required")
 	}

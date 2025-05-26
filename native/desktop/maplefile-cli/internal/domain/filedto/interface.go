@@ -51,6 +51,7 @@ type FileDTORepository interface {
 
 // CreatePendingFileRequest represents the request to create a pending file record
 type CreatePendingFileRequest struct {
+	ID                           primitive.ObjectID `json:"id"`
 	CollectionID                 primitive.ObjectID `json:"collection_id"`
 	EncryptedMetadata            string             `json:"encrypted_metadata"`
 	EncryptedFileKey             EncryptedFileKey   `json:"encrypted_file_key"`

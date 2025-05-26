@@ -18,6 +18,7 @@ import (
 // CreatePendingFileInCloud creates a pending file record in the cloud and returns presigned URLs
 func (r *fileDTORepository) CreatePendingFileInCloud(ctx context.Context, request *filedto.CreatePendingFileRequest) (*filedto.CreatePendingFileResponse, error) {
 	r.logger.Debug("Creating pending file in cloud",
+		zap.String("fileID", request.ID.Hex()),
 		zap.String("collectionID", request.CollectionID.Hex()),
 		zap.Int64("expectedFileSize", request.ExpectedFileSizeInBytes))
 

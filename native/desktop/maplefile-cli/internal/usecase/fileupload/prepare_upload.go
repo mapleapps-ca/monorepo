@@ -72,6 +72,7 @@ func (uc *prepareFileUploadUseCase) Execute(
 
 	// Create request
 	request := &filedto.CreatePendingFileRequest{
+		ID:                           file.ID,
 		CollectionID:                 collection.ID,
 		EncryptedMetadata:            crypto.EncodeToBase64(metadataJSON),
 		EncryptedFileKey:             encryptedFileKey,

@@ -17,7 +17,6 @@ type FileUploadRequest struct {
 // FileUploadResult represents the result of a file upload
 type FileUploadResult struct {
 	FileID             primitive.ObjectID
-	CloudFileID        primitive.ObjectID
 	UploadedAt         time.Time
 	FileSizeBytes      int64
 	ThumbnailSizeBytes int64

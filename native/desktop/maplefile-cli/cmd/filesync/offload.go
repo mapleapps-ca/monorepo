@@ -72,7 +72,7 @@ Examples:
 			fmt.Printf("💬 Message: %s\n", output.Message)
 
 			if output.UploadResult != nil && output.UploadResult.Success {
-				fmt.Printf("☁️  Cloud File ID: %s\n", output.UploadResult.CloudFileID.Hex())
+				fmt.Printf("🆔 File ID: %s\n", output.UploadResult.FileID.Hex())
 				fmt.Printf("📏 Uploaded Size: %d bytes\n", output.UploadResult.FileSizeBytes)
 			}
 
