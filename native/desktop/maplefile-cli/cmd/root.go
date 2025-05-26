@@ -28,6 +28,9 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	svc_register "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
+	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
+	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
+	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
 // NewRootCmd creates a new root command with all dependencies injected
@@ -46,16 +49,19 @@ func NewRootCmd(
 	addFileService localfile.AddService,
 	listFileService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,
-	downloadService filedownload.DownloadService,
 	uploadFileService fileupload.UploadService,
+	downloadService filedownload.DownloadService,
 	offloadService filesyncer.OffloadService,
 	onloadService filesyncer.OnloadService,
 	cloudOnlyDeleteService filesyncer.CloudOnlyDeleteService,
+	getFileUseCase uc_file.GetFileUseCase,
+	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
+	getCollectionUseCase uc_collection.GetCollectionUseCase,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "maplefile-cli",
 		Short: "MapleFile CLI",
-		Long:  `MapleFile Command Line Interface`,
+		Long:  `MapleFile Command Line Interface with End-to-End Encryption`,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Root command does nothing by default
 			cmd.Help()
@@ -84,8 +90,11 @@ func NewRootCmd(
 		listFileService,
 		localOnlyDeleteService,
 		downloadService,
+		getFileUseCase,
+		getUserByIsLoggedInUseCase,
+		getCollectionUseCase,
 	))
-	// Add the new filesync command
+	// Add the filesync command
 	rootCmd.AddCommand(filesync.FileSyncCmd(
 		offloadService,
 		onloadService,

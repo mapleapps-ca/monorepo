@@ -8,6 +8,9 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
+	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
+	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
+	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
 // FilesCmd creates a command for local file operations
@@ -18,11 +21,14 @@ func FilesCmd(
 	listService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,
 	downloadService filedownload.DownloadService,
+	getFileUseCase uc_file.GetFileUseCase,
+	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
+	getCollectionUseCase uc_collection.GetCollectionUseCase,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "files",
 		Short: "Manage local files",
-		Long:  `Import and manage files on the local filesystem without synchronization.`,
+		Long:  `Import, manage, and download files with end-to-end encryption.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Show help when no subcommand is specified
 			cmd.Help()
@@ -50,5 +56,12 @@ func FilesCmd(
 		logger,
 		downloadService,
 	))
+	cmd.AddCommand(debugE2EECmd(
+		logger,
+		getFileUseCase,
+		getUserByIsLoggedInUseCase,
+		getCollectionUseCase,
+	))
+
 	return cmd
 }
