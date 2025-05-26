@@ -36,6 +36,9 @@ func Module() fx.Option {
 			collection.NewRemoveMemberService,
 			collection.NewListSharedCollectionsService,
 
+			// Collection services - Filtered operations
+			collection.NewGetFilteredCollectionsService,
+
 			// File services
 			file.NewDeleteFileService,
 			file.NewDeleteMultipleFilesService,

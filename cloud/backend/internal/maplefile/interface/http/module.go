@@ -44,6 +44,9 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(collection.NewRemoveMemberHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewListSharedCollectionsHTTPHandler),
 
+			// Collection handlers - Filtered operations
+			unifiedhttp.AsRoute(collection.NewGetFilteredCollectionsHTTPHandler),
+
 			// File handlers
 			unifiedhttp.AsRoute(file.NewDeleteFileHTTPHandler),
 			unifiedhttp.AsRoute(file.NewDeleteMultipleFilesHTTPHandler),

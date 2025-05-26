@@ -20,27 +20,34 @@ var (
 func init() {
 	// Exact matches
 	exactPaths = map[string]bool{
-		"/maplefile/api/v1/me":            true,
-		"/maplefile/api/v1/me/delete":     true,
-		"/maplefile/api/v1/dashboard":     true,
-		"/maplefile/api/v1/collections":   true,
-		"/maplefile/api/v1/files":         true,
-		"/maplefile/api/v1/files/pending": true, // Three-step workflow file-create endpoint: Start
+		"/maplefile/api/v1/me":                   true,
+		"/maplefile/api/v1/me/delete":            true,
+		"/maplefile/api/v1/dashboard":            true,
+		"/maplefile/api/v1/collections":          true,
+		"/maplefile/api/v1/collections/filtered": true,
+		"/maplefile/api/v1/collections/root":     true,
+		"/maplefile/api/v1/collections/shared":   true,
+		"/maplefile/api/v1/files":                true,
+		"/maplefile/api/v1/files/pending":        true, // Three-step workflow file-create endpoint: Start
 	}
 
 	// Pattern matches
 	patterns := []string{
-		// "^/maplefile/api/v1/user/[0-9]+$",                      // Regex designed for non-zero integers.
-		// "^/maplefile/api/v1/wallet/[0-9a-f]+$",                 // Regex designed for mongoDB IDs.
-		// "^/maplefile/api/v1/public-wallets/0x[0-9a-fA-F]{40}$", // Regex designed for ethereum addresses.
-		// "^/maplefile/api/v1/users/[0-9a-f]+$",                  // Regex designed for mongoDB IDs.
-		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+$",        // Regex designed for mongoDB IDs
-		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/files$",  // Regex designed for mongoDB IDs
-		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+$",              // Regex designed for mongoDB IDs
-		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/data$",         // Regex designed for mongoDB IDs
-		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/upload-url$",   // Regex designed for mongoDB IDs
-		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/download-url$", // Regex designed for mongoDB IDs
-		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/complete$",     // Three-step workflow file-create endpoint: Finish
+		// Collection patterns
+		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+$",           // Individual collection operations
+		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/files$",     // Collection files
+		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/hierarchy$", // Collection hierarchy
+		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/move$",      // Move collection
+		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/share$",     // Share collection
+		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/members$",   // Collection members
+		"^/maplefile/api/v1/collections-by-parent/[a-zA-Z0-9-]+$", // Collections by parent
+
+		// File patterns
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+$",              // Individual file operations
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/data$",         // File data
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/upload-url$",   // File upload URL
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/download-url$", // File download URL
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/complete$",     // Complete file upload
 	}
 
 	// Precompile patterns
@@ -54,8 +61,6 @@ func init() {
 }
 
 func isProtectedPath(logger *zap.Logger, path string) bool {
-	// fmt.Println("isProtectedPath - path:", path) // For debugging purposes only.
-
 	// Check exact matches first (O(1) lookup)
 	if exactPaths[path] {
 		logger.Debug("✅ found via map - url is protected",

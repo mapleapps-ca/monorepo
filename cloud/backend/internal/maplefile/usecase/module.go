@@ -46,6 +46,7 @@ func Module() fx.Option {
 			collection.NewFindRootCollectionsUseCase,
 			collection.NewGetCollectionUseCase,
 			collection.NewGetCollectionHierarchyUseCase,
+			collection.NewGetFilteredCollectionsUseCase,
 			collection.NewListCollectionsByUserUseCase,
 			collection.NewListCollectionsSharedWithUserUseCase,
 			collection.NewMoveCollectionUseCase,

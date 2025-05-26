@@ -32,6 +32,9 @@ type CollectionRepository interface {
 	CheckAccess(ctx context.Context, collectionID, userID primitive.ObjectID, requiredPermission string) (bool, error)
 	GetUserPermissionLevel(ctx context.Context, collectionID, userID primitive.ObjectID) (string, error)
 
+	// Filtered collection queries
+	GetCollectionsWithFilter(ctx context.Context, options CollectionFilterOptions) (*CollectionFilterResult, error)
+
 	// Collection membership operations
 	AddMember(ctx context.Context, collectionID primitive.ObjectID, membership *CollectionMembership) error
 	RemoveMember(ctx context.Context, collectionID, recipientID primitive.ObjectID) error
