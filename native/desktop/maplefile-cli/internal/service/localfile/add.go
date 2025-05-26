@@ -23,7 +23,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
-	pkg_crypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 	sprimitive "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/mongodb"
 )
 
@@ -263,17 +263,17 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 	if err != nil {
 		return nil, errors.NewAppError("failed to decrypt collection key chain", err)
 	}
-	defer pkg_crypto.ClearBytes(collectionKey)
+	defer crypto.ClearBytes(collectionKey)
 
 	// STEP 1: Generate random fileKey (E2EE spec)
-	fileKey, err := pkg_crypto.GenerateRandomBytes(pkg_crypto.FileKeySize)
+	fileKey, err := crypto.GenerateRandomBytes(crypto.FileKeySize)
 	if err != nil {
 		return nil, errors.NewAppError("failed to generate file key", err)
 	}
-	defer pkg_crypto.ClearBytes(fileKey)
+	defer crypto.ClearBytes(fileKey)
 
 	// STEP 2: Encrypt fileKey with collectionKey (E2EE spec)
-	encryptedFileKeyData, err := pkg_crypto.EncryptWithSecretBox(fileKey, collectionKey)
+	encryptedFileKeyData, err := crypto.EncryptWithSecretBox(fileKey, collectionKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to encrypt file key", err)
 	}
@@ -367,14 +367,14 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 // Complete E2EE decryption chain
 func (s *addService) decryptCollectionKeyChain(user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
 	// STEP 1: Derive keyEncryptionKey from password
-	keyEncryptionKey, err := pkg_crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
+	keyEncryptionKey, err := crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive key encryption key: %w", err)
 	}
-	defer pkg_crypto.ClearBytes(keyEncryptionKey)
+	defer crypto.ClearBytes(keyEncryptionKey)
 
 	// STEP 2: Decrypt masterKey with keyEncryptionKey
-	masterKey, err := pkg_crypto.DecryptWithSecretBox(
+	masterKey, err := crypto.DecryptWithSecretBox(
 		user.EncryptedMasterKey.Ciphertext,
 		user.EncryptedMasterKey.Nonce,
 		keyEncryptionKey,
@@ -382,14 +382,14 @@ func (s *addService) decryptCollectionKeyChain(user *dom_user.User, collection *
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt master key - incorrect password?: %w", err)
 	}
-	defer pkg_crypto.ClearBytes(masterKey)
+	defer crypto.ClearBytes(masterKey)
 
 	// STEP 3: Decrypt collectionKey with masterKey
 	if collection.EncryptedCollectionKey == nil {
 		return nil, errors.NewAppError("collection has no encrypted key", nil)
 	}
 
-	collectionKey, err := pkg_crypto.DecryptWithSecretBox(
+	collectionKey, err := crypto.DecryptWithSecretBox(
 		collection.EncryptedCollectionKey.Ciphertext,
 		collection.EncryptedCollectionKey.Nonce,
 		masterKey,
@@ -408,13 +408,13 @@ func (s *addService) encryptFileMetadata(metadata map[string]interface{}, fileKe
 		return "", err
 	}
 
-	encryptedData, err := pkg_crypto.EncryptWithSecretBox(metadataBytes, fileKey)
+	encryptedData, err := crypto.EncryptWithSecretBox(metadataBytes, fileKey)
 	if err != nil {
 		return "", err
 	}
 
-	combined := pkg_crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
-	return pkg_crypto.EncodeToBase64(combined), nil
+	combined := crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
+	return crypto.EncodeToBase64(combined), nil
 }
 
 type EncryptedFileData struct {
@@ -432,13 +432,13 @@ func (s *addService) encryptFileContent(filePath string, fileKey []byte) (*Encry
 	}
 
 	// Encrypt content with fileKey
-	encryptedData, err := pkg_crypto.EncryptWithSecretBox(content, fileKey)
+	encryptedData, err := crypto.EncryptWithSecretBox(content, fileKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt file content: %w", err)
 	}
 
 	// Combine nonce and ciphertext
-	combined := pkg_crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
+	combined := crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
 
 	// Write encrypted file
 	encryptedPath := filePath + ".encrypted"
@@ -463,11 +463,11 @@ func (s *addService) encryptComputeFileHash(ctx context.Context, filePath string
 		return "", errors.NewAppError("failed to compute file hash", err)
 	}
 
-	encryptedData, err := pkg_crypto.EncryptWithSecretBox(fileHashBytes, fileKey)
+	encryptedData, err := crypto.EncryptWithSecretBox(fileHashBytes, fileKey)
 	if err != nil {
 		return "", err
 	}
 
-	combined := pkg_crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
-	return pkg_crypto.EncodeToBase64(combined), nil
+	combined := crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
+	return crypto.EncodeToBase64(combined), nil
 }

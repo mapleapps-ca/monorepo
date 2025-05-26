@@ -12,6 +12,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // CompleteLoginUseCase defines the interface for login completion use cases
@@ -25,7 +26,6 @@ type completeLoginUseCase struct {
 	tokenRepository auth.TokenRepository
 	repository      auth.CompleteLoginRepository
 	userRepo        user.Repository
-	cryptoService   auth.CryptographyOperations
 }
 
 // NewCompleteLoginUseCase creates a new login completion use case
@@ -34,14 +34,12 @@ func NewCompleteLoginUseCase(
 	tokenRepository auth.TokenRepository,
 	repository auth.CompleteLoginRepository,
 	userRepo user.Repository,
-	cryptoService auth.CryptographyOperations,
 ) CompleteLoginUseCase {
 	return &completeLoginUseCase{
 		logger:          logger,
 		tokenRepository: tokenRepository,
 		repository:      repository,
 		userRepo:        userRepo,
-		cryptoService:   cryptoService,
 	}
 }
 
@@ -82,13 +80,13 @@ func (uc *completeLoginUseCase) CompleteLogin(ctx context.Context, email, passwo
 		zap.Int("encrypted challenge length", len(userData.EncryptedChallenge)))
 
 	// Derive key from password and salt
-	keyEncryptionKey, err := uc.cryptoService.DeriveKeyFromPassword(password, userData.PasswordSalt)
+	keyEncryptionKey, err := crypto.DeriveKeyFromPassword(password, userData.PasswordSalt)
 	if err != nil {
 		return nil, nil, errors.NewAppError("failed to derive key from password", err)
 	}
 
 	// Decrypt Master Key using Key Encryption Key
-	masterKey, err := uc.cryptoService.DecryptWithSecretBox(
+	masterKey, err := crypto.DecryptWithSecretBox(
 		userData.EncryptedMasterKey.Ciphertext,
 		userData.EncryptedMasterKey.Nonce,
 		keyEncryptionKey,
@@ -98,7 +96,7 @@ func (uc *completeLoginUseCase) CompleteLogin(ctx context.Context, email, passwo
 	}
 
 	// Decrypt Private Key using Master Key
-	privateKey, err := uc.cryptoService.DecryptWithSecretBox(
+	privateKey, err := crypto.DecryptWithSecretBox(
 		userData.EncryptedPrivateKey.Ciphertext,
 		userData.EncryptedPrivateKey.Nonce,
 		masterKey,
@@ -108,7 +106,7 @@ func (uc *completeLoginUseCase) CompleteLogin(ctx context.Context, email, passwo
 	}
 
 	// Decrypt Challenge using Public and Private Keys
-	decryptedChallenge, err := uc.cryptoService.DecryptWithBox(
+	decryptedChallenge, err := crypto.DecryptWithBoxAnonymous(
 		userData.EncryptedChallenge,
 		userData.PublicKey.Key,
 		privateKey,
@@ -118,7 +116,7 @@ func (uc *completeLoginUseCase) CompleteLogin(ctx context.Context, email, passwo
 	}
 
 	// Encode decrypted challenge to base64
-	decryptedChallengeBase64 := uc.cryptoService.EncodeToBase64(decryptedChallenge)
+	decryptedChallengeBase64 := crypto.EncodeToBase64(decryptedChallenge)
 
 	// Send decrypted challenge to server to complete login
 	completeLoginReq := &auth.CompleteLoginRequest{

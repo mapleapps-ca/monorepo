@@ -7,7 +7,6 @@ import (
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/filedto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/fileupload"
@@ -20,10 +19,6 @@ import (
 // UseCaseModule provides the service-layer--related dependencies
 func UseCaseModule() fx.Option {
 	return fx.Options(
-		// Crypto use cases
-		fx.Provide(crypto.NewCryptoUseCase),
-		fx.Provide(crypto.NewDecryptCollectionNameUseCase),
-
 		// Auth use cases
 		fx.Provide(authUseCase.NewEmailVerificationUseCase),
 		fx.Provide(authUseCase.NewLoginOTTUseCase),

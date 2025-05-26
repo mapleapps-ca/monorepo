@@ -18,7 +18,7 @@ import (
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
-	pkg_crypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 	sprimitive "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/mongodb"
 )
 
@@ -140,7 +140,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to derive key encryption key", err)
 	}
-	defer pkg_crypto.ClearBytes(keyEncryptionKey)
+	defer crypto.ClearBytes(keyEncryptionKey)
 
 	// STEP 2: Decrypt masterKey with keyEncryptionKey (E2EE spec)
 	masterKey, err := s.decryptMasterKey(userData, keyEncryptionKey)
@@ -148,18 +148,18 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to decrypt master key - incorrect password?", err)
 	}
-	defer pkg_crypto.ClearBytes(masterKey)
+	defer crypto.ClearBytes(masterKey)
 
 	// STEP 3: Generate random collectionKey (E2EE spec)
-	collectionKey, err := pkg_crypto.GenerateRandomBytes(pkg_crypto.CollectionKeySize)
+	collectionKey, err := crypto.GenerateRandomBytes(crypto.CollectionKeySize)
 	if err != nil {
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to generate collection key", err)
 	}
-	defer pkg_crypto.ClearBytes(collectionKey)
+	defer crypto.ClearBytes(collectionKey)
 
 	// STEP 4: Encrypt collectionKey with masterKey (E2EE spec)
-	encryptedCollectionKey, err := pkg_crypto.EncryptWithSecretBox(collectionKey, masterKey)
+	encryptedCollectionKey, err := crypto.EncryptWithSecretBox(collectionKey, masterKey)
 	if err != nil {
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to encrypt collection key", err)
@@ -270,12 +270,12 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 
 // Helper: Derive keyEncryptionKey from password (E2EE spec)
 func (s *createService) deriveKeyEncryptionKey(password string, salt []byte) ([]byte, error) {
-	return pkg_crypto.DeriveKeyFromPassword(password, salt)
+	return crypto.DeriveKeyFromPassword(password, salt)
 }
 
 // Helper: Decrypt masterKey with keyEncryptionKey (E2EE spec)
 func (s *createService) decryptMasterKey(user *dom_user.User, keyEncryptionKey []byte) ([]byte, error) {
-	return pkg_crypto.DecryptWithSecretBox(
+	return crypto.DecryptWithSecretBox(
 		user.EncryptedMasterKey.Ciphertext,
 		user.EncryptedMasterKey.Nonce,
 		keyEncryptionKey,
@@ -284,11 +284,11 @@ func (s *createService) decryptMasterKey(user *dom_user.User, keyEncryptionKey [
 
 // Helper: Encrypt collection name with collectionKey (E2EE spec)
 func (s *createService) encryptCollectionName(name string, collectionKey []byte) (string, error) {
-	encryptedData, err := pkg_crypto.EncryptWithSecretBox([]byte(name), collectionKey)
+	encryptedData, err := crypto.EncryptWithSecretBox([]byte(name), collectionKey)
 	if err != nil {
 		return "", err
 	}
 
-	combined := pkg_crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
-	return pkg_crypto.EncodeToBase64(combined), nil
+	combined := crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
+	return crypto.EncodeToBase64(combined), nil
 }
