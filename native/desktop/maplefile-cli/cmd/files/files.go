@@ -21,6 +21,8 @@ func FilesCmd(
 	listService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,
 	downloadService filedownload.DownloadService,
+	lockService localfile.LockService,
+	unlockService localfile.UnlockService,
 	getFileUseCase uc_file.GetFileUseCase,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
@@ -55,6 +57,14 @@ func FilesCmd(
 	cmd.AddCommand(downloadFileCmd(
 		logger,
 		downloadService,
+	))
+	cmd.AddCommand(lockFileCmd(
+		logger,
+		lockService,
+	))
+	cmd.AddCommand(unlockFileCmd(
+		logger,
+		unlockService,
 	))
 	cmd.AddCommand(debugE2EECmd(
 		logger,

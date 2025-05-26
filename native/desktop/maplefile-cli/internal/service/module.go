@@ -42,6 +42,8 @@ func ServiceModule() fx.Option {
 		fx.Provide(localfile.NewAddService),
 		fx.Provide(localfile.NewListService),
 		fx.Provide(localfile.NewLocalOnlyDeleteService),
+		fx.Provide(localfile.NewLockService),
+		fx.Provide(localfile.NewUnlockService),
 
 		// File syncer services
 		fx.Provide(filesyncer.NewOffloadService),
