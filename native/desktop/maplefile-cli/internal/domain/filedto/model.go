@@ -65,4 +65,7 @@ type FileDTO struct {
 	ModifiedByUserID primitive.ObjectID `json:"modified_by_user_id"`
 	// The current version of the file.
 	Version uint64 `json:"version"`
+
+	// State management.
+	State string `bson:"state" json:"state"` // pending, active, deleted, archived
 }

@@ -24,3 +24,13 @@ const (
 	StorageModeDecryptedOnly = "decrypted_only" // Only keep decrypted version (not recommended)
 	StorageModeHybrid        = "hybrid"         // Keep both versions (convenient)
 )
+const (
+	// FileDTOStatePending is the initial state of a file before it is uploaded.
+	FileDTOStatePending = "pending"
+	// FileDTOStateActive indicates that the file is fully uploaded and ready for use.
+	FileDTOStateActive = "active"
+	// FileDTOStateDeleted marks the file as deleted, but still accessible for a period but will eventually be permanently removed.
+	FileDTOStateDeleted = "deleted"
+	// FileDTOStateArchived indicates that the file is no longer accessible.
+	FileDTOStateArchived = "archived"
+)

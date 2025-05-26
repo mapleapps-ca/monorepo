@@ -134,7 +134,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	//
 	// STEP 5: Verify file is in pending state
 	//
-	if file.State != dom_file.StatePending {
+	if file.State != dom_file.FileStatePending {
 		svc.logger.Warn("⚠️ File is not in pending state",
 			zap.Any("file_id", req.FileID),
 			zap.String("current_state", file.State))
@@ -216,7 +216,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	//
 	file.EncryptedFileSizeInBytes = actualFileSize
 	file.EncryptedThumbnailSizeInBytes = actualThumbnailSize
-	file.State = dom_file.StateActive
+	file.State = dom_file.FileStateActive
 	file.ModifiedAt = time.Now()
 	file.ModifiedByUserID = userID
 	file.Version++

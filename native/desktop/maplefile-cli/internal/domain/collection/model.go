@@ -63,6 +63,9 @@ type Collection struct {
 	// Decrypted content details and local sync tracking
 	Name       string     `json:"name" bson:"name"`
 	SyncStatus SyncStatus `json:"sync_status" bson:"sync_status"`
+
+	// State management
+	State string `bson:"state" json:"state"` // active, deleted, archived
 }
 
 // CollectionMembership represents a user's access to a collection.

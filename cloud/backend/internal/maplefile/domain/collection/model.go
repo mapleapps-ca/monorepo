@@ -69,6 +69,9 @@ type Collection struct {
 	ModifiedByUserID primitive.ObjectID `bson:"modified_by_user_id" json:"modified_by_user_id"`
 	// The current version of the file.
 	Version uint64 `bson:"version" json:"version"`
+
+	// State management
+	State string `bson:"state" json:"state"` // active, deleted, archived
 }
 
 // CollectionMembership represents a user's access to a collection

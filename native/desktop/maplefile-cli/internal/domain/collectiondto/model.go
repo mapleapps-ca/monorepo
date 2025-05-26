@@ -60,6 +60,9 @@ type CollectionDTO struct {
 	ModifiedByUserID primitive.ObjectID `bson:"modified_by_user_id" json:"modified_by_user_id"`
 	// The current version of the collection.
 	Version uint64 `bson:"version" json:"version"`
+
+	// State management
+	State string `bson:"state" json:"state"` // active, deleted, archived
 }
 
 // CollectionMembershipDTO represents a user's access to a collection in DTO format

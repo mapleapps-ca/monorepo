@@ -66,16 +66,5 @@ type File struct {
 	Version uint64 `bson:"version" json:"version"`
 
 	// State management.
-	State string `bson:"state" json:"state"`
+	State string `bson:"state" json:"state"` // pending, active, deleted, archived
 }
-
-const (
-	// StatePending is the initial state of a file before it is uploaded.
-	StatePending = "pending"
-	// StateActive indicates that the file is fully uploaded and ready for use.
-	StateActive = "active"
-	// StateDeleted marks the file as deleted, but still accessible for a period but will eventually be permanently removed.
-	StateDeleted = "deleted"
-	// StateArchived indicates that the file is no longer accessible.
-	StateArchived = "archived"
-)

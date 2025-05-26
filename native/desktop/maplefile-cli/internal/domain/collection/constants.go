@@ -57,3 +57,9 @@ const (
 	// all read/write operations, managing collection members (sharing/unsharing), and deleting the collection.
 	CollectionPermissionAdmin = "admin"
 )
+
+const (
+	CollectionStateActive   = "active"
+	CollectionStateDeleted  = "deleted"
+	CollectionStateArchived = "archived"
+)
