@@ -17,21 +17,25 @@ func lockFileCmd(
 	lockService localfile.LockService,
 ) *cobra.Command {
 	var fileID string
+	var password string
 
 	var cmd = &cobra.Command{
 		Use:   "lock",
-		Short: "Lock a file to encrypted-only mode",
+		Short: "Lock a file to encrypted-only mode using E2EE",
 		Long: `
-Lock a file to encrypted-only mode by deleting the local decrypted version
-and keeping only the encrypted version. This provides maximum security as
-the decrypted content is not stored on disk.
+Lock a file to encrypted-only mode by encrypting the decrypted content and
+removing the decrypted version from disk. This provides maximum security as
+only the encrypted version remains on disk.
 
-The file must have a local encrypted version available. Cloud-only files
-cannot be locked as they don't have local encrypted versions.
+This operation uses end-to-end encryption (E2EE) with the complete key chain:
+password → key encryption key → master key → collection key → file key
+
+The file must have a local decrypted version available for encryption.
+Cloud-only files cannot be locked as they don't have local versions.
 
 Examples:
   # Lock a file to encrypted-only mode
-  maplefile-cli files lock --file-id 507f1f77bcf86cd799439011
+  maplefile-cli files lock --file-id 507f1f77bcf86cd799439011 --password 1234567890
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Validate required inputs
@@ -41,9 +45,16 @@ Examples:
 				return
 			}
 
+			if password == "" {
+				fmt.Println("❌ Error: Password is required for E2EE operations.")
+				fmt.Println("Use --password flag to specify your account password.")
+				return
+			}
+
 			// Create service input
 			input := &localfile.LockInput{
-				FileID: fileID,
+				FileID:   fileID,
+				Password: password,
 			}
 
 			// Execute lock operation
@@ -52,14 +63,18 @@ Examples:
 
 			output, err := lockService.Lock(cmd.Context(), input)
 			if err != nil {
-				if strings.Contains(err.Error(), "cloud-only") {
+				if strings.Contains(err.Error(), "incorrect password") {
+					fmt.Printf("❌ Error: Incorrect password. Please check your password and try again.\n")
+				} else if strings.Contains(err.Error(), "cloud-only") {
 					fmt.Printf("❌ Error: Cannot lock cloud-only files. Use 'filesync onload' first to download the file locally.\n")
 				} else if strings.Contains(err.Error(), "file not found") {
 					fmt.Printf("❌ Error: File not found. Please check the file ID.\n")
-				} else if strings.Contains(err.Error(), "no encrypted file") {
-					fmt.Printf("❌ Error: No encrypted version available. Cannot lock file without encrypted version.\n")
+				} else if strings.Contains(err.Error(), "no decrypted file") {
+					fmt.Printf("❌ Error: No decrypted version available. Cannot lock file without decrypted version.\n")
 				} else if strings.Contains(err.Error(), "does not exist on disk") {
-					fmt.Printf("❌ Error: Encrypted file missing from disk. File may be corrupted.\n")
+					fmt.Printf("❌ Error: Required file missing from disk. File may be corrupted.\n")
+				} else if strings.Contains(err.Error(), "failed to decrypt") {
+					fmt.Printf("❌ Error: Failed to decrypt E2EE keys. Please verify your password.\n")
 				} else {
 					fmt.Printf("❌ Error locking file: %v\n", err)
 				}
@@ -74,14 +89,16 @@ Examples:
 			fmt.Printf("💾 Remaining: %s\n", getPathDisplayName(output.RemainingPath))
 			fmt.Printf("💬 Status: %s\n", output.Message)
 
-			fmt.Printf("\n🔒 Your file is now in encrypted-only mode for maximum security!\n")
-			fmt.Printf("🔓 Use 'maplefile-cli files unlock' to access the decrypted content when needed.\n")
+			fmt.Printf("\n🔒 Your file is now locked using E2EE for maximum security!\n")
+			fmt.Printf("🔓 Use 'maplefile-cli files unlock' with your password to access the content when needed.\n")
 		},
 	}
 
 	// Define command flags
 	cmd.Flags().StringVarP(&fileID, "file-id", "f", "", "ID of the file to lock (required)")
 	cmd.MarkFlagRequired("file-id")
+	cmd.Flags().StringVar(&password, "password", "", "Your account password (required for E2EE)")
+	cmd.MarkFlagRequired("password")
 
 	return cmd
 }
