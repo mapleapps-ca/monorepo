@@ -34,6 +34,7 @@ func ServiceModule() fx.Option {
 		fx.Provide(collection.NewCreateService),
 		fx.Provide(collection.NewGetService),
 		fx.Provide(collection.NewListService),
+		fx.Provide(collection.NewGetFilteredService),
 		fx.Provide(collection.NewUpdateService),
 		fx.Provide(collection.NewDeleteService),
 		fx.Provide(collection.NewMoveService),

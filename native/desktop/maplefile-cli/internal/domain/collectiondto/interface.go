@@ -33,15 +33,28 @@ type CollectionDTORepository interface {
 	// or due to permissions issues. A specific error (e.g., domain.ErrNotFound)
 	// should be returned if the ID does not exist.
 	DeleteInCloudByID(ctx context.Context, id primitive.ObjectID) error
+
+	// GetFilteredCollectionsFromCloud retrieves filtered collections (owned/shared) from the cloud service
+	GetFilteredCollectionsFromCloud(ctx context.Context, request *GetFilteredCollectionsRequest) (*GetFilteredCollectionsResponse, error)
 }
 
-// CollectionFilter defines filtering options for listing CollectionDTOs.
-// Fields are optional; an empty filter implies no filtering.
+// GetFilteredCollectionsRequest represents the request for getting filtered collections
+type GetFilteredCollectionsRequest struct {
+	IncludeOwned  bool `json:"include_owned"`
+	IncludeShared bool `json:"include_shared"`
+}
+
+// GetFilteredCollectionsResponse represents the response from getting filtered collections
+type GetFilteredCollectionsResponse struct {
+	OwnedCollections  []*CollectionDTO `json:"owned_collections"`
+	SharedCollections []*CollectionDTO `json:"shared_collections"`
+	TotalCount        int              `json:"total_count"`
+}
+
+// CollectionFilter defines filtering options for listing CollectionDTOs
 type CollectionFilter struct {
-	// ParentID filters collections that are children of the specified ParentID.
-	// If nil, collections are not filtered by parent.
+	// ParentID filters collections that belong to the specified parent collection
 	ParentID *primitive.ObjectID `json:"parent_id,omitempty"`
-	// Type filters collections by their 'Type' field.
-	// If empty, collections are not filtered by type.
-	Type string `json:"type,omitempty"`
+	// CollectionType filters collections by their type (folder, album)
+	CollectionType string `json:"collection_type,omitempty"`
 }
