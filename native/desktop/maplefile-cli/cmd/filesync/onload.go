@@ -29,6 +29,10 @@ Onload a cloud-only file to local storage. This will:
 - Save the decrypted file locally
 - Set the file's sync status to synced
 
+The file must be in cloud-only status to be eligible for onloading.
+This command uses the integrated download service to handle all E2EE
+decryption automatically.
+
 Examples:
   maplefile-cli filesync onload --file-id 507f1f77bcf86cd799439011 --password 1234567890
 `,
@@ -62,6 +66,10 @@ Examples:
 					fmt.Printf("❌ Error: Incorrect password. Please check your password and try again.\n")
 				} else if strings.Contains(err.Error(), "not cloud-only") {
 					fmt.Printf("❌ Error: File is not in cloud-only mode. Only cloud-only files can be onloaded.\n")
+				} else if strings.Contains(err.Error(), "file not found") {
+					fmt.Printf("❌ Error: File not found. Please check the file ID and try again.\n")
+				} else if strings.Contains(err.Error(), "permission") {
+					fmt.Printf("❌ Error: You don't have permission to access this file.\n")
 				} else {
 					fmt.Printf("❌ Error onloading file: %v\n", err)
 				}
@@ -77,6 +85,7 @@ Examples:
 			fmt.Printf("💬 Message: %s\n", output.Message)
 
 			fmt.Printf("\n🎉 Your file is now available locally!\n")
+			fmt.Printf("🔐 The file has been downloaded and decrypted using E2EE.\n")
 		},
 	}
 

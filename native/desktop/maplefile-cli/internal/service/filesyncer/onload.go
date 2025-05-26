@@ -4,7 +4,6 @@ package filesyncer
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -12,19 +11,12 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/crypto"
-	common_crypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
-	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	svc_crypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/crypto"
-	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
+	svc_filedownload "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
-	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
 // OnloadInput represents the input for onloading a cloud-only file
@@ -50,44 +42,33 @@ type OnloadService interface {
 
 // onloadService implements the OnloadService interface
 type onloadService struct {
-	logger                     *zap.Logger
-	configService              config.ConfigService
-	cryptoService              svc_crypto.CryptoService
-	getFileUseCase             uc_file.GetFileUseCase
-	updateFileUseCase          uc_file.UpdateFileUseCase
-	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase
-	getCollectionUseCase       uc_collection.GetCollectionUseCase
-	fileDTORepo                filedto.FileDTORepository
-	pathUtilsUseCase           localfile.PathUtilsUseCase
-	createDirectoryUseCase     localfile.CreateDirectoryUseCase
-	httpClient                 *http.Client
+	logger                 *zap.Logger
+	configService          config.ConfigService
+	getFileUseCase         uc_file.GetFileUseCase
+	updateFileUseCase      uc_file.UpdateFileUseCase
+	downloadService        svc_filedownload.DownloadService
+	pathUtilsUseCase       localfile.PathUtilsUseCase
+	createDirectoryUseCase localfile.CreateDirectoryUseCase
 }
 
 // NewOnloadService creates a new service for onloading cloud-only files
 func NewOnloadService(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	cryptoService svc_crypto.CryptoService,
 	getFileUseCase uc_file.GetFileUseCase,
 	updateFileUseCase uc_file.UpdateFileUseCase,
-	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
-	getCollectionUseCase uc_collection.GetCollectionUseCase,
-	fileDTORepo filedto.FileDTORepository,
+	downloadService svc_filedownload.DownloadService,
 	pathUtilsUseCase localfile.PathUtilsUseCase,
 	createDirectoryUseCase localfile.CreateDirectoryUseCase,
 ) OnloadService {
 	return &onloadService{
-		logger:                     logger,
-		configService:              configService,
-		cryptoService:              cryptoService,
-		getFileUseCase:             getFileUseCase,
-		updateFileUseCase:          updateFileUseCase,
-		getUserByIsLoggedInUseCase: getUserByIsLoggedInUseCase,
-		getCollectionUseCase:       getCollectionUseCase,
-		fileDTORepo:                fileDTORepo,
-		pathUtilsUseCase:           pathUtilsUseCase,
-		createDirectoryUseCase:     createDirectoryUseCase,
-		httpClient:                 &http.Client{Timeout: 30 * time.Second},
+		logger:                 logger,
+		configService:          configService,
+		getFileUseCase:         getFileUseCase,
+		updateFileUseCase:      updateFileUseCase,
+		downloadService:        downloadService,
+		pathUtilsUseCase:       pathUtilsUseCase,
+		createDirectoryUseCase: createDirectoryUseCase,
 	}
 }
 
@@ -152,72 +133,54 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	}
 
 	//
-	// STEP 4: Get user and collection for decryption
+	// STEP 4: Download and decrypt file using the download service
 	//
-	user, err := s.getUserByIsLoggedInUseCase.Execute(ctx)
+	s.logger.Info("Downloading and decrypting file from cloud",
+		zap.String("fileID", input.FileID))
+
+	urlDuration := 1 * time.Hour // Default duration for download URLs
+	downloadResult, err := s.downloadService.DownloadAndDecryptFile(ctx, fileObjectID, input.UserPassword, urlDuration)
 	if err != nil {
-		return nil, errors.NewAppError("failed to get logged in user", err)
-	}
-	if user == nil {
-		return nil, errors.NewAppError("user not found", nil)
+		s.logger.Error("failed to download and decrypt file",
+			zap.String("fileID", input.FileID),
+			zap.Error(err))
+		return nil, errors.NewAppError("failed to download and decrypt file", err)
 	}
 
-	collection, err := s.getCollectionUseCase.Execute(ctx, file.CollectionID)
-	if err != nil {
-		return nil, errors.NewAppError("failed to get collection", err)
-	}
-	if collection == nil {
-		return nil, errors.NewAppError("collection not found", nil)
-	}
+	s.logger.Info("Successfully downloaded and decrypted file",
+		zap.String("fileID", input.FileID),
+		zap.String("fileName", downloadResult.DecryptedMetadata.Name),
+		zap.Int64("size", downloadResult.OriginalSize))
 
 	//
-	// STEP 5: Download encrypted file from cloud
+	// STEP 5: Save decrypted file locally
 	//
-	encryptedData, err := s.downloadEncryptedFile(ctx, file)
+	decryptedPath, err := s.saveDecryptedFile(ctx, file, downloadResult.DecryptedData, downloadResult.DecryptedMetadata.Name)
 	if err != nil {
-		return nil, errors.NewAppError("failed to download encrypted file", err)
-	}
-
-	//
-	// STEP 6: Decrypt the collection key chain
-	//
-	collectionKey, err := s.decryptCollectionKeyChain(user, collection, input.UserPassword)
-	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt collection key chain", err)
-	}
-	defer crypto.ClearBytes(collectionKey)
-
-	//
-	// STEP 7: Decrypt the file key
-	//
-	fileKey, err := common_crypto.DecryptWithSecretBox(
-		file.EncryptedFileKey.Ciphertext,
-		file.EncryptedFileKey.Nonce,
-		collectionKey,
-	)
-	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt file key", err)
-	}
-	defer crypto.ClearBytes(fileKey)
-
-	//
-	// STEP 8: Decrypt the file content
-	//
-	decryptedData, err := s.decryptFileContent(encryptedData, fileKey)
-	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt file content", err)
-	}
-
-	//
-	// STEP 9: Save decrypted file locally
-	//
-	decryptedPath, err := s.saveDecryptedFile(ctx, file, decryptedData)
-	if err != nil {
+		s.logger.Error("failed to save decrypted file",
+			zap.String("fileID", input.FileID),
+			zap.Error(err))
 		return nil, errors.NewAppError("failed to save decrypted file", err)
 	}
 
 	//
-	// STEP 10: Update file record with new path and sync status
+	// STEP 6: Save thumbnail if present
+	//
+	if downloadResult.ThumbnailData != nil && len(downloadResult.ThumbnailData) > 0 {
+		thumbnailPath, err := s.saveThumbnail(ctx, file, downloadResult.ThumbnailData, downloadResult.DecryptedMetadata.Name)
+		if err != nil {
+			s.logger.Warn("Failed to save thumbnail, continuing without it",
+				zap.String("fileID", input.FileID),
+				zap.Error(err))
+		} else {
+			s.logger.Debug("Successfully saved thumbnail",
+				zap.String("fileID", input.FileID),
+				zap.String("thumbnailPath", thumbnailPath))
+		}
+	}
+
+	//
+	// STEP 7: Update file record with new path and sync status
 	//
 	updateInput := uc_file.UpdateFileInput{
 		ID: file.ID,
@@ -226,6 +189,14 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	newStatus := dom_file.SyncStatusSynced
 	updateInput.SyncStatus = &newStatus
 	updateInput.FilePath = &decryptedPath
+
+	// Update the file name and MIME type from decrypted metadata
+	if downloadResult.DecryptedMetadata.Name != "" {
+		updateInput.DecryptedName = &downloadResult.DecryptedMetadata.Name
+	}
+	if downloadResult.DecryptedMetadata.MimeType != "" {
+		updateInput.DecryptedMimeType = &downloadResult.DecryptedMetadata.MimeType
+	}
 
 	_, err = s.updateFileUseCase.Execute(ctx, updateInput)
 	if err != nil {
@@ -246,83 +217,13 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 		PreviousStatus: previousStatus,
 		NewStatus:      newStatus,
 		DecryptedPath:  decryptedPath,
-		DownloadedSize: int64(len(encryptedData)),
+		DownloadedSize: downloadResult.OriginalSize,
 		Message:        "File successfully onloaded and decrypted",
 	}, nil
 }
 
-// downloadEncryptedFile downloads the encrypted file content from cloud storage
-func (s *onloadService) downloadEncryptedFile(ctx context.Context, file *dom_file.File) ([]byte, error) {
-	s.logger.Debug("Downloading encrypted file from cloud",
-		zap.String("fileID", file.ID.Hex()))
-
-	// Get download URL (this would typically involve getting a presigned URL)
-	// For now, we'll use a direct download approach
-	// In a real implementation, you might need to get a presigned download URL first
-
-	// Download the encrypted file content
-	// This is a simplified approach - in practice you might need to:
-	// 1. Get a presigned download URL from the cloud service
-	// 2. Download using that URL
-	// For now, we'll assume we can download directly using the file DTO repository
-
-	fileDTO, err := s.fileDTORepo.DownloadByIDFromCloud(ctx, file.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	// In a real implementation, you'd download the actual file content
-	// This is a placeholder that demonstrates the concept
-	// You would typically use the fileDTO to get a download URL and then download the content
-
-	s.logger.Debug("Successfully downloaded encrypted file metadata",
-		zap.String("fileID", file.ID.Hex()),
-		zap.Int64("encryptedSize", fileDTO.EncryptedFileSizeInBytes))
-
-	// For now, we'll read from the local encrypted file path if it exists
-	// In a real cloud scenario, you'd download from the cloud storage URL
-	if file.EncryptedFilePath != "" {
-		data, err := os.ReadFile(file.EncryptedFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read encrypted file: %w", err)
-		}
-		return data, nil
-	}
-
-	return nil, errors.NewAppError("no encrypted file path available for download", nil)
-}
-
-// decryptFileContent decrypts the encrypted file content using the file key
-func (s *onloadService) decryptFileContent(encryptedData, fileKey []byte) ([]byte, error) {
-	s.logger.Debug("Decrypting file content")
-
-	// The encrypted data should be in the format: nonce (24 bytes) + ciphertext
-	if len(encryptedData) < common_crypto.NonceSize {
-		return nil, fmt.Errorf("encrypted data too short: expected at least %d bytes, got %d",
-			common_crypto.NonceSize, len(encryptedData))
-	}
-
-	// Extract nonce and ciphertext from combined data
-	nonce := make([]byte, common_crypto.NonceSize)
-	copy(nonce, encryptedData[:common_crypto.NonceSize])
-
-	ciphertext := make([]byte, len(encryptedData)-common_crypto.NonceSize)
-	copy(ciphertext, encryptedData[common_crypto.NonceSize:])
-
-	// Decrypt the content
-	decryptedData, err := common_crypto.DecryptWithSecretBox(ciphertext, nonce, fileKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt file content: %w", err)
-	}
-
-	s.logger.Debug("Successfully decrypted file content",
-		zap.Int("decryptedSize", len(decryptedData)))
-
-	return decryptedData, nil
-}
-
 // saveDecryptedFile saves the decrypted file content to local storage
-func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.File, decryptedData []byte) (string, error) {
+func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.File, decryptedData []byte, originalFileName string) (string, error) {
 	s.logger.Debug("Saving decrypted file locally", zap.String("fileID", file.ID.Hex()))
 
 	// Get app data directory
@@ -342,7 +243,7 @@ func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.Fi
 	}
 
 	// Generate file path with original extension
-	fileExtension := filepath.Ext(file.Name)
+	fileExtension := filepath.Ext(originalFileName)
 	if fileExtension == "" {
 		// Try to determine extension from MIME type if available
 		fileExtension = s.getExtensionFromMimeType(file.MimeType)
@@ -365,41 +266,42 @@ func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.Fi
 	return destFilePath, nil
 }
 
-// decryptCollectionKeyChain decrypts the complete E2EE chain to get the collection key
-func (s *onloadService) decryptCollectionKeyChain(user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
-	// STEP 1: Derive keyEncryptionKey from password
-	keyEncryptionKey, err := common_crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
+// saveThumbnail saves the decrypted thumbnail to local storage
+func (s *onloadService) saveThumbnail(ctx context.Context, file *dom_file.File, thumbnailData []byte, originalFileName string) (string, error) {
+	s.logger.Debug("Saving thumbnail locally", zap.String("fileID", file.ID.Hex()))
+
+	// Get app data directory
+	appDataDir, err := s.configService.GetAppDataDirPath(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to derive key encryption key: %w", err)
+		return "", fmt.Errorf("failed to get app data directory: %w", err)
 	}
-	defer common_crypto.ClearBytes(keyEncryptionKey)
 
-	// STEP 2: Decrypt masterKey with keyEncryptionKey
-	masterKey, err := common_crypto.DecryptWithSecretBox(
-		user.EncryptedMasterKey.Ciphertext,
-		user.EncryptedMasterKey.Nonce,
-		keyEncryptionKey,
-	)
+	// Create files storage directory structure
+	filesDir := s.pathUtilsUseCase.Join(ctx, appDataDir, "files")
+	binDir := s.pathUtilsUseCase.Join(ctx, filesDir, "bin")
+	collectionDir := s.pathUtilsUseCase.Join(ctx, binDir, file.CollectionID.Hex())
+
+	// Create directories if they don't exist
+	if err := s.createDirectoryUseCase.ExecuteAll(ctx, collectionDir); err != nil {
+		return "", fmt.Errorf("failed to create collection directory: %w", err)
+	}
+
+	// Generate thumbnail file name
+	thumbnailFileName := file.ID.Hex() + "_thumbnail.jpg"
+	thumbnailPath := s.pathUtilsUseCase.Join(ctx, collectionDir, thumbnailFileName)
+
+	// Write the thumbnail
+	err = os.WriteFile(thumbnailPath, thumbnailData, 0644)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt master key - incorrect password?: %w", err)
-	}
-	defer common_crypto.ClearBytes(masterKey)
-
-	// STEP 3: Decrypt collectionKey with masterKey
-	if collection.EncryptedCollectionKey == nil {
-		return nil, errors.NewAppError("collection has no encrypted key", nil)
+		return "", fmt.Errorf("failed to write thumbnail: %w", err)
 	}
 
-	collectionKey, err := common_crypto.DecryptWithSecretBox(
-		collection.EncryptedCollectionKey.Ciphertext,
-		collection.EncryptedCollectionKey.Nonce,
-		masterKey,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt collection key: %w", err)
-	}
+	s.logger.Debug("Successfully saved thumbnail",
+		zap.String("fileID", file.ID.Hex()),
+		zap.String("thumbnailPath", thumbnailPath),
+		zap.Int("size", len(thumbnailData)))
 
-	return collectionKey, nil
+	return thumbnailPath, nil
 }
 
 // getExtensionFromMimeType returns a file extension based on MIME type
