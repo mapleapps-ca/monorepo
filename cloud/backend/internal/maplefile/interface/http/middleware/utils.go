@@ -31,16 +31,17 @@ func init() {
 	// Pattern matches
 	patterns := []string{
 		// "^/maplefile/api/v1/user/[0-9]+$",                      // Regex designed for non-zero integers.
-		// "^/maplefile/api/v1/wallet/[0-9a-f]+$",                 // Regex designed for mongodb ids.
+		// "^/maplefile/api/v1/wallet/[0-9a-f]+$",                 // Regex designed for mongoDB IDs.
 		// "^/maplefile/api/v1/public-wallets/0x[0-9a-fA-F]{40}$", // Regex designed for ethereum addresses.
-		// "^/maplefile/api/v1/users/[0-9a-f]+$",                  // Regex designed for mongodb ids.
-		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+$",       // Regex designed for collection IDs
-		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/files$", // Regex designed for collection IDs
-		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+$",             // Regex designed for collection IDs
-		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/data$",        // Regex designed for collection IDs
-		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/upload-url$",  // Regex designed for collection IDs
-		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/complete$",    // Three-step workflow file-create endpoint: Finish
-		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/download$",    // Download endpoint
+		// "^/maplefile/api/v1/users/[0-9a-f]+$",                  // Regex designed for mongoDB IDs.
+		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+$",        // Regex designed for mongoDB IDs
+		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/files$",  // Regex designed for mongoDB IDs
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+$",              // Regex designed for mongoDB IDs
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/data$",         // Regex designed for mongoDB IDs
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/upload-url$",   // Regex designed for mongoDB IDs
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/download-url$", // Regex designed for mongoDB IDs
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/complete$",     // Three-step workflow file-create endpoint: Finish
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/download$",     // Download endpoint (Deprecated)
 	}
 
 	// Precompile patterns

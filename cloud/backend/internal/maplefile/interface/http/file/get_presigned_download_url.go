@@ -1,5 +1,4 @@
-// Deprecated
-// cloud/backend/internal/maplefile/interface/http/file/download.go
+// cloud/backend/internal/maplefile/interface/http/file/get_presigned_download_url.go
 package file
 
 import (
@@ -9,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -20,22 +20,26 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type DownloadFileHTTPHandler struct {
+type GetPresignedDownloadURLHTTPRequestDTO struct {
+	URLDuration time.Duration `json:"url_duration,omitempty"` // Optional, defaults to 1 hour
+}
+
+type GetPresignedDownloadURLHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
 	dbClient   *mongo.Client
-	service    svc_file.DownloadFileService
+	service    svc_file.GetPresignedDownloadURLService
 	middleware middleware.Middleware
 }
 
-func NewDownloadFileHTTPHandler(
+func NewGetPresignedDownloadURLHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
 	dbClient *mongo.Client,
-	service svc_file.DownloadFileService,
+	service svc_file.GetPresignedDownloadURLService,
 	middleware middleware.Middleware,
-) *DownloadFileHTTPHandler {
-	return &DownloadFileHTTPHandler{
+) *GetPresignedDownloadURLHTTPHandler {
+	return &GetPresignedDownloadURLHTTPHandler{
 		config:     config,
 		logger:     logger,
 		dbClient:   dbClient,
@@ -44,22 +48,22 @@ func NewDownloadFileHTTPHandler(
 	}
 }
 
-func (*DownloadFileHTTPHandler) Pattern() string {
-	return "POST /maplefile/api/v1/files/{file_id}/download"
+func (*GetPresignedDownloadURLHTTPHandler) Pattern() string {
+	return "POST /maplefile/api/v1/files/{file_id}/download-url"
 }
 
-func (h *DownloadFileHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h *GetPresignedDownloadURLHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Apply middleware before handling the request
 	h.middleware.Attach(h.Execute)(w, req)
 }
 
-func (h *DownloadFileHTTPHandler) unmarshalRequest(
+func (h *GetPresignedDownloadURLHTTPHandler) unmarshalRequest(
 	ctx context.Context,
 	r *http.Request,
 	fileID primitive.ObjectID,
-) (*svc_file.DownloadFileRequestDTO, error) {
+) (*svc_file.GetPresignedDownloadURLRequestDTO, error) {
 	// Initialize our structure which will store the parsed request data
-	var requestData svc_file.DownloadFileRequestDTO
+	var httpRequestData GetPresignedDownloadURLHTTPRequestDTO
 
 	defer r.Body.Close()
 
@@ -67,7 +71,7 @@ func (h *DownloadFileHTTPHandler) unmarshalRequest(
 	teeReader := io.TeeReader(r.Body, &rawJSON) // TeeReader allows you to read the JSON and capture it
 
 	// Read the JSON string and convert it into our golang struct
-	err := json.NewDecoder(teeReader).Decode(&requestData)
+	err := json.NewDecoder(teeReader).Decode(&httpRequestData)
 	if err != nil {
 		h.logger.Error("decoding error",
 			zap.Any("err", err),
@@ -76,13 +80,21 @@ func (h *DownloadFileHTTPHandler) unmarshalRequest(
 		return nil, httperror.NewForSingleField(http.StatusBadRequest, "non_field_error", "payload structure is wrong")
 	}
 
-	// Set the file ID from the URL parameter
-	requestData.FileID = fileID
+	// Set default URL duration if not provided
+	if httpRequestData.URLDuration == 0 {
+		httpRequestData.URLDuration = 1 * time.Hour
+	}
 
-	return &requestData, nil
+	// Convert to service DTO
+	serviceRequest := &svc_file.GetPresignedDownloadURLRequestDTO{
+		FileID:      fileID,
+		URLDuration: httpRequestData.URLDuration,
+	}
+
+	return serviceRequest, nil
 }
 
-func (h *DownloadFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
+func (h *GetPresignedDownloadURLHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	// Set response content type
 	w.Header().Set("Content-Type", "application/json")
 
@@ -126,7 +138,7 @@ func (h *DownloadFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request
 		// Call service
 		response, err := h.service.Execute(sessCtx, req)
 		if err != nil {
-			h.logger.Error("failed to download file",
+			h.logger.Error("failed to generate presigned download URLs",
 				zap.Any("error", err))
 			return nil, err
 		}
@@ -144,7 +156,7 @@ func (h *DownloadFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request
 
 	// Encode response
 	if result != nil {
-		resp := result.(*svc_file.DownloadFileResponseDTO)
+		resp := result.(*svc_file.GetPresignedDownloadURLResponseDTO)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			h.logger.Error("failed to encode response",
 				zap.Any("error", err))

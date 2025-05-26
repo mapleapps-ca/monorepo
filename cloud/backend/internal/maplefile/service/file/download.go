@@ -1,3 +1,4 @@
+// Deprecated
 // cloud/backend/internal/maplefile/service/file/download.go
 package file
 

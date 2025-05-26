@@ -46,6 +46,7 @@ func Module() fx.Option {
 			file.NewCreatePendingFileService,
 			file.NewCompleteFileUploadService,
 			file.NewGetPresignedUploadURLService,
+			file.NewGetPresignedDownloadURLService,
 			file.NewListFilesByCreatedByUserIDService,
 			file.NewListFilesByOwnerIDService,
 		),
