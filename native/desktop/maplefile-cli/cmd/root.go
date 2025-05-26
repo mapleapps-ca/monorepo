@@ -44,6 +44,7 @@ func NewRootCmd(
 	collectionListService collection.ListService,
 	addFileService localfile.AddService,
 	listFileService localfile.ListService,
+	localOnlyDeleteService localfile.LocalOnlyDeleteService,
 	uploadFileService fileupload.UploadService,
 	offloadService filesyncer.OffloadService,
 	onloadService filesyncer.OnloadService,
@@ -79,6 +80,7 @@ func NewRootCmd(
 		addFileService,
 		uploadFileService,
 		listFileService,
+		localOnlyDeleteService,
 	))
 	// Add the new filesync command
 	rootCmd.AddCommand(filesync.FileSyncCmd(

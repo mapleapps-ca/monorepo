@@ -15,6 +15,7 @@ func FilesCmd(
 	addService localfile.AddService,
 	uploadService fileupload.UploadService,
 	listService localfile.ListService,
+	localOnlyDeleteService localfile.LocalOnlyDeleteService,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "files",
@@ -39,6 +40,9 @@ func FilesCmd(
 		logger,
 		listService,
 	))
-
+	cmd.AddCommand(localOnlyDeleteFilesCmd(
+		logger,
+		localOnlyDeleteService,
+	))
 	return cmd
 }
