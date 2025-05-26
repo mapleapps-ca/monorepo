@@ -98,6 +98,10 @@ func (uc *updateFileUseCase) Execute(
 		file.ThumbnailPath = *input.ThumbnailPath
 	}
 
+	if input.SyncStatus != nil {
+		file.SyncStatus = *input.SyncStatus
+	}
+
 	if input.StorageMode != nil {
 		// Validate storage mode
 		if *input.StorageMode != dom_file.StorageModeEncryptedOnly &&
@@ -110,8 +114,6 @@ func (uc *updateFileUseCase) Execute(
 
 	// Update timestamps and modification status
 	file.ModifiedAt = time.Now()
-	file.IsModifiedLocally = true
-	file.SyncStatus = dom_file.SyncStatusModifiedLocally
 
 	// Save the updated file
 	err = uc.repository.Update(ctx, file)

@@ -170,12 +170,11 @@ func (s *cloudOnlyDeleteService) DeleteFromCloud(ctx context.Context, input *Clo
 	//
 	// STEP 6: Update local file sync status to LocalOnly
 	//
-	updateInput := uc_file.UpdateFileInput{
-		ID: file.ID,
-	}
-
 	newStatus := dom_file.SyncStatusLocalOnly
-	updateInput.SyncStatus = &newStatus
+	updateInput := uc_file.UpdateFileInput{
+		ID:         file.ID,
+		SyncStatus: &newStatus,
+	}
 
 	_, err = s.updateFileUseCase.Execute(ctx, updateInput)
 	if err != nil {

@@ -266,14 +266,11 @@ func (s *uploadService) completeUpload(ctx context.Context, fileID primitive.Obj
 
 func (s *uploadService) updateLocalFile(ctx context.Context, file *dom_file.File) error {
 	// Only update sync status and remove local paths if needed
-	updateInput := uc_file.UpdateFileInput{
-		ID: file.ID, // Use the unified ID
-	}
-
-	// Update sync status
 	newStatus := dom_file.SyncStatusSynced
-	updateInput.SyncStatus = &newStatus
-	file.SyncStatus = newStatus // Update in-memory object as well
+	updateInput := uc_file.UpdateFileInput{
+		ID:         file.ID,
+		SyncStatus: &newStatus, // Update sync status
+	}
 
 	// Execute the update using the use case
 	if _, err := s.updateFileUseCase.Execute(ctx, updateInput); err != nil {

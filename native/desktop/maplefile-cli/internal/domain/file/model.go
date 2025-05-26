@@ -57,9 +57,8 @@ type File struct {
 	ThumbnailSize int64 `json:"thumbnail_size" bson:"thumbnail_size"`
 
 	// Fields for tracking synchronization state
-	LastSyncedAt      time.Time  `json:"last_synced_at" bson:"last_synced_at"`
-	IsModifiedLocally bool       `json:"is_modified_locally" bson:"is_modified_locally"`
-	SyncStatus        SyncStatus `json:"sync_status" bson:"sync_status"`
+	LastSyncedAt time.Time  `json:"last_synced_at" bson:"last_synced_at"`
+	SyncStatus   SyncStatus `json:"sync_status" bson:"sync_status"`
 	// Controls which file versions are kept (encrypted, decrypted, or both) (client device side only)
 	StorageMode string `json:"storage_mode" bson:"storage_mode"`
 
