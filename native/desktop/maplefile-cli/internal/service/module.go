@@ -12,7 +12,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
-	svc_sync "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/sync"
 )
 
 // ServiceModule provides the service-layer--related dependencies
@@ -63,7 +62,6 @@ func ServiceModule() fx.Option {
 		fx.Provide(filedownload.NewDownloadService),
 
 		// // Collection synchronization services
-		fx.Provide(svc_sync.NewSyncService),
 		// fx.Provide(collectionsyncer.NewFindByCloudIDService),
 		// fx.Provide(collectionsyncer.NewDownloadService),
 		// fx.Provide(collectionsyncer.NewUploadService),

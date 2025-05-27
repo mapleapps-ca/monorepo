@@ -30,7 +30,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	svc_register "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
-	svc_sync "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/sync"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
@@ -60,7 +59,6 @@ func NewRootCmd(
 	offloadService filesyncer.OffloadService,
 	onloadService filesyncer.OnloadService,
 	cloudOnlyDeleteService filesyncer.CloudOnlyDeleteService,
-	syncService svc_sync.SyncService,
 	getFileUseCase uc_file.GetFileUseCase,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
@@ -113,7 +111,6 @@ func NewRootCmd(
 	))
 	// Add the sync command
 	rootCmd.AddCommand(sync.SyncCmd(
-		syncService,
 		logger,
 	))
 
