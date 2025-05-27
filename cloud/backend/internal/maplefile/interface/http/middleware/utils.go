@@ -40,6 +40,8 @@ func init() {
 		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/move$",      // Move collection
 		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/share$",     // Share collection
 		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/members$",   // Collection members
+		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/archive$",   // Archive collection
+		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/restore$",   // Restore collection
 		"^/maplefile/api/v1/collections-by-parent/[a-zA-Z0-9-]+$", // Collections by parent
 
 		// File patterns
@@ -48,6 +50,8 @@ func init() {
 		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/upload-url$",   // File upload URL
 		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/download-url$", // File download URL
 		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/complete$",     // Complete file upload
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/archive$",      // Archive file
+		"^/maplefile/api/v1/files/[a-zA-Z0-9-]+/restore$",      // Restore file
 	}
 
 	// Precompile patterns

@@ -32,6 +32,8 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(collection.NewListUserCollectionsHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewUpdateCollectionHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewDeleteCollectionHTTPHandler),
+			unifiedhttp.AsRoute(collection.NewArchiveCollectionHTTPHandler),
+			unifiedhttp.AsRoute(collection.NewRestoreCollectionHTTPHandler),
 
 			// Collection handlers - Hierarchical operations
 			unifiedhttp.AsRoute(collection.NewFindCollectionsByParentHTTPHandler),
@@ -57,6 +59,8 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(file.NewCompleteFileUploadHTTPHandler),
 			unifiedhttp.AsRoute(file.NewGetPresignedUploadURLHTTPHandler),
 			unifiedhttp.AsRoute(file.NewGetPresignedDownloadURLHTTPHandler),
+			unifiedhttp.AsRoute(file.NewArchiveFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewRestoreFileHTTPHandler),
 		),
 	)
 }

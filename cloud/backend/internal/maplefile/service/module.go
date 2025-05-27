@@ -23,6 +23,8 @@ func Module() fx.Option {
 			collection.NewGetCollectionService,
 			collection.NewUpdateCollectionService,
 			collection.NewDeleteCollectionService,
+			collection.NewArchiveCollectionService,
+			collection.NewRestoreCollectionService,
 
 			// Collection services - Hierarchical operations
 			collection.NewListUserCollectionsService,
@@ -51,6 +53,8 @@ func Module() fx.Option {
 			file.NewGetPresignedDownloadURLService,
 			file.NewListFilesByCreatedByUserIDService,
 			file.NewListFilesByOwnerIDService,
+			file.NewArchiveFileService,
+			file.NewRestoreFileService,
 		),
 	)
 }

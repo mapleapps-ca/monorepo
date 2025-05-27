@@ -12,6 +12,7 @@ import (
 
 type GetFileMetadataUseCase interface {
 	Execute(id primitive.ObjectID) (*dom_file.File, error)
+	ExecuteWithAnyState(id primitive.ObjectID) (*dom_file.File, error)
 }
 
 type getFileMetadataUseCaseImpl struct {
