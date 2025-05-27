@@ -1,3 +1,4 @@
+// native/desktop/maplefile-cli/cmd/root.go
 // Package cmd provides the CLI commands
 // Location: monorepo/native/desktop/maplefile-cli/cmd/root.go
 package cmd
@@ -15,6 +16,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/requestloginott"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/sync"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyemail"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyloginott"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/version"
@@ -28,6 +30,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	svc_register "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
+	svc_sync "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/sync"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
@@ -57,6 +60,7 @@ func NewRootCmd(
 	offloadService filesyncer.OffloadService,
 	onloadService filesyncer.OnloadService,
 	cloudOnlyDeleteService filesyncer.CloudOnlyDeleteService,
+	syncService svc_sync.SyncService,
 	getFileUseCase uc_file.GetFileUseCase,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
@@ -107,5 +111,11 @@ func NewRootCmd(
 		cloudOnlyDeleteService,
 		logger,
 	))
+	// Add the sync command
+	rootCmd.AddCommand(sync.SyncCmd(
+		syncService,
+		logger,
+	))
+
 	return rootCmd
 }

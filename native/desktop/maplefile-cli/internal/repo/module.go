@@ -64,6 +64,20 @@ func RepoModule() fx.Option {
 				fx.ResultTags(`name:"file_db"`),
 			),
 		),
+		fx.Provide(
+			fx.Annotate(
+				leveldb.NewDiskStorage,
+				fx.ParamTags(`name:"sync_db_config_provider"`),
+				fx.ResultTags(`name:"sync_db"`),
+			),
+		),
+		fx.Provide(
+			fx.Annotate(
+				leveldb.NewDiskStorage,
+				fx.ParamTags(`name:"sync_state_db_config_provider"`),
+				fx.ResultTags(`name:"sync_state_db"`),
+			),
+		),
 
 		//----------------------------------------------
 		// Provide user repository
@@ -117,7 +131,18 @@ func RepoModule() fx.Option {
 		//----------------------------------------------
 		// Sync repository (NEW)
 		//----------------------------------------------
-		fx.Provide(sync.NewSyncRepository),
+		fx.Provide(
+			fx.Annotate(
+				sync.NewSyncRepository,
+				fx.ParamTags(``, ``, `name:"sync_db"`),
+			),
+		),
+		fx.Provide(
+			fx.Annotate(
+				sync.NewSyncStateRepository,
+				fx.ParamTags(``, ``, `name:"sync_state_db"`),
+			),
+		),
 
 		//----------------------------------------------
 		// Transaction manager
