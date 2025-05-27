@@ -44,6 +44,7 @@ func (uc *createCollectionUseCase) Execute(ctx context.Context, data *collection
 		return errors.NewAppError(fmt.Sprintf("invalid collection type: %s (must be '%s' or '%s')",
 			data.CollectionType, collection.CollectionTypeFolder, collection.CollectionTypeAlbum), nil)
 	}
+
 	if data.EncryptedCollectionKey == nil {
 		uc.logger.Error("encrypted collection key is required and it was not provided!")
 		return errors.NewAppError("encrypted collection key is required", nil)
@@ -54,11 +55,34 @@ func (uc *createCollectionUseCase) Execute(ctx context.Context, data *collection
 		return errors.NewAppError("encrypted collection key is required", nil)
 	}
 
+	// Validate and set default state if not provided
+	if data.State == "" {
+		data.State = collection.GetDefaultState()
+		uc.logger.Debug("Setting default state for collection",
+			zap.String("collectionID", data.ID.Hex()),
+			zap.String("state", data.State))
+	} else {
+		// Validate the provided state
+		if err := collection.ValidateState(data.State); err != nil {
+			uc.logger.Error("Invalid collection state provided",
+				zap.String("collectionID", data.ID.Hex()),
+				zap.String("state", data.State),
+				zap.Error(err))
+			return errors.NewAppError("invalid collection state", err)
+		}
+	}
+
 	// Save the collection
 	err := uc.repository.Create(ctx, data)
 	if err != nil {
 		return errors.NewAppError("failed to create local collection", err)
 	}
+
+	uc.logger.Info("Collection created successfully",
+		zap.String("collectionID", data.ID.Hex()),
+		zap.String("name", data.Name),
+		zap.String("state", data.State),
+		zap.String("type", data.CollectionType))
 
 	return nil
 }

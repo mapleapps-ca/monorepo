@@ -37,6 +37,7 @@ func ServiceModule() fx.Option {
 		fx.Provide(collection.NewGetFilteredService),
 		fx.Provide(collection.NewUpdateService),
 		fx.Provide(collection.NewDeleteService),
+		fx.Provide(collection.NewSoftDeleteService),
 		fx.Provide(collection.NewMoveService),
 
 		// Local file services

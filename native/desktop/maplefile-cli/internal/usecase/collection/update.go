@@ -18,6 +18,7 @@ type UpdateCollectionInput struct {
 	EncryptedName  *string
 	DecryptedName  *string
 	CollectionType *string
+	State          *string
 }
 
 // UpdateCollectionUseCase defines the interface for updating a local collection
@@ -61,6 +62,9 @@ func (uc *updateCollectionUseCase) Execute(
 		return nil, err
 	}
 
+	// Track original state for validation
+	originalState := collection.State
+
 	// Update fields if provided
 	if input.EncryptedName != nil {
 		collection.EncryptedName = *input.EncryptedName
@@ -77,6 +81,39 @@ func (uc *updateCollectionUseCase) Execute(
 		collection.CollectionType = *input.CollectionType
 	}
 
+	// Handle state updates with validation
+	if input.State != nil {
+		newState := *input.State
+
+		// Validate the new state
+		if err := dom_collection.ValidateState(newState); err != nil {
+			uc.logger.Error("Invalid state provided in update",
+				zap.String("collectionID", input.ID.Hex()),
+				zap.String("newState", newState),
+				zap.Error(err))
+			return nil, errors.NewAppError("invalid collection state", err)
+		}
+
+		// Validate state transition
+		if originalState != newState {
+			if err := dom_collection.IsValidStateTransition(originalState, newState); err != nil {
+				uc.logger.Error("Invalid state transition attempted",
+					zap.String("collectionID", input.ID.Hex()),
+					zap.String("fromState", originalState),
+					zap.String("toState", newState),
+					zap.Error(err))
+				return nil, errors.NewAppError("invalid state transition", err)
+			}
+
+			uc.logger.Info("Collection state transition",
+				zap.String("collectionID", input.ID.Hex()),
+				zap.String("fromState", originalState),
+				zap.String("toState", newState))
+		}
+
+		collection.State = newState
+	}
+
 	// Update timestamps and modification status
 	collection.ModifiedAt = time.Now()
 	// collection.IsModifiedLocally = true // Figure out what to do here.
@@ -86,6 +123,10 @@ func (uc *updateCollectionUseCase) Execute(
 	if err != nil {
 		return nil, errors.NewAppError("failed to update local collection", err)
 	}
+
+	uc.logger.Info("Collection updated successfully",
+		zap.String("collectionID", input.ID.Hex()),
+		zap.String("state", collection.State))
 
 	return collection, nil
 }

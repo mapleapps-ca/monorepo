@@ -46,6 +46,7 @@ func NewRootCmd(
 	completeLoginService svc_auth.CompleteLoginService,
 	createCollectionService collection.CreateService,
 	collectionListService collection.ListService,
+	collectionSoftDeleteService collection.SoftDeleteService,
 	addFileService localfile.AddService,
 	listFileService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,
@@ -83,6 +84,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(collections.CollectionsCmd(
 		createCollectionService,
 		collectionListService,
+		collectionSoftDeleteService,
 		logger,
 	))
 	rootCmd.AddCommand(files.FilesCmd(

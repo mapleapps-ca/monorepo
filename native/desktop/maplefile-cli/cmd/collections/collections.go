@@ -11,6 +11,7 @@ import (
 func CollectionsCmd(
 	createService collection.CreateService,
 	listService collection.ListService,
+	softDeleteService collection.SoftDeleteService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -27,6 +28,7 @@ func CollectionsCmd(
 	cmd.AddCommand(createRootCollectionCmd(createService, logger))
 	cmd.AddCommand(createSubCollectionCmd(createService, logger))
 	cmd.AddCommand(listCollectionsCmd(listService, logger))
+	cmd.AddCommand(softDeleteCmd(softDeleteService, logger))
 
 	return cmd
 }

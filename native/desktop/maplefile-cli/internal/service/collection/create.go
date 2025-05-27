@@ -190,7 +190,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	// designed for distributed systems.
 	collectionID := s.primitiveIDObjectGenerator.GenerateValidObjectID()
 
-	// Create collection with properly encrypted data
+	// Create collection with properly encrypted data and default state
 	collectionDTO := &dom_collectiondto.CollectionDTO{
 		ID:             collectionID,
 		OwnerID:        input.OwnerID,
@@ -211,6 +211,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 		ModifiedAt:       time.Now(),
 		ModifiedByUserID: input.OwnerID,
 		Version:          1,
+		State:            dom_collectiondto.CollectionDTOStateActive, // SET DEFAULT STATE
 	}
 
 	collectionCloudID, err := s.createCollectionInCloudUseCase.Execute(ctx, collectionDTO)
@@ -238,6 +239,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 		ModifiedAt:             collectionDTO.ModifiedAt,
 		ModifiedByUserID:       collectionDTO.ModifiedByUserID,
 		Version:                collectionDTO.Version,
+		State:                  dom_collection.CollectionStateActive, // SET DEFAULT STATE
 		// Decrypted fields saved here:
 		Name:       input.Name, // Keep plaintext for local use
 		SyncStatus: dom_collection.SyncStatusSynced,
@@ -261,7 +263,8 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 
 	s.logger.Info("Successfully created E2EE collection",
 		zap.String("collectionID", collectionCloudID.Hex()),
-		zap.String("name", input.Name))
+		zap.String("name", input.Name),
+		zap.String("state", col.State))
 
 	return &CreateOutput{
 		Collection: col,

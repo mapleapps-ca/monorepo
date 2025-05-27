@@ -44,6 +44,7 @@ func UseCaseModule() fx.Option {
 		fx.Provide(collection.NewDeleteCollectionUseCase),
 		fx.Provide(collection.NewMoveCollectionUseCase),
 		fx.Provide(collection.NewGetCollectionPathUseCase),
+		fx.Provide(collection.NewSoftDeleteService),
 
 		// File database use cases (for managing file records)
 		fx.Provide(file.NewCreateFileUseCase),

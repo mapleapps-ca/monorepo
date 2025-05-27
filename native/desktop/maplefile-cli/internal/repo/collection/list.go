@@ -51,6 +51,43 @@ func (r *collectionRepository) List(ctx context.Context, filter dom_collection.C
 			return nil // Skip, type doesn't match
 		}
 
+		// Filter by state if specified
+		if filter.State != nil {
+			if collection.State != *filter.State {
+				return nil // Skip, state doesn't match
+			}
+		} else if !filter.IncludeDeleted {
+			// Default behavior: exclude deleted collections unless explicitly requested
+			if collection.State == dom_collection.CollectionStateDeleted {
+				return nil // Skip deleted collections
+			}
+		}
+
+		// Validate collection state (defensive programming)
+		if collection.State == "" {
+			// Set default state for collections that don't have state set
+			collection.State = dom_collection.GetDefaultState()
+			r.logger.Warn("Collection found without state, setting default",
+				zap.String("collectionID", collection.ID.Hex()),
+				zap.String("defaultState", collection.State))
+
+			// Update the collection in storage with the default state
+			if err := r.Save(ctx, collection); err != nil {
+				r.logger.Error("Failed to update collection with default state",
+					zap.String("collectionID", collection.ID.Hex()),
+					zap.Error(err))
+			}
+		} else {
+			// Validate existing state
+			if err := dom_collection.ValidateState(collection.State); err != nil {
+				r.logger.Error("Collection has invalid state, skipping",
+					zap.String("collectionID", collection.ID.Hex()),
+					zap.String("invalidState", collection.State),
+					zap.Error(err))
+				return nil // Skip collections with invalid state
+			}
+		}
+
 		// Filter by sync status if specified
 		if filter.SyncStatus != nil {
 			var matches bool
@@ -82,6 +119,10 @@ func (r *collectionRepository) List(ctx context.Context, filter dom_collection.C
 		r.logger.Error("Error iterating through collections in local storage", zap.Error(err))
 		return nil, errors.NewAppError("failed to list collections from local storage", err)
 	}
+
+	r.logger.Debug("Listed collections with filters",
+		zap.Int("count", len(collections)),
+		zap.Any("filter", filter))
 
 	return collections, nil
 }
