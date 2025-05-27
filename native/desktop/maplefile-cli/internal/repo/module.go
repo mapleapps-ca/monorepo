@@ -10,7 +10,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/filedto"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/sync"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/syncdto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/syncstate"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/transaction"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/leveldb"
 )
@@ -39,6 +40,12 @@ func RepoModule() fx.Option {
 				fx.ResultTags(`name:"file_db_config_provider"`),
 			),
 		),
+		fx.Provide(
+			fx.Annotate(
+				config.NewLevelDBConfigurationProviderForFile,
+				fx.ResultTags(`name:"sync_state_db_config_provider"`),
+			),
+		),
 
 		//----------------------------------------------
 		// Provide specific disk storage for our app
@@ -62,13 +69,6 @@ func RepoModule() fx.Option {
 				leveldb.NewDiskStorage,
 				fx.ParamTags(`name:"file_db_config_provider"`),
 				fx.ResultTags(`name:"file_db"`),
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				leveldb.NewDiskStorage,
-				fx.ParamTags(`name:"sync_db_config_provider"`),
-				fx.ResultTags(`name:"sync_db"`),
 			),
 		),
 		fx.Provide(
@@ -133,16 +133,12 @@ func RepoModule() fx.Option {
 		//----------------------------------------------
 		fx.Provide(
 			fx.Annotate(
-				sync.NewSyncRepository,
-				fx.ParamTags(``, ``, `name:"sync_db"`),
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				sync.NewSyncStateRepository,
+				syncstate.NewSyncStateRepository,
 				fx.ParamTags(``, ``, `name:"sync_state_db"`),
 			),
 		),
+
+		fx.Provide(syncdto.NewSyncDTORepository),
 
 		//----------------------------------------------
 		// Transaction manager

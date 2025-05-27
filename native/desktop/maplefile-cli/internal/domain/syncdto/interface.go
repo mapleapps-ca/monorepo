@@ -1,5 +1,5 @@
 // native/desktop/maplefile-cli/internal/domain/syncdto/interface.go
-package sync
+package syncdto
 
 import (
 	"context"

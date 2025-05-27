@@ -1,5 +1,5 @@
 // native/desktop/maplefile-cli/internal/domain/syncdto/model.go
-package sync
+package syncdto
 
 import (
 	"time"
