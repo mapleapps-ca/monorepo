@@ -1,4 +1,4 @@
-// native/desktop/maplefile-cli/internal/domain/sync/model.go
+// native/desktop/maplefile-cli/internal/domain/syncdto/model.go
 package sync
 
 import (
@@ -7,8 +7,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// SyncCursor represents cursor-based pagination for sync operations
-type SyncCursor struct {
+// SyncCursorDTO represents cursor-based pagination for sync operations
+type SyncCursorDTO struct {
 	LastModified time.Time          `json:"last_modified"`
 	LastID       primitive.ObjectID `json:"last_id"`
 }
@@ -22,10 +22,10 @@ type CollectionSyncItem struct {
 	ParentID   *primitive.ObjectID `json:"parent_id,omitempty"`
 }
 
-// CollectionSyncResponse represents the response for collection sync data
-type CollectionSyncResponse struct {
+// CollectionSyncResponseDTO represents the response for collection sync data
+type CollectionSyncResponseDTO struct {
 	Collections []CollectionSyncItem `json:"collections"`
-	NextCursor  *SyncCursor          `json:"next_cursor,omitempty"`
+	NextCursor  *SyncCursorDTO       `json:"next_cursor,omitempty"`
 	HasMore     bool                 `json:"has_more"`
 }
 
@@ -38,10 +38,10 @@ type FileSyncItem struct {
 	State        string             `json:"state"`
 }
 
-// FileSyncResponse represents the response for file sync data
-type FileSyncResponse struct {
+// FileSyncResponseDTO represents the response for file sync data
+type FileSyncResponseDTO struct {
 	Files      []FileSyncItem `json:"files"`
-	NextCursor *SyncCursor    `json:"next_cursor,omitempty"`
+	NextCursor *SyncCursorDTO `json:"next_cursor,omitempty"`
 	HasMore    bool           `json:"has_more"`
 }
 
@@ -56,12 +56,4 @@ type SyncResult struct {
 	FilesUpdated         int      `json:"files_updated"`
 	FilesDeleted         int      `json:"files_deleted"`
 	Errors               []string `json:"errors,omitempty"`
-}
-
-// SyncState represents the local sync state for tracking last sync
-type SyncState struct {
-	LastCollectionSync time.Time          `json:"last_collection_sync"`
-	LastFileSync       time.Time          `json:"last_file_sync"`
-	LastCollectionID   primitive.ObjectID `json:"last_collection_id"`
-	LastFileID         primitive.ObjectID `json:"last_file_id"`
 }
