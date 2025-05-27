@@ -12,6 +12,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/syncdto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/syncstate"
 )
 
 // ServiceModule provides the service-layer--related dependencies
@@ -55,15 +57,18 @@ func ServiceModule() fx.Option {
 		// Upload file services
 		fx.Provide(fileupload.NewUploadService),
 
-		// // Cloud collection services
-		// fx.Provide(remotecollection.NewCreateService),
-		// fx.Provide(remotecollection.NewFetchService),
-		// fx.Provide(remotecollection.NewListService),
+		// Download file services
 		fx.Provide(filedownload.NewDownloadService),
 
-		// // Collection synchronization services
-		// fx.Provide(collectionsyncer.NewFindByCloudIDService),
-		// fx.Provide(collectionsyncer.NewDownloadService),
-		// fx.Provide(collectionsyncer.NewUploadService),
+		// Sync state services
+		fx.Provide(syncstate.NewGetService),
+		fx.Provide(syncstate.NewSaveService),
+		fx.Provide(syncstate.NewResetService),
+
+		// Sync DTO services
+		fx.Provide(syncdto.NewGetCollectionsService),
+		fx.Provide(syncdto.NewGetFilesService),
+		fx.Provide(syncdto.NewGetFullSyncService),
+		fx.Provide(syncdto.NewSyncProgressService),
 	)
 }
