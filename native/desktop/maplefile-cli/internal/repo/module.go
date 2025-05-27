@@ -109,7 +109,7 @@ func RepoModule() fx.Option {
 		),
 
 		//----------------------------------------------
-		// Cloud collection repository
+		// Cloud collection DTO repository
 		//----------------------------------------------
 		fx.Provide(collectiondto.NewCollectionDTORepository),
 
@@ -124,12 +124,12 @@ func RepoModule() fx.Option {
 		),
 
 		//----------------------------------------------
-		// Cloud file repository
+		// Cloud file DTO repository
 		//----------------------------------------------
 		fx.Provide(filedto.NewFileDTORepository),
 
 		//----------------------------------------------
-		// Sync repository (NEW)
+		// Sync state repository
 		//----------------------------------------------
 		fx.Provide(
 			fx.Annotate(
@@ -138,6 +138,9 @@ func RepoModule() fx.Option {
 			),
 		),
 
+		//----------------------------------------------
+		// Cloud Sync DTO repository
+		//----------------------------------------------
 		fx.Provide(syncdto.NewSyncDTORepository),
 
 		//----------------------------------------------

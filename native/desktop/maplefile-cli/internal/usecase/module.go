@@ -13,6 +13,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/syncdto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/syncstate"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
@@ -87,5 +89,18 @@ func UseCaseModule() fx.Option {
 
 		// Token refresh usecase
 		fx.Provide(refreshtoken.NewRefreshTokenUseCase),
+
+		// Sync state use cases
+		fx.Provide(syncstate.NewGetSyncStateUseCase),
+		fx.Provide(syncstate.NewSaveSyncStateUseCase),
+		fx.Provide(syncstate.NewResetSyncStateUseCase),
+		fx.Provide(syncstate.NewUpdateCollectionSyncUseCase),
+		fx.Provide(syncstate.NewUpdateFileSyncUseCase),
+
+		// Sync DTO use cases
+		fx.Provide(syncdto.NewGetCollectionSyncDataUseCase),
+		fx.Provide(syncdto.NewGetFileSyncDataUseCase),
+		fx.Provide(syncdto.NewBuildSyncCursorUseCase),
+		fx.Provide(syncdto.NewProcessSyncResponseUseCase),
 	)
 }
