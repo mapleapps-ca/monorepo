@@ -56,6 +56,17 @@ func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mo
 		{Keys: bson.D{
 			{Key: "members.is_inherited", Value: 1},
 		}},
+		// Indexes for sync operations
+		{Keys: bson.D{
+			{Key: "owner_id", Value: 1},
+			{Key: "modified_at", Value: 1},
+			{Key: "_id", Value: 1},
+		}},
+		{Keys: bson.D{
+			{Key: "members.recipient_id", Value: 1},
+			{Key: "modified_at", Value: 1},
+			{Key: "_id", Value: 1},
+		}},
 	})
 
 	if err != nil {

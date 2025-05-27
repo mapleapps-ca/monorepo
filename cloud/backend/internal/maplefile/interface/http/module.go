@@ -10,6 +10,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/me"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
+	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/sync"
 )
 
 func Module() fx.Option {
@@ -61,6 +62,10 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(file.NewGetPresignedDownloadURLHTTPHandler),
 			unifiedhttp.AsRoute(file.NewArchiveFileHTTPHandler),
 			unifiedhttp.AsRoute(file.NewRestoreFileHTTPHandler),
+
+			// Sync handlers
+			unifiedhttp.AsRoute(sync.NewCollectionSyncHTTPHandler),
+			unifiedhttp.AsRoute(sync.NewFileSyncHTTPHandler),
 		),
 	)
 }

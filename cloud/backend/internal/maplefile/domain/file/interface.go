@@ -2,8 +2,10 @@
 package file
 
 import (
+	"context"
 	"time"
 
+	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/sync"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -42,6 +44,10 @@ type FileMetadataRepository interface {
 	// State management operations
 	Archive(id primitive.ObjectID) error
 	Restore(id primitive.ObjectID) error
+
+	// Sync Operations
+	// GetFileSyncData retrieves file sync data with pagination for the specified user
+	GetFileSyncData(ctx context.Context, userID primitive.ObjectID, cursor *sync.SyncCursor, limit int64) (*sync.FileSyncResponse, error)
 }
 
 // FileObjectStorageRepository defines the interface for interacting with the actual encrypted file data storage.

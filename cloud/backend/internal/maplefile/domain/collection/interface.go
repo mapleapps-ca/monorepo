@@ -4,6 +4,7 @@ package collection
 import (
 	"context"
 
+	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/sync"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -50,4 +51,8 @@ type CollectionRepository interface {
 	// Hierarchical sharing
 	AddMemberToHierarchy(ctx context.Context, rootID primitive.ObjectID, membership *CollectionMembership) error
 	RemoveMemberFromHierarchy(ctx context.Context, rootID, recipientID primitive.ObjectID) error
+
+	// Sync Operations
+	// GetCollectionSyncData retrieves collection sync data with pagination for the specified user
+	GetCollectionSyncData(ctx context.Context, userID primitive.ObjectID, cursor *sync.SyncCursor, limit int64) (*sync.CollectionSyncResponse, error)
 }
