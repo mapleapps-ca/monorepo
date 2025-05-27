@@ -25,14 +25,16 @@ func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mo
 	cc := client.Database(appCfg.DB.MapleFileName).Collection("collections")
 
 	// Reset indexes for development purposes
-	if err := cc.Indexes().DropAll(context.TODO()); err != nil {
+	// Use context.Background() instead of context.TODO()
+	if err := cc.Indexes().DropAll(context.Background()); err != nil {
 		loggerp.Warn("failed deleting all indexes",
 			zap.Any("err", err))
 		// Continue without returning error
 	}
 
 	// Create indexes for efficient queries
-	_, err := cc.Indexes().CreateMany(context.TODO(), []mongo.IndexModel{
+	// Use context.Background() instead of context.TODO()
+	_, err := cc.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
 		{Keys: bson.D{
 			{Key: "created_at", Value: -1},
 		}},

@@ -59,8 +59,8 @@ func (impl collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, 
 
 	// Set up options for pagination and sorting
 	findOptions := options.Find().
-		SetSort(bson.D{{"modified_at", 1}, {"_id", 1}}). // Sort by modified_at ASC, then _id ASC
-		SetLimit(limit + 1)                              // Request one extra to check if there are more results
+		SetSort(bson.D{bson.E{Key: "modified_at", Value: 1}, bson.E{Key: "_id", Value: 1}}). // Sort by modified_at ASC, then _id ASC
+		SetLimit(limit + 1)                                                                  // Request one extra to check if there are more results
 
 	// Project only the fields we need for sync
 	findOptions.SetProjection(bson.M{
