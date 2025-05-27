@@ -12,6 +12,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/sync"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/syncdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/syncstate"
 )
@@ -70,5 +71,8 @@ func ServiceModule() fx.Option {
 		fx.Provide(syncdto.NewGetFilesService),
 		fx.Provide(syncdto.NewGetFullSyncService),
 		fx.Provide(syncdto.NewSyncProgressService),
+
+		// Main sync service
+		fx.Provide(sync.NewSyncService),
 	)
 }

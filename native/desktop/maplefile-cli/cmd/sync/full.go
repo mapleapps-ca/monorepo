@@ -16,6 +16,10 @@ func fullCmd(
 	syncService svc_sync.SyncService,
 	logger *zap.Logger,
 ) *cobra.Command {
+	var collectionBatchSize int64
+	var fileBatchSize int64
+	var maxBatches int
+
 	var cmd = &cobra.Command{
 		Use:   "full",
 		Short: "Perform full synchronization of collections and files",
@@ -33,16 +37,29 @@ This is equivalent to running both 'sync collections' and 'sync files' commands.
 The sync process is incremental, only processing changes since the last sync.
 
 Examples:
-  # Perform full synchronization
-  maplefile-cli sync full`,
+  # Perform full synchronization with default settings
+  maplefile-cli sync full
+
+  # Full sync with custom batch sizes
+  maplefile-cli sync full --collection-batch-size 25 --file-batch-size 30
+
+  # Full sync with limited batches
+  maplefile-cli sync full --max-batches 50`,
 		Run: func(cmd *cobra.Command, args []string) {
 			startTime := time.Now()
 
 			fmt.Println("🔄 Starting full synchronization...")
 			fmt.Println("📡 Connecting to cloud backend...")
 
+			// Create input for sync service
+			input := &svc_sync.FullSyncInput{
+				CollectionBatchSize: collectionBatchSize,
+				FileBatchSize:       fileBatchSize,
+				MaxBatches:          maxBatches,
+			}
+
 			// Execute full sync
-			result, err := syncService.FullSync(cmd.Context())
+			result, err := syncService.FullSync(cmd.Context(), input)
 			if err != nil {
 				fmt.Printf("❌ Full sync failed: %v\n", err)
 				return
@@ -110,6 +127,11 @@ Examples:
 			}
 		},
 	}
+
+	// Add command flags
+	cmd.Flags().Int64Var(&collectionBatchSize, "collection-batch-size", 50, "Number of collections to process per batch")
+	cmd.Flags().Int64Var(&fileBatchSize, "file-batch-size", 50, "Number of files to process per batch")
+	cmd.Flags().IntVar(&maxBatches, "max-batches", 100, "Maximum number of batches to process")
 
 	return cmd
 }

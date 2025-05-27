@@ -16,6 +16,9 @@ func filesCmd(
 	syncService svc_sync.SyncService,
 	logger *zap.Logger,
 ) *cobra.Command {
+	var batchSize int64
+	var maxBatches int
+
 	var cmd = &cobra.Command{
 		Use:   "files",
 		Short: "Sync files from cloud backend",
@@ -34,16 +37,28 @@ in the cloud until you explicitly download (onload) files.
 The sync process is incremental, only processing changes since the last sync.
 
 Examples:
-  # Sync files
-  maplefile-cli sync files`,
+  # Sync files with default settings
+  maplefile-cli sync files
+
+  # Sync files with custom batch size
+  maplefile-cli sync files --batch-size 25
+
+  # Sync files with limited batches
+  maplefile-cli sync files --max-batches 50`,
 		Run: func(cmd *cobra.Command, args []string) {
 			startTime := time.Now()
 
 			fmt.Println("🔄 Starting file synchronization...")
 			fmt.Println("📡 Connecting to cloud backend...")
 
+			// Create input for sync service
+			input := &svc_sync.SyncFilesInput{
+				BatchSize:  batchSize,
+				MaxBatches: maxBatches,
+			}
+
 			// Execute file sync
-			result, err := syncService.SyncFiles(cmd.Context())
+			result, err := syncService.SyncFiles(cmd.Context(), input)
 			if err != nil {
 				fmt.Printf("❌ File sync failed: %v\n", err)
 				return
@@ -85,6 +100,10 @@ Examples:
 			}
 		},
 	}
+
+	// Add command flags
+	cmd.Flags().Int64Var(&batchSize, "batch-size", 50, "Number of files to process per batch")
+	cmd.Flags().IntVar(&maxBatches, "max-batches", 100, "Maximum number of batches to process")
 
 	return cmd
 }

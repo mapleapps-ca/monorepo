@@ -4,12 +4,13 @@ package sync
 import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	// svc_sync "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/sync"
+
+	svc_sync "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/sync"
 )
 
 // SyncCmd creates a command for sync operations
 func SyncCmd(
-	// syncService svc_sync.SyncService,
+	syncService svc_sync.SyncService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -42,10 +43,10 @@ Examples:
 	}
 
 	// Add sync subcommands
-	cmd.AddCommand(collectionsCmd(logger))
-	// cmd.AddCommand(filesCmd(syncService, logger))
-	// cmd.AddCommand(fullCmd(syncService, logger))
-	// cmd.AddCommand(resetCmd(syncService, logger))
+	cmd.AddCommand(collectionsCmd(syncService, logger))
+	cmd.AddCommand(filesCmd(syncService, logger))
+	cmd.AddCommand(fullCmd(syncService, logger))
+	cmd.AddCommand(resetCmd(syncService, logger))
 
 	return cmd
 }
