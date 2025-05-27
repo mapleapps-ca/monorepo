@@ -35,7 +35,7 @@ func (r *syncRepository) GetCollectionSyncDataFromCloud(ctx context.Context, cur
 	}
 
 	// Build URL with query parameters
-	baseURL := fmt.Sprintf("%s/maplefile/api/v1/syncdto/collections", serverURL)
+	baseURL := fmt.Sprintf("%s/maplefile/api/v1/sync/collections", serverURL)
 	parsedURL, err := url.Parse(baseURL)
 	if err != nil {
 		r.logger.Error("Failed to parse base URL", zap.String("url", baseURL), zap.Error(err))
