@@ -42,7 +42,7 @@ func RepoModule() fx.Option {
 		),
 		fx.Provide(
 			fx.Annotate(
-				config.NewLevelDBConfigurationProviderForFile,
+				config.NewLevelDBConfigurationProviderForSyncState,
 				fx.ResultTags(`name:"sync_state_db_config_provider"`),
 			),
 		),
@@ -134,7 +134,7 @@ func RepoModule() fx.Option {
 		fx.Provide(
 			fx.Annotate(
 				syncstate.NewSyncStateRepository,
-				fx.ParamTags(``, ``, `name:"sync_state_db"`),
+				fx.ParamTags(``, `name:"sync_state_db"`),
 			),
 		),
 
