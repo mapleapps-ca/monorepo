@@ -98,6 +98,14 @@ func (svc *deleteCollectionServiceImpl) Execute(ctx context.Context, req *Delete
 		return nil, httperror.NewForForbiddenWithSingleField("message", "Only the collection owner can delete a collection")
 	}
 
+	// Check valid transitions.
+	if err := dom_collection.IsValidStateTransition(collection.State, dom_collection.CollectionStateDeleted); err != nil {
+		svc.logger.Warn("Invalid collection state transition",
+			zap.Any("user_id", userID),
+			zap.Error(err))
+		return nil, err
+	}
+
 	// //
 	// // STEP 5: Check for child collections
 	// //

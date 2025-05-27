@@ -16,22 +16,32 @@ type FileMetadataRepository interface {
 	CreateMany(files []*File) error
 	// Get retrieves a single File metadata record by its unique identifier (ID).
 	Get(id primitive.ObjectID) (*File, error)
+	// GetWithAnyState retrieves a file regardless of its state (for admin operations)
+	GetWithAnyState(id primitive.ObjectID) (*File, error)
 	// GetByIDs retrieves multiple File metadata records by their unique identifiers (IDs).
 	GetByIDs(ids []primitive.ObjectID) ([]*File, error)
 	// GetByCollection retrieves all File metadata records associated with a specific collection ID.
 	GetByCollection(collectionID primitive.ObjectID) ([]*File, error)
 	// Update modifies an existing File metadata record in the storage.
 	Update(file *File) error
-	// Delete removes a single File metadata record by its unique identifier (ID).
+	// Delete removes a single File metadata record by its unique identifier (ID) - now soft delete.
 	Delete(id primitive.ObjectID) error
-	// DeleteMany removes multiple File metadata records by their unique identifiers (IDs).
+	// HardDelete permanently removes a file metadata record
+	HardDelete(id primitive.ObjectID) error
+	// DeleteMany removes multiple File metadata records by their unique identifiers (IDs) - now soft delete.
 	DeleteMany(ids []primitive.ObjectID) error
+	// HardDeleteMany permanently removes multiple file metadata records
+	HardDeleteMany(ids []primitive.ObjectID) error
 	// CheckIfExistsByID verifies if a File metadata record with the given ID exists in the storage.
 	CheckIfExistsByID(id primitive.ObjectID) (bool, error)
 	// CheckIfUserHasAccess determines if a specific user (userID) has access permissions for a given file (fileID).
 	CheckIfUserHasAccess(fileID primitive.ObjectID, userID primitive.ObjectID) (bool, error)
 	GetByCreatedByUserID(createdByUserID primitive.ObjectID) ([]*File, error)
 	GetByOwnerID(ownerID primitive.ObjectID) ([]*File, error)
+
+	// State management operations
+	Archive(id primitive.ObjectID) error
+	Restore(id primitive.ObjectID) error
 }
 
 // FileObjectStorageRepository defines the interface for interacting with the actual encrypted file data storage.

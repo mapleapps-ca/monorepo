@@ -60,6 +60,14 @@ func (uc *createFileMetadataUseCaseImpl) Execute(file *dom_file.File) error {
 		if file.EncryptedFileSizeInBytes <= 0 {
 			e["encrypted_file_size_in_bytes"] = "Encrypted file size must be greater than 0"
 		}
+		if file.State == "" {
+			e["state"] = "File state is required"
+		} else if file.State != dom_file.FileStatePending &&
+			file.State != dom_file.FileStateActive &&
+			file.State != dom_file.FileStateDeleted &&
+			file.State != dom_file.FileStateArchived {
+			e["state"] = "Invalid file state"
+		}
 	}
 	if len(e) != 0 {
 		uc.logger.Warn("Failed validating file metadata creation",

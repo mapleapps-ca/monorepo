@@ -11,6 +11,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config/constants"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
+	dom_file "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/file"
 	uc_filemetadata "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/filemetadata"
 	uc_fileobjectstorage "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/fileobjectstorage"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
@@ -125,6 +126,14 @@ func (svc *deleteFileServiceImpl) Execute(ctx context.Context, req *DeleteFileRe
 			zap.Any("file_id", req.FileID),
 			zap.Any("collection_id", file.CollectionID))
 		return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have permission to delete this file")
+	}
+
+	// Check valid transitions.
+	if err := dom_collection.IsValidStateTransition(file.State, dom_file.FileStateDeleted); err != nil {
+		svc.logger.Warn("Invalid file state transition",
+			zap.Any("user_id", userID),
+			zap.Error(err))
+		return nil, err
 	}
 
 	//

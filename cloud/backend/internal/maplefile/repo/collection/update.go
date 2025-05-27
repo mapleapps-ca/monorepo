@@ -23,7 +23,10 @@ func (impl collectionRepositoryImpl) Update(ctx context.Context, collection *dom
 			"encrypted_name":           collection.EncryptedName,
 			"collection_type":          collection.CollectionType,
 			"modified_at":              collection.ModifiedAt,
+			"modified_by_user_id":      collection.ModifiedByUserID,
 			"encrypted_collection_key": collection.EncryptedCollectionKey,
+			"state":                    collection.State,
+			"version":                  collection.Version,
 		},
 	}
 

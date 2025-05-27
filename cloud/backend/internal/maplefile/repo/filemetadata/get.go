@@ -16,7 +16,10 @@ import (
 // Get file by ID
 func (impl fileMetadataRepositoryImpl) Get(id primitive.ObjectID) (*dom_file.File, error) {
 	ctx := context.Background()
-	filter := bson.M{"_id": id}
+	filter := bson.M{
+		"_id":   id,
+		"state": dom_file.FileStateActive, // Only return active files
+	}
 
 	var result dom_file.File
 	err := impl.Collection.FindOne(ctx, filter).Decode(&result)
@@ -25,6 +28,22 @@ func (impl fileMetadataRepositoryImpl) Get(id primitive.ObjectID) (*dom_file.Fil
 			return nil, nil
 		}
 		impl.Logger.Error("database get by file id error", zap.Any("error", err))
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (impl fileMetadataRepositoryImpl) GetWithAnyState(id primitive.ObjectID) (*dom_file.File, error) {
+	ctx := context.Background()
+	filter := bson.M{"_id": id}
+
+	var result dom_file.File
+	err := impl.Collection.FindOne(ctx, filter).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		impl.Logger.Error("database get by file id (any state) error", zap.Any("error", err))
 		return nil, err
 	}
 	return &result, nil
@@ -75,7 +94,10 @@ func (impl fileMetadataRepositoryImpl) GetByEncryptedFileID(encryptedFileID stri
 // GetByCollection gets all files in a collection
 func (impl fileMetadataRepositoryImpl) GetByCollection(collectionID primitive.ObjectID) ([]*dom_file.File, error) {
 	ctx := context.Background()
-	filter := bson.M{"collection_id": collectionID}
+	filter := bson.M{
+		"collection_id": collectionID,
+		"state":         bson.M{"$in": []string{dom_file.FileStateActive, dom_file.FileStatePending}}, // Return active and pending files
+	}
 
 	cursor, err := impl.Collection.Find(ctx, filter)
 	if err != nil {

@@ -16,13 +16,15 @@ import (
 )
 
 func (impl collectionRepositoryImpl) Get(ctx context.Context, id primitive.ObjectID) (*dom_collection.Collection, error) {
-	filter := bson.M{"_id": id}
+	filter := bson.M{
+		"_id":   id,
+		"state": dom_collection.CollectionStateActive, // Only return active collections
+	}
 
 	var result dom_collection.Collection
 	err := impl.Collection.FindOne(ctx, filter).Decode(&result)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			// No matching document found
 			return nil, nil
 		}
 		impl.Logger.Error("database get by collection id error", zap.Any("error", err))
@@ -31,9 +33,28 @@ func (impl collectionRepositoryImpl) Get(ctx context.Context, id primitive.Objec
 	return &result, nil
 }
 
+// Add method to get collection regardless of state
+func (impl collectionRepositoryImpl) GetWithAnyState(ctx context.Context, id primitive.ObjectID) (*dom_collection.Collection, error) {
+	filter := bson.M{"_id": id}
+
+	var result dom_collection.Collection
+	err := impl.Collection.FindOne(ctx, filter).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		impl.Logger.Error("database get by collection id (any state) error", zap.Any("error", err))
+		return nil, err
+	}
+	return &result, nil
+}
+
 func (impl collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerID primitive.ObjectID) ([]*dom_collection.Collection, error) {
-	// Find collections owned by this user
-	filter := bson.M{"owner_id": ownerID}
+	// Find active collections owned by this user
+	filter := bson.M{
+		"owner_id": ownerID,
+		"state":    dom_collection.CollectionStateActive, // Only return active collections
+	}
 
 	cursor, err := impl.Collection.Find(ctx, filter)
 	if err != nil {
@@ -52,11 +73,11 @@ func (impl collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerID
 }
 
 func (impl collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.Context, userID primitive.ObjectID) ([]*dom_collection.Collection, error) {
-	// Find collections where user is in members array as recipient
+	// Find active collections where user is in members array as recipient
 	filter := bson.M{
 		"members.recipient_id": userID,
-		// Exclude collections owned by the user to avoid duplicates
-		"owner_id": bson.M{"$ne": userID},
+		"owner_id":             bson.M{"$ne": userID},                // Exclude collections owned by the user
+		"state":                dom_collection.CollectionStateActive, // Only return active collections
 	}
 
 	cursor, err := impl.Collection.Find(ctx, filter)
@@ -76,7 +97,10 @@ func (impl collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.Co
 }
 
 func (impl collectionRepositoryImpl) FindByParent(ctx context.Context, parentID primitive.ObjectID) ([]*dom_collection.Collection, error) {
-	filter := bson.M{"parent_id": parentID}
+	filter := bson.M{
+		"parent_id": parentID,
+		"state":     dom_collection.CollectionStateActive, // Only return active collections
+	}
 
 	cursor, err := impl.Collection.Find(ctx, filter)
 	if err != nil {
@@ -99,6 +123,7 @@ func (impl collectionRepositoryImpl) FindRootCollections(ctx context.Context, ow
 	filter := bson.M{
 		"owner_id":  ownerID,
 		"parent_id": bson.M{"$exists": false},
+		"state":     dom_collection.CollectionStateActive, // Only return active collections
 	}
 
 	cursor, err := impl.Collection.Find(ctx, filter)

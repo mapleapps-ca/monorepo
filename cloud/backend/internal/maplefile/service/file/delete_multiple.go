@@ -135,6 +135,15 @@ func (svc *deleteMultipleFilesServiceImpl) Execute(ctx context.Context, req *Del
 			continue
 		}
 
+		// Check valid transitions.
+		if err := dom_collection.IsValidStateTransition(file.State, dom_file.FileStateDeleted); err != nil {
+			svc.logger.Warn("Invalid file state transition",
+				zap.Any("user_id", userID),
+				zap.Error(err))
+			skippedCount++
+			continue
+		}
+
 		deletableFiles = append(deletableFiles, file)
 		storagePaths = append(storagePaths, file.EncryptedFileObjectKey)
 

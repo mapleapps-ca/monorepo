@@ -12,10 +12,16 @@ type CollectionRepository interface {
 	// Collection CRUD operations
 	Create(ctx context.Context, collection *Collection) error
 	Get(ctx context.Context, id primitive.ObjectID) (*Collection, error)
+	GetWithAnyState(ctx context.Context, id primitive.ObjectID) (*Collection, error)
 	Update(ctx context.Context, collection *Collection) error
-	Delete(ctx context.Context, id primitive.ObjectID) error
+	Delete(ctx context.Context, id primitive.ObjectID) error // Now soft delete
+	HardDelete(ctx context.Context, id primitive.ObjectID) error
 
-	// Hierarchical queries
+	// State management operations
+	Archive(ctx context.Context, id primitive.ObjectID) error
+	Restore(ctx context.Context, id primitive.ObjectID) error
+
+	// Hierarchical queries (now state-aware)
 	FindByParent(ctx context.Context, parentID primitive.ObjectID) ([]*Collection, error)
 	FindRootCollections(ctx context.Context, ownerID primitive.ObjectID) ([]*Collection, error)
 	FindDescendants(ctx context.Context, collectionID primitive.ObjectID) ([]*Collection, error)
@@ -24,7 +30,7 @@ type CollectionRepository interface {
 	// Move collection to a new parent
 	MoveCollection(ctx context.Context, collectionID, newParentID primitive.ObjectID, updatedAncestors []primitive.ObjectID, updatedPathSegments []string) error
 
-	// Collection ownership and access queries
+	// Collection ownership and access queries (now state-aware)
 	CheckIfExistsByID(ctx context.Context, id primitive.ObjectID) (bool, error)
 	GetAllByUserID(ctx context.Context, ownerID primitive.ObjectID) ([]*Collection, error)
 	GetCollectionsSharedWithUser(ctx context.Context, userID primitive.ObjectID) ([]*Collection, error)
@@ -32,7 +38,7 @@ type CollectionRepository interface {
 	CheckAccess(ctx context.Context, collectionID, userID primitive.ObjectID, requiredPermission string) (bool, error)
 	GetUserPermissionLevel(ctx context.Context, collectionID, userID primitive.ObjectID) (string, error)
 
-	// Filtered collection queries
+	// Filtered collection queries (now state-aware)
 	GetCollectionsWithFilter(ctx context.Context, options CollectionFilterOptions) (*CollectionFilterResult, error)
 
 	// Collection membership operations

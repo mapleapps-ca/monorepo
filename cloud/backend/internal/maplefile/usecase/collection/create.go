@@ -52,6 +52,16 @@ func (uc *createCollectionUseCaseImpl) Execute(ctx context.Context, collection *
 		if collection.EncryptedCollectionKey.Ciphertext == nil || len(collection.EncryptedCollectionKey.Ciphertext) == 0 {
 			e["encrypted_collection_key"] = "Encrypted collection key is required"
 		}
+		if collection.State == "" {
+			e["state"] = "File state is required"
+		} else if collection.State != dom_collection.CollectionStateActive &&
+			collection.State != dom_collection.CollectionStateDeleted &&
+			collection.State != dom_collection.CollectionStateArchived {
+			e["state"] = "Invalid collection state"
+		}
+		if err := dom_collection.IsValidStateTransition(dom_collection.CollectionStateActive, collection.State); err != nil {
+			e["state"] = err.Error()
+		}
 	}
 	if len(e) != 0 {
 		uc.logger.Warn("Failed validating collection creation",

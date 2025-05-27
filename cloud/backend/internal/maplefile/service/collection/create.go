@@ -204,6 +204,9 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	if req.EncryptedCollectionKey == nil || req.EncryptedCollectionKey.Nonce == nil || len(req.EncryptedCollectionKey.Nonce) == 0 {
 		e["encrypted_collection_key"] = "Encrypted collection key nonce is required"
 	}
+	if req.Version == 0 || req.Version > 1 {
+		e["version"] = "Collection version must start at 1 when creating a new collection"
+	}
 
 	if len(e) != 0 {
 		svc.logger.Warn("Failed validation",
@@ -239,6 +242,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	collection.CreatedByUserID = userID     // The authenticated user is the creator
 	collection.ModifiedByUserID = userID    // The authenticated user is the initial modifier
 	collection.Version = 1                  // New collections start at version 1
+	collection.State = dom_collection.CollectionStateActive
 
 	// Ensure owner membership exists with Admin permissions.
 	// Check if the owner is already present in the members list copied from the DTO.
