@@ -20,7 +20,7 @@ func (impl fileMetadataRepositoryImpl) SoftDelete(id primitive.ObjectID) error {
 
 	// Soft delete: Update state to deleted instead of removing document.
 	// Zero out sensitive fields but keep key identifiers and audit trails.
-	// Fields retained for auditing: id, collection_id, owner_id, created_at, created_by_user_id, modified_at, modified_by_user_id, state.
+	// Fields retained for auditing: id, collection_id, owner_id, created_at, created_by_user_id, modified_at, modified_by_user_id, state, version, tombstone_version, tombstone_expiry
 	update := bson.M{
 		"$set": bson.M{
 			"state":       dom_file.FileStateDeleted,
@@ -34,7 +34,6 @@ func (impl fileMetadataRepositoryImpl) SoftDelete(id primitive.ObjectID) error {
 			"encrypted_file_size_in_bytes":      int64(0),
 			"encrypted_thumbnail_object_key":    "",
 			"encrypted_thumbnail_size_in_bytes": int64(0),
-			"version":                           uint64(0),
 		},
 	}
 
@@ -71,7 +70,7 @@ func (impl fileMetadataRepositoryImpl) SoftDeleteMany(ids []primitive.ObjectID) 
 
 	// Soft delete: Update state to deleted for multiple files.
 	// Zero out sensitive fields but keep key identifiers and audit trails.
-	// Fields retained for auditing: id, collection_id, owner_id, created_at, created_by_user_id, modified_at, modified_by_user_id, state.
+	// Fields retained for auditing: id, collection_id, owner_id, created_at, created_by_user_id, modified_at, modified_by_user_id, state, version, tombstone_version, tombstone_expiry
 	update := bson.M{
 		"$set": bson.M{
 			"state":       dom_file.FileStateDeleted,
@@ -85,7 +84,6 @@ func (impl fileMetadataRepositoryImpl) SoftDeleteMany(ids []primitive.ObjectID) 
 			"encrypted_file_size_in_bytes":      int64(0),
 			"encrypted_thumbnail_object_key":    "",
 			"encrypted_thumbnail_size_in_bytes": int64(0),
-			"version":                           uint64(0),
 		},
 	}
 

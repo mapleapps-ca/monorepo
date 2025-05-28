@@ -36,9 +36,9 @@ func (impl collectionRepositoryImpl) SoftDelete(ctx context.Context, id primitiv
 			"collection_type":          "",
 			"encrypted_collection_key": "",
 			"members":                  "",
-			"version":                  "",
 			// Do NOT unset: _id, owner_id, parent_id, ancestor_ids, children,
-			// created_at, created_by_user_id, modified_at, modified_by_user_id, state.
+			// created_at, created_by_user_id, modified_at, modified_by_user_id,
+			// state, version, tombstone_version, tombstone_expiry
 		},
 	}
 
@@ -74,9 +74,9 @@ func (impl collectionRepositoryImpl) SoftDelete(ctx context.Context, id primitiv
 			"collection_type":          "",
 			"encrypted_collection_key": "",
 			"members":                  "",
-			"version":                  "",
 			// Do NOT unset: _id, owner_id, parent_id, ancestor_ids, children,
-			// created_at, created_by_user_id, modified_at, modified_by_user_id, state.
+			// created_at, created_by_user_id, modified_at, modified_by_user_id,
+			// state, version, tombstone_version, tombstone_expiry
 		},
 	}
 
