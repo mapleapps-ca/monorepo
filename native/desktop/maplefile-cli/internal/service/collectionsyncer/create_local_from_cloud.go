@@ -1,5 +1,5 @@
-// internal/usecase/collectiondto/create_local_from_cloud.go
-package collectiondto
+// internal/service/collectionsyncer/create_local_from_cloud.go
+package collectionsyncer
 
 import (
 	"context"
@@ -14,25 +14,25 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/httperror"
 )
 
-// CreateLocalCollectionFromCloudCollectionUseCase defines the interface for creating a local collection from a cloud collection
-type CreateLocalCollectionFromCloudCollectionUseCase interface {
+// CreateLocalCollectionFromCloudCollectionService defines the interface for creating a local collection from a cloud collection
+type CreateLocalCollectionFromCloudCollectionService interface {
 	Execute(ctx context.Context, cloudID primitive.ObjectID) (*dom_collection.Collection, error)
 }
 
-// createLocalCollectionFromCloudCollectionUseCase implements the CreateLocalCollectionFromCloudCollectionUseCase interface
-type createLocalCollectionFromCloudCollectionUseCase struct {
+// createLocalCollectionFromCloudCollectionService implements the CreateLocalCollectionFromCloudCollectionService interface
+type createLocalCollectionFromCloudCollectionService struct {
 	logger          *zap.Logger
 	cloudRepository collectiondto.CollectionDTORepository
 	localRepository dom_collection.CollectionRepository
 }
 
-// NewCreateLocalCollectionFromCloudCollectionUseCase creates a new use case for creating cloud collections
-func NewCreateLocalCollectionFromCloudCollectionUseCase(
+// NewCreateLocalCollectionFromCloudCollectionService creates a new use case for creating cloud collections
+func NewCreateLocalCollectionFromCloudCollectionService(
 	logger *zap.Logger,
 	cloudRepository collectiondto.CollectionDTORepository,
 	localRepository dom_collection.CollectionRepository,
-) CreateLocalCollectionFromCloudCollectionUseCase {
-	return &createLocalCollectionFromCloudCollectionUseCase{
+) CreateLocalCollectionFromCloudCollectionService {
+	return &createLocalCollectionFromCloudCollectionService{
 		logger:          logger,
 		cloudRepository: cloudRepository,
 		localRepository: localRepository,
@@ -40,7 +40,7 @@ func NewCreateLocalCollectionFromCloudCollectionUseCase(
 }
 
 // Execute creates a new cloud collection
-func (uc *createLocalCollectionFromCloudCollectionUseCase) Execute(ctx context.Context, cloudCollectionID primitive.ObjectID) (*dom_collection.Collection, error) {
+func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.Context, cloudCollectionID primitive.ObjectID) (*dom_collection.Collection, error) {
 	//
 	// STEP 1: Validate the input
 	//
@@ -73,7 +73,18 @@ func (uc *createLocalCollectionFromCloudCollectionUseCase) Execute(ctx context.C
 	}
 
 	//
-	// STEP 3: Create a new collection domain object from the cloud data using a mapping function.
+	// STEP 3: Perform any necessary validation before creating the local collection.
+	//
+
+	// CASE 1: Make sure the cloud collection hasn't been deleted.
+	if cloudCollectionDTO.TombstoneVersion > 0 {
+		uc.logger.Debug("Skipping local collection creation from the cloud because it has been deleted",
+			zap.String("id", cloudCollectionDTO.ID.Hex()))
+		return nil, nil
+	}
+
+	//
+	// STEP 4: Create a new collection domain object from the cloud data using a mapping function.
 	//
 
 	// Create a new collection domain object from the cloud data using a mapping function.
@@ -88,7 +99,7 @@ func (uc *createLocalCollectionFromCloudCollectionUseCase) Execute(ctx context.C
 	}
 
 	//
-	// STEP 3: Return our local  collection response from the cloud.
+	// STEP 5: Return our local  collection response from the cloud.
 	//
 
 	return newCollection, nil

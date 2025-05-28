@@ -9,6 +9,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncdto"
 	dom_syncdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncdto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
 	syncdtoSvc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/syncdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/syncstate"
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
@@ -41,9 +42,11 @@ type syncCollectionService struct {
 	syncStateResetService syncstate.ResetService
 
 	// Service for fetching collection data from the remote source (cloud)
-	syncDTOProgressService                          syncdtoSvc.SyncProgressService
-	getCollectionFromCloudUseCase                   uc_collectiondto.GetCollectionFromCloudUseCase
-	createLocalCollectionFromCloudCollectionUseCase uc_collectiondto.CreateLocalCollectionFromCloudCollectionUseCase
+	syncDTOProgressService        syncdtoSvc.SyncProgressService
+	getCollectionFromCloudUseCase uc_collectiondto.GetCollectionFromCloudUseCase
+
+	createLocalCollectionFromCloudCollectionService collectionsyncer.CreateLocalCollectionFromCloudCollectionService
+	updateLocalCollectionFromCloudCollectionService collectionsyncer.UpdateLocalCollectionFromCloudCollectionService
 
 	// Use cases for interacting with the local collection repository
 	createCollectionUseCase uc.CreateCollectionUseCase
@@ -61,7 +64,8 @@ func NewSyncCollectionService(
 	syncStateResetService syncstate.ResetService,
 	syncDTOProgressService syncdtoSvc.SyncProgressService,
 	getCollectionFromCloudUseCase uc_collectiondto.GetCollectionFromCloudUseCase,
-	createLocalCollectionFromCloudCollectionUseCase uc_collectiondto.CreateLocalCollectionFromCloudCollectionUseCase,
+	createLocalCollectionFromCloudCollectionService collectionsyncer.CreateLocalCollectionFromCloudCollectionService,
+	updateLocalCollectionFromCloudCollectionService collectionsyncer.UpdateLocalCollectionFromCloudCollectionService,
 	createCollectionUseCase uc.CreateCollectionUseCase,
 	getCollectionUseCase uc.GetCollectionUseCase,
 	updateCollectionUseCase uc.UpdateCollectionUseCase,
@@ -76,7 +80,8 @@ func NewSyncCollectionService(
 
 		syncDTOProgressService:                          syncDTOProgressService,
 		getCollectionFromCloudUseCase:                   getCollectionFromCloudUseCase,
-		createLocalCollectionFromCloudCollectionUseCase: createLocalCollectionFromCloudCollectionUseCase,
+		createLocalCollectionFromCloudCollectionService: createLocalCollectionFromCloudCollectionService,
+		updateLocalCollectionFromCloudCollectionService: updateLocalCollectionFromCloudCollectionService,
 
 		createCollectionUseCase: createCollectionUseCase,
 		getCollectionUseCase:    getCollectionUseCase,
@@ -206,34 +211,57 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 					s.logger.Debug("No local collection found, creating a new one now.",
 						zap.String("id", cloudCollection.ID.Hex()))
 
-					_, err := s.createLocalCollectionFromCloudCollectionUseCase.Execute(ctx, cloudCollection.ID)
+					localCollection, err := s.createLocalCollectionFromCloudCollectionService.Execute(ctx, cloudCollection.ID)
 					if err != nil {
-						s.logger.Error("Failed to get cloud collection and save it locally",
+						s.logger.Error("Failed to get cloud collection and create it locally",
 							zap.String("id", cloudCollection.ID.Hex()),
 							zap.Error(err))
 						// Depending on error type, might need to handle specifically (e.g., not found vs actual DB error)
 						continue // Skip processing this collection if local create fails
 					}
-					collectionSyncResult.CollectionsAdded++
+					if localCollection != nil {
+						collectionSyncResult.CollectionsAdded++
+					}
 				} else {
 					//
-					// CASE 2: If the local collection exists, check if it needs to be updated.
+					// CASE 2: If the local collection exists, check if it needs to be updated or deleted.
 					//
-
-					// TODO: Add logic here to compare cloudCollection and existingLocalCollection
-					// and call s.updateCollectionUseCase.Execute if necessary.
-					s.logger.Debug("Local collection found, need to implement update logic.",
+					s.logger.Debug("Local collection found, update if changes detected.",
 						zap.String("id", cloudCollection.ID.Hex()))
-					// For now, just incrementing updated count as a placeholder
-					collectionSyncResult.CollectionsUpdated++
+
+					localCollection, err := s.updateLocalCollectionFromCloudCollectionService.Execute(ctx, cloudCollection.ID)
+					if err != nil {
+						s.logger.Error("Failed to get cloud collection and save/delete it locally",
+							zap.String("id", cloudCollection.ID.Hex()),
+							zap.Error(err))
+						// Depending on error type, might need to handle specifically (e.g., not found vs actual DB error)
+						continue // Skip processing this collection if local create fails
+					}
+
+					// If localCollection is not empty then it means it was updated.
+					if localCollection != nil {
+						// For now, just incrementing updated count as a placeholder
+						collectionSyncResult.CollectionsUpdated++
+					}
+				}
+			case "deleted":
+				s.logger.Debug("Cloud collection marked as deleted (needs local deletion)",
+					zap.String("id", cloudCollection.ID.Hex()))
+
+				// Reuse this function as it handles both update and deletion.
+				localCollection, err := s.updateLocalCollectionFromCloudCollectionService.Execute(ctx, cloudCollection.ID)
+				if err != nil {
+					s.logger.Error("Failed to get cloud collection and delete it locally",
+						zap.String("id", cloudCollection.ID.Hex()),
+						zap.Error(err))
+					// Depending on error type, might need to handle specifically (e.g., not found vs actual DB error)
+					continue // Skip processing this collection if local create fails
 				}
 
-			case "deleted":
-				// Simplified logic: If cloud state is "deleted", assume it needs to be deleted locally.
-				// TODO: Add logic here to check if existingLocalCollection exists and then call s.deleteCollectionUseCase.Execute
-				s.logger.Debug("Collection marked as deleted (needs local deletion)",
-					zap.String("id", cloudCollection.ID.Hex())) // Optional: log each item
-				collectionSyncResult.CollectionsDeleted++
+				// A null response indicates that the collection was deleted.
+				if localCollection == nil {
+					collectionSyncResult.CollectionsDeleted++
+				}
 			case "":
 				// Handle empty state as an error
 				errorMsg := "empty collection state received from sync service"
