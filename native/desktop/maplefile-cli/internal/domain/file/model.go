@@ -75,5 +75,7 @@ type File struct {
 	Version uint64 `json:"version" bson:"version"`
 
 	// State management.
-	State string `bson:"state" json:"state"` // pending, active, deleted, archived
+	State            string    `bson:"state" json:"state"`                         // pending, active, deleted, archived
+	TombstoneVersion uint64    `bson:"tombstone_version" json:"tombstone_version"` // The `version` number that this collection was deleted at.
+	TombstoneExpiry  time.Time `bson:"tombstone_expiry" json:"tombstone_expiry"`
 }

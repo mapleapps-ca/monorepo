@@ -71,7 +71,9 @@ type Collection struct {
 	Version uint64 `bson:"version" json:"version"`
 
 	// State management
-	State string `bson:"state" json:"state"` // active, deleted, archived
+	State            string    `bson:"state" json:"state"`                         // active, deleted, archived
+	TombstoneVersion uint64    `bson:"tombstone_version" json:"tombstone_version"` // The `version` number that this collection was deleted at.
+	TombstoneExpiry  time.Time `bson:"tombstone_expiry" json:"tombstone_expiry"`
 }
 
 // CollectionMembership represents a user's access to a collection
