@@ -21,6 +21,7 @@ type UpdateCollectionRequestDTO struct {
 	EncryptedName          string                       `json:"encrypted_name"`
 	CollectionType         string                       `json:"collection_type,omitempty"`
 	EncryptedCollectionKey *keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
+	Version                uint64                       `json:"version,omitempty"`
 }
 
 type UpdateCollectionService interface {
@@ -117,6 +118,19 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 				zap.Any("collection_id", req.ID))
 			return nil, httperror.NewForForbiddenWithSingleField("message", "You don't have permission to update this collection")
 		}
+	}
+
+	//
+	// STEP 5: Check if submitted collection request is in-sync with our backend's collection copy.
+	//
+
+	if collection.Version != req.Version { //TODO: CONFIRM THIS WORKS.
+		svc.logger.Warn("Outdated collection update attempt",
+			zap.Any("user_id", userID),
+			zap.Any("collection_id", req.ID),
+			zap.Any("submitted_version", req.Version),
+			zap.Any("current_version", collection.Version))
+		return nil, httperror.NewForBadRequestWithSingleField("message", "Collection has been updated since you last fetched it")
 	}
 
 	//
