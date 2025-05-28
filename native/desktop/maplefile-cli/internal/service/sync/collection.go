@@ -7,8 +7,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
-	dom_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncdto"
 	dom_syncdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncdto"
 	syncdtoSvc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/syncdto"
@@ -43,8 +41,9 @@ type syncCollectionService struct {
 	syncStateResetService syncstate.ResetService
 
 	// Service for fetching collection data from the remote source (cloud)
-	syncDTOProgressService        syncdtoSvc.SyncProgressService
-	getCollectionFromCloudUseCase uc_collectiondto.GetCollectionFromCloudUseCase
+	syncDTOProgressService                          syncdtoSvc.SyncProgressService
+	getCollectionFromCloudUseCase                   uc_collectiondto.GetCollectionFromCloudUseCase
+	createLocalCollectionFromCloudCollectionUseCase uc_collectiondto.CreateLocalCollectionFromCloudCollectionUseCase
 
 	// Use cases for interacting with the local collection repository
 	createCollectionUseCase uc.CreateCollectionUseCase
@@ -62,6 +61,7 @@ func NewSyncCollectionService(
 	syncStateResetService syncstate.ResetService,
 	syncDTOProgressService syncdtoSvc.SyncProgressService,
 	getCollectionFromCloudUseCase uc_collectiondto.GetCollectionFromCloudUseCase,
+	createLocalCollectionFromCloudCollectionUseCase uc_collectiondto.CreateLocalCollectionFromCloudCollectionUseCase,
 	createCollectionUseCase uc.CreateCollectionUseCase,
 	getCollectionUseCase uc.GetCollectionUseCase,
 	updateCollectionUseCase uc.UpdateCollectionUseCase,
@@ -74,8 +74,9 @@ func NewSyncCollectionService(
 		syncStateSaveService:  syncStateSaveService,
 		syncStateResetService: syncStateResetService,
 
-		syncDTOProgressService:        syncDTOProgressService,
-		getCollectionFromCloudUseCase: getCollectionFromCloudUseCase,
+		syncDTOProgressService:                          syncDTOProgressService,
+		getCollectionFromCloudUseCase:                   getCollectionFromCloudUseCase,
+		createLocalCollectionFromCloudCollectionUseCase: createLocalCollectionFromCloudCollectionUseCase,
 
 		createCollectionUseCase: createCollectionUseCase,
 		getCollectionUseCase:    getCollectionUseCase,
@@ -200,15 +201,20 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 				//
 				// CASE 1: If the local collection is not found, create a new one.
 				//
-				if existingLocalCollection == nil { // This check needs correction
-					// Check that the collection is not deleted prior to adding it again into our app.
-					if err := s.CreateLocalCollectionFromCloud(ctx, &cloudCollection); err != nil {
+				if existingLocalCollection == nil {
+					// For debugging purposes, log the details of the collection being analyzed
+					s.logger.Debug("No local collection found, creating a new one now.",
+						zap.String("id", cloudCollection.ID.Hex()))
+
+					_, err := s.createLocalCollectionFromCloudCollectionUseCase.Execute(ctx, cloudCollection.ID)
+					if err != nil {
 						s.logger.Error("Failed to get cloud collection and save it locally",
 							zap.String("id", cloudCollection.ID.Hex()),
 							zap.Error(err))
 						// Depending on error type, might need to handle specifically (e.g., not found vs actual DB error)
-						continue // Skip processing this collection if local lookup fails
+						continue // Skip processing this collection if local create fails
 					}
+					collectionSyncResult.CollectionsAdded++
 				} else {
 					//
 					// CASE 2: If the local collection exists, check if it needs to be updated.
@@ -286,107 +292,4 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 		zap.Int("errors", len(collectionSyncResult.Errors)))             // Number of errors encountered during processing
 
 	return collectionSyncResult, nil
-}
-
-func (s *syncCollectionService) CreateLocalCollectionFromCloud(ctx context.Context, collectionSyncItem *dom_syncdto.CollectionSyncItem) error {
-	s.logger.Info("Starting creating local collection from cloud")
-	collectionDTO, err := s.getCollectionFromCloudUseCase.Execute(ctx, collectionSyncItem.ID)
-	if err != nil {
-		s.logger.Error("Failed to fetch collection from cloud",
-			zap.Error(err))
-		return err
-	}
-	if collectionDTO == nil {
-		err := errors.NewAppError("collection not found", nil)
-		s.logger.Error("Failed to fetch collection from cloud",
-			zap.Error(err))
-		return err
-	}
-
-	// Create a new collection domain object from the cloud data using a mapping function.
-	newCollection := mapCollectionDTOToDomain(collectionDTO)
-
-	// Execute the use case to create the local collection record.
-	if err := s.createCollectionUseCase.Execute(ctx, newCollection); err != nil {
-		s.logger.Error("Failed to create new collection",
-			zap.String("id", collectionDTO.ID.Hex()),
-			zap.Error(err))
-		return err
-	}
-	// // TODO: Increment result.CollectionsCreated instead of CollectionsUpdated?
-	// // The current code increments CollectionsUpdated for both create and update paths in the simplified logic.
-	// collectionSyncResult.CollectionsUpdated++ // Assuming this covers both new creations and updates for active state.
-	// s.logger.Debug("Collection marked as active (created/updated placeholder)",
-	// 	zap.String("id", cloudCollection.ID.Hex())) // Optional: log each item
-
-	return nil
-}
-
-// mapCollectionDTOToDomain maps a single uc_collectiondto.CollectionDTO to a single dom_collection.Collection.
-// It handles nested Members and Children recursively by calling helper slice mappers.
-func mapCollectionDTOToDomain(dto *dom_collectiondto.CollectionDTO) *dom_collection.Collection {
-	if dto == nil {
-		return nil
-	}
-
-	// Assuming dom_collection.Collection has fields compatible with uc_collectiondto.CollectionDTO
-	return &dom_collection.Collection{
-		ID:                     dto.ID,
-		OwnerID:                dto.OwnerID,
-		EncryptedName:          dto.EncryptedName,
-		CollectionType:         dto.CollectionType,
-		EncryptedCollectionKey: dto.EncryptedCollectionKey,         // Assuming keys.EncryptedCollectionKey type is compatible
-		Members:                mapMembersDTOToDomain(dto.Members), // Call helper for members slice
-		ParentID:               dto.ParentID,
-		AncestorIDs:            dto.AncestorIDs,
-		Children:               mapChildrenDTOToDomain(dto.Children), // Call helper for children slice
-		CreatedAt:              dto.CreatedAt,
-		CreatedByUserID:        dto.CreatedByUserID,
-		ModifiedAt:             dto.ModifiedAt,
-		ModifiedByUserID:       dto.ModifiedByUserID,
-		Version:                dto.Version,
-		State:                  dto.State,
-		// Note: TombstoneVersion and TombstoneExpiry from sync item are not part of the main CollectionDTO
-		// and are not mapped here into the domain object. They are specific to the sync process.
-	}
-}
-
-// mapMembersDTOToDomain maps a slice of uc_collectiondto.CollectionMembershipDTO to a slice of dom_collection.CollectionMembership.
-// Assuming dom_collection.CollectionMembership struct matches uc_collectiondto.CollectionMembershipDTO.
-func mapMembersDTOToDomain(membersDTO []*dom_collectiondto.CollectionMembershipDTO) []*dom_collection.CollectionMembership {
-	if membersDTO == nil {
-		return nil
-	}
-	members := make([]*dom_collection.CollectionMembership, len(membersDTO))
-	for i, memberDTO := range membersDTO {
-		if memberDTO != nil {
-			// Assuming dom_collection.CollectionMembership has fields matching uc_collectiondto.CollectionMembershipDTO
-			members[i] = &dom_collection.CollectionMembership{
-				ID:                     memberDTO.ID,
-				CollectionID:           memberDTO.CollectionID,
-				RecipientID:            memberDTO.RecipientID,
-				RecipientEmail:         memberDTO.RecipientEmail,
-				GrantedByID:            memberDTO.GrantedByID,
-				EncryptedCollectionKey: memberDTO.EncryptedCollectionKey,
-				PermissionLevel:        memberDTO.PermissionLevel,
-				CreatedAt:              memberDTO.CreatedAt,
-				IsInherited:            memberDTO.IsInherited,
-				InheritedFromID:        memberDTO.InheritedFromID,
-			}
-		}
-	}
-	return members
-}
-
-// mapChildrenDTOToDomain maps a slice of uc_collectiondto.CollectionDTO to a slice of dom_collection.Collection.
-// It recursively calls mapCollectionDTOToDomain for each child.
-func mapChildrenDTOToDomain(childrenDTO []*dom_collectiondto.CollectionDTO) []*dom_collection.Collection {
-	if childrenDTO == nil {
-		return nil
-	}
-	children := make([]*dom_collection.Collection, len(childrenDTO))
-	for i, childDTO := range childrenDTO {
-		children[i] = mapCollectionDTOToDomain(childDTO) // Recursive call to single item mapper
-	}
-	return children
 }
