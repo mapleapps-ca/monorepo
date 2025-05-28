@@ -34,6 +34,7 @@ func NewRemoveMemberHTTPHandler(
 	service svc_collection.RemoveMemberService,
 	middleware middleware.Middleware,
 ) *RemoveMemberHTTPHandler {
+	logger = logger.Named("RemoveMemberHTTPHandler")
 	return &RemoveMemberHTTPHandler{
 		config:     config,
 		logger:     logger,

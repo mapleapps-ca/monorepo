@@ -32,6 +32,7 @@ func NewRestoreFileHTTPHandler(
 	service svc_file.RestoreFileService,
 	middleware middleware.Middleware,
 ) *RestoreFileHTTPHandler {
+	logger = logger.Named("RestoreFileHTTPHandler")
 	return &RestoreFileHTTPHandler{
 		config:     config,
 		logger:     logger,

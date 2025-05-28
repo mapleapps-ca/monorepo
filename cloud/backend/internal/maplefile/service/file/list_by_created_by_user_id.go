@@ -33,6 +33,7 @@ func NewListFilesByCreatedByUserIDService(
 	logger *zap.Logger,
 	getFilesByCreatedByUserIDUseCase uc_filemetadata.GetFileMetadataByCreatedByUserIDUseCase,
 ) ListFilesByCreatedByUserIDService {
+	logger = logger.Named("ListFilesByCreatedByUserIDService")
 	return &listFilesByCreatedByUserIDServiceImpl{
 		config:                           config,
 		logger:                           logger,

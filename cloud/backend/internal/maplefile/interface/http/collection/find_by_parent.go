@@ -32,6 +32,7 @@ func NewFindCollectionsByParentHTTPHandler(
 	service svc_collection.FindCollectionsByParentService,
 	middleware middleware.Middleware,
 ) *FindCollectionsByParentHTTPHandler {
+	logger = logger.Named("FindCollectionsByParentHTTPHandler")
 	return &FindCollectionsByParentHTTPHandler{
 		config:     config,
 		logger:     logger,

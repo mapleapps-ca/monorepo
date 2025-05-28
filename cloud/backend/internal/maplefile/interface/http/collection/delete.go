@@ -32,6 +32,7 @@ func NewDeleteCollectionHTTPHandler(
 	service svc_collection.DeleteCollectionService,
 	middleware middleware.Middleware,
 ) *DeleteCollectionHTTPHandler {
+	logger = logger.Named("DeleteCollectionHTTPHandler")
 	return &DeleteCollectionHTTPHandler{
 		config:     config,
 		logger:     logger,

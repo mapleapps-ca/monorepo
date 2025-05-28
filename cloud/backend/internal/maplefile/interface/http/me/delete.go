@@ -33,6 +33,8 @@ func NewDeleteMeHTTPHandler(
 	service svc_me.DeleteMeService,
 	middleware middleware.Middleware,
 ) *DeleteMeHTTPHandler {
+	logger = logger.With(zap.String("module", "maplefile"))
+	logger = logger.Named("DeleteMeHTTPHandler")
 	return &DeleteMeHTTPHandler{
 		config:     config,
 		logger:     logger,

@@ -63,7 +63,7 @@ type File struct {
 	// ModifiedByUserID is the ID of the user whom has last modified this file.
 	ModifiedByUserID primitive.ObjectID `bson:"modified_by_user_id" json:"modified_by_user_id"`
 	// The current version of the file.
-	Version uint64 `bson:"version" json:"version"`
+	Version uint64 `bson:"version" json:"version"` // Every mutation (create, update, delete) is a versioned operation, keep track of the version number with this variable
 
 	// State management.
 	State            string    `bson:"state" json:"state"`                         // pending, active, deleted, archived

@@ -24,6 +24,7 @@ type userDeleteByIDImpl struct {
 }
 
 func NewUserDeleteByIDUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) UserDeleteByIDUseCase {
+	logger = logger.Named("UserDeleteByIDUseCase")
 	return &userDeleteByIDImpl{config, logger, repo}
 }
 

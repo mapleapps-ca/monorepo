@@ -27,6 +27,7 @@ func NewFindDescendantsUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) FindDescendantsUseCase {
+	logger = logger.Named("FindDescendantsUseCase")
 	return &findDescendantsUseCaseImpl{config, logger, repo}
 }
 

@@ -24,6 +24,7 @@ func NewUserListAllUseCase(
 	logger *zap.Logger,
 	repo dom_user.Repository,
 ) UserListAllUseCase {
+	logger = logger.Named("UserListAllUseCase")
 	return &userListAllUseCaseImpl{
 		config: config,
 		logger: logger,

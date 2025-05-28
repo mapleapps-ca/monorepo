@@ -27,6 +27,7 @@ func NewDeleteManyFileMetadataUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileMetadataRepository,
 ) DeleteManyFileMetadataUseCase {
+	logger = logger.Named("DeleteManyFileMetadataUseCase")
 	return &deleteManyFileMetadataUseCaseImpl{config, logger, repo}
 }
 

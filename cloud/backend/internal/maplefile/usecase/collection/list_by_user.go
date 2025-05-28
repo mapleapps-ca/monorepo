@@ -27,6 +27,7 @@ func NewListCollectionsByUserUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) ListCollectionsByUserUseCase {
+	logger = logger.Named("ListCollectionsByUserUseCase")
 	return &listCollectionsByUserUseCaseImpl{config, logger, repo}
 }
 

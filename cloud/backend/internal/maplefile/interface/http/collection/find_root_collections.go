@@ -31,6 +31,7 @@ func NewFindRootCollectionsHTTPHandler(
 	service svc_collection.FindRootCollectionsService,
 	middleware middleware.Middleware,
 ) *FindRootCollectionsHTTPHandler {
+	logger = logger.Named("FindRootCollectionsHTTPHandler")
 	return &FindRootCollectionsHTTPHandler{
 		config:     config,
 		logger:     logger,

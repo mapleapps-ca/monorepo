@@ -31,6 +31,7 @@ func NewListSharedCollectionsHTTPHandler(
 	service svc_collection.ListSharedCollectionsService,
 	middleware middleware.Middleware,
 ) *ListSharedCollectionsHTTPHandler {
+	logger = logger.Named("ListSharedCollectionsHTTPHandler")
 	return &ListSharedCollectionsHTTPHandler{
 		config:     config,
 		logger:     logger,

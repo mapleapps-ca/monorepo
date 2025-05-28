@@ -24,6 +24,7 @@ func NewStoreEncryptedDataUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileObjectStorageRepository,
 ) StoreEncryptedDataUseCase {
+	logger = logger.Named("StoreEncryptedDataUseCase")
 	return &storeEncryptedDataUseCaseImpl{config, logger, repo}
 }
 

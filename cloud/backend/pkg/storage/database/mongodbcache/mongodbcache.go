@@ -31,6 +31,7 @@ func NewProvider(
 	logger *zap.Logger,
 	dbClient *mongo_client.Client,
 ) Cacher {
+	logger = logger.Named("MongoDBCache")
 	logger.Debug("cache initializing...")
 
 	cc := dbClient.Database(appCfg.DB.IAMName).Collection("caches")

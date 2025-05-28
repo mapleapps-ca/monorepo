@@ -24,6 +24,7 @@ type userGetByIDUseCaseImpl struct {
 }
 
 func NewUserGetByIDUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) UserGetByIDUseCase {
+	logger = logger.Named("UserGetByIDUseCase")
 	return &userGetByIDUseCaseImpl{config, logger, repo}
 }
 

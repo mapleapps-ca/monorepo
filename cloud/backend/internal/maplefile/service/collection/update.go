@@ -39,6 +39,7 @@ func NewUpdateCollectionService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) UpdateCollectionService {
+	logger = logger.Named("UpdateCollectionService")
 	return &updateCollectionServiceImpl{
 		config: config,
 		logger: logger,

@@ -32,6 +32,7 @@ func NewListUserCollectionsHTTPHandler(
 	service svc_collection.ListUserCollectionsService,
 	middleware middleware.Middleware,
 ) *ListUserCollectionsHTTPHandler {
+	logger = logger.Named("ListUserCollectionsHTTPHandler")
 	return &ListUserCollectionsHTTPHandler{
 		config:     config,
 		logger:     logger,

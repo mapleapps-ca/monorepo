@@ -34,6 +34,7 @@ func NewUpdateFileHTTPHandler(
 	service svc_file.UpdateFileService,
 	middleware middleware.Middleware,
 ) *UpdateFileHTTPHandler {
+	logger = logger.Named("UpdateFileHTTPHandler")
 	return &UpdateFileHTTPHandler{
 		config:     config,
 		logger:     logger,

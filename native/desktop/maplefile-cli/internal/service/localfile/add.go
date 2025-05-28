@@ -341,8 +341,8 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 		CreatedByUserID:   input.OwnerID,
 		ModifiedAt:        currentTime,
 		ModifiedByUserID:  input.OwnerID,
-		Version:           1,
-		SyncStatus:        dom_file.SyncStatusLocalOnly,
+		Version:           1,                            // Always set `version=1` at creation of a collection
+		SyncStatus:        dom_file.SyncStatusLocalOnly, // SET DEFAULT STATE
 	}
 
 	//

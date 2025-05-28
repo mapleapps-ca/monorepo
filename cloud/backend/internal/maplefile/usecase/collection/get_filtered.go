@@ -26,6 +26,7 @@ func NewGetFilteredCollectionsUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) GetFilteredCollectionsUseCase {
+	logger = logger.Named("GetFilteredCollectionsUseCase")
 	return &getFilteredCollectionsUseCaseImpl{config, logger, repo}
 }
 

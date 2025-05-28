@@ -34,6 +34,7 @@ func NewCompleteFileUploadHTTPHandler(
 	service svc_file.CompleteFileUploadService,
 	middleware middleware.Middleware,
 ) *CompleteFileUploadHTTPHandler {
+	logger = logger.Named("CompleteFileUploadHTTPHandler")
 	return &CompleteFileUploadHTTPHandler{
 		config:     config,
 		logger:     logger,

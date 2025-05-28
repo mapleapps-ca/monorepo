@@ -21,6 +21,7 @@ type userUpdateUseCaseImpl struct {
 }
 
 func NewUserUpdateUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) UserUpdateUseCase {
+	logger = logger.Named("UserUpdateUseCase")
 	return &userUpdateUseCaseImpl{config, logger, repo}
 }
 

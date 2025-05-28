@@ -26,6 +26,7 @@ func NewUserCountByFilterUseCase(
 	logger *zap.Logger,
 	repo dom_user.Repository,
 ) UserCountByFilterUseCase {
+	logger = logger.Named("UserCountByFilterUseCase")
 	return &userCountByFilterUseCaseImpl{config, logger, repo}
 }
 

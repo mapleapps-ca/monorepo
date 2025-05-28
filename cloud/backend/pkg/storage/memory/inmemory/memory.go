@@ -23,6 +23,7 @@ type keyValueStorerImpl struct {
 
 // NewInMemoryStorage creates a new instance of the keyValueStorerImpl.
 func NewInMemoryStorage(logger *zap.Logger) storage.Storage {
+	logger = logger.Named("InMemoryStorage")
 	return &keyValueStorerImpl{
 		data:   make(map[string]cacheValue),
 		txData: nil,

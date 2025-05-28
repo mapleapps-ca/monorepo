@@ -21,6 +21,8 @@ type collectionRepositoryImpl struct {
 }
 
 func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mongo.Client) dom_collection.CollectionRepository {
+	loggerp = loggerp.Named("CollectionRepository")
+
 	// Initialize collection in the MapleFile database
 	cc := client.Database(appCfg.DB.MapleFileName).Collection("collections")
 

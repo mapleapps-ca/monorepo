@@ -24,6 +24,7 @@ func NewUpdateFileMetadataUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileMetadataRepository,
 ) UpdateFileMetadataUseCase {
+	logger = logger.Named("UpdateFileMetadataUseCase")
 	return &updateFileMetadataUseCaseImpl{config, logger, repo}
 }
 

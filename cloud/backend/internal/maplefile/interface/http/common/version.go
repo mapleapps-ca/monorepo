@@ -15,6 +15,7 @@ type MapleFileVersionHTTPHandler struct {
 func NewMapleFileVersionHTTPHandler(
 	log *zap.Logger,
 ) *MapleFileVersionHTTPHandler {
+	log = log.Named("MapleFileVersionHTTPHandler")
 	return &MapleFileVersionHTTPHandler{log}
 }
 

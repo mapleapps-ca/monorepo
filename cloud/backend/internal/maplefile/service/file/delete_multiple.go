@@ -51,6 +51,7 @@ func NewDeleteMultipleFilesService(
 	deleteMetadataManyUseCase uc_filemetadata.DeleteManyFileMetadataUseCase,
 	deleteMultipleDataUseCase uc_fileobjectstorage.DeleteMultipleEncryptedDataUseCase,
 ) DeleteMultipleFilesService {
+	logger = logger.Named("DeleteMultipleFilesService")
 	return &deleteMultipleFilesServiceImpl{
 		config:                    config,
 		logger:                    logger,

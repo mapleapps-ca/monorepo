@@ -24,6 +24,7 @@ type userGetBySessionIDUseCaseImpl struct {
 }
 
 func NewUserGetBySessionIDUseCase(config *config.Configuration, logger *zap.Logger, ca mongodbcache.Cacher) UserGetBySessionIDUseCase {
+	logger = logger.Named("UserGetBySessionIDUseCase")
 	return &userGetBySessionIDUseCaseImpl{config, logger, ca}
 }
 

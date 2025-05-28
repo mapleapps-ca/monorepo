@@ -27,6 +27,7 @@ func NewGeneratePresignedDownloadURLUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileObjectStorageRepository,
 ) GeneratePresignedDownloadURLUseCase {
+	logger = logger.Named("GeneratePresignedDownloadURLUseCase")
 	return &generatePresignedDownloadURLUseCaseImpl{config, logger, repo}
 }
 

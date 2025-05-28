@@ -32,6 +32,7 @@ func NewDeleteFileHTTPHandler(
 	service svc_file.DeleteFileService,
 	middleware middleware.Middleware,
 ) *DeleteFileHTTPHandler {
+	logger = logger.Named("DeleteFileHTTPHandler")
 	return &DeleteFileHTTPHandler{
 		config:     config,
 		logger:     logger,

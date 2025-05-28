@@ -40,6 +40,7 @@ func NewStoreMultipleEncryptedDataUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileObjectStorageRepository,
 ) StoreMultipleEncryptedDataUseCase {
+	logger = logger.Named("StoreMultipleEncryptedDataUseCase")
 	return &storeMultipleEncryptedDataUseCaseImpl{config, logger, repo}
 }
 

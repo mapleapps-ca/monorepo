@@ -40,6 +40,7 @@ func NewRemoveMemberService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) RemoveMemberService {
+	logger = logger.Named("RemoveMemberService")
 	return &removeMemberServiceImpl{
 		config: config,
 		logger: logger,

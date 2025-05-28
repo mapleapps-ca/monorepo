@@ -41,6 +41,7 @@ func NewDeleteMeService(
 	userGetByIDUseCase uc_user.UserGetByIDUseCase,
 	userDeleteByIDUseCase uc_user.UserDeleteByIDUseCase,
 ) DeleteMeService {
+	logger = logger.Named("DeleteMeService")
 	return &deleteMeServiceImpl{
 		config:                config,
 		logger:                logger,

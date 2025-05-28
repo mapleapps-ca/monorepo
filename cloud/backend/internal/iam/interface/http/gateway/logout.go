@@ -26,6 +26,7 @@ func NewGatewayLogoutHTTPHandler(
 	service sv_gateway.GatewayLogoutService,
 	middleware middleware.Middleware,
 ) *GatewayLogoutHTTPHandler {
+	logger = logger.Named("GatewayLogoutHTTPHandler")
 	return &GatewayLogoutHTTPHandler{
 		logger:     logger,
 		dbClient:   dbClient,

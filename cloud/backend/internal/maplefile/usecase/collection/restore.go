@@ -27,6 +27,7 @@ func NewRestoreCollectionUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) RestoreCollectionUseCase {
+	logger = logger.Named("RestoreCollectionUseCase")
 	return &restoreCollectionUseCaseImpl{config, logger, repo}
 }
 

@@ -27,6 +27,7 @@ func NewAddMemberToHierarchyUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) AddMemberToHierarchyUseCase {
+	logger = logger.Named("AddMemberToHierarchyUseCase")
 	return &addMemberToHierarchyUseCaseImpl{config, logger, repo}
 }
 

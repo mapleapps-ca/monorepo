@@ -33,6 +33,7 @@ func NewCreatePendingFileHTTPHandler(
 	service svc_file.CreatePendingFileService,
 	middleware middleware.Middleware,
 ) *CreatePendingFileHTTPHandler {
+	logger = logger.Named("CreatePendingFileHTTPHandler")
 	return &CreatePendingFileHTTPHandler{
 		config:     config,
 		logger:     logger,

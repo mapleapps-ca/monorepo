@@ -32,6 +32,8 @@ func NewGetMeHTTPHandler(
 	service svc_me.GetMeService,
 	middleware middleware.Middleware,
 ) *GetMeHTTPHandler {
+	logger = logger.With(zap.String("module", "maplefile"))
+	logger = logger.Named("GetMeHTTPHandler")
 	return &GetMeHTTPHandler{
 		config:     config,
 		logger:     logger,

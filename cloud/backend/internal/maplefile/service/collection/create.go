@@ -37,6 +37,9 @@ type CreateCollectionRequestDTO struct {
 	ModifiedAt             time.Time                     `bson:"modified_at" json:"modified_at"`
 	ModifiedByUserID       primitive.ObjectID            `json:"modified_by_user_id"`
 	Version                uint64                        `json:"version"`
+	State                  string                        `bson:"state" json:"state"`
+	TombstoneVersion       uint64                        `bson:"tombstone_version" json:"tombstone_version"`
+	TombstoneExpiry        time.Time                     `bson:"tombstone_expiry" json:"tombstone_expiry"`
 }
 
 type CollectionMembershipDTO struct {
@@ -93,6 +96,7 @@ func NewCreateCollectionService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) CreateCollectionService {
+	logger = logger.Named("CreateCollectionService")
 	return &createCollectionServiceImpl{
 		config: config,
 		logger: logger,
@@ -146,6 +150,9 @@ func mapCollectionDTOToDomain(dto *CreateCollectionRequestDTO, userID primitive.
 		ModifiedAt:             dto.ModifiedAt,
 		ModifiedByUserID:       dto.ModifiedByUserID,
 		Version:                dto.Version,
+		State:                  dto.State,
+		TombstoneVersion:       dto.TombstoneVersion,
+		TombstoneExpiry:        dto.TombstoneExpiry,
 	}
 
 	// Map members slice from DTO to domain model slice
@@ -207,6 +214,9 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	if req.Version == 0 || req.Version > 1 {
 		e["version"] = "Collection version must start at 1 when creating a new collection"
 	}
+	if req.State != dom_collection.CollectionStateActive && req.State != dom_collection.CollectionStateDeleted && req.State != dom_collection.CollectionStateArchived {
+		e["state"] = "Collection state must be valid choice selection"
+	}
 
 	if len(e) != 0 {
 		svc.logger.Warn("Failed validation",
@@ -241,8 +251,8 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	collection.ModifiedAt = now             // Server timestamp for modification
 	collection.CreatedByUserID = userID     // The authenticated user is the creator
 	collection.ModifiedByUserID = userID    // The authenticated user is the initial modifier
-	collection.Version = 1                  // New collections start at version 1
-	collection.State = dom_collection.CollectionStateActive
+	collection.Version = req.Version
+	collection.State = req.State
 
 	// Ensure owner membership exists with Admin permissions.
 	// Check if the owner is already present in the members list copied from the DTO.

@@ -32,6 +32,7 @@ func NewArchiveFileHTTPHandler(
 	service svc_file.ArchiveFileService,
 	middleware middleware.Middleware,
 ) *ArchiveFileHTTPHandler {
+	logger = logger.Named("ArchiveFileHTTPHandler")
 	return &ArchiveFileHTTPHandler{
 		config:     config,
 		logger:     logger,

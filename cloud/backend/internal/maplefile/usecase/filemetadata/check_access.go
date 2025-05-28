@@ -25,6 +25,7 @@ func NewCheckFileAccessUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileMetadataRepository,
 ) CheckFileAccessUseCase {
+	logger = logger.Named("CheckFileAccessUseCase")
 	return &checkFileAccessUseCaseImpl{config, logger, repo}
 }
 

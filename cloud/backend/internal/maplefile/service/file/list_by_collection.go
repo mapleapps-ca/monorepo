@@ -40,6 +40,7 @@ func NewListFilesByCollectionService(
 	collectionRepo dom_collection.CollectionRepository,
 	getFilesByCollectionUseCase uc_filemetadata.GetFileMetadataByCollectionUseCase,
 ) ListFilesByCollectionService {
+	logger = logger.Named("ListFilesByCollectionService")
 	return &listFilesByCollectionServiceImpl{
 		config:                      config,
 		logger:                      logger,

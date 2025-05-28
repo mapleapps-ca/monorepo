@@ -24,6 +24,7 @@ func NewVerifyObjectExistsUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileObjectStorageRepository,
 ) VerifyObjectExistsUseCase {
+	logger = logger.Named("VerifyObjectExistsUseCase")
 	return &verifyObjectExistsUseCaseImpl{config, logger, repo}
 }
 

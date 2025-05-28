@@ -28,6 +28,7 @@ func NewFindRootCollectionsService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) FindRootCollectionsService {
+	logger = logger.Named("FindRootCollectionsService")
 	return &findRootCollectionsServiceImpl{
 		config: config,
 		logger: logger,

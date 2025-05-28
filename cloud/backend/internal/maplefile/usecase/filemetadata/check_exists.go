@@ -25,6 +25,7 @@ func NewCheckFileExistsUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileMetadataRepository,
 ) CheckFileExistsUseCase {
+	logger = logger.Named("CheckFileExistsUseCase")
 	return &checkFileExistsUseCaseImpl{config, logger, repo}
 }
 

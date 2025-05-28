@@ -33,6 +33,7 @@ func NewFindCollectionsByParentService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) FindCollectionsByParentService {
+	logger = logger.Named("FindCollectionsByParentService")
 	return &findCollectionsByParentServiceImpl{
 		config: config,
 		logger: logger,

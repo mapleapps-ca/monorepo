@@ -21,6 +21,8 @@ type userStorerImpl struct {
 }
 
 func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mongo.Client) dom_user.Repository {
+	loggerp = loggerp.Named("UserRepository")
+
 	// ctx := context.Background()
 	uc := client.Database(appCfg.DB.MapleFileName).Collection("users")
 

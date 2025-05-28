@@ -27,6 +27,7 @@ func NewFindCollectionsByParentUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) FindCollectionsByParentUseCase {
+	logger = logger.Named("FindCollectionsByParentUseCase")
 	return &findCollectionsByParentUseCaseImpl{config, logger, repo}
 }
 

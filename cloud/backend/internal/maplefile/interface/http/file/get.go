@@ -32,6 +32,7 @@ func NewGetFileHTTPHandler(
 	service svc_file.GetFileService,
 	middleware middleware.Middleware,
 ) *GetFileHTTPHandler {
+	logger = logger.Named("GetFileHTTPHandler")
 	return &GetFileHTTPHandler{
 		config:     config,
 		logger:     logger,

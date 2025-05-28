@@ -49,6 +49,7 @@ func NewDeleteFileService(
 	deleteDataUseCase uc_fileobjectstorage.DeleteEncryptedDataUseCase,
 	listFilesByOwnerIDService ListFilesByOwnerIDService,
 ) DeleteFileService {
+	logger = logger.Named("DeleteFileService")
 	return &deleteFileServiceImpl{
 		config:                    config,
 		logger:                    logger,

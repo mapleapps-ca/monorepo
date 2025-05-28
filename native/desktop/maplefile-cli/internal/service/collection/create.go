@@ -210,7 +210,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 		CreatedByUserID:  input.OwnerID,
 		ModifiedAt:       time.Now(),
 		ModifiedByUserID: input.OwnerID,
-		Version:          1,
+		Version:          1,                                          // Always set `version=1` at creation of a collection
 		State:            dom_collectiondto.CollectionDTOStateActive, // SET DEFAULT STATE
 	}
 

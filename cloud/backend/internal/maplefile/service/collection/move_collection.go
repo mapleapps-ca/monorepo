@@ -41,6 +41,7 @@ func NewMoveCollectionService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) MoveCollectionService {
+	logger = logger.Named("MoveCollectionService")
 	return &moveCollectionServiceImpl{
 		config: config,
 		logger: logger,

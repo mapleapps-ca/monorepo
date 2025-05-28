@@ -22,6 +22,7 @@ type userCreateUseCaseImpl struct {
 }
 
 func NewUserCreateUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) UserCreateUseCase {
+	logger = logger.Named("UserCreateUseCase")
 	return &userCreateUseCaseImpl{config, logger, repo}
 }
 

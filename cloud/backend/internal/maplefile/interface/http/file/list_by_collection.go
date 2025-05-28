@@ -32,6 +32,7 @@ func NewListFilesByCollectionHTTPHandler(
 	service svc_file.ListFilesByCollectionService,
 	middleware middleware.Middleware,
 ) *ListFilesByCollectionHTTPHandler {
+	logger = logger.Named("ListFilesByCollectionHTTPHandler")
 	return &ListFilesByCollectionHTTPHandler{
 		config:     config,
 		logger:     logger,

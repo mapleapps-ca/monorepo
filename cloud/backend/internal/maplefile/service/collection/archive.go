@@ -38,6 +38,7 @@ func NewArchiveCollectionService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) ArchiveCollectionService {
+	logger = logger.Named("ArchiveCollectionService")
 	return &archiveCollectionServiceImpl{
 		config: config,
 		logger: logger,

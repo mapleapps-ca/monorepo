@@ -15,6 +15,7 @@ type GetMapleSendVersionHTTPHandler struct {
 func NewGetMapleSendVersionHTTPHandler(
 	log *zap.Logger,
 ) *GetMapleSendVersionHTTPHandler {
+	log = log.Named("MapleSendVersionHTTPHandler")
 	return &GetMapleSendVersionHTTPHandler{log}
 }
 

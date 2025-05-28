@@ -60,6 +60,8 @@ type s3ObjectStorage struct {
 // NewObjectStorage connects to a specific S3 bucket instance and returns a connected
 // instance structure.
 func NewObjectStorage(s3Config S3ObjectStorageConfigurationProvider, logger *zap.Logger) S3ObjectStorage {
+	logger = logger.Named("S3ObjectStorage")
+
 	// DEVELOPERS NOTE:
 	// How can I use the AWS SDK v2 for Go with DigitalOcean Spaces? via https://stackoverflow.com/a/74284205
 	logger = logger.With(zap.String("component", "☁️🗄️ s3-object-storage"))

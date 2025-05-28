@@ -25,6 +25,7 @@ func NewGetFileMetadataByOwnerIDUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileMetadataRepository,
 ) GetFileMetadataByOwnerIDUseCase {
+	logger = logger.Named("GetFileMetadataByOwnerIDUseCase")
 	return &getFileMetadataByOwnerIDUseCaseImpl{config, logger, repo}
 }
 

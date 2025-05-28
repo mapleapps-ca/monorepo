@@ -30,6 +30,7 @@ func NewCollectionSyncHTTPHandler(
 	repository dom_collection.CollectionRepository,
 	middleware middleware.Middleware,
 ) *CollectionSyncHTTPHandler {
+	logger = logger.Named("CollectionSyncHTTPHandler")
 	return &CollectionSyncHTTPHandler{
 		config:     config,
 		logger:     logger,

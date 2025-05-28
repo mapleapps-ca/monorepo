@@ -30,6 +30,7 @@ func NewGatewayResetPasswordHTTPHandler(
 	service sv_gateway.GatewayResetPasswordService,
 	middleware middleware.Middleware,
 ) *GatewayResetPasswordHTTPHandler {
+	logger = logger.Named("GatewayResetPasswordHTTPHandler")
 	return &GatewayResetPasswordHTTPHandler{
 		logger:     logger,
 		dbClient:   dbClient,

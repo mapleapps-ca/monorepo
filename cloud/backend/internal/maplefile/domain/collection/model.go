@@ -9,16 +9,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/domain/keys"
 )
 
-const (
-	CollectionTypeFolder = "folder"
-	CollectionTypeAlbum  = "album"
-
-	// Permission levels
-	CollectionPermissionReadOnly  = "read_only"
-	CollectionPermissionReadWrite = "read_write"
-	CollectionPermissionAdmin     = "admin"
-)
-
 // Collection represents a folder or album.
 // Can be used for both root collections and embedded subcollections
 type Collection struct {
@@ -68,7 +58,7 @@ type Collection struct {
 	ModifiedAt       time.Time          `bson:"modified_at" json:"modified_at"`
 	ModifiedByUserID primitive.ObjectID `bson:"modified_by_user_id" json:"modified_by_user_id"`
 	// The current version of the file.
-	Version uint64 `bson:"version" json:"version"`
+	Version uint64 `bson:"version" json:"version"` // Every mutation (create, update, delete, etc) is a versioned operation, keep track of the version number with this variable
 
 	// State management
 	State            string    `bson:"state" json:"state"`                         // active, deleted, archived

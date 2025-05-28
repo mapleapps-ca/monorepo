@@ -40,6 +40,7 @@ func NewDeleteCollectionService(
 	repo dom_collection.CollectionRepository,
 	// fileRepo dom_file.FileRepository,
 ) DeleteCollectionService {
+	logger = logger.Named("DeleteCollectionService")
 	return &deleteCollectionServiceImpl{
 		config: config,
 		logger: logger,

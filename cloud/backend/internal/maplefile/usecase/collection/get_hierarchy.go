@@ -27,6 +27,7 @@ func NewGetCollectionHierarchyUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) GetCollectionHierarchyUseCase {
+	logger = logger.Named("GetCollectionHierarchyUseCase")
 	return &getCollectionHierarchyUseCaseImpl{config, logger, repo}
 }
 

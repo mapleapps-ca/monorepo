@@ -29,6 +29,7 @@ func NewGetCollectionService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) GetCollectionService {
+	logger = logger.Named("GetCollectionService")
 	return &getCollectionServiceImpl{
 		config: config,
 		logger: logger,

@@ -40,6 +40,7 @@ func NewGetPresignedDownloadURLHTTPHandler(
 	service svc_file.GetPresignedDownloadURLService,
 	middleware middleware.Middleware,
 ) *GetPresignedDownloadURLHTTPHandler {
+	logger = logger.Named("GetPresignedDownloadURLHTTPHandler")
 	return &GetPresignedDownloadURLHTTPHandler{
 		config:     config,
 		logger:     logger,

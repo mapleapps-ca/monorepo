@@ -21,6 +21,7 @@ type sendUserVerificationEmailUseCaseImpl struct {
 }
 
 func NewSendUserVerificationEmailUseCase(config *config.Configuration, logger *zap.Logger, emailer templatedemailer.TemplatedEmailer) SendUserVerificationEmailUseCase {
+	logger = logger.Named("SendUserVerificationEmailUseCase")
 	return &sendUserVerificationEmailUseCaseImpl{config, logger, emailer}
 }
 

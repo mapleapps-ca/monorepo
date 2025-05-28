@@ -27,6 +27,7 @@ func NewRemoveMemberFromHierarchyUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) RemoveMemberFromHierarchyUseCase {
+	logger = logger.Named("RemoveMemberFromHierarchyUseCase")
 	return &removeMemberFromHierarchyUseCaseImpl{config, logger, repo}
 }
 

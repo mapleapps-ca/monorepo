@@ -29,6 +29,7 @@ func NewFileSyncHTTPHandler(
 	repository dom_file.FileMetadataRepository,
 	middleware middleware.Middleware,
 ) *FileSyncHTTPHandler {
+	logger = logger.Named("FileSyncHTTPHandler")
 	return &FileSyncHTTPHandler{
 		config:     config,
 		logger:     logger,

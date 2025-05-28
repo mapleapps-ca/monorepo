@@ -27,6 +27,7 @@ func NewRemoveCollectionMemberUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) RemoveCollectionMemberUseCase {
+	logger = logger.Named("RemoveCollectionMemberUseCase")
 	return &removeCollectionMemberUseCaseImpl{config, logger, repo}
 }
 

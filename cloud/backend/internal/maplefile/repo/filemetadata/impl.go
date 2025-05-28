@@ -20,6 +20,8 @@ type fileMetadataRepositoryImpl struct {
 }
 
 func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mongo.Client) dom_file.FileMetadataRepository {
+	loggerp = loggerp.Named("FileMetadataRepository")
+
 	// Initialize collection in the MapleFile database
 	fc := client.Database(appCfg.DB.MapleFileName).Collection("files")
 

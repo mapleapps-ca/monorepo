@@ -28,6 +28,7 @@ func NewListSharedCollectionsService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) ListSharedCollectionsService {
+	logger = logger.Named("ListSharedCollectionsService")
 	return &listSharedCollectionsServiceImpl{
 		config: config,
 		logger: logger,

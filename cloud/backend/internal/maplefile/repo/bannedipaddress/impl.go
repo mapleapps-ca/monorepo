@@ -21,6 +21,8 @@ type bannedIPAddressImpl struct {
 }
 
 func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mongo.Client) dom_banip.Repository {
+	loggerp = loggerp.Named("BannedIPAddressRepository")
+
 	// ctx := context.Background()
 	uc := client.Database(appCfg.DB.MapleFileName).Collection("banned_ip_addresses")
 

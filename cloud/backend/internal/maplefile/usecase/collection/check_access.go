@@ -27,6 +27,7 @@ func NewCheckCollectionAccessUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) CheckCollectionAccessUseCase {
+	logger = logger.Named("CheckCollectionAccessUseCase")
 	return &checkCollectionAccessUseCaseImpl{config, logger, repo}
 }
 

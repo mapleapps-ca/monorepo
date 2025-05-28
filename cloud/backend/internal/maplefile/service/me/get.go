@@ -90,6 +90,7 @@ func NewGetMeService(
 	userCreateUseCase uc_user.UserCreateUseCase,
 	userUpdateUseCase uc_user.UserUpdateUseCase,
 ) GetMeService {
+	logger = logger.Named("GetMeService")
 	return &getMeServiceImpl{
 		config:                      config,
 		logger:                      logger,

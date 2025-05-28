@@ -45,6 +45,7 @@ func NewShareCollectionService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) ShareCollectionService {
+	logger = logger.Named("ShareCollectionService")
 	return &shareCollectionServiceImpl{
 		config: config,
 		logger: logger,

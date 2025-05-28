@@ -88,6 +88,7 @@ func NewVerifyProfileService(
 	userGetByIDUseCase uc_user.UserGetByIDUseCase,
 	userUpdateUseCase uc_user.UserUpdateUseCase,
 ) VerifyProfileService {
+	logger = logger.Named("VerifyProfileService")
 	return &verifyProfileServiceImpl{
 		config:             config,
 		logger:             logger,

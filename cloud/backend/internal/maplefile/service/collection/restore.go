@@ -38,6 +38,7 @@ func NewRestoreCollectionService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) RestoreCollectionService {
+	logger = logger.Named("RestoreCollectionService")
 	return &restoreCollectionServiceImpl{
 		config: config,
 		logger: logger,

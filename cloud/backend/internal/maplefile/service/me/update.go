@@ -49,6 +49,7 @@ func NewUpdateMeService(
 	userGetByEmailUseCase uc_user.UserGetByEmailUseCase,
 	userUpdateUseCase uc_user.UserUpdateUseCase,
 ) UpdateMeService {
+	logger = logger.Named("UpdateMeService")
 	return &updateMeServiceImpl{
 		config:                config,
 		logger:                logger,

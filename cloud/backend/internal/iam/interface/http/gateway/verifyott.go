@@ -31,6 +31,7 @@ func NewGatewayVerifyLoginOTTHTTPHandler(
 	service sv_gateway.GatewayVerifyLoginOTTService,
 	middleware middleware.Middleware,
 ) *GatewayVerifyLoginOTTHTTPHandler {
+	logger = logger.Named("GatewayVerifyLoginOTTHTTPHandler")
 	return &GatewayVerifyLoginOTTHTTPHandler{
 		logger:     logger,
 		dbClient:   dbClient,

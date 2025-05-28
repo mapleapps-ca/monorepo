@@ -29,6 +29,7 @@ func NewGatewayForgotPasswordHTTPHandler(
 	service sv_gateway.GatewayForgotPasswordService,
 	middleware middleware.Middleware,
 ) *GatewayForgotPasswordHTTPHandler {
+	logger = logger.Named("GatewayForgotPasswordHTTPHandler")
 	return &GatewayForgotPasswordHTTPHandler{
 		logger:     logger,
 		dbClient:   dbClient,

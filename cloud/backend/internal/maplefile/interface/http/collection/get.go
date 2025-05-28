@@ -32,6 +32,7 @@ func NewGetCollectionHTTPHandler(
 	service svc_collection.GetCollectionService,
 	middleware middleware.Middleware,
 ) *GetCollectionHTTPHandler {
+	logger = logger.Named("GetCollectionHTTPHandler")
 	return &GetCollectionHTTPHandler{
 		config:     config,
 		logger:     logger,

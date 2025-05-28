@@ -145,29 +145,31 @@ func (s *syncService) SyncCollections(ctx context.Context, input *SyncCollection
 		}
 	}
 
-	// Update sync state if we processed any data and got a final cursor
-	if progressOutput.TotalItems > 0 && progressOutput.FinalCursor != nil {
-		saveInput := &syncstate.SaveInput{
-			LastCollectionSync: &progressOutput.FinalCursor.LastModified,
-			LastCollectionID:   &progressOutput.FinalCursor.LastID,
-		}
-		s.logger.Debug("Attempting to save sync state for collections",
-			zap.Time("lastCollectionSync", *saveInput.LastCollectionSync),
-			zap.String("lastCollectionID", saveInput.LastCollectionID.Hex())) // Convert ObjectID to string
+	// TODO: UNCOMMENT BELOW WHEN READY!
 
-		_, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
-		if err != nil {
-			s.logger.Error("Failed to update sync state for collections", zap.Error(err))
-			// Don't fail the entire operation for sync state update failure
-			result.Errors = append(result.Errors, "failed to update sync state: "+err.Error())
-		} else {
-			s.logger.Info("Successfully updated sync state for collections")
-		}
-	} else if progressOutput.TotalItems > 0 && progressOutput.FinalCursor == nil {
-		s.logger.Warn("Processed items but did not receive a final cursor for collections. Sync state not updated.")
-	} else {
-		s.logger.Info("No items processed for collections. Sync state not updated.")
-	}
+	// // Update sync state if we processed any data and got a final cursor
+	// if progressOutput.TotalItems > 0 && progressOutput.FinalCursor != nil {
+	// 	saveInput := &syncstate.SaveInput{
+	// 		LastCollectionSync: &progressOutput.FinalCursor.LastModified,
+	// 		LastCollectionID:   &progressOutput.FinalCursor.LastID,
+	// 	}
+	// 	s.logger.Debug("Attempting to save sync state for collections",
+	// 		zap.Time("lastCollectionSync", *saveInput.LastCollectionSync),
+	// 		zap.String("lastCollectionID", saveInput.LastCollectionID.Hex())) // Convert ObjectID to string
+
+	// 	_, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
+	// 	if err != nil {
+	// 		s.logger.Error("Failed to update sync state for collections", zap.Error(err))
+	// 		// Don't fail the entire operation for sync state update failure
+	// 		result.Errors = append(result.Errors, "failed to update sync state: "+err.Error())
+	// 	} else {
+	// 		s.logger.Info("Successfully updated sync state for collections")
+	// 	}
+	// } else if progressOutput.TotalItems > 0 && progressOutput.FinalCursor == nil {
+	// 	s.logger.Warn("Processed items but did not receive a final cursor for collections. Sync state not updated.")
+	// } else {
+	// 	s.logger.Info("No items processed for collections. Sync state not updated.")
+	// }
 
 	s.logger.Info("Collection synchronization completed",
 		zap.Int("processed", result.CollectionsProcessed),

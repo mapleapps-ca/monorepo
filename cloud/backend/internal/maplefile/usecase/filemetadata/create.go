@@ -24,6 +24,7 @@ func NewCreateFileMetadataUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileMetadataRepository,
 ) CreateFileMetadataUseCase {
+	logger = logger.Named("CreateFileMetadataUseCase")
 	return &createFileMetadataUseCaseImpl{config, logger, repo}
 }
 

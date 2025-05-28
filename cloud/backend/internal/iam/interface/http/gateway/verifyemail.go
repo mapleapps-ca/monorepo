@@ -30,6 +30,7 @@ func NewGatewayVerifyEmailHTTPHandler(
 	service sv_gateway.GatewayVerifyEmailService,
 	middleware middleware.Middleware,
 ) *GatewayVerifyEmailHTTPHandler {
+	logger = logger.Named("GatewayVerifyEmailHTTPHandler")
 	return &GatewayVerifyEmailHTTPHandler{
 		logger:     logger,
 		dbClient:   dbClient,

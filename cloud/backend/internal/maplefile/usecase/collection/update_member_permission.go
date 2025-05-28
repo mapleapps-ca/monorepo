@@ -27,6 +27,7 @@ func NewUpdateMemberPermissionUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) UpdateMemberPermissionUseCase {
+	logger = logger.Named("UpdateMemberPermissionUseCase")
 	return &updateMemberPermissionUseCaseImpl{config, logger, repo}
 }
 

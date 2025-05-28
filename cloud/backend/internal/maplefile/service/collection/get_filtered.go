@@ -40,6 +40,7 @@ func NewGetFilteredCollectionsService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) GetFilteredCollectionsService {
+	logger = logger.Named("GetFilteredCollectionsService")
 	return &getFilteredCollectionsServiceImpl{
 		config: config,
 		logger: logger,

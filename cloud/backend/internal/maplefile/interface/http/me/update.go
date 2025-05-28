@@ -34,6 +34,8 @@ func NewPutUpdateMeHTTPHandler(
 	service svc_me.UpdateMeService,
 	middleware middleware.Middleware,
 ) *PutUpdateMeHTTPHandler {
+	logger = logger.With(zap.String("module", "maplefile"))
+	logger = logger.Named("PutUpdateMeHTTPHandler")
 	return &PutUpdateMeHTTPHandler{
 		config:     config,
 		logger:     logger,

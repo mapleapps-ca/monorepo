@@ -32,6 +32,7 @@ func NewArchiveCollectionHTTPHandler(
 	service svc_collection.ArchiveCollectionService,
 	middleware middleware.Middleware,
 ) *ArchiveCollectionHTTPHandler {
+	logger = logger.Named("ArchiveCollectionHTTPHandler")
 	return &ArchiveCollectionHTTPHandler{
 		config:     config,
 		logger:     logger,

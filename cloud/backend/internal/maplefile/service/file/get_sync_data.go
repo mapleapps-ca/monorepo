@@ -30,6 +30,7 @@ func NewGetFileSyncDataService(
 	logger *zap.Logger,
 	getFileSyncDataUseCase uc_filemetadata.GetFileMetadataSyncDataUseCase,
 ) GetFileSyncDataService {
+	logger = logger.Named("GetFileSyncDataService")
 	return &getFileSyncDataServiceImpl{
 		config:                 config,
 		logger:                 logger,

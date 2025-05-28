@@ -50,6 +50,7 @@ func NewGetPresignedUploadURLService(
 	getMetadataUseCase uc_filemetadata.GetFileMetadataUseCase,
 	generatePresignedUploadURLUseCase uc_fileobjectstorage.GeneratePresignedUploadURLUseCase,
 ) GetPresignedUploadURLService {
+	logger = logger.Named("GetPresignedUploadURLService")
 	return &getPresignedUploadURLServiceImpl{
 		config:                            config,
 		logger:                            logger,

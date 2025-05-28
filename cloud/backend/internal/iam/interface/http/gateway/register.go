@@ -32,6 +32,7 @@ func NewGatewayFederatedUserRegisterHTTPHandler(
 	service sv_gateway.GatewayFederatedUserRegisterService,
 	middleware middleware.Middleware,
 ) *GatewayFederatedUserRegisterHTTPHandler {
+	logger = logger.Named("GatewayFederatedUserRegisterHTTPHandler")
 	return &GatewayFederatedUserRegisterHTTPHandler{
 		logger:     logger,
 		dbClient:   dbClient,

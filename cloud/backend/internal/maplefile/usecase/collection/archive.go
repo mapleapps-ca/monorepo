@@ -27,6 +27,7 @@ func NewArchiveCollectionUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) ArchiveCollectionUseCase {
+	logger = logger.Named("ArchiveCollectionUseCase")
 	return &archiveCollectionUseCaseImpl{config, logger, repo}
 }
 

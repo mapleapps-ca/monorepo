@@ -27,6 +27,7 @@ func NewListCollectionsSharedWithUserUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) ListCollectionsSharedWithUserUseCase {
+	logger = logger.Named("ListCollectionsSharedWithUserUseCase")
 	return &listCollectionsSharedWithUserUseCaseImpl{config, logger, repo}
 }
 

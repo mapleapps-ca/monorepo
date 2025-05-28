@@ -30,6 +30,7 @@ func NewGatewayRefreshTokenHTTPHandler(
 	service sv_gateway.GatewayRefreshTokenService,
 	middleware middleware.Middleware,
 ) *GatewayRefreshTokenHTTPHandler {
+	logger = logger.Named("GatewayRefreshTokenHTTPHandler")
 	return &GatewayRefreshTokenHTTPHandler{
 		logger:     logger,
 		dbClient:   dbClient,

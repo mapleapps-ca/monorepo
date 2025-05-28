@@ -26,6 +26,7 @@ func NewUserListByFilterUseCase(
 	logger *zap.Logger,
 	repo dom_user.Repository,
 ) UserListByFilterUseCase {
+	logger = logger.Named("UserListByFilterUseCase")
 	return &userListByFilterUseCaseImpl{config, logger, repo}
 }
 

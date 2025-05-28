@@ -32,6 +32,7 @@ func NewGetFileService(
 	collectionRepo dom_collection.CollectionRepository,
 	getMetadataUseCase uc_filemetadata.GetFileMetadataUseCase,
 ) GetFileService {
+	logger = logger.Named("GetFileService")
 	return &getFileServiceImpl{
 		config:             config,
 		logger:             logger,

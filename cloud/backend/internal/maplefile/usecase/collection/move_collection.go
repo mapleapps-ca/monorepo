@@ -35,6 +35,7 @@ func NewMoveCollectionUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) MoveCollectionUseCase {
+	logger = logger.Named("MoveCollectionUseCase")
 	return &moveCollectionUseCaseImpl{config, logger, repo}
 }
 

@@ -33,6 +33,7 @@ func NewListUserCollectionsService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) ListUserCollectionsService {
+	logger = logger.Named("ListUserCollectionsService")
 	return &listUserCollectionsServiceImpl{
 		config: config,
 		logger: logger,

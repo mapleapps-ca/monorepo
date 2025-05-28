@@ -31,6 +31,7 @@ func NewGatewayRequestLoginOTTHTTPHandler(
 	service sv_gateway.GatewayRequestLoginOTTService,
 	middleware middleware.Middleware,
 ) *GatewayRequestLoginOTTHTTPHandler {
+	logger = logger.Named("GatewayRequestLoginOTTHTTPHandler")
 	return &GatewayRequestLoginOTTHTTPHandler{
 		logger:     logger,
 		dbClient:   dbClient,

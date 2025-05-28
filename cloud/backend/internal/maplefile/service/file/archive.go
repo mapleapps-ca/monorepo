@@ -44,6 +44,7 @@ func NewArchiveFileService(
 	getMetadataUseCase uc_filemetadata.GetFileMetadataUseCase,
 	updateMetadataUseCase uc_filemetadata.UpdateFileMetadataUseCase,
 ) ArchiveFileService {
+	logger = logger.Named("ArchiveFileService")
 	return &archiveFileServiceImpl{
 		config:                config,
 		logger:                logger,

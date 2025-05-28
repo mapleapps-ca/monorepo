@@ -58,7 +58,7 @@ type Collection struct {
 	ModifiedAt       time.Time          `bson:"modified_at" json:"modified_at"`
 	ModifiedByUserID primitive.ObjectID `bson:"modified_by_user_id" json:"modified_by_user_id"`
 	// The current version of the file.
-	Version uint64 `bson:"version" json:"version"`
+	Version uint64 `bson:"version" json:"version"` // Every mutation (create, update, delete, etc) is a versioned operation, keep track of the version number with this variable
 
 	// Decrypted content details and local sync tracking
 	Name       string     `json:"name" bson:"name"`

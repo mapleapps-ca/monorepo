@@ -22,6 +22,7 @@ type userDeleteUserByEmailImpl struct {
 }
 
 func NewUserDeleteUserByEmailUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) UserDeleteUserByEmailUseCase {
+	logger = logger.Named("UserDeleteUserByEmailUseCase")
 	return &userDeleteUserByEmailImpl{config, logger, repo}
 }
 

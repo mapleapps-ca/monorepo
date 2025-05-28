@@ -30,6 +30,7 @@ func NewGetCollectionSyncDataService(
 	logger *zap.Logger,
 	getCollectionSyncDataUseCase uc_collection.GetCollectionSyncDataUseCase,
 ) GetCollectionSyncDataService {
+	logger = logger.Named("GetCollectionSyncDataService")
 	return &getCollectionSyncDataServiceImpl{
 		config:                       config,
 		logger:                       logger,

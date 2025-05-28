@@ -27,6 +27,7 @@ func NewFindRootCollectionsUseCase(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) FindRootCollectionsUseCase {
+	logger = logger.Named("FindRootCollectionsUseCase")
 	return &findRootCollectionsUseCaseImpl{config, logger, repo}
 }
 

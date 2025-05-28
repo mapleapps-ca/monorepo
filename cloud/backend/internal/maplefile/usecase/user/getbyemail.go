@@ -22,6 +22,7 @@ type userGetByEmailUseCaseImpl struct {
 }
 
 func NewUserGetByEmailUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) UserGetByEmailUseCase {
+	logger = logger.Named("UserGetByEmailUseCase")
 	return &userGetByEmailUseCaseImpl{config, logger, repo}
 }
 

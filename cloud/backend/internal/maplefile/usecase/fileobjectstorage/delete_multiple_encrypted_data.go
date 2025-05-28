@@ -26,6 +26,7 @@ func NewDeleteMultipleEncryptedDataUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileObjectStorageRepository,
 ) DeleteMultipleEncryptedDataUseCase {
+	logger = logger.Named("DeleteMultipleEncryptedDataUseCase")
 	return &deleteMultipleEncryptedDataUseCaseImpl{config, logger, repo}
 }
 

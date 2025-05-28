@@ -44,6 +44,7 @@ func NewRestoreFileService(
 	getMetadataUseCase uc_filemetadata.GetFileMetadataUseCase,
 	updateMetadataUseCase uc_filemetadata.UpdateFileMetadataUseCase,
 ) RestoreFileService {
+	logger = logger.Named("RestoreFileService")
 	return &restoreFileServiceImpl{
 		config:                config,
 		logger:                logger,

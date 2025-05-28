@@ -31,6 +31,7 @@ func NewGatewayCompleteLoginHTTPHandler(
 	service sv_gateway.GatewayCompleteLoginService,
 	middleware middleware.Middleware,
 ) *GatewayCompleteLoginHTTPHandler {
+	logger = logger.Named("GatewayCompleteLoginHTTPHandler")
 	return &GatewayCompleteLoginHTTPHandler{
 		logger:     logger,
 		dbClient:   dbClient,

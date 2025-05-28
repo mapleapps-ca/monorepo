@@ -43,6 +43,7 @@ func NewUpdateFileService(
 	getMetadataUseCase uc_filemetadata.GetFileMetadataUseCase,
 	updateMetadataUseCase uc_filemetadata.UpdateFileMetadataUseCase,
 ) UpdateFileService {
+	logger = logger.Named("UpdateFileService")
 	return &updateFileServiceImpl{
 		config:                config,
 		logger:                logger,

@@ -13,6 +13,7 @@ import (
 )
 
 func NewProvider(appCfg *c.Configuration, logger *zap.Logger) *mongo.Client {
+	logger = logger.Named("MongoDB Provider")
 	logger.Debug("storage initializing...")
 
 	// DEVELOPERS NOTE:

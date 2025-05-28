@@ -24,6 +24,7 @@ func NewGetObjectSizeUseCase(
 	logger *zap.Logger,
 	repo dom_file.FileObjectStorageRepository,
 ) GetObjectSizeUseCase {
+	logger = logger.Named("GetObjectSizeUseCase")
 	return &getObjectSizeUseCaseImpl{config, logger, repo}
 }
 

@@ -78,6 +78,7 @@ func NewCreatePendingFileService(
 	createMetadataUseCase uc_filemetadata.CreateFileMetadataUseCase,
 	generatePresignedUploadURLUseCase uc_fileobjectstorage.GeneratePresignedUploadURLUseCase,
 ) CreatePendingFileService {
+	logger = logger.Named("CreatePendingFileService")
 	return &createPendingFileServiceImpl{
 		config:                            config,
 		logger:                            logger,

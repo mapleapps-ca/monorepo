@@ -65,6 +65,7 @@ func NewCompleteFileUploadService(
 	getObjectSizeUseCase uc_fileobjectstorage.GetObjectSizeUseCase,
 	deleteDataUseCase uc_fileobjectstorage.DeleteEncryptedDataUseCase,
 ) CompleteFileUploadService {
+	logger = logger.Named("CompleteFileUploadService")
 	return &completeFileUploadServiceImpl{
 		config:                    config,
 		logger:                    logger,

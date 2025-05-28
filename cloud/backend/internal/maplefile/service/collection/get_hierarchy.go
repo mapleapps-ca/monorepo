@@ -29,6 +29,7 @@ func NewGetCollectionHierarchyService(
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
 ) GetCollectionHierarchyService {
+	logger = logger.Named("GetCollectionHierarchyService")
 	return &getCollectionHierarchyServiceImpl{
 		config: config,
 		logger: logger,

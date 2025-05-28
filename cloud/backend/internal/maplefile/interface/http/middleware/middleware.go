@@ -30,6 +30,7 @@ func NewMiddleware(
 	uc2 uc_bannedipaddress.BannedIPAddressListAllValuesUseCase,
 ) Middleware {
 	logger = logger.With(zap.String("module", "maplefile"))
+	logger = logger.Named("MapleFile Middleware")
 	return &middleware{
 		logger:                              logger,
 		jwt:                                 jwtp,
