@@ -41,6 +41,9 @@ func Module() fx.Option {
 			// Collection services - Filtered operations
 			collection.NewGetFilteredCollectionsService,
 
+			// Collection services - Sync Data
+			collection.NewGetCollectionSyncDataService,
+
 			// File services
 			file.NewDeleteFileService,
 			file.NewDeleteMultipleFilesService,
@@ -55,6 +58,7 @@ func Module() fx.Option {
 			file.NewListFilesByOwnerIDService,
 			file.NewArchiveFileService,
 			file.NewRestoreFileService,
+			file.NewGetFileSyncDataService,
 		),
 	)
 }

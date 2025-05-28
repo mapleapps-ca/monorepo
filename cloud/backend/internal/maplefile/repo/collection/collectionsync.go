@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/repo/collection/sync.go
+// cloud/backend/internal/maplefile/repo/collection/collectionsync.go
 package collection
 
 import (
@@ -10,10 +10,10 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	dom_sync "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/sync"
+	dom_sync "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
 )
 
-func (impl collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, userID primitive.ObjectID, cursor *dom_sync.SyncCursor, limit int64) (*dom_sync.CollectionSyncResponse, error) {
+func (impl collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, userID primitive.ObjectID, cursor *dom_sync.CollectionSyncCursor, limit int64) (*dom_sync.CollectionSyncResponse, error) {
 	impl.Logger.Debug("Getting collection sync data",
 		zap.Any("user_id", userID),
 		zap.Any("cursor", cursor),
@@ -64,11 +64,13 @@ func (impl collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, 
 
 	// Project only the fields we need for sync
 	findOptions.SetProjection(bson.M{
-		"_id":         1,
-		"version":     1,
-		"modified_at": 1,
-		"state":       1,
-		"parent_id":   1,
+		"_id":               1,
+		"version":           1,
+		"modified_at":       1,
+		"state":             1,
+		"parent_id":         1,
+		"tombstone_version": 1,
+		"tombstone_expiry":  1,
 	})
 
 	impl.Logger.Debug("Executing collection sync query",
@@ -101,7 +103,7 @@ func (impl collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, 
 
 	// Check if there are more results and prepare response
 	hasMore := false
-	var nextCursor *dom_sync.SyncCursor
+	var nextCursor *dom_sync.CollectionSyncCursor
 
 	if int64(len(syncItems)) > limit {
 		hasMore = true
@@ -112,7 +114,7 @@ func (impl collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, 
 	// Set next cursor if there are more results
 	if hasMore && len(syncItems) > 0 {
 		lastItem := syncItems[len(syncItems)-1]
-		nextCursor = &dom_sync.SyncCursor{
+		nextCursor = &dom_sync.CollectionSyncCursor{
 			LastModified: lastItem.ModifiedAt,
 			LastID:       lastItem.ID,
 		}

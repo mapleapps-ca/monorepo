@@ -10,7 +10,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/me"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
-	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/sync"
 )
 
 func Module() fx.Option {
@@ -50,6 +49,9 @@ func Module() fx.Option {
 			// Collection handlers - Filtered operations
 			unifiedhttp.AsRoute(collection.NewGetFilteredCollectionsHTTPHandler),
 
+			// Sync handlers
+			unifiedhttp.AsRoute(collection.NewCollectionSyncHTTPHandler),
+
 			// File handlers
 			unifiedhttp.AsRoute(file.NewDeleteFileHTTPHandler),
 			unifiedhttp.AsRoute(file.NewDeleteMultipleFilesHTTPHandler),
@@ -64,8 +66,7 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(file.NewRestoreFileHTTPHandler),
 
 			// Sync handlers
-			unifiedhttp.AsRoute(sync.NewCollectionSyncHTTPHandler),
-			unifiedhttp.AsRoute(sync.NewFileSyncHTTPHandler),
+			unifiedhttp.AsRoute(file.NewFileSyncHTTPHandler),
 		),
 	)
 }

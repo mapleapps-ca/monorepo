@@ -1,5 +1,5 @@
-// cloud/backend/internal/maplefile/interface/http/sync/file_sync.go
-package sync
+// cloud/backend/internal/maplefile/interface/http/file/sync.go
+package file
 
 import (
 	"encoding/json"
@@ -12,7 +12,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config/constants"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/file"
-	dom_sync "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/sync"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
@@ -83,9 +82,9 @@ func (h *FileSyncHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse cursor parameter
-	var cursor *dom_sync.SyncCursor
+	var cursor *dom_file.FileSyncCursor
 	if cursorStr := queryParams.Get("cursor"); cursorStr != "" {
-		var parsedCursor dom_sync.SyncCursor
+		var parsedCursor dom_file.FileSyncCursor
 		if err := json.Unmarshal([]byte(cursorStr), &parsedCursor); err != nil {
 			h.logger.Error("Failed to parse cursor parameter",
 				zap.String("cursor", cursorStr),
@@ -102,7 +101,7 @@ func (h *FileSyncHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		zap.Any("cursor", cursor))
 
 	// Call repository to get sync data
-	response, err := h.repository.GetFileSyncData(ctx, userID, cursor, limit)
+	response, err := h.repository.GetSyncData(ctx, userID, cursor, limit)
 	if err != nil {
 		h.logger.Error("Failed to get file sync data",
 			zap.Any("user_id", userID),

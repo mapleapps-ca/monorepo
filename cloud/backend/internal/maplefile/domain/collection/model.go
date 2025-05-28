@@ -95,3 +95,27 @@ type CollectionMembership struct {
 	IsInherited     bool               `bson:"is_inherited" json:"is_inherited"`                               // Tracks whether access was granted directly or inherited from a parent
 	InheritedFromID primitive.ObjectID `bson:"inherited_from_id,omitempty" json:"inherited_from_id,omitempty"` // InheritedFromID identifies which parent collection granted this access
 }
+
+// CollectionSyncCursor represents cursor-based pagination for sync operations
+type CollectionSyncCursor struct {
+	LastModified time.Time          `json:"last_modified" bson:"last_modified"`
+	LastID       primitive.ObjectID `json:"last_id" bson:"last_id"`
+}
+
+// CollectionSyncItem represents minimal collection data for sync operations
+type CollectionSyncItem struct {
+	ID               primitive.ObjectID  `json:"id" bson:"_id"`
+	Version          uint64              `json:"version" bson:"version"`
+	ModifiedAt       time.Time           `json:"modified_at" bson:"modified_at"`
+	State            string              `json:"state" bson:"state"`
+	ParentID         *primitive.ObjectID `json:"parent_id,omitempty" bson:"parent_id,omitempty"`
+	TombstoneVersion uint64              `bson:"tombstone_version" json:"tombstone_version"`
+	TombstoneExpiry  time.Time           `bson:"tombstone_expiry" json:"tombstone_expiry"`
+}
+
+// CollectionSyncResponse represents the response for collection sync data
+type CollectionSyncResponse struct {
+	Collections []CollectionSyncItem  `json:"collections"`
+	NextCursor  *CollectionSyncCursor `json:"next_cursor,omitempty"`
+	HasMore     bool                  `json:"has_more"`
+}

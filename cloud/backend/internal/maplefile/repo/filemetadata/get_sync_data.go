@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/repo/filemetadata/sync.go
+// cloud/backend/internal/maplefile/repo/filemetadata/get_sync_data.go
 package filemetadata
 
 import (
@@ -10,10 +10,10 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	dom_sync "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/sync"
+	dom_sync "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/file"
 )
 
-func (impl fileMetadataRepositoryImpl) GetFileSyncData(ctx context.Context, userID primitive.ObjectID, cursor *dom_sync.SyncCursor, limit int64) (*dom_sync.FileSyncResponse, error) {
+func (impl fileMetadataRepositoryImpl) GetSyncData(ctx context.Context, userID primitive.ObjectID, cursor *dom_sync.FileSyncCursor, limit int64) (*dom_sync.FileSyncResponse, error) {
 	impl.Logger.Debug("Getting file sync data",
 		zap.Any("user_id", userID),
 		zap.Any("cursor", cursor),
@@ -98,11 +98,13 @@ func (impl fileMetadataRepositoryImpl) GetFileSyncData(ctx context.Context, user
 
 	// Project only the fields we need for sync
 	findOptions.SetProjection(bson.M{
-		"_id":           1,
-		"collection_id": 1,
-		"version":       1,
-		"modified_at":   1,
-		"state":         1,
+		"_id":               1,
+		"collection_id":     1,
+		"version":           1,
+		"modified_at":       1,
+		"state":             1,
+		"tombstone_version": 1,
+		"tombstone_expiry":  1,
 	})
 
 	impl.Logger.Debug("Executing file sync query",
@@ -136,7 +138,7 @@ func (impl fileMetadataRepositoryImpl) GetFileSyncData(ctx context.Context, user
 
 	// Check if there are more results and prepare response
 	hasMore := false
-	var nextCursor *dom_sync.SyncCursor
+	var nextCursor *dom_sync.FileSyncCursor
 
 	if int64(len(syncItems)) > limit {
 		hasMore = true
@@ -147,7 +149,7 @@ func (impl fileMetadataRepositoryImpl) GetFileSyncData(ctx context.Context, user
 	// Set next cursor if there are more results
 	if hasMore && len(syncItems) > 0 {
 		lastItem := syncItems[len(syncItems)-1]
-		nextCursor = &dom_sync.SyncCursor{
+		nextCursor = &dom_sync.FileSyncCursor{
 			LastModified: lastItem.ModifiedAt,
 			LastID:       lastItem.ID,
 		}

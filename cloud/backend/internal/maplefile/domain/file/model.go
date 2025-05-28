@@ -70,3 +70,27 @@ type File struct {
 	TombstoneVersion uint64    `bson:"tombstone_version" json:"tombstone_version"` // The `version` number that this collection was deleted at.
 	TombstoneExpiry  time.Time `bson:"tombstone_expiry" json:"tombstone_expiry"`
 }
+
+// FileSyncCursor represents cursor-based pagination for sync operations
+type FileSyncCursor struct {
+	LastModified time.Time          `json:"last_modified" bson:"last_modified"`
+	LastID       primitive.ObjectID `json:"last_id" bson:"last_id"`
+}
+
+// FileSyncItem represents minimal file data for sync operations
+type FileSyncItem struct {
+	ID               primitive.ObjectID `json:"id" bson:"_id"`
+	CollectionID     primitive.ObjectID `json:"collection_id" bson:"collection_id"`
+	Version          uint64             `json:"version" bson:"version"`
+	ModifiedAt       time.Time          `json:"modified_at" bson:"modified_at"`
+	State            string             `json:"state" bson:"state"`
+	TombstoneVersion uint64             `bson:"tombstone_version" json:"tombstone_version"`
+	TombstoneExpiry  time.Time          `bson:"tombstone_expiry" json:"tombstone_expiry"`
+}
+
+// FileSyncResponse represents the response for file sync data
+type FileSyncResponse struct {
+	Files      []FileSyncItem  `json:"files"`
+	NextCursor *FileSyncCursor `json:"next_cursor,omitempty"`
+	HasMore    bool            `json:"has_more"`
+}

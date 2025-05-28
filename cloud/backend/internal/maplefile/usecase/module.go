@@ -54,6 +54,7 @@ func Module() fx.Option {
 			collection.NewRemoveMemberFromHierarchyUseCase,
 			collection.NewUpdateCollectionUseCase,
 			collection.NewUpdateMemberPermissionUseCase,
+			collection.NewGetCollectionSyncDataUseCase,
 
 			// File Metadata use cases
 			filemetadata.NewCreateFileMetadataUseCase,
@@ -68,6 +69,7 @@ func Module() fx.Option {
 			filemetadata.NewCheckFileAccessUseCase,
 			filemetadata.NewGetFileMetadataByCreatedByUserIDUseCase,
 			filemetadata.NewGetFileMetadataByOwnerIDUseCase,
+			filemetadata.NewGetFileMetadataSyncDataUseCase,
 
 			// File Object Storage use cases
 			fileobjectstorage.NewStoreEncryptedDataUseCase,

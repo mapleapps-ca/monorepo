@@ -1,5 +1,5 @@
-// cloud/backend/internal/maplefile/interface/http/sync/collection_sync.go
-package sync
+// cloud/backend/internal/maplefile/interface/http/collection/sync.go
+package collection
 
 import (
 	"encoding/json"
@@ -12,7 +12,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config/constants"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
-	dom_sync "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/sync"
+	dom_sync "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
@@ -83,9 +83,9 @@ func (h *CollectionSyncHTTPHandler) Execute(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Parse cursor parameter
-	var cursor *dom_sync.SyncCursor
+	var cursor *dom_sync.CollectionSyncCursor
 	if cursorStr := queryParams.Get("cursor"); cursorStr != "" {
-		var parsedCursor dom_sync.SyncCursor
+		var parsedCursor dom_sync.CollectionSyncCursor
 		if err := json.Unmarshal([]byte(cursorStr), &parsedCursor); err != nil {
 			h.logger.Error("Failed to parse cursor parameter",
 				zap.String("cursor", cursorStr),
