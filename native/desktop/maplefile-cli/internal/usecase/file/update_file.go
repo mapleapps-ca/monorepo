@@ -26,6 +26,7 @@ type UpdateFileInput struct {
 	ThumbnailPath          *string
 	StorageMode            *string
 	SyncStatus             *file.SyncStatus
+	Version                *uint64
 }
 
 // UpdateFileUseCase defines the interface for updating a local file
@@ -100,6 +101,10 @@ func (uc *updateFileUseCase) Execute(
 
 	if input.SyncStatus != nil {
 		file.SyncStatus = *input.SyncStatus
+	}
+
+	if input.Version != nil {
+		file.Version = *input.Version
 	}
 
 	if input.StorageMode != nil {

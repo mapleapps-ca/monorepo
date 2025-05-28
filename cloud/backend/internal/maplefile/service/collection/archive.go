@@ -3,6 +3,7 @@ package collection
 
 import (
 	"context"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -113,6 +114,9 @@ func (svc *archiveCollectionServiceImpl) Execute(ctx context.Context, req *Archi
 	// STEP 6: Archive the collection
 	//
 	collection.State = dom_collection.CollectionStateArchived
+	collection.Version++ // Update mutation means we increment version.
+	collection.ModifiedAt = time.Now()
+	collection.ModifiedByUserID = userID
 	err = svc.repo.Update(ctx, collection)
 	if err != nil {
 		svc.logger.Error("Failed to archive collection",

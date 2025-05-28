@@ -3,6 +3,7 @@ package file
 
 import (
 	"context"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -125,6 +126,9 @@ func (svc *archiveFileServiceImpl) Execute(ctx context.Context, req *ArchiveFile
 	// STEP 6: Archive the file
 	//
 	file.State = dom_file.FileStateArchived
+	file.Version++ // Mutation means we increment version.
+	file.ModifiedAt = time.Now()
+	file.ModifiedByUserID = userID
 	err = svc.updateMetadataUseCase.Execute(file)
 	if err != nil {
 		svc.logger.Error("Failed to archive file",

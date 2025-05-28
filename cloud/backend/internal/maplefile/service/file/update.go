@@ -3,6 +3,7 @@ package file
 
 import (
 	"context"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -133,6 +134,10 @@ func (svc *updateFileServiceImpl) Execute(ctx context.Context, req *UpdateFileRe
 		svc.logger.Warn("No fields to update provided")
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "At least one field must be provided for update")
 	}
+
+	file.Version++ // Mutation means we increment version.
+	file.ModifiedAt = time.Now()
+	file.ModifiedByUserID = userID
 
 	//
 	// STEP 6: Save updated file

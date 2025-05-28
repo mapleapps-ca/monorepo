@@ -3,6 +3,7 @@ package file
 
 import (
 	"context"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -159,6 +160,11 @@ func (svc *deleteFileServiceImpl) Execute(ctx context.Context, req *DeleteFileRe
 				zap.String("thumbnail_storage_path", file.EncryptedThumbnailObjectKey))
 		}
 	}
+
+	file.Version++ // Mutation means we increment version.
+	file.ModifiedAt = time.Now()
+	file.ModifiedByUserID = userID
+	//TODO: FIX
 
 	//
 	// STEP 6: Delete file metadata

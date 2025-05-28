@@ -3,6 +3,7 @@ package file
 
 import (
 	"context"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -125,6 +126,9 @@ func (svc *restoreFileServiceImpl) Execute(ctx context.Context, req *RestoreFile
 	// STEP 6: Restore the file
 	//
 	file.State = dom_file.FileStateActive
+	file.Version++ // Mutation means we increment version.
+	file.ModifiedAt = time.Now()
+	file.ModifiedByUserID = userID
 	err = svc.updateMetadataUseCase.Execute(file)
 	if err != nil {
 		svc.logger.Error("Failed to restore file",

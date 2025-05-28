@@ -176,6 +176,11 @@ func (svc *deleteMultipleFilesServiceImpl) Execute(ctx context.Context, req *Del
 		}
 	}
 
+	//TODO: FIX keeping track of version + modified at
+	// file.Version++ // Mutation means we increment version.
+	// file.ModifiedAt = time.Now()
+	// file.ModifiedByUserID = userID
+
 	//
 	// STEP 6: Delete file metadata
 	//

@@ -3,6 +3,7 @@ package collection
 
 import (
 	"context"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -73,7 +74,7 @@ func (svc *deleteCollectionServiceImpl) Execute(ctx context.Context, req *Delete
 	}
 
 	//
-	// STEP 3: Retrieve existing collection
+	// STEP 3: Retrieve related records
 	//
 	collection, err := svc.repo.Get(ctx, req.ID)
 	if err != nil {
@@ -106,6 +107,16 @@ func (svc *deleteCollectionServiceImpl) Execute(ctx context.Context, req *Delete
 			zap.Error(err))
 		return nil, err
 	}
+
+	// Update mutation means we increment version.
+	collection.State = dom_collection.CollectionStateDeleted
+	collection.Version++
+	collection.ModifiedAt = time.Now()
+	collection.ModifiedByUserID = userID
+	collection.TombstoneVersion = collection.Version
+	collection.TombstoneExpiry = collection.ModifiedAt
+
+	//TODO: IMPLEMENTED SAVE
 
 	// //
 	// // STEP 5: Check for child collections
