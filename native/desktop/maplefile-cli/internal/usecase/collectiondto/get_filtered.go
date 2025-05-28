@@ -66,7 +66,7 @@ func (uc *getFilteredCollectionsFromCloudUseCase) Execute(ctx context.Context, r
 	response, err := uc.repository.GetFilteredCollectionsFromCloud(ctx, request)
 	if err != nil {
 		uc.logger.Error("Failed to get filtered collections from cloud", zap.Error(err))
-		return nil, errors.NewAppError("failed to get filtered collections from cloud", err)
+		return nil, errors.NewAppError("failed to get filtered collections from the cloud", err)
 	}
 
 	//

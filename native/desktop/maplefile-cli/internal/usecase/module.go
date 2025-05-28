@@ -37,6 +37,7 @@ func UseCaseModule() fx.Option {
 		// Cloud-based collection use cases
 		fx.Provide(collectiondto.NewCreateCollectionInCloudUseCase),
 		fx.Provide(collectiondto.NewGetFilteredCollectionsFromCloudUseCase),
+		fx.Provide(collectiondto.NewGetCollectionFromCloudUseCase),
 
 		// Local-based collection use cases
 		fx.Provide(collection.NewCreateCollectionUseCase),
