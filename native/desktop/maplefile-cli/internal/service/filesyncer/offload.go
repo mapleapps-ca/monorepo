@@ -229,6 +229,7 @@ func (s *offloadService) handleOffloadOnly(
 	// Update sync status to CloudOnly and clear both file paths
 	updateInput := uc_file.UpdateFileInput{
 		ID: file.ID,
+		// Developers note: We don't need to update the state, this is a strict local feature that doesn't affect the distributed clients and doesn't affect the cloud state.
 	}
 
 	newStatus := dom_file.SyncStatusCloudOnly

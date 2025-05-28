@@ -253,6 +253,7 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	//
 	updateInput := uc_file.UpdateFileInput{
 		ID: file.ID,
+		// Developers note: We don't need to update the state, this is a strict local feature that doesn't affect the distributed clients and doesn't affect the cloud state.
 	}
 
 	newMode := dom_file.StorageModeEncryptedOnly

@@ -268,6 +268,7 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 	//
 	updateInput := uc_file.UpdateFileInput{
 		ID: file.ID,
+		// Developers note: We don't need to update the state, this is a strict local feature that doesn't affect the distributed clients and doesn't affect the cloud state.
 	}
 
 	updateInput.StorageMode = &input.StorageMode
