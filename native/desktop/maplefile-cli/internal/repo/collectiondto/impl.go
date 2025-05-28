@@ -26,6 +26,7 @@ func NewCollectionDTORepository(
 	configService config.ConfigService,
 	tokenRepository auth.TokenRepository,
 ) collectiondto.CollectionDTORepository {
+	logger = logger.Named("CollectionDTORepository")
 	return &collectionDTORepository{
 		logger:          logger,
 		configService:   configService,

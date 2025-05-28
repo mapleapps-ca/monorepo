@@ -33,6 +33,7 @@ func NewResetService(
 	logger *zap.Logger,
 	syncStateRepo syncstate.SyncStateRepository,
 ) ResetService {
+	logger = logger.Named("ResetService")
 	return &resetService{
 		logger:        logger,
 		syncStateRepo: syncStateRepo,

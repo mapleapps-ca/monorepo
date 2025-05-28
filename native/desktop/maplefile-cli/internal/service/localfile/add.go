@@ -82,6 +82,7 @@ func NewAddService(
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
 ) AddService {
+	logger = logger.Named("AddService")
 	return &addService{
 		logger:                     logger,
 		configService:              configService,

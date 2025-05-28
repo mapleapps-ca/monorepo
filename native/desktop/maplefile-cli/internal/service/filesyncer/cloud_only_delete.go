@@ -49,6 +49,7 @@ func NewCloudOnlyDeleteService(
 	updateFileUseCase uc_file.UpdateFileUseCase,
 	fileDTORepo filedto.FileDTORepository,
 ) CloudOnlyDeleteService {
+	logger = logger.Named("CloudOnlyDeleteService")
 	return &cloudOnlyDeleteService{
 		logger:            logger,
 		getFileUseCase:    getFileUseCase,

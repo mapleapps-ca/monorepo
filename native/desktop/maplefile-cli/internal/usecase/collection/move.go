@@ -36,6 +36,7 @@ func NewMoveCollectionUseCase(
 	repository collection.CollectionRepository,
 	getUseCase GetCollectionUseCase,
 ) MoveCollectionUseCase {
+	logger = logger.Named("MoveCollectionUseCase")
 	return &moveCollectionUseCase{
 		logger:     logger,
 		repository: repository,

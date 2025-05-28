@@ -29,6 +29,7 @@ func NewLoginOTTVerificationService(
 	useCase authUseCase.LoginOTTVerificationUseCase,
 	userRepo user.Repository,
 ) LoginOTTVerificationService {
+	logger = logger.Named("LoginOTTVerificationService")
 	return &loginOTTVerificationService{
 		logger:   logger,
 		useCase:  useCase,

@@ -26,6 +26,7 @@ type emailVerificationRepository struct {
 
 // NewEmailVerificationRepository creates a new repository for email verification
 func NewEmailVerificationRepository(logger *zap.Logger, configService config.ConfigService) auth.EmailVerificationRepository {
+	logger = logger.Named("EmailVerificationRepository")
 	return &emailVerificationRepository{
 		logger:        logger,
 		configService: configService,

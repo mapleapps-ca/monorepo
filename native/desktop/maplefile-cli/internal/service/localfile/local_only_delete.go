@@ -42,6 +42,7 @@ func NewLocalOnlyDeleteService(
 	deleteFileMetadataUseCase file.DeleteFileUseCase,
 	deleteFileDataUseCase localfile.DeleteFileUseCase,
 ) LocalOnlyDeleteService {
+	logger = logger.Named("LocalOnlyDeleteService")
 	return &localOnlyDeleteService{
 		logger:                    logger,
 		transactionManager:        transactionManager,

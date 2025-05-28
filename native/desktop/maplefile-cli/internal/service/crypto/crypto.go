@@ -42,6 +42,7 @@ type cryptoService struct {
 
 // NewCryptoService creates a new crypto service
 func NewCryptoService(logger *zap.Logger) CryptoService {
+	logger = logger.Named("CryptoService")
 	return &cryptoService{
 		logger: logger,
 	}

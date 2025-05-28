@@ -28,6 +28,7 @@ func NewCreateCollectionInCloudUseCase(
 	logger *zap.Logger,
 	repository collectiondto.CollectionDTORepository,
 ) CreateCollectionInCloudUseCase {
+	logger = logger.Named("CreateCollectionInCloudUseCase")
 	return &createCollectionInCloudUseCase{
 		logger:     logger,
 		repository: repository,

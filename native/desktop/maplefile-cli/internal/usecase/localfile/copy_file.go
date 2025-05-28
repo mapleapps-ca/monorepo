@@ -26,6 +26,7 @@ type copyFileUseCase struct {
 func NewCopyFileUseCase(
 	logger *zap.Logger,
 ) CopyFileUseCase {
+	logger = logger.Named("CopyFileUseCase")
 	return &copyFileUseCase{
 		logger: logger,
 	}

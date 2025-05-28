@@ -24,6 +24,7 @@ type prepareFileUploadUseCase struct {
 }
 
 func NewPrepareFileUploadUseCase(logger *zap.Logger) PrepareFileUploadUseCase {
+	logger = logger.Named("PrepareFileUploadUseCase")
 	return &prepareFileUploadUseCase{
 		logger: logger,
 	}

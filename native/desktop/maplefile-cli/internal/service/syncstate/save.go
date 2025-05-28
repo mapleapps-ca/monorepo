@@ -44,6 +44,7 @@ func NewSaveService(
 	logger *zap.Logger,
 	syncStateRepo syncstate.SyncStateRepository,
 ) SaveService {
+	logger = logger.Named("SaveService")
 	return &saveService{
 		logger:        logger,
 		syncStateRepo: syncStateRepo,

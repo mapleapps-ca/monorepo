@@ -26,6 +26,7 @@ type loginOTTVerificationRepository struct {
 
 // NewLoginOTTVerificationRepository creates a new repository for login OTT verification
 func NewLoginOTTVerificationRepository(logger *zap.Logger, configService config.ConfigService) auth.LoginOTTVerificationRepository {
+	logger = logger.Named("LoginOTTVerificationRepository")
 	return &loginOTTVerificationRepository{
 		logger:        logger,
 		configService: configService,

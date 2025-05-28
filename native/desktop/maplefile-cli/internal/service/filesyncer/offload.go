@@ -54,6 +54,7 @@ func NewOffloadService(
 	uploadService svc_fileupload.UploadService,
 	deleteFileUseCase localfile.DeleteFileUseCase,
 ) OffloadService {
+	logger = logger.Named("OffloadService")
 	return &offloadService{
 		logger:            logger,
 		getFileUseCase:    getFileUseCase,

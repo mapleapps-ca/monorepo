@@ -27,6 +27,7 @@ type writeFileUseCase struct {
 func NewWriteFileUseCase(
 	logger *zap.Logger,
 ) WriteFileUseCase {
+	logger = logger.Named("WriteFileUseCase")
 	return &writeFileUseCase{
 		logger: logger,
 	}

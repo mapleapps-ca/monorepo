@@ -31,6 +31,7 @@ func NewGetService(
 	logger *zap.Logger,
 	syncStateRepo syncstate.SyncStateRepository,
 ) GetService {
+	logger = logger.Named("GetService")
 	return &getService{
 		logger:        logger,
 		syncStateRepo: syncStateRepo,

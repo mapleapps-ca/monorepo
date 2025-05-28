@@ -27,6 +27,7 @@ func NewDeleteFileUseCase(
 	logger *zap.Logger,
 	repository file.FileRepository,
 ) DeleteFileUseCase {
+	logger = logger.Named("DeleteFileUseCase")
 	return &deleteFileUseCase{
 		logger:     logger,
 		repository: repository,

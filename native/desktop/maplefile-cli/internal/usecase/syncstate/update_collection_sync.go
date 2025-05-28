@@ -36,6 +36,7 @@ func NewUpdateCollectionSyncUseCase(
 	repository syncstate.SyncStateRepository,
 	getSyncStateUseCase GetSyncStateUseCase,
 ) UpdateCollectionSyncUseCase {
+	logger = logger.Named("UpdateCollectionSyncUseCase")
 	return &updateCollectionSyncUseCase{
 		logger:              logger,
 		repository:          repository,

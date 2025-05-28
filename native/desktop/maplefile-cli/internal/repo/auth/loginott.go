@@ -26,6 +26,7 @@ type loginOTTRepository struct {
 
 // NewLoginOTTRepository creates a new repository for login OTT operations
 func NewLoginOTTRepository(logger *zap.Logger, configService config.ConfigService) auth.LoginOTTRepository {
+	logger = logger.Named("LoginOTTRepository")
 	return &loginOTTRepository{
 		logger:        logger,
 		configService: configService,

@@ -35,6 +35,7 @@ type pathUtilsUseCase struct {
 func NewPathUtilsUseCase(
 	logger *zap.Logger,
 ) PathUtilsUseCase {
+	logger = logger.Named("PathUtilsUseCase")
 	return &pathUtilsUseCase{
 		logger: logger,
 	}

@@ -47,6 +47,7 @@ func NewUpdateFileUseCase(
 	repository dom_file.FileRepository,
 	getUseCase GetFileUseCase,
 ) UpdateFileUseCase {
+	logger = logger.Named("UpdateFileUseCase")
 	return &updateFileUseCase{
 		logger:     logger,
 		repository: repository,

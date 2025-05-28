@@ -33,6 +33,7 @@ func NewSyncFullService(
 	syncCollectionService SyncCollectionService,
 	syncFileService SyncFileService,
 ) SyncFullService {
+	logger = logger.Named("SyncFullService")
 	return &syncFullService{
 		logger:                logger,
 		syncCollectionService: syncCollectionService,

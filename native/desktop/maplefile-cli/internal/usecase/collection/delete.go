@@ -30,6 +30,7 @@ func NewDeleteCollectionUseCase(
 	repository collection.CollectionRepository,
 	listUseCase ListCollectionsUseCase,
 ) DeleteCollectionUseCase {
+	logger = logger.Named("DeleteCollectionUseCase")
 	return &deleteCollectionUseCase{
 		logger:      logger,
 		repository:  repository,

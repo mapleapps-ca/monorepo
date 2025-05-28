@@ -29,6 +29,7 @@ func NewMoveFileUseCase(
 	copyUseCase CopyFileUseCase,
 	deleteUseCase DeleteFileUseCase,
 ) MoveFileUseCase {
+	logger = logger.Named("MoveFileUseCase")
 	return &moveFileUseCase{
 		logger:        logger,
 		copyUseCase:   copyUseCase,

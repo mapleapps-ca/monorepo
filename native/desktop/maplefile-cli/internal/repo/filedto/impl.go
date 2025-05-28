@@ -26,6 +26,7 @@ func NewFileDTORepository(
 	configService config.ConfigService,
 	tokenRepo auth.TokenRepository,
 ) filedto.FileDTORepository {
+	logger = logger.Named("FileDTORepository")
 	return &fileDTORepository{
 		logger:        logger.With(zap.String("repository", "filedto")),
 		configService: configService,

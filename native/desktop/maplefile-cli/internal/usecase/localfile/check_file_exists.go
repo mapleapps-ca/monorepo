@@ -24,6 +24,7 @@ type checkFileExistsUseCase struct {
 func NewCheckFileExistsUseCase(
 	logger *zap.Logger,
 ) CheckFileExistsUseCase {
+	logger = logger.Named("CheckFileExistsUseCase")
 	return &checkFileExistsUseCase{
 		logger: logger,
 	}

@@ -53,6 +53,7 @@ func NewSyncProgressService(
 	logger *zap.Logger,
 	syncDTORepo syncdto.SyncDTORepository,
 ) SyncProgressService {
+	logger = logger.Named("SyncProgressService")
 	return &syncProgressService{
 		logger:      logger,
 		syncDTORepo: syncDTORepo,

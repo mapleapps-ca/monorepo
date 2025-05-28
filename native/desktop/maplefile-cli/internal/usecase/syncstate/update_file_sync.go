@@ -36,6 +36,7 @@ func NewUpdateFileSyncUseCase(
 	repository syncstate.SyncStateRepository,
 	getSyncStateUseCase GetSyncStateUseCase,
 ) UpdateFileSyncUseCase {
+	logger = logger.Named("UpdateFileSyncUseCase")
 	return &updateFileSyncUseCase{
 		logger:              logger,
 		repository:          repository,

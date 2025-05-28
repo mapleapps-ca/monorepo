@@ -32,6 +32,7 @@ func NewGetFileSyncDataUseCase(
 	logger *zap.Logger,
 	repository syncdto.SyncDTORepository,
 ) GetFileSyncDataUseCase {
+	logger = logger.Named("GetFileSyncDataUseCase")
 	return &getFileSyncDataUseCase{
 		logger:     logger,
 		repository: repository,

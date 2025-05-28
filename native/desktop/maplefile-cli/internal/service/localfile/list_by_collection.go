@@ -39,6 +39,7 @@ func NewListService(
 	logger *zap.Logger,
 	listFilesByCollectionUseCase file.ListFilesByCollectionUseCase,
 ) ListService {
+	logger = logger.Named("ListService")
 	return &listService{
 		logger:                       logger,
 		listFilesByCollectionUseCase: listFilesByCollectionUseCase,

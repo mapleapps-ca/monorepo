@@ -60,6 +60,7 @@ func NewLockService(
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
 ) LockService {
+	logger = logger.Named("LockService")
 	return &lockService{
 		logger:                     logger,
 		getFileUseCase:             getFileUseCase,

@@ -28,6 +28,7 @@ func NewGetFilesByIDsUseCase(
 	logger *zap.Logger,
 	repository dom_file.FileRepository,
 ) GetFilesByIDsUseCase {
+	logger = logger.Named("GetFilesByIDsUseCase")
 	return &getFilesByIDsUseCase{
 		logger:     logger,
 		repository: repository,

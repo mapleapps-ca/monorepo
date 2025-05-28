@@ -39,6 +39,7 @@ func NewMoveService(
 	logger *zap.Logger,
 	moveUseCase uc.MoveCollectionUseCase,
 ) MoveService {
+	logger = logger.Named("MoveService")
 	return &moveService{
 		logger:      logger,
 		moveUseCase: moveUseCase,

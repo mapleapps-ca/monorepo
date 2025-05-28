@@ -29,6 +29,7 @@ func NewEmailVerificationUseCase(
 	repository auth.EmailVerificationRepository,
 	userRepository user.Repository,
 ) EmailVerificationUseCase {
+	logger = logger.Named("EmailVerificationUseCase")
 	return &emailVerificationUseCase{
 		logger:         logger,
 		repository:     repository,

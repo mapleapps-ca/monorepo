@@ -43,6 +43,7 @@ func NewProcessSyncResponseUseCase(
 	logger *zap.Logger,
 	buildSyncCursorUseCase BuildSyncCursorUseCase,
 ) ProcessSyncResponseUseCase {
+	logger = logger.Named("ProcessSyncResponseUseCase")
 	return &processSyncResponseUseCase{
 		logger:                 logger,
 		buildSyncCursorUseCase: buildSyncCursorUseCase,

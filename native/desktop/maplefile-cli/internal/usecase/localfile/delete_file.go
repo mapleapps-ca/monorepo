@@ -24,6 +24,7 @@ type deleteFileUseCase struct {
 func NewDeleteFileUseCase(
 	logger *zap.Logger,
 ) DeleteFileUseCase {
+	logger = logger.Named("DeleteFileUseCase")
 	return &deleteFileUseCase{
 		logger: logger,
 	}

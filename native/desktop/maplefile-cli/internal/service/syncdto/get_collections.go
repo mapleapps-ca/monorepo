@@ -38,6 +38,7 @@ func NewGetCollectionsService(
 	logger *zap.Logger,
 	syncDTORepo syncdto.SyncDTORepository,
 ) GetCollectionsService {
+	logger = logger.Named("GetCollectionsService")
 	return &getCollectionsService{
 		logger:      logger,
 		syncDTORepo: syncDTORepo,

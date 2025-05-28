@@ -46,6 +46,7 @@ func NewGetFilteredService(
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getFilteredCollectionsFromCloudUseCase uc_collectiondto.GetFilteredCollectionsFromCloudUseCase,
 ) GetFilteredService {
+	logger = logger.Named("GetFilteredService")
 	return &getFilteredService{
 		logger:                                 logger,
 		getUserByIsLoggedInUseCase:             getUserByIsLoggedInUseCase,

@@ -61,6 +61,7 @@ func NewDownloadService(
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
 ) DownloadService {
+	logger = logger.Named("DownloadService")
 	return &downloadService{
 		logger:                         logger,
 		getPresignedDownloadURLUseCase: getPresignedDownloadURLUseCase,

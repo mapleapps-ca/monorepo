@@ -22,6 +22,7 @@ func NewListCollectionsUseCase(
 	logger *zap.Logger,
 	repository collection.CollectionRepository,
 ) ListCollectionsUseCase {
+	logger = logger.Named("ListCollectionsUseCase")
 	return &listCollectionsUseCase{
 		logger:     logger,
 		repository: repository,

@@ -46,6 +46,7 @@ func NewGetFullSyncService(
 	logger *zap.Logger,
 	syncDTORepo syncdto.SyncDTORepository,
 ) GetFullSyncService {
+	logger = logger.Named("GetFullSyncService")
 	return &getFullSyncService{
 		logger:      logger,
 		syncDTORepo: syncDTORepo,

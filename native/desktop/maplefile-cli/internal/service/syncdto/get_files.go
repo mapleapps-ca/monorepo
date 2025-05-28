@@ -38,6 +38,7 @@ func NewGetFilesService(
 	logger *zap.Logger,
 	syncDTORepo syncdto.SyncDTORepository,
 ) GetFilesService {
+	logger = logger.Named("GetFilesService")
 	return &getFilesService{
 		logger:      logger,
 		syncDTORepo: syncDTORepo,

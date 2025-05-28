@@ -24,6 +24,8 @@ type storageImpl struct {
 // NewDiskStorage creates a new instance of the storageImpl.
 // It opens the database file at the specified path and returns an error if it fails.
 func NewDiskStorage(provider LevelDBConfigurationProvider, logger *zap.Logger) storage.Storage {
+	logger = logger.Named("leveldb")
+
 	if provider == nil {
 		log.Fatal("NewDiskStorage: missing LevelDB configuration provider\n")
 	}

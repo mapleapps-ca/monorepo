@@ -25,6 +25,7 @@ type tokenRepositoryImpl struct {
 
 // NewTokenRepository creates a new instance of TokenRepository
 func NewTokenRepository(logger *zap.Logger, configService config.ConfigService) auth.TokenRepository {
+	logger = logger.Named("TokenRepository")
 	return &tokenRepositoryImpl{
 		logger:        logger,
 		configService: configService,

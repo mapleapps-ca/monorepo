@@ -27,6 +27,7 @@ func NewListFilesByCollectionUseCase(
 	logger *zap.Logger,
 	repository dom_file.FileRepository,
 ) ListFilesByCollectionUseCase {
+	logger = logger.Named("ListFilesByCollectionUseCase")
 	return &listFilesByCollectionUseCase{
 		logger:     logger,
 		repository: repository,

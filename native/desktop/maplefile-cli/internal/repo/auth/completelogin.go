@@ -26,6 +26,7 @@ type completeLoginRepository struct {
 
 // NewCompleteLoginRepository creates a new repository for login completion
 func NewCompleteLoginRepository(logger *zap.Logger, configService config.ConfigService) auth.CompleteLoginRepository {
+	logger = logger.Named("CompleteLoginRepository")
 	return &completeLoginRepository{
 		logger:        logger,
 		configService: configService,

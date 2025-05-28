@@ -33,6 +33,7 @@ func NewCompleteLoginService(
 	userRepo user.Repository,
 	configService config.ConfigService,
 ) CompleteLoginService {
+	logger = logger.Named("CompleteLoginService")
 	return &completeLoginService{
 		logger:        logger,
 		useCase:       useCase,

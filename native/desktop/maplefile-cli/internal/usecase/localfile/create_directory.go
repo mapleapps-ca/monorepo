@@ -25,6 +25,7 @@ type createDirectoryUseCase struct {
 func NewCreateDirectoryUseCase(
 	logger *zap.Logger,
 ) CreateDirectoryUseCase {
+	logger = logger.Named("CreateDirectoryUseCase")
 	return &createDirectoryUseCase{
 		logger: logger,
 	}

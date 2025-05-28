@@ -29,6 +29,7 @@ func NewListDirectoryUseCase(
 	logger *zap.Logger,
 	getFileInfoUseCase GetFileInfoUseCase,
 ) ListDirectoryUseCase {
+	logger = logger.Named("ListDirectoryUseCase")
 	return &listDirectoryUseCase{
 		logger:             logger,
 		getFileInfoUseCase: getFileInfoUseCase,

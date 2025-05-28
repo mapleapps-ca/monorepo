@@ -28,6 +28,7 @@ func NewTransactionManager(
 	collectionRepo collection.CollectionRepository,
 	fileRepo file.FileRepository,
 ) transaction.Manager {
+	logger = logger.Named("transaction.Manager")
 	return &transactionManager{
 		logger:         logger,
 		collectionRepo: collectionRepo,

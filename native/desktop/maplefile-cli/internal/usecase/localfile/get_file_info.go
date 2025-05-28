@@ -35,6 +35,7 @@ type getFileInfoUseCase struct {
 func NewGetFileInfoUseCase(
 	logger *zap.Logger,
 ) GetFileInfoUseCase {
+	logger = logger.Named("GetFileInfoUseCase")
 	return &getFileInfoUseCase{
 		logger: logger,
 	}

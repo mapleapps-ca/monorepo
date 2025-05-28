@@ -27,6 +27,7 @@ func NewGetCollectionPathUseCase(
 	logger *zap.Logger,
 	getUseCase GetCollectionUseCase,
 ) GetCollectionPathUseCase {
+	logger = logger.Named("GetCollectionPathUseCase")
 	return &getCollectionPathUseCase{
 		logger:     logger,
 		getUseCase: getUseCase,

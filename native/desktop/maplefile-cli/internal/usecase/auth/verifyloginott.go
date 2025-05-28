@@ -34,6 +34,7 @@ func NewLoginOTTVerificationUseCase(
 	userRepo user.Repository,
 	dataTransformer auth.UserVerificationDataTransformer,
 ) LoginOTTVerificationUseCase {
+	logger = logger.Named("LoginOTTVerificationUseCase")
 	return &loginOTTVerificationUseCase{
 		logger:          logger,
 		repository:      repository,

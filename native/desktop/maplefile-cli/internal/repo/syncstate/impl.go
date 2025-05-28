@@ -21,6 +21,7 @@ func NewSyncStateRepository(
 	logger *zap.Logger,
 	dbClient storage.Storage,
 ) syncstate.SyncStateRepository {
+	logger = logger.Named("SyncStateRepository")
 	return &syncStateRepository{
 		logger:   logger,
 		dbClient: dbClient,

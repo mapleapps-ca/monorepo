@@ -28,6 +28,7 @@ func NewGetCollectionFromCloudUseCase(
 	logger *zap.Logger,
 	repository collectiondto.CollectionDTORepository,
 ) GetCollectionFromCloudUseCase {
+	logger = logger.Named("GetCollectionFromCloudUseCase")
 	return &getCollectionFromCloudUseCase{
 		logger:     logger,
 		repository: repository,

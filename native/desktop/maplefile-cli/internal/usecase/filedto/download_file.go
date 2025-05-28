@@ -40,6 +40,7 @@ func NewDownloadFileUseCase(
 	logger *zap.Logger,
 	fileDTORepo filedto.FileDTORepository,
 ) DownloadFileUseCase {
+	logger = logger.Named("DownloadFileUseCase")
 	return &downloadFileUseCase{
 		logger:      logger,
 		fileDTORepo: fileDTORepo,

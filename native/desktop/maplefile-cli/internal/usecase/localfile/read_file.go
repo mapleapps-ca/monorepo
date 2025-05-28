@@ -25,6 +25,7 @@ type readFileUseCase struct {
 func NewReadFileUseCase(
 	logger *zap.Logger,
 ) ReadFileUseCase {
+	logger = logger.Named("ReadFileUseCase")
 	return &readFileUseCase{
 		logger: logger,
 	}

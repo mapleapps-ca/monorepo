@@ -31,6 +31,7 @@ func NewUpdateLocalCollectionFromCloudCollectionService(
 	cloudRepository collectiondto.CollectionDTORepository,
 	localRepository dom_collection.CollectionRepository,
 ) UpdateLocalCollectionFromCloudCollectionService {
+	logger = logger.Named("UpdateLocalCollectionFromCloudCollectionService")
 	return &updateLocalCollectionFromCloudCollectionService{
 		logger:          logger,
 		cloudRepository: cloudRepository,

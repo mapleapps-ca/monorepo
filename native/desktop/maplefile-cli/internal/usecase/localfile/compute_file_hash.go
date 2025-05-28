@@ -29,6 +29,7 @@ type computeFileHashUseCase struct {
 func NewComputeFileHashUseCase(
 	logger *zap.Logger,
 ) ComputeFileHashUseCase {
+	logger = logger.Named("ComputeFileHashUseCase")
 	return &computeFileHashUseCase{
 		logger: logger,
 	}

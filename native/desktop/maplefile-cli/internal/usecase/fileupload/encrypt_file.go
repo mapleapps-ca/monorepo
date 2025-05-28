@@ -24,6 +24,7 @@ type encryptFileUseCase struct {
 }
 
 func NewEncryptFileUseCase(logger *zap.Logger) EncryptFileUseCase {
+	logger = logger.Named("EncryptFileUseCase")
 	return &encryptFileUseCase{
 		logger: logger,
 	}

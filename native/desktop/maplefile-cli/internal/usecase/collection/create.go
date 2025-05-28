@@ -27,6 +27,7 @@ func NewCreateCollectionUseCase(
 	logger *zap.Logger,
 	repository collection.CollectionRepository,
 ) CreateCollectionUseCase {
+	logger = logger.Named("CreateCollectionUseCase")
 	return &createCollectionUseCase{
 		logger:     logger,
 		repository: repository,

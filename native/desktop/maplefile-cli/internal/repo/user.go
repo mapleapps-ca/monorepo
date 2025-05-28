@@ -19,6 +19,7 @@ type UserRepo struct {
 }
 
 func NewUserRepo(logger *zap.Logger, db disk.Storage) domain.Repository {
+	logger = logger.Named("user.Repository")
 	return &UserRepo{logger, db}
 }
 

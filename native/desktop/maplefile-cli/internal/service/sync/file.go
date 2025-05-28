@@ -42,6 +42,7 @@ func NewSyncFileService(
 	syncDTOProgressService syncdtoSvc.SyncProgressService,
 	syncDTOGetFilesService syncdtoSvc.GetFilesService,
 ) SyncFileService {
+	logger = logger.Named("SyncFileService")
 	return &syncFileService{
 		logger:                 logger,
 		syncStateGetService:    syncStateGetService,

@@ -26,6 +26,7 @@ func NewRefreshTokenUseCase(
 	logger *zap.Logger,
 	tokenRepository auth.TokenRepository,
 ) RefreshTokenUseCase {
+	logger = logger.Named("RefreshTokenUseCase")
 	return &refreshTokenUseCaseImpl{
 		logger:          logger,
 		tokenRepository: tokenRepository,

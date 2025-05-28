@@ -26,6 +26,7 @@ func NewSyncDTORepository(
 	configService config.ConfigService,
 	tokenRepository auth.TokenRepository,
 ) syncdto.SyncDTORepository {
+	logger = logger.Named("SyncDTORepository")
 	return &syncRepository{
 		logger:          logger,
 		configService:   configService,

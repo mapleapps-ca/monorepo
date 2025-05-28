@@ -25,6 +25,7 @@ func NewFileRepository(
 	configService config.ConfigService,
 	dbClient storage.Storage,
 ) file.FileRepository {
+	logger = logger.Named("FileRepository")
 	return &fileRepository{
 		logger:        logger,
 		configService: configService,

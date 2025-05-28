@@ -24,6 +24,7 @@ type loginOTTUseCase struct {
 
 // NewLoginOTTUseCase creates a new login OTT use case
 func NewLoginOTTUseCase(logger *zap.Logger, repository auth.LoginOTTRepository) LoginOTTUseCase {
+	logger = logger.Named("LoginOTTUseCase")
 	return &loginOTTUseCase{
 		logger:     logger,
 		repository: repository,

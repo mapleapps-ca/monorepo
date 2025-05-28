@@ -26,6 +26,7 @@ func NewSaveSyncStateUseCase(
 	logger *zap.Logger,
 	repository syncstate.SyncStateRepository,
 ) SaveSyncStateUseCase {
+	logger = logger.Named("SaveSyncStateUseCase")
 	return &saveSyncStateUseCase{
 		logger:     logger,
 		repository: repository,

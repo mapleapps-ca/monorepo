@@ -27,6 +27,7 @@ func NewGetCollectionUseCase(
 	logger *zap.Logger,
 	repository collection.CollectionRepository,
 ) GetCollectionUseCase {
+	logger = logger.Named("GetCollectionUseCase")
 	return &getCollectionUseCase{
 		logger:     logger,
 		repository: repository,
@@ -38,20 +39,26 @@ func (uc *getCollectionUseCase) Execute(
 	ctx context.Context,
 	id primitive.ObjectID,
 ) (*collection.Collection, error) {
+	uc.logger.Debug("🔎 Attempting to get collection by ID", zap.String("collection_id", id.Hex()))
+
 	// Validate inputs
 	if id.IsZero() {
+		uc.logger.Error("🚫 collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
 	// Get the collection from the repository
 	collection, err := uc.repository.GetByID(ctx, id)
 	if err != nil {
+		uc.logger.Error("💾🔥 failed to get local collection from repository", zap.Error(err), zap.String("collection_id", id.Hex()))
 		return nil, errors.NewAppError("failed to get local collection", err)
 	}
 
 	if collection == nil {
+		uc.logger.Warn("🔍🚫 local collection not found", zap.String("collection_id", id.Hex()))
 		return nil, errors.NewAppError("local collection not found", nil)
 	}
 
+	uc.logger.Info("✅ Successfully retrieved collection", zap.String("collection_id", id.Hex()))
 	return collection, nil
 }

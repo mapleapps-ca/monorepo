@@ -23,6 +23,7 @@ type loginOTTService struct {
 
 // NewLoginOTTService creates a new login OTT service
 func NewLoginOTTService(logger *zap.Logger, useCase auth.LoginOTTUseCase) LoginOTTService {
+	logger = logger.Named("LoginOTTService")
 	return &loginOTTService{
 		logger:  logger,
 		useCase: useCase,

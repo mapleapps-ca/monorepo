@@ -61,6 +61,7 @@ func NewOnloadService(
 	pathUtilsUseCase localfile.PathUtilsUseCase,
 	createDirectoryUseCase localfile.CreateDirectoryUseCase,
 ) OnloadService {
+	logger = logger.Named("OnloadService")
 	return &onloadService{
 		logger:                 logger,
 		configService:          configService,

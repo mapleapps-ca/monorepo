@@ -26,6 +26,7 @@ func NewResetSyncStateUseCase(
 	logger *zap.Logger,
 	repository syncstate.SyncStateRepository,
 ) ResetSyncStateUseCase {
+	logger = logger.Named("ResetSyncStateUseCase")
 	return &resetSyncStateUseCase{
 		logger:     logger,
 		repository: repository,

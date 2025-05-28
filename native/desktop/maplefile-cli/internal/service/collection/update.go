@@ -41,6 +41,7 @@ func NewUpdateService(
 	logger *zap.Logger,
 	updateUseCase uc.UpdateCollectionUseCase,
 ) UpdateService {
+	logger = logger.Named("UpdateService")
 	return &updateService{
 		logger:        logger,
 		updateUseCase: updateUseCase,

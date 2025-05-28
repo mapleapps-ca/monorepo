@@ -28,6 +28,7 @@ func NewGetPresignedDownloadURLUseCase(
 	logger *zap.Logger,
 	fileDTORepo filedto.FileDTORepository,
 ) GetPresignedDownloadURLUseCase {
+	logger = logger.Named("GetPresignedDownloadURLUseCase")
 	return &getPresignedDownloadURLUseCase{
 		logger:      logger,
 		fileDTORepo: fileDTORepo,

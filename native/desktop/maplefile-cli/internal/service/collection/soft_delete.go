@@ -35,6 +35,7 @@ func NewSoftDeleteService(
 	updateUseCase uc.UpdateCollectionUseCase,
 	listUseCase uc.ListCollectionsUseCase,
 ) SoftDeleteService {
+	logger = logger.Named("SoftDeleteService")
 	return &softDeleteService{
 		logger:        logger,
 		getUseCase:    getUseCase,

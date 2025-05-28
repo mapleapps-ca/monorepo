@@ -32,6 +32,7 @@ func NewCreateLocalCollectionFromCloudCollectionService(
 	cloudRepository collectiondto.CollectionDTORepository,
 	localRepository dom_collection.CollectionRepository,
 ) CreateLocalCollectionFromCloudCollectionService {
+	logger = logger.Named("CreateLocalCollectionFromCloudCollectionService")
 	return &createLocalCollectionFromCloudCollectionService{
 		logger:          logger,
 		cloudRepository: cloudRepository,

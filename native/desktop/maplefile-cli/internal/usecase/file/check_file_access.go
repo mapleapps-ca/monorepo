@@ -26,6 +26,7 @@ func NewCheckFileAccessUseCase(
 	logger *zap.Logger,
 	repository file.FileRepository,
 ) CheckFileAccessUseCase {
+	logger = logger.Named("CheckFileAccessUseCase")
 	return &checkFileAccessUseCase{
 		logger:     logger,
 		repository: repository,

@@ -35,6 +35,7 @@ func NewCompleteLoginUseCase(
 	repository auth.CompleteLoginRepository,
 	userRepo user.Repository,
 ) CompleteLoginUseCase {
+	logger = logger.Named("CompleteLoginUseCase")
 	return &completeLoginUseCase{
 		logger:          logger,
 		tokenRepository: tokenRepository,

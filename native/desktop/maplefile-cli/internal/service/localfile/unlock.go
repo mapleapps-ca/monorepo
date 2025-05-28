@@ -61,6 +61,7 @@ func NewUnlockService(
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
 ) UnlockService {
+	logger = logger.Named("UnlockService")
 	return &unlockService{
 		logger:                     logger,
 		getFileUseCase:             getFileUseCase,

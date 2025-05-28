@@ -27,6 +27,7 @@ func NewSwapIDsUseCase(
 	logger *zap.Logger,
 	repository file.FileRepository,
 ) SwapIDsUseCase {
+	logger = logger.Named("SwapIDsUseCase")
 	return &swapIDsUseCase{
 		logger:     logger,
 		repository: repository,

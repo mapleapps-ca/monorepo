@@ -27,6 +27,7 @@ func NewCreateFileUseCase(
 	logger *zap.Logger,
 	repository file.FileRepository,
 ) CreateFileUseCase {
+	logger = logger.Named("CreateFileUseCase")
 	return &createFileUseCase{
 		logger:     logger,
 		repository: repository,

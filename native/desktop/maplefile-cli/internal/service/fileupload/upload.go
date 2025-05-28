@@ -58,6 +58,7 @@ func NewUploadService(
 	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
 ) UploadService {
+	logger = logger.Named("UploadService")
 	return &uploadService{
 		logger:                   logger,
 		fileDTORepo:              fileDTORepo,

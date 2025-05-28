@@ -28,6 +28,7 @@ func NewCollectionRepository(
 	configService config.ConfigService,
 	dbClient storage.Storage, // Add storage client parameter
 ) collection.CollectionRepository {
+	logger = logger.Named("CollectionRepository")
 	return &collectionRepository{
 		logger:        logger,
 		configService: configService,

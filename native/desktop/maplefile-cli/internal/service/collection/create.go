@@ -63,6 +63,7 @@ func NewCreateService(
 	getUserByEmailUseCase uc_user.GetByEmailUseCase,
 	createCollectionUseCase uc_collection.CreateCollectionUseCase,
 ) CreateService {
+	logger = logger.Named("CreateService")
 	return &createService{
 		logger:                         logger,
 		configService:                  configService,

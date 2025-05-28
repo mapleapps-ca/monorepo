@@ -39,6 +39,7 @@ func NewUpdateCollectionUseCase(
 	repository dom_collection.CollectionRepository,
 	getUseCase GetCollectionUseCase,
 ) UpdateCollectionUseCase {
+	logger = logger.Named("UpdateCollectionUseCase")
 	return &updateCollectionUseCase{
 		logger:     logger,
 		repository: repository,

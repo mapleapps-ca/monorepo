@@ -31,6 +31,7 @@ func NewDeleteFilesUseCase(
 	repository dom_file.FileRepository,
 	listUseCase ListFilesByCollectionUseCase,
 ) DeleteFilesUseCase {
+	logger = logger.Named("DeleteFilesUseCase")
 	return &deleteFilesUseCase{
 		logger:      logger,
 		repository:  repository,

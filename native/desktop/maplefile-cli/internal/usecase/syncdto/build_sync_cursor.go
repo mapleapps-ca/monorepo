@@ -34,6 +34,7 @@ type buildSyncCursorUseCase struct {
 func NewBuildSyncCursorUseCase(
 	logger *zap.Logger,
 ) BuildSyncCursorUseCase {
+	logger = logger.Named("BuildSyncCursorUseCase")
 	return &buildSyncCursorUseCase{
 		logger: logger,
 	}
