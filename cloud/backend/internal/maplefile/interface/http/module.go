@@ -31,7 +31,7 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(collection.NewGetCollectionHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewListUserCollectionsHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewUpdateCollectionHTTPHandler),
-			unifiedhttp.AsRoute(collection.NewDeleteCollectionHTTPHandler),
+			unifiedhttp.AsRoute(collection.NewSoftDeleteCollectionHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewArchiveCollectionHTTPHandler),
 			unifiedhttp.AsRoute(collection.NewRestoreCollectionHTTPHandler),
 
@@ -53,7 +53,7 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(collection.NewCollectionSyncHTTPHandler),
 
 			// File handlers
-			unifiedhttp.AsRoute(file.NewDeleteFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewSoftDeleteFileHTTPHandler),
 			unifiedhttp.AsRoute(file.NewDeleteMultipleFilesHTTPHandler),
 			unifiedhttp.AsRoute(file.NewGetFileHTTPHandler),
 			unifiedhttp.AsRoute(file.NewListFilesByCollectionHTTPHandler),

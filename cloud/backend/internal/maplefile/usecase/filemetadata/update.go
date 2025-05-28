@@ -2,6 +2,8 @@
 package filemetadata
 
 import (
+	"context"
+
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
@@ -10,7 +12,7 @@ import (
 )
 
 type UpdateFileMetadataUseCase interface {
-	Execute(file *dom_file.File) error
+	Execute(ctx context.Context, file *dom_file.File) error
 }
 
 type updateFileMetadataUseCaseImpl struct {
@@ -28,7 +30,7 @@ func NewUpdateFileMetadataUseCase(
 	return &updateFileMetadataUseCaseImpl{config, logger, repo}
 }
 
-func (uc *updateFileMetadataUseCaseImpl) Execute(file *dom_file.File) error {
+func (uc *updateFileMetadataUseCaseImpl) Execute(ctx context.Context, file *dom_file.File) error {
 	//
 	// STEP 1: Validation.
 	//

@@ -14,7 +14,7 @@ import (
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/file"
 )
 
-func (impl fileMetadataRepositoryImpl) Delete(id primitive.ObjectID) error {
+func (impl fileMetadataRepositoryImpl) SoftDelete(id primitive.ObjectID) error {
 	ctx := context.Background()
 	filter := bson.M{"_id": id}
 
@@ -61,7 +61,7 @@ func (impl fileMetadataRepositoryImpl) Delete(id primitive.ObjectID) error {
 	return nil
 }
 
-func (impl fileMetadataRepositoryImpl) DeleteMany(ids []primitive.ObjectID) error {
+func (impl fileMetadataRepositoryImpl) SoftDeleteMany(ids []primitive.ObjectID) error {
 	if len(ids) == 0 {
 		return nil
 	}

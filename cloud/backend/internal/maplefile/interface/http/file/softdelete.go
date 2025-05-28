@@ -1,5 +1,5 @@
-// cloud/backend/internal/maplefile/interface/http/collection/delete.go
-package collection
+// cloud/backend/internal/maplefile/interface/http/file/softdelete.go
+package file
 
 import (
 	"context"
@@ -13,27 +13,27 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
-	svc_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/service/collection"
+	svc_file "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/service/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type DeleteCollectionHTTPHandler struct {
+type SoftDeleteFileHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
 	dbClient   *mongo.Client
-	service    svc_collection.DeleteCollectionService
+	service    svc_file.SoftDeleteFileService
 	middleware middleware.Middleware
 }
 
-func NewDeleteCollectionHTTPHandler(
+func NewSoftDeleteFileHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
 	dbClient *mongo.Client,
-	service svc_collection.DeleteCollectionService,
+	service svc_file.SoftDeleteFileService,
 	middleware middleware.Middleware,
-) *DeleteCollectionHTTPHandler {
-	logger = logger.Named("DeleteCollectionHTTPHandler")
-	return &DeleteCollectionHTTPHandler{
+) *SoftDeleteFileHTTPHandler {
+	logger = logger.Named("SoftDeleteFileHTTPHandler")
+	return &SoftDeleteFileHTTPHandler{
 		config:     config,
 		logger:     logger,
 		dbClient:   dbClient,
@@ -42,47 +42,48 @@ func NewDeleteCollectionHTTPHandler(
 	}
 }
 
-func (*DeleteCollectionHTTPHandler) Pattern() string {
-	return "DELETE /maplefile/api/v1/collections/{collection_id}"
+func (*SoftDeleteFileHTTPHandler) Pattern() string {
+	return "DELETE /maplefile/api/v1/files/{file_id}"
 }
 
-func (h *DeleteCollectionHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h *SoftDeleteFileHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Apply middleware before handling the request
 	h.middleware.Attach(h.Execute)(w, req)
 }
 
-func (h *DeleteCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
+func (h *SoftDeleteFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	// Set response content type
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx := r.Context()
 
-	// Extract collection ID from the URL
-	collectionIDStr := r.PathValue("collection_id")
-	if collectionIDStr == "" {
-		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("collection_id", "Collection ID is required"))
+	// Extract file ID from the URL
+	fileIDStr := r.PathValue("file_id")
+	if fileIDStr == "" {
+		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("file_id", "File ID is required"))
 		return
 	}
 
 	// Convert string ID to ObjectID
-	collectionID, err := primitive.ObjectIDFromHex(collectionIDStr)
+	fileID, err := primitive.ObjectIDFromHex(fileIDStr)
 	if err != nil {
-		h.logger.Error("invalid collection ID format",
-			zap.String("collection_id", collectionIDStr),
+		h.logger.Error("invalid file ID format",
+			zap.String("file_id", fileIDStr),
 			zap.Error(err))
-		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("collection_id", "Invalid collection ID format"))
+		httperror.ResponseError(w, httperror.NewForBadRequestWithSingleField("file_id", "Invalid file ID format"))
 		return
 	}
 
 	// Create request DTO
-	dtoReq := &svc_collection.DeleteCollectionRequestDTO{
-		ID: collectionID,
+	dtoReq := &svc_file.SoftDeleteFileRequestDTO{
+		FileID: fileID,
 	}
 
 	// Start the transaction
 	session, err := h.dbClient.StartSession()
 	if err != nil {
 		h.logger.Error("start session error",
+			zap.String("file_id", fileIDStr),
 			zap.Any("error", err))
 		httperror.ResponseError(w, err)
 		return
@@ -94,7 +95,8 @@ func (h *DeleteCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Req
 		// Call service
 		response, err := h.service.Execute(sessCtx, dtoReq)
 		if err != nil {
-			h.logger.Error("failed to delete collection",
+			h.logger.Error("failed to delete file",
+				zap.String("file_id", fileIDStr),
 				zap.Any("error", err))
 			return nil, err
 		}
@@ -105,6 +107,7 @@ func (h *DeleteCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Req
 	result, txErr := session.WithTransaction(ctx, transactionFunc)
 	if txErr != nil {
 		h.logger.Error("session failed error",
+			zap.String("file_id", fileIDStr),
 			zap.Any("error", txErr))
 		httperror.ResponseError(w, txErr)
 		return
@@ -112,9 +115,10 @@ func (h *DeleteCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Req
 
 	// Encode response
 	if result != nil {
-		resp := result.(*svc_collection.DeleteCollectionResponseDTO)
+		resp := result.(*svc_file.SoftDeleteFileResponseDTO)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			h.logger.Error("failed to encode response",
+				zap.String("file_id", fileIDStr),
 				zap.Any("error", err))
 			httperror.ResponseError(w, err)
 			return

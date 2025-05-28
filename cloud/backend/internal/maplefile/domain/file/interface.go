@@ -25,12 +25,12 @@ type FileMetadataRepository interface {
 	GetByCollection(collectionID primitive.ObjectID) ([]*File, error)
 	// Update modifies an existing File metadata record in the storage.
 	Update(file *File) error
-	// Delete removes a single File metadata record by its unique identifier (ID) - now soft delete.
-	Delete(id primitive.ObjectID) error
+	// SoftDelete removes a single File metadata record by its unique identifier (ID) by setting its state to deleted.
+	SoftDelete(id primitive.ObjectID) error
 	// HardDelete permanently removes a file metadata record
 	HardDelete(id primitive.ObjectID) error
-	// DeleteMany removes multiple File metadata records by their unique identifiers (IDs) - now soft delete.
-	DeleteMany(ids []primitive.ObjectID) error
+	// SoftDeleteMany removes multiple File metadata records by their unique identifiers (IDs) by setting its state to deleted.
+	SoftDeleteMany(ids []primitive.ObjectID) error
 	// HardDeleteMany permanently removes multiple file metadata records
 	HardDeleteMany(ids []primitive.ObjectID) error
 	// CheckIfExistsByID verifies if a File metadata record with the given ID exists in the storage.

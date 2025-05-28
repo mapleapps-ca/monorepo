@@ -10,26 +10,26 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type DeleteFileMetadataUseCase interface {
+type SoftDeleteFileMetadataUseCase interface {
 	Execute(id primitive.ObjectID) error
 }
 
-type deleteFileMetadataUseCaseImpl struct {
+type softDeleteFileMetadataUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
 	repo   dom_file.FileMetadataRepository
 }
 
-func NewDeleteFileMetadataUseCase(
+func NewSoftDeleteFileMetadataUseCase(
 	config *config.Configuration,
 	logger *zap.Logger,
 	repo dom_file.FileMetadataRepository,
-) DeleteFileMetadataUseCase {
-	logger = logger.Named("DeleteFileMetadataUseCase")
-	return &deleteFileMetadataUseCaseImpl{config, logger, repo}
+) SoftDeleteFileMetadataUseCase {
+	logger = logger.Named("SoftDeleteFileMetadataUseCase")
+	return &softDeleteFileMetadataUseCaseImpl{config, logger, repo}
 }
 
-func (uc *deleteFileMetadataUseCaseImpl) Execute(id primitive.ObjectID) error {
+func (uc *softDeleteFileMetadataUseCaseImpl) Execute(id primitive.ObjectID) error {
 	//
 	// STEP 1: Validation.
 	//
@@ -45,8 +45,8 @@ func (uc *deleteFileMetadataUseCaseImpl) Execute(id primitive.ObjectID) error {
 	}
 
 	//
-	// STEP 2: Delete from database.
+	// STEP 2: Soft-delete from database.
 	//
 
-	return uc.repo.Delete(id)
+	return uc.repo.SoftDelete(id)
 }

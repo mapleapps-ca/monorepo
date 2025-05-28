@@ -129,7 +129,7 @@ func (svc *archiveFileServiceImpl) Execute(ctx context.Context, req *ArchiveFile
 	file.Version++ // Mutation means we increment version.
 	file.ModifiedAt = time.Now()
 	file.ModifiedByUserID = userID
-	err = svc.updateMetadataUseCase.Execute(file)
+	err = svc.updateMetadataUseCase.Execute(ctx, file)
 	if err != nil {
 		svc.logger.Error("Failed to archive file",
 			zap.Any("error", err),

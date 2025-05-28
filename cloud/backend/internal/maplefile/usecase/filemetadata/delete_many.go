@@ -56,5 +56,5 @@ func (uc *deleteManyFileMetadataUseCaseImpl) Execute(ids []primitive.ObjectID) e
 	// STEP 2: Delete from database.
 	//
 
-	return uc.repo.DeleteMany(ids)
+	return uc.repo.SoftDeleteMany(ids)
 }

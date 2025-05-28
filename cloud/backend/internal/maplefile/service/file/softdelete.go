@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/service/file/delete.go
+// cloud/backend/internal/maplefile/service/file/softdelete.go
 package file
 
 import (
@@ -18,51 +18,54 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type DeleteFileRequestDTO struct {
+type SoftDeleteFileRequestDTO struct {
 	FileID primitive.ObjectID `json:"file_id"`
 }
 
-type DeleteFileResponseDTO struct {
+type SoftDeleteFileResponseDTO struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
-type DeleteFileService interface {
-	Execute(ctx context.Context, req *DeleteFileRequestDTO) (*DeleteFileResponseDTO, error)
+type SoftDeleteFileService interface {
+	Execute(ctx context.Context, req *SoftDeleteFileRequestDTO) (*SoftDeleteFileResponseDTO, error)
 }
 
-type deleteFileServiceImpl struct {
+type softDeleteFileServiceImpl struct {
 	config                    *config.Configuration
 	logger                    *zap.Logger
 	collectionRepo            dom_collection.CollectionRepository
 	getMetadataUseCase        uc_filemetadata.GetFileMetadataUseCase
-	deleteMetadataUseCase     uc_filemetadata.DeleteFileMetadataUseCase
+	updateFileMetadataUseCase uc_filemetadata.UpdateFileMetadataUseCase
+	softDeleteMetadataUseCase uc_filemetadata.SoftDeleteFileMetadataUseCase
 	deleteDataUseCase         uc_fileobjectstorage.DeleteEncryptedDataUseCase
 	listFilesByOwnerIDService ListFilesByOwnerIDService
 }
 
-func NewDeleteFileService(
+func NewSoftDeleteFileService(
 	config *config.Configuration,
 	logger *zap.Logger,
 	collectionRepo dom_collection.CollectionRepository,
 	getMetadataUseCase uc_filemetadata.GetFileMetadataUseCase,
-	deleteMetadataUseCase uc_filemetadata.DeleteFileMetadataUseCase,
+	updateFileMetadataUseCase uc_filemetadata.UpdateFileMetadataUseCase,
+	softDeleteMetadataUseCase uc_filemetadata.SoftDeleteFileMetadataUseCase,
 	deleteDataUseCase uc_fileobjectstorage.DeleteEncryptedDataUseCase,
 	listFilesByOwnerIDService ListFilesByOwnerIDService,
-) DeleteFileService {
-	logger = logger.Named("DeleteFileService")
-	return &deleteFileServiceImpl{
+) SoftDeleteFileService {
+	logger = logger.Named("SoftDeleteFileService")
+	return &softDeleteFileServiceImpl{
 		config:                    config,
 		logger:                    logger,
 		collectionRepo:            collectionRepo,
 		getMetadataUseCase:        getMetadataUseCase,
-		deleteMetadataUseCase:     deleteMetadataUseCase,
+		updateFileMetadataUseCase: updateFileMetadataUseCase,
+		softDeleteMetadataUseCase: softDeleteMetadataUseCase,
 		deleteDataUseCase:         deleteDataUseCase,
 		listFilesByOwnerIDService: listFilesByOwnerIDService,
 	}
 }
 
-func (svc *deleteFileServiceImpl) Execute(ctx context.Context, req *DeleteFileRequestDTO) (*DeleteFileResponseDTO, error) {
+func (svc *softDeleteFileServiceImpl) Execute(ctx context.Context, req *SoftDeleteFileRequestDTO) (*SoftDeleteFileResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
@@ -143,7 +146,7 @@ func (svc *deleteFileServiceImpl) Execute(ctx context.Context, req *DeleteFileRe
 	//
 	err = svc.deleteDataUseCase.Execute(file.EncryptedFileObjectKey)
 	if err != nil {
-		svc.logger.Error("Failed to delete encrypted file data",
+		svc.logger.Error("Failed to hard delete encrypted file data",
 			zap.Any("error", err),
 			zap.Any("file_id", req.FileID),
 			zap.String("storage_path", file.EncryptedFileObjectKey))
@@ -154,7 +157,7 @@ func (svc *deleteFileServiceImpl) Execute(ctx context.Context, req *DeleteFileRe
 	if file.EncryptedThumbnailObjectKey != "" {
 		err = svc.deleteDataUseCase.Execute(file.EncryptedThumbnailObjectKey)
 		if err != nil {
-			svc.logger.Warn("Failed to delete encrypted thumbnail data",
+			svc.logger.Warn("Failed to hard delete encrypted thumbnail data",
 				zap.Any("error", err),
 				zap.Any("file_id", req.FileID),
 				zap.String("thumbnail_storage_path", file.EncryptedThumbnailObjectKey))
@@ -164,26 +167,32 @@ func (svc *deleteFileServiceImpl) Execute(ctx context.Context, req *DeleteFileRe
 	file.Version++ // Mutation means we increment version.
 	file.ModifiedAt = time.Now()
 	file.ModifiedByUserID = userID
-	//TODO: FIX
+	file.TombstoneVersion = file.Version
+	file.TombstoneExpiry = time.Now().Add(time.Hour * 24 * 30)
+	if err := svc.updateFileMetadataUseCase.Execute(ctx, file); err != nil {
+		svc.logger.Warn("Failed to update file metadata",
+			zap.Any("error", err),
+			zap.Any("file_id", req.FileID))
+	}
 
 	//
 	// STEP 6: Delete file metadata
 	//
-	err = svc.deleteMetadataUseCase.Execute(req.FileID)
+	err = svc.softDeleteMetadataUseCase.Execute(req.FileID)
 	if err != nil {
-		svc.logger.Error("Failed to delete file metadata",
+		svc.logger.Error("Failed to soft-delete file metadata",
 			zap.Any("error", err),
 			zap.Any("file_id", req.FileID))
 		return nil, err
 	}
 
-	svc.logger.Info("File deleted successfully",
+	svc.logger.Info("File soft-deleted successfully",
 		zap.Any("file_id", req.FileID),
 		zap.Any("collection_id", file.CollectionID),
 		zap.Any("user_id", userID))
 
-	return &DeleteFileResponseDTO{
+	return &SoftDeleteFileResponseDTO{
 		Success: true,
-		Message: "File deleted successfully",
+		Message: "File soft-deleted successfully",
 	}, nil
 }

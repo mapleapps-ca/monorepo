@@ -223,7 +223,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	file.ModifiedByUserID = userID
 	file.Version++ // Every mutation we need to keep a track of.
 
-	err = svc.updateMetadataUseCase.Execute(file)
+	err = svc.updateMetadataUseCase.Execute(ctx, file)
 	if err != nil {
 		svc.logger.Error("🔴 Failed to update file metadata to active state",
 			zap.Any("error", err),

@@ -22,7 +22,7 @@ func Module() fx.Option {
 			collection.NewCreateCollectionService,
 			collection.NewGetCollectionService,
 			collection.NewUpdateCollectionService,
-			collection.NewDeleteCollectionService,
+			collection.NewSoftDeleteCollectionService,
 			collection.NewArchiveCollectionService,
 			collection.NewRestoreCollectionService,
 
@@ -45,7 +45,7 @@ func Module() fx.Option {
 			collection.NewGetCollectionSyncDataService,
 
 			// File services
-			file.NewDeleteFileService,
+			file.NewSoftDeleteFileService,
 			file.NewDeleteMultipleFilesService,
 			file.NewGetFileService,
 			file.NewListFilesByCollectionService,

@@ -14,7 +14,7 @@ type CollectionRepository interface {
 	Get(ctx context.Context, id primitive.ObjectID) (*Collection, error)
 	GetWithAnyState(ctx context.Context, id primitive.ObjectID) (*Collection, error)
 	Update(ctx context.Context, collection *Collection) error
-	Delete(ctx context.Context, id primitive.ObjectID) error // Now soft delete
+	SoftDelete(ctx context.Context, id primitive.ObjectID) error // Now soft delete
 	HardDelete(ctx context.Context, id primitive.ObjectID) error
 
 	// State management operations

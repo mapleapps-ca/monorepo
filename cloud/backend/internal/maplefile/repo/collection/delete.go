@@ -14,7 +14,7 @@ import (
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
 )
 
-func (impl collectionRepositoryImpl) Delete(ctx context.Context, id primitive.ObjectID) error {
+func (impl collectionRepositoryImpl) SoftDelete(ctx context.Context, id primitive.ObjectID) error {
 	filter := bson.M{"_id": id}
 
 	// Soft delete: Update state to deleted and nullify most fields, but keep key auditing and hierarchical fields.

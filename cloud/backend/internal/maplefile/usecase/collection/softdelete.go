@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/delete.go
+// cloud/backend/internal/maplefile/usecase/collection/softdelete.go
 package collection
 
 import (
@@ -12,26 +12,26 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
-type DeleteCollectionUseCase interface {
+type SoftDeleteCollectionUseCase interface {
 	Execute(ctx context.Context, id primitive.ObjectID) error
 }
 
-type deleteCollectionUseCaseImpl struct {
+type softDeleteCollectionUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
 	repo   dom_collection.CollectionRepository
 }
 
-func NewDeleteCollectionUseCase(
+func NewSoftDeleteCollectionUseCase(
 	config *config.Configuration,
 	logger *zap.Logger,
 	repo dom_collection.CollectionRepository,
-) DeleteCollectionUseCase {
-	logger = logger.Named("DeleteCollectionUseCase")
-	return &deleteCollectionUseCaseImpl{config, logger, repo}
+) SoftDeleteCollectionUseCase {
+	logger = logger.Named("SoftDeleteCollectionUseCase")
+	return &softDeleteCollectionUseCaseImpl{config, logger, repo}
 }
 
-func (uc *deleteCollectionUseCaseImpl) Execute(ctx context.Context, id primitive.ObjectID) error {
+func (uc *softDeleteCollectionUseCaseImpl) Execute(ctx context.Context, id primitive.ObjectID) error {
 	//
 	// STEP 1: Validation.
 	//
@@ -50,5 +50,5 @@ func (uc *deleteCollectionUseCaseImpl) Execute(ctx context.Context, id primitive
 	// STEP 2: Delete from database.
 	//
 
-	return uc.repo.Delete(ctx, id)
+	return uc.repo.SoftDelete(ctx, id)
 }

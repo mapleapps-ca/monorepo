@@ -159,7 +159,7 @@ func (svc *updateFileServiceImpl) Execute(ctx context.Context, req *UpdateFileRe
 	//
 	// STEP 6: Save updated file
 	//
-	err = svc.updateMetadataUseCase.Execute(file)
+	err = svc.updateMetadataUseCase.Execute(ctx, file)
 	if err != nil {
 		svc.logger.Error("Failed to update file metadata",
 			zap.Any("error", err),
