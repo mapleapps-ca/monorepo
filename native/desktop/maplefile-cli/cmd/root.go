@@ -16,7 +16,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/requestloginott"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/sync"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyemail"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyloginott"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/version"
@@ -30,7 +29,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	svc_register "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
-	svc_sync "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/sync"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
@@ -63,7 +61,7 @@ func NewRootCmd(
 	getFileUseCase uc_file.GetFileUseCase,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
-	syncService svc_sync.SyncService,
+	// syncService svc_sync.SyncService, //TODO: IMPL.
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "maplefile-cli",
@@ -111,11 +109,13 @@ func NewRootCmd(
 		cloudOnlyDeleteService,
 		logger,
 	))
-	// Add the sync command with the new sync service
-	rootCmd.AddCommand(sync.SyncCmd(
-		syncService,
-		logger,
-	))
+
+	//TODO: IMPL.
+	// // Add the sync command with the new sync service
+	// rootCmd.AddCommand(sync.SyncCmd(
+	// 	syncService,
+	// 	logger,
+	// ))
 
 	return rootCmd
 }

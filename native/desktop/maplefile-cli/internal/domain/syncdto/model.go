@@ -33,11 +33,13 @@ type CollectionSyncResponseDTO struct {
 
 // FileSyncItem represents minimal file data for sync operations
 type FileSyncItem struct {
-	ID           primitive.ObjectID `json:"id"`
-	CollectionID primitive.ObjectID `json:"collection_id"`
-	Version      uint64             `json:"version"`
-	ModifiedAt   time.Time          `json:"modified_at"`
-	State        string             `json:"state"`
+	ID               primitive.ObjectID `json:"id"`
+	CollectionID     primitive.ObjectID `json:"collection_id"`
+	Version          uint64             `json:"version"`
+	ModifiedAt       time.Time          `json:"modified_at"`
+	State            string             `json:"state"`
+	TombstoneVersion uint64             `bson:"tombstone_version" json:"tombstone_version"`
+	TombstoneExpiry  time.Time          `bson:"tombstone_expiry" json:"tombstone_expiry"`
 }
 
 // FileSyncResponseDTO represents the response for file sync data

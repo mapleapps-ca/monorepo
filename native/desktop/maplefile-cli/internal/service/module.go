@@ -73,6 +73,8 @@ func ServiceModule() fx.Option {
 		fx.Provide(syncdto.NewSyncProgressService),
 
 		// Main sync service
-		fx.Provide(sync.NewSyncService),
+		fx.Provide(sync.NewSyncCollectionService),
+		fx.Provide(sync.NewSyncFileService),
+		fx.Provide(sync.NewSyncFullService),
 	)
 }
