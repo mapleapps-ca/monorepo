@@ -212,8 +212,8 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 		CreatedByUserID:               userID,
 		ModifiedAt:                    now,
 		ModifiedByUserID:              userID,
-		Version:                       1,
-		State:                         dom_file.FileStatePending, // File is pending upload
+		Version:                       1,                         // File creation always starts mutation version at 1.
+		State:                         dom_file.FileStatePending, // File creation always starts state in a pending upload.
 	}
 
 	err = svc.createMetadataUseCase.Execute(file)

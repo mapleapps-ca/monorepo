@@ -21,7 +21,6 @@ type UpdateCollectionRequestDTO struct {
 	EncryptedName          string                       `json:"encrypted_name"`
 	CollectionType         string                       `json:"collection_type,omitempty"`
 	EncryptedCollectionKey *keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
-	State                  string                       `json:"state,omitempty"`
 }
 
 type UpdateCollectionService interface {
@@ -65,9 +64,6 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 	}
 	if req.CollectionType != "" && req.CollectionType != dom_collection.CollectionTypeFolder && req.CollectionType != dom_collection.CollectionTypeAlbum {
 		e["collection_type"] = "Collection type must be either 'folder' or 'album'"
-	}
-	if req.State == "" {
-		e["state"] = "File state is required"
 	}
 
 	if len(e) != 0 {
@@ -123,23 +119,13 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 		}
 	}
 
-	// Check valid transitions.
-	if err := dom_collection.IsValidStateTransition(collection.State, req.State); err != nil {
-		svc.logger.Warn("Invalid collection state transition",
-			zap.Any("user_id", userID),
-			zap.Any("collection_id", req.ID),
-			zap.Any("current_state", collection.State),
-			zap.Any("target_state", req.State),
-			zap.Error(err))
-		return nil, err
-
-	}
-
 	//
 	// STEP 5: Update collection
 	//
 	collection.EncryptedName = req.EncryptedName
 	collection.ModifiedAt = time.Now()
+	collection.ModifiedByUserID = userID
+	collection.Version++ // Update mutation means we increment version.
 
 	// Only update optional fields if they are provided
 	if req.CollectionType != "" {

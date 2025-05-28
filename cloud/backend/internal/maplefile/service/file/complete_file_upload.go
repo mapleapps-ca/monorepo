@@ -104,7 +104,8 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	//
 	// STEP 3: Get file metadata
 	//
-	file, err := svc.getMetadataUseCase.Execute(req.FileID)
+	// Developers note: Use `ExecuteWithAnyState` because initially created `FileMetadata` object has state set to `pending`.
+	file, err := svc.getMetadataUseCase.ExecuteWithAnyState(req.FileID)
 	if err != nil {
 		svc.logger.Error("🔴 Failed to get file metadata",
 			zap.Any("error", err),
@@ -220,7 +221,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	file.State = dom_file.FileStateActive
 	file.ModifiedAt = time.Now()
 	file.ModifiedByUserID = userID
-	file.Version++
+	file.Version++ // Every mutation we need to keep a track of.
 
 	err = svc.updateMetadataUseCase.Execute(file)
 	if err != nil {

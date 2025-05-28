@@ -36,10 +36,6 @@ type CreateCollectionRequestDTO struct {
 	CreatedByUserID        primitive.ObjectID            `json:"created_by_user_id"`
 	ModifiedAt             time.Time                     `bson:"modified_at" json:"modified_at"`
 	ModifiedByUserID       primitive.ObjectID            `json:"modified_by_user_id"`
-	Version                uint64                        `json:"version"`
-	State                  string                        `bson:"state" json:"state"`
-	TombstoneVersion       uint64                        `bson:"tombstone_version" json:"tombstone_version"`
-	TombstoneExpiry        time.Time                     `bson:"tombstone_expiry" json:"tombstone_expiry"`
 }
 
 type CollectionMembershipDTO struct {
@@ -149,10 +145,6 @@ func mapCollectionDTOToDomain(dto *CreateCollectionRequestDTO, userID primitive.
 		CreatedByUserID:        dto.CreatedByUserID,
 		ModifiedAt:             dto.ModifiedAt,
 		ModifiedByUserID:       dto.ModifiedByUserID,
-		Version:                dto.Version,
-		State:                  dto.State,
-		TombstoneVersion:       dto.TombstoneVersion,
-		TombstoneExpiry:        dto.TombstoneExpiry,
 	}
 
 	// Map members slice from DTO to domain model slice
@@ -211,12 +203,6 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	if req.EncryptedCollectionKey == nil || req.EncryptedCollectionKey.Nonce == nil || len(req.EncryptedCollectionKey.Nonce) == 0 {
 		e["encrypted_collection_key"] = "Encrypted collection key nonce is required"
 	}
-	if req.Version == 0 || req.Version > 1 {
-		e["version"] = "Collection version must start at 1 when creating a new collection"
-	}
-	if req.State != dom_collection.CollectionStateActive && req.State != dom_collection.CollectionStateDeleted && req.State != dom_collection.CollectionStateArchived {
-		e["state"] = "Collection state must be valid choice selection"
-	}
 
 	if len(e) != 0 {
 		svc.logger.Warn("Failed validation",
@@ -245,14 +231,14 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	// Apply server-side mandatory fields/overrides for the top-level collection.
 	// These values are managed by the backend regardless of what the client provides in the DTO.
 	// This ensures data integrity and reflects the server's perspective of the creation event.
-	collection.ID = primitive.NewObjectID() // Always generate a new ID on the server for a new creation
-	collection.OwnerID = userID             // The authenticated user is the authoritative owner
-	collection.CreatedAt = now              // Server timestamp for creation
-	collection.ModifiedAt = now             // Server timestamp for modification
-	collection.CreatedByUserID = userID     // The authenticated user is the creator
-	collection.ModifiedByUserID = userID    // The authenticated user is the initial modifier
-	collection.Version = req.Version
-	collection.State = req.State
+	collection.ID = primitive.NewObjectID()                 // Always generate a new ID on the server for a new creation
+	collection.OwnerID = userID                             // The authenticated user is the authoritative owner
+	collection.CreatedAt = now                              // Server timestamp for creation
+	collection.ModifiedAt = now                             // Server timestamp for modification
+	collection.CreatedByUserID = userID                     // The authenticated user is the creator
+	collection.ModifiedByUserID = userID                    // The authenticated user is the initial modifier
+	collection.Version = 1                                  // Collection creation **always** starts mutation version at 1.
+	collection.State = dom_collection.CollectionStateActive // Collection creation **always** starts in active state.
 
 	// Ensure owner membership exists with Admin permissions.
 	// Check if the owner is already present in the members list copied from the DTO.
