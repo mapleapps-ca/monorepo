@@ -165,24 +165,26 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 		}
 	}
 
+	// TODO: UNCOMMENT THE CODE BELOW WHEN THE SYNC CODE ABOVE IS COMPLETED
+
 	// // Update sync state if we processed any data and got a final cursor
 	// if progressOutput.TotalItems > 0 && progressOutput.FinalCursor != nil {
-	// 	// saveInput := &syncstate.SaveInput{
-	// 	// 	LastFileSync: &progressOutput.FinalCursor.LastModified,
-	// 	// 	LastFileID:   &progressOutput.FinalCursor.LastID,
-	// 	// }
-	// 	// s.logger.Debug("Attempting to save sync state for files",
-	// 	// 	zap.Time("lastFileSync", *saveInput.LastFileSync),
-	// 	// 	zap.String("lastFileID", saveInput.LastFileID.Hex())) // Convert ObjectID to string
+	// 	saveInput := &syncstate.SaveInput{
+	// 		LastFileSync: &progressOutput.FinalCursor.LastModified,
+	// 		LastFileID:   &progressOutput.FinalCursor.LastID,
+	// 	}
+	// 	s.logger.Debug("Attempting to save sync state for files",
+	// 		zap.Time("lastFileSync", *saveInput.LastFileSync),
+	// 		zap.String("lastFileID", saveInput.LastFileID.Hex())) // Convert ObjectID to string
 
-	// 	// _, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
-	// 	// if err != nil {
-	// 	// 	s.logger.Error("Failed to update sync state for files", zap.Error(err))
-	// 	// 	// Don't fail the entire operation for sync state update failure
-	// 	// 	result.Errors = append(result.Errors, "failed to update sync state: "+err.Error())
-	// 	// } else {
-	// 	// 	s.logger.Info("Successfully updated sync state for files")
-	// 	// }
+	// 	_, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
+	// 	if err != nil {
+	// 		s.logger.Error("Failed to update sync state for files", zap.Error(err))
+	// 		// Don't fail the entire operation for sync state update failure
+	// 		result.Errors = append(result.Errors, "failed to update sync state: "+err.Error())
+	// 	} else {
+	// 		s.logger.Info("Successfully updated sync state for files")
+	// 	}
 	// } else if progressOutput.TotalItems > 0 && progressOutput.FinalCursor == nil {
 	// 	s.logger.Warn("Processed items but did not receive a final cursor for files. Sync state not updated.")
 	// } else {

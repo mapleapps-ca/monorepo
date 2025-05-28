@@ -13,7 +13,7 @@ import (
 
 // collectionsCmd creates a command for syncing collections
 func collectionsCmd(
-	syncService svc_sync.SyncService,
+	syncCollectionService svc_sync.SyncCollectionService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var batchSize int64
@@ -55,7 +55,7 @@ Examples:
 			}
 
 			// Execute collection sync
-			result, err := syncService.SyncCollections(cmd.Context(), input)
+			result, err := syncCollectionService.Execute(cmd.Context(), input)
 			if err != nil {
 				fmt.Printf("❌ Collection sync failed: %v\n", err)
 				return

@@ -10,7 +10,7 @@ import (
 
 // SyncCmd creates a command for sync operations
 func SyncCmd(
-	syncService svc_sync.SyncService,
+	syncCollectionService svc_sync.SyncCollectionService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -43,10 +43,10 @@ Examples:
 	}
 
 	// Add sync subcommands
-	cmd.AddCommand(collectionsCmd(syncService, logger))
-	cmd.AddCommand(filesCmd(syncService, logger))
-	cmd.AddCommand(fullCmd(syncService, logger))
-	cmd.AddCommand(resetCmd(syncService, logger))
+	cmd.AddCommand(collectionsCmd(syncCollectionService, logger))
+	// cmd.AddCommand(filesCmd(syncService, logger))
+	// cmd.AddCommand(fullCmd(syncService, logger))
+	// cmd.AddCommand(resetCmd(syncService, logger))
 
 	return cmd
 }

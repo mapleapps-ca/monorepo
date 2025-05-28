@@ -4,11 +4,14 @@ package sync
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
+	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncdto"
 	syncdtoSvc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/syncdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/syncstate"
-	"go.uber.org/zap"
+	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 )
 
 // SyncCollectionsInput represents input for syncing collections
@@ -31,6 +34,10 @@ type syncCollectionService struct {
 	syncStateResetService        syncstate.ResetService
 	syncDTOProgressService       syncdtoSvc.SyncProgressService
 	syncDTOGetCollectionsService syncdtoSvc.GetCollectionsService
+	createCollectionUseCase      uc.CreateCollectionUseCase
+	getCollectionUseCase         uc.GetCollectionUseCase
+	updateCollectionUseCase      uc.UpdateCollectionUseCase
+	deleteCollectionUseCase      uc.DeleteCollectionUseCase
 }
 
 // NewSyncCollectionService creates a new sync collection service
@@ -41,6 +48,10 @@ func NewSyncCollectionService(
 	syncStateResetService syncstate.ResetService,
 	syncDTOProgressService syncdtoSvc.SyncProgressService,
 	syncDTOGetCollectionsService syncdtoSvc.GetCollectionsService,
+	createCollectionUseCase uc.CreateCollectionUseCase,
+	getCollectionUseCase uc.GetCollectionUseCase,
+	updateCollectionUseCase uc.UpdateCollectionUseCase,
+	deleteCollectionUseCase uc.DeleteCollectionUseCase,
 ) SyncCollectionService {
 	return &syncCollectionService{
 		logger:                       logger,
@@ -49,6 +60,10 @@ func NewSyncCollectionService(
 		syncStateResetService:        syncStateResetService,
 		syncDTOProgressService:       syncDTOProgressService,
 		syncDTOGetCollectionsService: syncDTOGetCollectionsService,
+		createCollectionUseCase:      createCollectionUseCase,
+		getCollectionUseCase:         getCollectionUseCase,
+		updateCollectionUseCase:      updateCollectionUseCase,
+		deleteCollectionUseCase:      deleteCollectionUseCase,
 	}
 }
 
@@ -131,6 +146,7 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 			zap.Int("batchIndex", i),
 			zap.Int("itemsInBatch", len(batch.Collections)))
 		for _, collection := range batch.Collections {
+			// For debugging purpose only.
 			s.logger.Debug("Beginning to analyze collection for syncing...",
 				zap.String("id", collection.ID.Hex()),
 				zap.Uint64("version", collection.Version),
@@ -141,10 +157,38 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 				zap.Time("tombstone_expiry", collection.TombstoneExpiry),
 			)
 
+			// Attempt to lookup the existing local collection record.
+			localCollection, err := s.getCollectionUseCase.Execute(ctx, collection.ID)
+			if err != nil {
+				s.logger.Error("Failed to get local collection",
+					zap.String("id", collection.ID.Hex()),
+					zap.Error(err))
+				continue
+			}
+			_ = localCollection
+
 			//TODO: HERE WE WILL ADD SYNC LOGIC.
 
 			switch collection.State {
 			case "active":
+				// CASE 1: If the local collection is not found, create a new one.
+				if localCollection == nil {
+					// Create a new collection record.
+					newCollection := &dom_collection.Collection{
+						ID: collection.ID,
+						// Name: collection.Name,
+						// Description:     collection.Description,
+						State:           collection.State,
+						TombstoneExpiry: collection.TombstoneExpiry,
+					}
+					if err := s.createCollectionUseCase.Execute(ctx, newCollection); err != nil {
+						s.logger.Error("Failed to create new collection",
+							zap.String("id", collection.ID.Hex()),
+							zap.Error(err))
+						continue
+					}
+				}
+
 				result.CollectionsUpdated++
 				s.logger.Debug("Collection marked as active",
 					zap.String("id", collection.ID.Hex())) // Optional: log each item
@@ -166,24 +210,26 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 		}
 	}
 
+	// TODO: UNCOMMENT THE CODE BELOW WHEN THE SYNC CODE ABOVE IS COMPLETED
+
 	// // Update sync state if we processed any data and got a final cursor
 	// if progressOutput.TotalItems > 0 && progressOutput.FinalCursor != nil {
-	// 	// saveInput := &syncstate.SaveInput{
-	// 	// 	LastCollectionSync: &progressOutput.FinalCursor.LastModified,
-	// 	// 	LastCollectionID:   &progressOutput.FinalCursor.LastID,
-	// 	// }
-	// 	// s.logger.Debug("Attempting to save sync state for collections",
-	// 	// 	zap.Time("lastCollectionSync", *saveInput.LastCollectionSync),
-	// 	// 	zap.String("lastCollectionID", saveInput.LastCollectionID.Hex())) // Convert ObjectID to string
+	// 	saveInput := &syncstate.SaveInput{
+	// 		LastCollectionSync: &progressOutput.FinalCursor.LastModified,
+	// 		LastCollectionID:   &progressOutput.FinalCursor.LastID,
+	// 	}
+	// 	s.logger.Debug("Attempting to save sync state for collections",
+	// 		zap.Time("lastCollectionSync", *saveInput.LastCollectionSync),
+	// 		zap.String("lastCollectionID", saveInput.LastCollectionID.Hex())) // Convert ObjectID to string
 
-	// 	// _, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
-	// 	// if err != nil {
-	// 	// 	s.logger.Error("Failed to update sync state for collections", zap.Error(err))
-	// 	// 	// Don't fail the entire operation for sync state update failure
-	// 	// 	result.Errors = append(result.Errors, "failed to update sync state: "+err.Error())
-	// 	// } else {
-	// 	// 	s.logger.Info("Successfully updated sync state for collections")
-	// 	// }
+	// 	_, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
+	// 	if err != nil {
+	// 		s.logger.Error("Failed to update sync state for collections", zap.Error(err))
+	// 		// Don't fail the entire operation for sync state update failure
+	// 		result.Errors = append(result.Errors, "failed to update sync state: "+err.Error())
+	// 	} else {
+	// 		s.logger.Info("Successfully updated sync state for collections")
+	// 	}
 	// } else if progressOutput.TotalItems > 0 && progressOutput.FinalCursor == nil {
 	// 	s.logger.Warn("Processed items but did not receive a final cursor for collections. Sync state not updated.")
 	// } else {
