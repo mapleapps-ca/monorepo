@@ -23,6 +23,7 @@ type UpdateFileRequestDTO struct {
 	EncryptedFileKey  keys.EncryptedFileKey `json:"encrypted_file_key,omitempty"`
 	EncryptionVersion string                `json:"encryption_version,omitempty"`
 	EncryptedHash     string                `json:"encrypted_hash,omitempty"`
+	Version           uint64                `json:"version,omitempty"`
 }
 
 type UpdateFileService interface {
@@ -109,7 +110,23 @@ func (svc *updateFileServiceImpl) Execute(ctx context.Context, req *UpdateFileRe
 	}
 
 	//
-	// STEP 5: Update file metadata
+	// STEP 5: Check if submitted collection request is in-sync with our backend's collection copy.
+	//
+
+	// Developers note:
+	// What is the purpose of this check?
+	// Our server has multiple clients sharing data and hence our backend needs to ensure that the file being updated is the most recent version.
+	if file.Version != req.Version {
+		svc.logger.Warn("Outdated collection update attempt",
+			zap.Any("user_id", userID),
+			zap.Any("collection_id", req.ID),
+			zap.Any("submitted_version", req.Version),
+			zap.Any("current_version", file.Version))
+		return nil, httperror.NewForBadRequestWithSingleField("message", "Collection has been updated since you last fetched it")
+	}
+
+	//
+	// STEP 6: Update file metadata
 	//
 	updated := false
 

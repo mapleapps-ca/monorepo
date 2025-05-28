@@ -124,7 +124,10 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 	// STEP 5: Check if submitted collection request is in-sync with our backend's collection copy.
 	//
 
-	if collection.Version != req.Version { //TODO: CONFIRM THIS WORKS.
+	// Developers note:
+	// What is the purpose of this check?
+	// Our server has multiple clients sharing data and hence our backend needs to ensure that the collection being updated is the most recent version.
+	if collection.Version != req.Version {
 		svc.logger.Warn("Outdated collection update attempt",
 			zap.Any("user_id", userID),
 			zap.Any("collection_id", req.ID),
@@ -134,7 +137,7 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 	}
 
 	//
-	// STEP 5: Update collection
+	// STEP 6: Update collection
 	//
 	collection.EncryptedName = req.EncryptedName
 	collection.ModifiedAt = time.Now()
@@ -151,7 +154,7 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 	}
 
 	//
-	// STEP 6: Save updated collection
+	// STEP 7: Save updated collection
 	//
 	err = svc.repo.Update(ctx, collection)
 	if err != nil {
@@ -162,7 +165,7 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 	}
 
 	//
-	// STEP 7: Map domain model to response DTO
+	// STEP 8: Map domain model to response DTO
 	//
 	response := mapCollectionToDTO(collection)
 
