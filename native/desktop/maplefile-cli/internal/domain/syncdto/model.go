@@ -15,11 +15,13 @@ type SyncCursorDTO struct {
 
 // CollectionSyncItem represents minimal collection data for sync operations
 type CollectionSyncItem struct {
-	ID         primitive.ObjectID  `json:"id"`
-	Version    uint64              `json:"version"`
-	ModifiedAt time.Time           `json:"modified_at"`
-	State      string              `json:"state"`
-	ParentID   *primitive.ObjectID `json:"parent_id,omitempty"`
+	ID               primitive.ObjectID  `json:"id"`
+	Version          uint64              `json:"version"`
+	ModifiedAt       time.Time           `json:"modified_at"`
+	State            string              `json:"state"`
+	ParentID         *primitive.ObjectID `json:"parent_id,omitempty"`
+	TombstoneVersion uint64              `bson:"tombstone_version" json:"tombstone_version"`
+	TombstoneExpiry  time.Time           `bson:"tombstone_expiry" json:"tombstone_expiry"`
 }
 
 // CollectionSyncResponseDTO represents the response for collection sync data

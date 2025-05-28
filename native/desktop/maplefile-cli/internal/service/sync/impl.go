@@ -126,45 +126,59 @@ func (s *syncService) SyncCollections(ctx context.Context, input *SyncCollection
 			zap.Int("batchIndex", i),
 			zap.Int("itemsInBatch", len(batch.Collections)))
 		for _, collection := range batch.Collections {
+			s.logger.Debug("Beginning to analyze collection for syncing...",
+				zap.String("id", collection.ID.Hex()),
+				zap.Uint64("version", collection.Version),
+				zap.Time("modified_at", collection.ModifiedAt),
+				zap.String("state", collection.State),
+				zap.Any("parent_id", collection.ParentID),
+				zap.Uint64("tombstone_version", collection.TombstoneVersion),
+				zap.Time("tombstone_expiry", collection.TombstoneExpiry),
+			)
+
+			//TODO: HERE WE WILL ADD SYNC LOGIC.
+
 			switch collection.State {
 			case "active":
 				result.CollectionsUpdated++
-				// s.logger.Debug("Collection marked as active", zap.String("id", collection.ID.Hex())) // Optional: log each item
+				s.logger.Debug("Collection marked as active",
+					zap.String("id", collection.ID.Hex())) // Optional: log each item
 			case "deleted":
 				result.CollectionsDeleted++
-				// s.logger.Debug("Collection marked as deleted", zap.String("id", collection.ID.Hex())) // Optional: log each item
+				s.logger.Debug("Collection marked as deleted",
+					zap.String("id", collection.ID.Hex())) // Optional: log each item
 			case "":
 				errorMsg := "empty collection state"
-				s.logger.Warn(errorMsg, zap.String("id", collection.ID.Hex()))                  // Convert ObjectID to string
+				s.logger.Warn(errorMsg,
+					zap.String("id", collection.ID.Hex())) // Convert ObjectID to string
 				result.Errors = append(result.Errors, errorMsg+" for ID: "+collection.ID.Hex()) // Convert ObjectID to string for concatenation
 			default:
 				errorMsg := "unknown collection state: " + collection.State
-				s.logger.Warn(errorMsg, zap.String("id", collection.ID.Hex()))                  // Convert ObjectID to string
+				s.logger.Warn(errorMsg,
+					zap.String("id", collection.ID.Hex())) // Convert ObjectID to string
 				result.Errors = append(result.Errors, errorMsg+" for ID: "+collection.ID.Hex()) // Convert ObjectID to string for concatenation
 			}
 		}
 	}
 
-	// TODO: UNCOMMENT BELOW WHEN READY!
-
 	// // Update sync state if we processed any data and got a final cursor
 	// if progressOutput.TotalItems > 0 && progressOutput.FinalCursor != nil {
-	// 	saveInput := &syncstate.SaveInput{
-	// 		LastCollectionSync: &progressOutput.FinalCursor.LastModified,
-	// 		LastCollectionID:   &progressOutput.FinalCursor.LastID,
-	// 	}
-	// 	s.logger.Debug("Attempting to save sync state for collections",
-	// 		zap.Time("lastCollectionSync", *saveInput.LastCollectionSync),
-	// 		zap.String("lastCollectionID", saveInput.LastCollectionID.Hex())) // Convert ObjectID to string
+	// 	// saveInput := &syncstate.SaveInput{
+	// 	// 	LastCollectionSync: &progressOutput.FinalCursor.LastModified,
+	// 	// 	LastCollectionID:   &progressOutput.FinalCursor.LastID,
+	// 	// }
+	// 	// s.logger.Debug("Attempting to save sync state for collections",
+	// 	// 	zap.Time("lastCollectionSync", *saveInput.LastCollectionSync),
+	// 	// 	zap.String("lastCollectionID", saveInput.LastCollectionID.Hex())) // Convert ObjectID to string
 
-	// 	_, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
-	// 	if err != nil {
-	// 		s.logger.Error("Failed to update sync state for collections", zap.Error(err))
-	// 		// Don't fail the entire operation for sync state update failure
-	// 		result.Errors = append(result.Errors, "failed to update sync state: "+err.Error())
-	// 	} else {
-	// 		s.logger.Info("Successfully updated sync state for collections")
-	// 	}
+	// 	// _, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
+	// 	// if err != nil {
+	// 	// 	s.logger.Error("Failed to update sync state for collections", zap.Error(err))
+	// 	// 	// Don't fail the entire operation for sync state update failure
+	// 	// 	result.Errors = append(result.Errors, "failed to update sync state: "+err.Error())
+	// 	// } else {
+	// 	// 	s.logger.Info("Successfully updated sync state for collections")
+	// 	// }
 	// } else if progressOutput.TotalItems > 0 && progressOutput.FinalCursor == nil {
 	// 	s.logger.Warn("Processed items but did not receive a final cursor for collections. Sync state not updated.")
 	// } else {
