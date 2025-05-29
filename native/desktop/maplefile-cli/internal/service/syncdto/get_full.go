@@ -64,7 +64,7 @@ func (s *getFullSyncService) GetFullSyncData(ctx context.Context, input *GetFull
 	}
 
 	if !input.IncludeCollections && !input.IncludeFiles {
-		s.logger.Error("at least one sync type must be included")
+		s.logger.Error("❌ at least one sync type must be included")
 		return nil, errors.NewAppError("at least one of include_collections or include_files must be true", nil)
 	}
 
@@ -75,7 +75,7 @@ func (s *getFullSyncService) GetFullSyncData(ctx context.Context, input *GetFull
 		input.FileLimit = 100 // Default limit
 	}
 
-	s.logger.Info("Starting full sync data retrieval",
+	s.logger.Info("🔄 Starting full sync data retrieval",
 		zap.Bool("include_collections", input.IncludeCollections),
 		zap.Bool("include_files", input.IncludeFiles),
 		zap.Int64("collection_limit", input.CollectionLimit),
@@ -85,10 +85,10 @@ func (s *getFullSyncService) GetFullSyncData(ctx context.Context, input *GetFull
 
 	// Get collection sync data if requested
 	if input.IncludeCollections {
-		s.logger.Debug("Getting collection sync data")
+		s.logger.Debug("📁 Getting collection sync data")
 		collectionResponse, err := s.syncDTORepo.GetCollectionSyncDataFromCloud(ctx, input.CollectionCursor, input.CollectionLimit)
 		if err != nil {
-			s.logger.Error("failed to get collection sync data", zap.Error(err))
+			s.logger.Error("❌ failed to get collection sync data", zap.Error(err))
 			return nil, errors.NewAppError("failed to get collection sync data", err)
 		}
 		output.CollectionResponse = collectionResponse
@@ -97,10 +97,10 @@ func (s *getFullSyncService) GetFullSyncData(ctx context.Context, input *GetFull
 
 	// Get file sync data if requested
 	if input.IncludeFiles {
-		s.logger.Debug("Getting file sync data")
+		s.logger.Debug("📄 Getting file sync data")
 		fileResponse, err := s.syncDTORepo.GetFileSyncDataFromCloud(ctx, input.FileCursor, input.FileLimit)
 		if err != nil {
-			s.logger.Error("failed to get file sync data", zap.Error(err))
+			s.logger.Error("❌ failed to get file sync data", zap.Error(err))
 			return nil, errors.NewAppError("failed to get file sync data", err)
 		}
 		output.FileResponse = fileResponse
@@ -115,7 +115,7 @@ func (s *getFullSyncService) GetFullSyncData(ctx context.Context, input *GetFull
 		output.Message = "Full sync data retrieved successfully"
 	}
 
-	s.logger.Info("Successfully completed full sync data retrieval",
+	s.logger.Info("✅ Successfully completed full sync data retrieval",
 		zap.Int("collections_count", output.CollectionsCount),
 		zap.Int("files_count", output.FilesCount),
 		zap.Int("total_items", totalItems))
@@ -125,7 +125,7 @@ func (s *getFullSyncService) GetFullSyncData(ctx context.Context, input *GetFull
 
 // GetBothSyncData is a convenience method to get both collections and files with default settings
 func (s *getFullSyncService) GetBothSyncData(ctx context.Context, collectionLimit, fileLimit int64) (*GetFullSyncOutput, error) {
-	s.logger.Debug("Getting both collection and file sync data with default settings",
+	s.logger.Debug("🔄 Getting both collection and file sync data with default settings",
 		zap.Int64("collection_limit", collectionLimit),
 		zap.Int64("file_limit", fileLimit))
 

@@ -54,16 +54,16 @@ func NewSaveService(
 // SaveSyncState saves or updates the sync state
 func (s *saveService) SaveSyncState(ctx context.Context, input *SaveInput) (*SaveOutput, error) {
 	if input == nil {
-		s.logger.Error("input is required")
+		s.logger.Error("❌ input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
 
-	s.logger.Debug("Saving sync state", zap.Any("input", input))
+	s.logger.Debug("🔄 Saving sync state", zap.Any("input", input))
 
 	// Get current sync state first
 	currentState, err := s.syncStateRepo.GetSyncState(ctx)
 	if err != nil {
-		s.logger.Error("failed to get current sync state", zap.Error(err))
+		s.logger.Error("❌ failed to get current sync state", zap.Error(err))
 		return nil, errors.NewAppError("failed to get current sync state", err)
 	}
 
@@ -90,11 +90,11 @@ func (s *saveService) SaveSyncState(ctx context.Context, input *SaveInput) (*Sav
 
 	// Save the updated state
 	if err := s.syncStateRepo.SaveSyncState(ctx, updatedState); err != nil {
-		s.logger.Error("failed to save sync state", zap.Error(err))
+		s.logger.Error("❌ failed to save sync state", zap.Error(err))
 		return nil, errors.NewAppError("failed to save sync state", err)
 	}
 
-	s.logger.Info("Successfully saved sync state",
+	s.logger.Info("✅ Successfully saved sync state",
 		zap.Time("last_collection_sync", updatedState.LastCollectionSync),
 		zap.Time("last_file_sync", updatedState.LastFileSync))
 
@@ -106,7 +106,7 @@ func (s *saveService) SaveSyncState(ctx context.Context, input *SaveInput) (*Sav
 
 // UpdateCollectionSync updates only the collection sync timestamp and ID
 func (s *saveService) UpdateCollectionSync(ctx context.Context, timestamp time.Time, lastID primitive.ObjectID) (*SaveOutput, error) {
-	s.logger.Debug("Updating collection sync state",
+	s.logger.Debug("🔄 Updating collection sync state",
 		zap.Time("timestamp", timestamp),
 		zap.String("lastID", lastID.Hex()))
 
@@ -120,7 +120,7 @@ func (s *saveService) UpdateCollectionSync(ctx context.Context, timestamp time.T
 
 // UpdateFileSync updates only the file sync timestamp and ID
 func (s *saveService) UpdateFileSync(ctx context.Context, timestamp time.Time, lastID primitive.ObjectID) (*SaveOutput, error) {
-	s.logger.Debug("Updating file sync state",
+	s.logger.Debug("🔄 Updating file sync state",
 		zap.Time("timestamp", timestamp),
 		zap.String("lastID", lastID.Hex()))
 

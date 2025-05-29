@@ -73,7 +73,7 @@ func NewDownloadService(
 }
 
 func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID primitive.ObjectID, userPassword string, urlDuration time.Duration) (*DownloadResult, error) {
-	s.logger.Info("Starting E2EE file download and decryption", zap.String("fileID", fileID.Hex()))
+	s.logger.Info("👇 Starting E2EE file download and decryption", zap.String("fileID", fileID.Hex()))
 
 	//
 	// Step 1: Validate inputs
@@ -146,6 +146,7 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID pri
 	//
 	// Step 6: Get presigned download URLs
 	//
+	s.logger.Debug("🌐 Getting presigned download URLs")
 	urlResponse, err := s.getPresignedDownloadURLUseCase.Execute(ctx, fileID, urlDuration)
 	if err != nil {
 		return nil, errors.NewAppError("failed to get presigned download URLs", err)
@@ -154,10 +155,12 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID pri
 	if !urlResponse.Success {
 		return nil, errors.NewAppError("server failed to generate presigned URLs: "+urlResponse.Message, nil)
 	}
+	s.logger.Debug("✅ Successfully got presigned download URLs")
 
 	//
 	// Step 7: Download encrypted file content
 	//
+	s.logger.Debug("📥 Downloading encrypted file content")
 	downloadRequest := &filedto.DownloadRequest{
 		PresignedURL:          urlResponse.PresignedDownloadURL,
 		PresignedThumbnailURL: urlResponse.PresignedThumbnailURL,
@@ -167,24 +170,30 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID pri
 	if err != nil {
 		return nil, errors.NewAppError("failed to download file content", err)
 	}
+	s.logger.Debug("✅ Successfully downloaded encrypted file content")
 
 	//
 	// Step 8: Decrypt the file content
 	//
+	s.logger.Debug("🔑 Decrypting file content")
 	decryptedData, err := s.decryptFileContent(downloadResponse.FileData, fileKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to decrypt file content", err)
 	}
+	s.logger.Debug("✅ Successfully decrypted file content")
 
 	//
 	// Step 9: Decrypt thumbnail if present
 	//
 	var thumbnailData []byte
 	if downloadResponse.ThumbnailData != nil && len(downloadResponse.ThumbnailData) > 0 {
+		s.logger.Debug("🔑 Decrypting thumbnail data")
 		thumbnailData, err = s.decryptFileContent(downloadResponse.ThumbnailData, fileKey)
 		if err != nil {
-			s.logger.Warn("Failed to decrypt thumbnail, continuing without it", zap.Error(err))
+			s.logger.Warn("⚠️ Failed to decrypt thumbnail, continuing without it", zap.Error(err))
 			thumbnailData = nil
+		} else {
+			s.logger.Debug("✅ Successfully decrypted thumbnail data")
 		}
 	}
 
@@ -197,7 +206,7 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID pri
 		ThumbnailSize:     int64(len(thumbnailData)),
 	}
 
-	s.logger.Info("Successfully completed E2EE file download and decryption",
+	s.logger.Info("✅ Successfully completed E2EE file download and decryption",
 		zap.String("fileID", fileID.Hex()),
 		zap.String("fileName", decryptedMetadata.Name),
 		zap.Int64("originalSize", result.OriginalSize))
@@ -207,24 +216,24 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID pri
 
 // decryptCollectionKeyChain decrypts the complete E2EE chain to get the collection key
 func (s *downloadService) decryptCollectionKeyChain(user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
-	s.logger.Debug("Starting E2EE key chain decryption",
+	s.logger.Debug("🔑 Starting E2EE key chain decryption",
 		zap.String("userID", user.ID.Hex()),
 		zap.String("collectionID", collection.ID.Hex()))
 
 	// STEP 1: Derive keyEncryptionKey from password
-	s.logger.Debug("Step 1: Deriving key encryption key from password")
+	s.logger.Debug("🧠 Step 1: Deriving key encryption key from password")
 	keyEncryptionKey, err := crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
 	if err != nil {
-		s.logger.Error("Failed to derive key encryption key", zap.Error(err))
+		s.logger.Error("❌ Failed to derive key encryption key", zap.Error(err))
 		return nil, fmt.Errorf("failed to derive key encryption key: %w", err)
 	}
 	defer crypto.ClearBytes(keyEncryptionKey)
-	s.logger.Debug("Successfully derived key encryption key")
+	s.logger.Debug("✅ Successfully derived key encryption key")
 
 	// STEP 2: Decrypt masterKey with keyEncryptionKey
-	s.logger.Debug("Step 2: Decrypting master key with key encryption key")
+	s.logger.Debug("🧠 Step 2: Decrypting master key with key encryption key")
 	if len(user.EncryptedMasterKey.Ciphertext) == 0 || len(user.EncryptedMasterKey.Nonce) == 0 {
-		s.logger.Error("User encrypted master key is empty or invalid",
+		s.logger.Error("❌ User encrypted master key is empty or invalid",
 			zap.Int("ciphertextLen", len(user.EncryptedMasterKey.Ciphertext)),
 			zap.Int("nonceLen", len(user.EncryptedMasterKey.Nonce)))
 		return nil, fmt.Errorf("user encrypted master key is invalid")
@@ -236,23 +245,23 @@ func (s *downloadService) decryptCollectionKeyChain(user *dom_user.User, collect
 		keyEncryptionKey,
 	)
 	if err != nil {
-		s.logger.Error("Failed to decrypt master key - this usually means incorrect password",
+		s.logger.Error("❌ Failed to decrypt master key - this usually means incorrect password",
 			zap.Error(err),
 			zap.String("userID", user.ID.Hex()))
 		return nil, fmt.Errorf("failed to decrypt master key - incorrect password?: %w", err)
 	}
 	defer crypto.ClearBytes(masterKey)
-	s.logger.Debug("Successfully decrypted master key")
+	s.logger.Debug("✅ Successfully decrypted master key")
 
 	// STEP 3: Decrypt collectionKey with masterKey
-	s.logger.Debug("Step 3: Decrypting collection key with master key")
+	s.logger.Debug("🧠 Step 3: Decrypting collection key with master key")
 	if collection.EncryptedCollectionKey == nil {
-		s.logger.Error("Collection has no encrypted key", zap.String("collectionID", collection.ID.Hex()))
+		s.logger.Error("❌ Collection has no encrypted key", zap.String("collectionID", collection.ID.Hex()))
 		return nil, errors.NewAppError("collection has no encrypted key", nil)
 	}
 
 	if len(collection.EncryptedCollectionKey.Ciphertext) == 0 || len(collection.EncryptedCollectionKey.Nonce) == 0 {
-		s.logger.Error("Collection encrypted key is empty or invalid",
+		s.logger.Error("❌ Collection encrypted key is empty or invalid",
 			zap.Int("ciphertextLen", len(collection.EncryptedCollectionKey.Ciphertext)),
 			zap.Int("nonceLen", len(collection.EncryptedCollectionKey.Nonce)))
 		return nil, fmt.Errorf("collection encrypted key is invalid")
@@ -264,30 +273,30 @@ func (s *downloadService) decryptCollectionKeyChain(user *dom_user.User, collect
 		masterKey,
 	)
 	if err != nil {
-		s.logger.Error("Failed to decrypt collection key", zap.Error(err))
+		s.logger.Error("❌ Failed to decrypt collection key", zap.Error(err))
 		return nil, fmt.Errorf("failed to decrypt collection key: %w", err)
 	}
-	s.logger.Debug("Successfully decrypted collection key")
+	s.logger.Debug("✅ Successfully decrypted collection key")
 
 	return collectionKey, nil
 }
 
 // decryptFileMetadata decrypts the encrypted file metadata
 func (s *downloadService) decryptFileMetadata(encryptedMetadata string, fileKey []byte) (*DecryptedFileMetadata, error) {
-	s.logger.Debug("Decrypting file metadata")
+	s.logger.Debug("🔑 Decrypting file metadata")
 
 	// The encrypted metadata is stored as base64 encoded (nonce + ciphertext)
 	// This matches the format used in addService.encryptFileMetadata
 	combined, err := base64.StdEncoding.DecodeString(encryptedMetadata)
 	if err != nil {
-		s.logger.Error("Failed to decode encrypted metadata from base64", zap.Error(err))
+		s.logger.Error("❌ Failed to decode encrypted metadata from base64", zap.Error(err))
 		return nil, fmt.Errorf("failed to decode encrypted metadata: %w", err)
 	}
 
 	// Split nonce and ciphertext
 	const nonceSize = 24
 	if len(combined) < nonceSize {
-		s.logger.Error("Combined data too short",
+		s.logger.Error("❌ Combined data too short",
 			zap.Int("expectedMinSize", nonceSize),
 			zap.Int("actualSize", len(combined)))
 		return nil, fmt.Errorf("combined data too short: expected at least %d bytes, got %d", nonceSize, len(combined))
@@ -302,29 +311,29 @@ func (s *downloadService) decryptFileMetadata(encryptedMetadata string, fileKey 
 	// Decrypt metadata
 	decryptedBytes, err := crypto.DecryptWithSecretBox(ciphertext, nonce, fileKey)
 	if err != nil {
-		s.logger.Error("Failed to decrypt metadata", zap.Error(err))
+		s.logger.Error("❌ Failed to decrypt metadata", zap.Error(err))
 		return nil, fmt.Errorf("failed to decrypt metadata: %w", err)
 	}
 
 	// Parse JSON metadata
 	var metadata DecryptedFileMetadata
 	if err := json.Unmarshal(decryptedBytes, &metadata); err != nil {
-		s.logger.Error("Failed to parse decrypted metadata JSON", zap.Error(err))
+		s.logger.Error("❌ Failed to parse decrypted metadata JSON", zap.Error(err))
 		return nil, fmt.Errorf("failed to parse decrypted metadata: %w", err)
 	}
 
-	s.logger.Debug("Successfully decrypted file metadata", zap.String("fileName", metadata.Name))
+	s.logger.Debug("✅ Successfully decrypted file metadata", zap.String("fileName", metadata.Name))
 	return &metadata, nil
 }
 
 // decryptFileContent decrypts the encrypted file content
 func (s *downloadService) decryptFileContent(encryptedData, fileKey []byte) ([]byte, error) {
-	s.logger.Debug("Decrypting file content", zap.Int("encryptedSize", len(encryptedData)))
+	s.logger.Debug("🔑 Decrypting file content", zap.Int("encryptedSize", len(encryptedData)))
 
 	// The encrypted data should be in the format: nonce (24 bytes) + ciphertext
 	const nonceSize = 24
 	if len(encryptedData) < nonceSize {
-		s.logger.Error("Encrypted data too short",
+		s.logger.Error("❌ Encrypted data too short",
 			zap.Int("expectedMinSize", nonceSize),
 			zap.Int("actualSize", len(encryptedData)))
 		return nil, fmt.Errorf("encrypted data too short: expected at least %d bytes, got %d",
@@ -341,11 +350,11 @@ func (s *downloadService) decryptFileContent(encryptedData, fileKey []byte) ([]b
 	// Decrypt the content
 	decryptedData, err := crypto.DecryptWithSecretBox(ciphertext, nonce, fileKey)
 	if err != nil {
-		s.logger.Error("Failed to decrypt file content", zap.Error(err))
+		s.logger.Error("❌ Failed to decrypt file content", zap.Error(err))
 		return nil, fmt.Errorf("failed to decrypt file content: %w", err)
 	}
 
-	s.logger.Debug("Successfully decrypted file content",
+	s.logger.Debug("✅ Successfully decrypted file content",
 		zap.Int("decryptedSize", len(decryptedData)))
 
 	return decryptedData, nil

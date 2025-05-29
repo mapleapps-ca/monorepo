@@ -55,7 +55,7 @@ func NewSyncFileService(
 
 // SyncFiles synchronizes files from the cloud
 func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*syncdto.SyncResult, error) {
-	s.logger.Info("Starting file synchronization")
+	s.logger.Info("✨ Starting file synchronization")
 
 	// Set defaults
 	if input == nil {
@@ -68,18 +68,18 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 		input.MaxBatches = 100
 	}
 
-	s.logger.Debug("File sync input parameters",
+	s.logger.Debug("⚙️ File sync input parameters",
 		zap.Int("batchSize", int(input.BatchSize)),   // Cast to int
 		zap.Int("maxBatches", int(input.MaxBatches))) // Cast to int
 
 	// Get current sync state
-	s.logger.Debug("Getting current sync state for files")
+	s.logger.Debug("⚙️ Getting current sync state for files")
 	syncStateOutput, err := s.syncStateGetService.GetSyncState(ctx)
 	if err != nil {
-		s.logger.Error("Failed to get sync state for files", zap.Error(err))
+		s.logger.Error("❌ Failed to get sync state for files", zap.Error(err))
 		return nil, errors.NewAppError("failed to get sync state", err)
 	}
-	s.logger.Debug("Successfully retrieved sync state for files",
+	s.logger.Debug("✅ Successfully retrieved sync state for files",
 		zap.Time("lastFileSync", syncStateOutput.SyncState.LastFileSync),
 		zap.String("lastFileID", syncStateOutput.SyncState.LastFileID.Hex())) // Convert ObjectID to string
 
@@ -90,11 +90,11 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 			LastModified: syncStateOutput.SyncState.LastFileSync,
 			LastID:       syncStateOutput.SyncState.LastFileID,
 		}
-		s.logger.Debug("Using existing cursor for file sync",
+		s.logger.Debug("🔍 Using existing cursor for file sync",
 			zap.Time("lastModified", cursor.LastModified),
 			zap.String("lastID", cursor.LastID.Hex())) // Convert ObjectID to string
 	} else {
-		s.logger.Debug("No previous sync state found for files, starting from beginning")
+		s.logger.Debug("🔍 No previous sync state found for files, starting from beginning")
 	}
 
 	// Get files using progress service
@@ -105,16 +105,16 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 		MaxBatches:     int(input.MaxBatches), // Cast to int
 		TimeoutSeconds: 300,                   // 5 minutes
 	}
-	s.logger.Debug("Calling progress service for GetAllFiles",
+	s.logger.Debug("⚙️ Calling progress service for GetAllFiles",
 		zap.Any("progressInput", progressInput))
 
 	progressOutput, err := s.syncDTOProgressService.GetAllFiles(ctx, progressInput)
 	if err != nil {
-		s.logger.Error("Failed to get files sync data from progress service", zap.Error(err))
+		s.logger.Error("❌ Failed to get files sync data from progress service", zap.Error(err))
 		return nil, errors.NewAppError("failed to get files sync data", err)
 	}
 
-	s.logger.Info("Received file sync data summary",
+	s.logger.Info("✅ Received file sync data summary",
 		zap.Int("totalItems", progressOutput.TotalItems),
 		zap.Int("batchesReceived", len(progressOutput.FileBatches)),
 		zap.Any("finalCursor", progressOutput.FinalCursor)) // Assuming FinalCursor struct fields are loggable
@@ -128,11 +128,11 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 	// This is a simplified implementation - in a real scenario, you'd compare
 	// with local data to determine the actual operations needed
 	for i, batch := range progressOutput.FileBatches {
-		s.logger.Debug("Processing file batch",
+		s.logger.Debug("⚙️ Processing file batch",
 			zap.Int("batchIndex", i),
 			zap.Int("itemsInBatch", len(batch.Files)))
 		for _, file := range batch.Files {
-			s.logger.Debug("Beginning to analyze file for syncing...",
+			s.logger.Debug("🔍 Beginning to analyze file for syncing...",
 				zap.String("id", file.ID.Hex()),
 				zap.Uint64("version", file.Version),
 				zap.Time("modified_at", file.ModifiedAt),
@@ -146,20 +146,20 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 			switch file.State {
 			case "active":
 				result.FilesUpdated++
-				s.logger.Debug("File marked as active",
+				s.logger.Debug("⬆️ File marked as active",
 					zap.String("id", file.ID.Hex())) // Optional: log each item
 			case "deleted":
 				result.FilesDeleted++
-				s.logger.Debug("File marked as deleted",
+				s.logger.Debug("⬇️ File marked as deleted",
 					zap.String("id", file.ID.Hex())) // Optional: log each item
 			case "":
 				errorMsg := "empty file state"
-				s.logger.Warn(errorMsg,
+				s.logger.Warn("⚠️ "+errorMsg,
 					zap.String("id", file.ID.Hex())) // Convert ObjectID to string
 				result.Errors = append(result.Errors, errorMsg+" for ID: "+file.ID.Hex()) // Convert ObjectID to string for concatenation
 			default:
 				errorMsg := "unknown file state: " + file.State
-				s.logger.Warn(errorMsg,
+				s.logger.Warn("⚠️ "+errorMsg,
 					zap.String("id", file.ID.Hex())) // Convert ObjectID to string
 				result.Errors = append(result.Errors, errorMsg+" for ID: "+file.ID.Hex()) // Convert ObjectID to string for concatenation
 			}
@@ -174,25 +174,25 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 	// 		LastFileSync: &progressOutput.FinalCursor.LastModified,
 	// 		LastFileID:   &progressOutput.FinalCursor.LastID,
 	// 	}
-	// 	s.logger.Debug("Attempting to save sync state for files",
+	// 	s.logger.Debug("⚙️ Attempting to save sync state for files",
 	// 		zap.Time("lastFileSync", *saveInput.LastFileSync),
 	// 		zap.String("lastFileID", saveInput.LastFileID.Hex())) // Convert ObjectID to string
 
 	// 	_, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
 	// 	if err != nil {
-	// 		s.logger.Error("Failed to update sync state for files", zap.Error(err))
+	// 		s.logger.Error("❌ Failed to update sync state for files", zap.Error(err))
 	// 		// Don't fail the entire operation for sync state update failure
 	// 		result.Errors = append(result.Errors, "failed to update sync state: "+err.Error())
 	// 	} else {
-	// 		s.logger.Info("Successfully updated sync state for files")
+	// 		s.logger.Info("✅ Successfully updated sync state for files")
 	// 	}
 	// } else if progressOutput.TotalItems > 0 && progressOutput.FinalCursor == nil {
-	// 	s.logger.Warn("Processed items but did not receive a final cursor for files. Sync state not updated.")
+	// 	s.logger.Warn("⚠️ Processed items but did not receive a final cursor for files. Sync state not updated.")
 	// } else {
-	// 	s.logger.Info("No items processed for files. Sync state not updated.")
+	// 	s.logger.Info("ℹ️ No items processed for files. Sync state not updated.")
 	// }
 
-	s.logger.Info("File synchronization completed",
+	s.logger.Info("✅ File synchronization completed",
 		zap.Int("processed", result.FilesProcessed),
 		zap.Int("updated", result.FilesUpdated),
 		zap.Int("deleted", result.FilesDeleted),

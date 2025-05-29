@@ -52,11 +52,11 @@ func (s *listService) ListByCollection(ctx context.Context, input *ListInput) (*
 	// STEP 1: Validate inputs
 	//
 	if input == nil {
-		s.logger.Error("input is required")
+		s.logger.Error("❌ Input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
 	if input.CollectionID == "" {
-		s.logger.Error("collection ID is required")
+		s.logger.Error("❌ Collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
@@ -65,7 +65,7 @@ func (s *listService) ListByCollection(ctx context.Context, input *ListInput) (*
 	//
 	collectionObjectID, err := primitive.ObjectIDFromHex(input.CollectionID)
 	if err != nil {
-		s.logger.Error("invalid collection ID format",
+		s.logger.Error("❌ Invalid collection ID format",
 			zap.String("collectionID", input.CollectionID),
 			zap.Error(err))
 		return nil, errors.NewAppError("invalid collection ID format", err)
@@ -74,12 +74,12 @@ func (s *listService) ListByCollection(ctx context.Context, input *ListInput) (*
 	//
 	// STEP 3: Execute the use case to list files by collection
 	//
-	s.logger.Debug("Listing files by collection",
+	s.logger.Debug("🔍 Listing files by collection",
 		zap.String("collectionID", input.CollectionID))
 
 	files, err := s.listFilesByCollectionUseCase.Execute(ctx, collectionObjectID)
 	if err != nil {
-		s.logger.Error("failed to list files by collection",
+		s.logger.Error("❌ Failed to list files by collection",
 			zap.String("collectionID", input.CollectionID),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to list files by collection", err)
@@ -88,7 +88,7 @@ func (s *listService) ListByCollection(ctx context.Context, input *ListInput) (*
 	//
 	// STEP 4: Return structured output
 	//
-	s.logger.Info("Successfully listed files by collection",
+	s.logger.Info("✅ Successfully listed files by collection",
 		zap.String("collectionID", input.CollectionID),
 		zap.Int("fileCount", len(files)))
 

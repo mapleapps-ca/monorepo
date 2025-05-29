@@ -39,25 +39,25 @@ func NewDeleteService(
 func (s *deleteService) Delete(ctx context.Context, id string) error {
 	// Validate input
 	if id == "" {
-		s.logger.Error("collection ID is required")
+		s.logger.Error("❌ collection ID is required")
 		return errors.NewAppError("collection ID is required", nil)
 	}
 
 	// Convert ID string to ObjectID
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		s.logger.Error("invalid collection ID format", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ invalid collection ID format", zap.String("id", id), zap.Error(err))
 		return errors.NewAppError("invalid collection ID format", err)
 	}
 
 	// Call the use case to delete the collection
 	err = s.deleteUseCase.Execute(ctx, objectID)
 	if err != nil {
-		s.logger.Error("failed to delete local collection", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to delete local collection", zap.String("id", id), zap.Error(err))
 		return err
 	}
 
-	s.logger.Info("local collection deleted successfully", zap.String("id", id))
+	s.logger.Info("✅ local collection deleted successfully", zap.String("id", id))
 	return nil
 }
 
@@ -65,24 +65,24 @@ func (s *deleteService) Delete(ctx context.Context, id string) error {
 func (s *deleteService) DeleteWithChildren(ctx context.Context, id string) error {
 	// Validate input
 	if id == "" {
-		s.logger.Error("collection ID is required")
+		s.logger.Error("❌ collection ID is required")
 		return errors.NewAppError("collection ID is required", nil)
 	}
 
 	// Convert ID string to ObjectID
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		s.logger.Error("invalid collection ID format", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ invalid collection ID format", zap.String("id", id), zap.Error(err))
 		return errors.NewAppError("invalid collection ID format", err)
 	}
 
 	// Call the use case to delete the collection with children
 	err = s.deleteUseCase.DeleteWithChildren(ctx, objectID)
 	if err != nil {
-		s.logger.Error("failed to delete local collection with children", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to delete local collection with children", zap.String("id", id), zap.Error(err))
 		return err
 	}
 
-	s.logger.Info("local collection and its children deleted successfully", zap.String("id", id))
+	s.logger.Info("✅ local collection and its children deleted successfully", zap.String("id", id))
 	return nil
 }

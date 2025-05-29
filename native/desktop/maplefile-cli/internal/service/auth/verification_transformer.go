@@ -20,11 +20,11 @@ func NewUserVerificationDataTransformer() auth.UserVerificationDataTransformer {
 // UpdateUserWithVerificationData updates a user model with verification data
 func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *user.User, data *auth.VerifyLoginOTTResponse) error {
 	if user == nil {
-		return fmt.Errorf("user cannot be nil")
+		return fmt.Errorf("❌ user cannot be nil")
 	}
 
 	if data == nil {
-		return fmt.Errorf("verification data cannot be nil")
+		return fmt.Errorf("❌ verification data cannot be nil")
 	}
 
 	// Store Encrypted Challenge
@@ -32,7 +32,7 @@ func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *u
 	if err != nil {
 		encryptedChallengeBytes, err = base64.RawURLEncoding.DecodeString(data.EncryptedChallenge)
 		if err != nil {
-			return fmt.Errorf("error decoding encrypted challenge: %v", err)
+			return fmt.Errorf("💔 error decoding encrypted challenge: %v", err)
 		}
 	}
 	user.EncryptedChallenge = encryptedChallengeBytes
@@ -42,7 +42,7 @@ func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *u
 	if err != nil {
 		salt, err = base64.RawURLEncoding.DecodeString(data.Salt)
 		if err != nil {
-			return fmt.Errorf("error decoding password salt: %v", err)
+			return fmt.Errorf("🔑💔 error decoding password salt: %v", err)
 		}
 	}
 	user.PasswordSalt = salt
@@ -52,7 +52,7 @@ func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *u
 	if err != nil {
 		publicKeyBytes, err = base64.RawURLEncoding.DecodeString(data.PublicKey)
 		if err != nil {
-			return fmt.Errorf("error decoding public key: %v", err)
+			return fmt.Errorf("🔑💔 error decoding public key: %v", err)
 		}
 	}
 	user.PublicKey.Key = publicKeyBytes
@@ -65,7 +65,7 @@ func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *u
 		user.EncryptedMasterKey.Nonce = encMasterKeyBytes[:nonceSize]
 		user.EncryptedMasterKey.Ciphertext = encMasterKeyBytes[nonceSize:]
 	} else {
-		return fmt.Errorf("error decoding encrypted master key: %v", err)
+		return fmt.Errorf("🔑💔 error decoding encrypted master key: %v", err)
 	}
 
 	// Store Encrypted Private Key
@@ -75,7 +75,7 @@ func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *u
 		user.EncryptedPrivateKey.Nonce = encPrivateKeyBytes[:nonceSize]
 		user.EncryptedPrivateKey.Ciphertext = encPrivateKeyBytes[nonceSize:]
 	} else {
-		return fmt.Errorf("error decoding encrypted private key: %v", err)
+		return fmt.Errorf("🔑💔 error decoding encrypted private key: %v", err)
 	}
 
 	// Store ChallengeID

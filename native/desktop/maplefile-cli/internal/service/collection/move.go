@@ -50,25 +50,25 @@ func NewMoveService(
 func (s *moveService) Move(ctx context.Context, input MoveInput) (*MoveOutput, error) {
 	// Validate inputs
 	if input.ID == "" {
-		s.logger.Error("collection ID is required")
+		s.logger.Error("⚠️ collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
 	if input.NewParentID == "" {
-		s.logger.Error("new parent ID is required")
+		s.logger.Error("⚠️ new parent ID is required")
 		return nil, errors.NewAppError("new parent ID is required", nil)
 	}
 
 	// Convert ID strings to ObjectIDs
 	objectID, err := primitive.ObjectIDFromHex(input.ID)
 	if err != nil {
-		s.logger.Error("invalid collection ID format", zap.String("id", input.ID), zap.Error(err))
+		s.logger.Error("❌ invalid collection ID format", zap.String("id", input.ID), zap.Error(err))
 		return nil, errors.NewAppError("invalid collection ID format", err)
 	}
 
 	newParentObjectID, err := primitive.ObjectIDFromHex(input.NewParentID)
 	if err != nil {
-		s.logger.Error("invalid new parent ID format", zap.String("newParentID", input.NewParentID), zap.Error(err))
+		s.logger.Error("❌ invalid new parent ID format", zap.String("newParentID", input.NewParentID), zap.Error(err))
 		return nil, errors.NewAppError("invalid new parent ID format", err)
 	}
 
@@ -81,7 +81,7 @@ func (s *moveService) Move(ctx context.Context, input MoveInput) (*MoveOutput, e
 	// Call the use case to move the collection
 	collection, err := s.moveUseCase.Execute(ctx, useCaseInput)
 	if err != nil {
-		s.logger.Error("failed to move local collection",
+		s.logger.Error("💥 failed to move local collection",
 			zap.String("id", input.ID),
 			zap.String("newParentID", input.NewParentID),
 			zap.Error(err))

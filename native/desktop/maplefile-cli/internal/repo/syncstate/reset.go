@@ -11,7 +11,7 @@ import (
 )
 
 func (r *syncStateRepository) ResetSyncState(ctx context.Context) error {
-	r.logger.Debug("Resetting sync state")
+	r.logger.Debug("🔄 Resetting sync state")
 
 	// Create default empty state
 	defaultState := &syncstate.SyncState{
@@ -22,10 +22,10 @@ func (r *syncStateRepository) ResetSyncState(ctx context.Context) error {
 	// Save the reset state
 	err := r.SaveSyncState(ctx, defaultState)
 	if err != nil {
-		r.logger.Error("Failed to reset sync state", zap.Error(err))
+		r.logger.Error("❌ Failed to reset sync state", zap.Error(err))
 		return err
 	}
 
-	r.logger.Info("Successfully reset sync state")
+	r.logger.Info("✅ Successfully reset sync state")
 	return nil
 }

@@ -78,7 +78,7 @@ func (s *completeLoginService) CompleteLogin(ctx context.Context, email, passwor
 	)
 
 	// Log success
-	s.logger.Info("Login completed successfully",
+	s.logger.Info("✅ Login completed successfully",
 		zap.String("email", email),
 		zap.Time("accessTokenExpiry", tokenResp.AccessTokenExpiryTime),
 		zap.Time("refreshTokenExpiry", tokenResp.RefreshTokenExpiryTime))

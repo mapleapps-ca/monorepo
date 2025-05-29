@@ -70,15 +70,15 @@ func (s *offloadService) Offload(ctx context.Context, input *OffloadInput) (*Off
 	// STEP 1: Validate inputs
 	//
 	if input == nil {
-		s.logger.Error("input is required")
+		s.logger.Error("❌ input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
 	if input.FileID == "" {
-		s.logger.Error("file ID is required")
+		s.logger.Error("❌ file ID is required")
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
 	if input.UserPassword == "" {
-		s.logger.Error("user password is required for E2EE operations")
+		s.logger.Error("❌ user password is required for E2EE operations")
 		return nil, errors.NewAppError("user password is required for E2EE operations", nil)
 	}
 
@@ -87,7 +87,7 @@ func (s *offloadService) Offload(ctx context.Context, input *OffloadInput) (*Off
 	//
 	fileObjectID, err := primitive.ObjectIDFromHex(input.FileID)
 	if err != nil {
-		s.logger.Error("invalid file ID format",
+		s.logger.Error("❌ invalid file ID format",
 			zap.String("fileID", input.FileID),
 			zap.Error(err))
 		return nil, errors.NewAppError("invalid file ID format", err)
@@ -96,19 +96,19 @@ func (s *offloadService) Offload(ctx context.Context, input *OffloadInput) (*Off
 	//
 	// STEP 3: Get the file to check its current sync status
 	//
-	s.logger.Debug("Getting file for offload operation",
+	s.logger.Debug("🔍 Getting file for offload operation",
 		zap.String("fileID", input.FileID))
 
 	file, err := s.getFileUseCase.Execute(ctx, fileObjectID)
 	if err != nil {
-		s.logger.Error("failed to get file",
+		s.logger.Error("❌ failed to get file",
 			zap.String("fileID", input.FileID),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to get file", err)
 	}
 
 	if file == nil {
-		s.logger.Error("file not found", zap.String("fileID", input.FileID))
+		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID))
 		return nil, errors.NewAppError("file not found", nil)
 	}
 
@@ -128,7 +128,7 @@ func (s *offloadService) Offload(ctx context.Context, input *OffloadInput) (*Off
 
 	case dom_file.SyncStatusCloudOnly:
 		// File is already offloaded
-		s.logger.Info("File is already offloaded", zap.String("fileID", input.FileID))
+		s.logger.Info("ℹ️ File is already offloaded", zap.String("fileID", input.FileID))
 		return &OffloadOutput{
 			FileID:         fileObjectID,
 			Action:         "no_action",
@@ -138,7 +138,7 @@ func (s *offloadService) Offload(ctx context.Context, input *OffloadInput) (*Off
 		}, nil
 
 	default:
-		s.logger.Error("unknown sync status",
+		s.logger.Error("❌ unknown sync status",
 			zap.String("fileID", input.FileID),
 			zap.Any("syncStatus", file.SyncStatus))
 		return nil, errors.NewAppError("unknown sync status", nil)
@@ -152,19 +152,19 @@ func (s *offloadService) handleUploadAndOffload(
 	userPassword string,
 	previousStatus dom_file.SyncStatus,
 ) (*OffloadOutput, error) {
-	s.logger.Info("Uploading file before offload", zap.String("fileID", file.ID.Hex()))
+	s.logger.Info("✨ Uploading file before offload", zap.String("fileID", file.ID.Hex()))
 
 	// Upload the file first
 	uploadResult, err := s.uploadService.UploadFile(ctx, file.ID, userPassword)
 	if err != nil {
-		s.logger.Error("failed to upload file during offload",
+		s.logger.Error("❌ failed to upload file during offload",
 			zap.String("fileID", file.ID.Hex()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to upload file during offload", err)
 	}
 
 	if !uploadResult.Success {
-		s.logger.Error("file upload was not successful",
+		s.logger.Error("❌ file upload was not successful",
 			zap.String("fileID", file.ID.Hex()))
 		return nil, errors.NewAppError("file upload was not successful", uploadResult.Error)
 	}
@@ -172,7 +172,7 @@ func (s *offloadService) handleUploadAndOffload(
 	// Refresh file data after upload
 	refreshedFile, err := s.getFileUseCase.Execute(ctx, file.ID)
 	if err != nil {
-		s.logger.Error("failed to refresh file after upload",
+		s.logger.Error("❌ failed to refresh file after upload",
 			zap.String("fileID", file.ID.Hex()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to refresh file after upload", err)
@@ -188,7 +188,7 @@ func (s *offloadService) handleOffloadOnly(
 	file *dom_file.File,
 	previousStatus dom_file.SyncStatus,
 ) (*OffloadOutput, error) {
-	s.logger.Info("Offloading file (removing local encrypted and decrypted copies)",
+	s.logger.Info("🗑️ Offloading file (removing local encrypted and decrypted copies)",
 		zap.String("fileID", file.ID.Hex()))
 
 	// Delete the decrypted local file if it exists
@@ -196,13 +196,13 @@ func (s *offloadService) handleOffloadOnly(
 		if _, err := os.Stat(file.FilePath); err == nil {
 			// File exists, delete it
 			if err := s.deleteFileUseCase.Execute(ctx, file.FilePath); err != nil {
-				s.logger.Warn("Failed to delete decrypted local file",
+				s.logger.Warn("⚠️ Failed to delete decrypted local file",
 					zap.String("fileID", file.ID.Hex()),
 					zap.String("filePath", file.FilePath),
 					zap.Error(err))
 				// Continue anyway, we'll still update the sync status
 			} else {
-				s.logger.Debug("Successfully deleted decrypted local file",
+				s.logger.Debug("🗑️ Successfully deleted decrypted local file",
 					zap.String("fileID", file.ID.Hex()),
 					zap.String("filePath", file.FilePath))
 			}
@@ -214,13 +214,13 @@ func (s *offloadService) handleOffloadOnly(
 		if _, err := os.Stat(file.EncryptedFilePath); err == nil {
 			// File exists, delete it
 			if err := s.deleteFileUseCase.Execute(ctx, file.EncryptedFilePath); err != nil {
-				s.logger.Warn("Failed to delete encrypted local file",
+				s.logger.Warn("⚠️ Failed to delete encrypted local file",
 					zap.String("fileID", file.ID.Hex()),
 					zap.String("encryptedFilePath", file.EncryptedFilePath),
 					zap.Error(err))
 				// Continue anyway, we'll still update the sync status
 			} else {
-				s.logger.Debug("Successfully deleted encrypted local file",
+				s.logger.Debug("🗑️ Successfully deleted encrypted local file",
 					zap.String("fileID", file.ID.Hex()),
 					zap.String("encryptedFilePath", file.EncryptedFilePath))
 			}
@@ -243,13 +243,13 @@ func (s *offloadService) handleOffloadOnly(
 
 	_, err := s.updateFileUseCase.Execute(ctx, updateInput)
 	if err != nil {
-		s.logger.Error("failed to update file sync status during offload",
+		s.logger.Error("❌ failed to update file sync status during offload",
 			zap.String("fileID", file.ID.Hex()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to update file sync status during offload", err)
 	}
 
-	s.logger.Info("Successfully offloaded file",
+	s.logger.Info("✅ Successfully offloaded file",
 		zap.String("fileID", file.ID.Hex()),
 		zap.Any("previousStatus", previousStatus),
 		zap.Any("newStatus", newStatus))

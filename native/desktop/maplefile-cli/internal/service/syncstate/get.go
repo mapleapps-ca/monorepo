@@ -40,16 +40,16 @@ func NewGetService(
 
 // GetSyncState retrieves the current sync state
 func (s *getService) GetSyncState(ctx context.Context) (*GetOutput, error) {
-	s.logger.Debug("Getting current sync state")
+	s.logger.Debug("🔍 Getting current sync state")
 
 	// Get sync state from repository
 	syncState, err := s.syncStateRepo.GetSyncState(ctx)
 	if err != nil {
-		s.logger.Error("failed to get sync state", zap.Error(err))
+		s.logger.Error("❌ failed to get sync state", zap.Error(err))
 		return nil, errors.NewAppError("failed to get sync state", err)
 	}
 
-	s.logger.Info("Successfully retrieved sync state",
+	s.logger.Info("✅ Successfully retrieved sync state",
 		zap.Time("last_collection_sync", syncState.LastCollectionSync),
 		zap.Time("last_file_sync", syncState.LastFileSync))
 

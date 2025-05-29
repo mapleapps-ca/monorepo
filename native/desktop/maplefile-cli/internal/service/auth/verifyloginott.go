@@ -63,7 +63,7 @@ func (s *loginOTTVerificationService) VerifyLoginOTT(ctx context.Context, email,
 	}
 
 	// Log success
-	s.logger.Info("Login OTT verified successfully", zap.String("email", email))
+	s.logger.Info("✅ Login OTT verified successfully", zap.String("email", email))
 
 	return nil
 }

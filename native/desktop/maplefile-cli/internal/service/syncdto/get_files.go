@@ -56,23 +56,23 @@ func (s *getFilesService) GetFileSyncData(ctx context.Context, input *GetFilesIn
 		input.Limit = 100 // Default limit
 	}
 
-	s.logger.Debug("Getting file sync data from cloud",
+	s.logger.Debug("⬇️ Getting file sync data from cloud",
 		zap.Any("cursor", input.Cursor),
 		zap.Int64("limit", input.Limit))
 
 	// Get file sync data from repository
 	response, err := s.syncDTORepo.GetFileSyncDataFromCloud(ctx, input.Cursor, input.Limit)
 	if err != nil {
-		s.logger.Error("failed to get file sync data from cloud", zap.Error(err))
+		s.logger.Error("💥 failed to get file sync data from cloud", zap.Error(err))
 		return nil, errors.NewAppError("failed to get file sync data from cloud", err)
 	}
 
 	if response == nil {
-		s.logger.Warn("received nil response from file sync data")
+		s.logger.Warn("⚠️ received nil response from file sync data")
 		return nil, errors.NewAppError("received empty response from cloud", nil)
 	}
 
-	s.logger.Info("Successfully retrieved file sync data",
+	s.logger.Info("✅ Successfully retrieved file sync data",
 		zap.Int("files_count", len(response.Files)),
 		zap.Bool("has_more", response.HasMore))
 

@@ -58,11 +58,11 @@ func (s *localOnlyDeleteService) Execute(ctx context.Context, input *LocalOnlyDe
 	// STEP 1: Validate inputs
 	//
 	if input == nil {
-		s.logger.Error("input is required")
+		s.logger.Error("❌ input is required")
 		return errors.NewAppError("input is required", nil)
 	}
 	if input.ID.IsZero() {
-		s.logger.Error("ID is required")
+		s.logger.Error("❌ ID is required")
 		return errors.NewAppError("ID is required", nil)
 	}
 
@@ -72,14 +72,14 @@ func (s *localOnlyDeleteService) Execute(ctx context.Context, input *LocalOnlyDe
 
 	fileMetadata, err := s.getFileUseCase.Execute(ctx, input.ID)
 	if err != nil {
-		s.logger.Error("failed to get file metadata by ID",
+		s.logger.Error("❌ failed to get file metadata by ID",
 			zap.Any("id", input.ID),
 			zap.Error(err))
 		return errors.NewAppError("failed to get file metadata by ID", err)
 	}
 	if fileMetadata == nil {
 		err := fmt.Errorf("file metadata does not exist for ID: %v\n", input.ID)
-		s.logger.Error("failed to get file metadata by ID",
+		s.logger.Error("❌ failed to get file metadata by ID",
 			zap.Any("id", input.ID),
 			zap.Error(err))
 		return errors.NewAppError("failed local only delete of file", err)
@@ -94,7 +94,7 @@ func (s *localOnlyDeleteService) Execute(ctx context.Context, input *LocalOnlyDe
 	//
 
 	if err := s.transactionManager.Begin(); err != nil {
-		s.logger.Error("failed to begin transaction", zap.Error(err))
+		s.logger.Error("❌ failed to begin transaction", zap.Error(err))
 		return errors.NewAppError("failed to begin transaction", err)
 	}
 
@@ -103,14 +103,14 @@ func (s *localOnlyDeleteService) Execute(ctx context.Context, input *LocalOnlyDe
 	//
 
 	if err := s.deleteFileMetadataUseCase.Execute(ctx, fileMetadata.ID); err != nil {
-		s.logger.Error("failed deleting metadata",
+		s.logger.Error("❌ failed deleting metadata",
 			zap.Any("collectionID", input.ID),
 			zap.Error(err))
 		s.transactionManager.Rollback()
 		return errors.NewAppError("failed deleting file metadata", err)
 	}
 	if err := s.deleteFileDataUseCase.Execute(ctx, fileMetadata.FilePath); err != nil {
-		s.logger.Error("failed deleting file data",
+		s.logger.Error("⚠️ failed deleting file data",
 			zap.Any("collectionID", input.ID),
 			zap.Error(err))
 		// We might get errors here in case the user deleted the file in the directory, so just skip error handling and proceed.
@@ -120,7 +120,7 @@ func (s *localOnlyDeleteService) Execute(ctx context.Context, input *LocalOnlyDe
 	// STEP 5: Commit transaction and return method output.
 	//
 	if err := s.transactionManager.Commit(); err != nil {
-		s.logger.Error("failed to commit transaction", zap.Error(err))
+		s.logger.Error("❌ failed to commit transaction", zap.Error(err))
 		s.transactionManager.Rollback()
 		return errors.NewAppError("failed to commit transaction", err)
 	}

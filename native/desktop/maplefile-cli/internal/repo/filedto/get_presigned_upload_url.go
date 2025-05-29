@@ -19,7 +19,7 @@ import (
 
 // GetPresignedUploadURLFromCloud generates new presigned upload URLs for an existing file
 func (r *fileDTORepository) GetPresignedUploadURLFromCloud(ctx context.Context, fileID primitive.ObjectID, request *filedto.GetPresignedUploadURLRequest) (*filedto.GetPresignedUploadURLResponse, error) {
-	r.logger.Debug("Getting presigned upload URL",
+	r.logger.Debug("🔍 Getting presigned upload URL",
 		zap.String("fileID", fileID.Hex()),
 		zap.Duration("urlDuration", request.URLDuration))
 
@@ -57,7 +57,7 @@ func (r *fileDTORepository) GetPresignedUploadURLFromCloud(ctx context.Context, 
 
 	// Create HTTP request
 	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/upload-url", serverURL, fileID.Hex())
-	r.logger.Debug("Making HTTP request", zap.String("url", requestURL))
+	r.logger.Debug("⬆️ Making HTTP request", zap.String("url", requestURL))
 
 	req, err := http.NewRequestWithContext(ctx, "POST", requestURL, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -98,7 +98,7 @@ func (r *fileDTORepository) GetPresignedUploadURLFromCloud(ctx context.Context, 
 		return nil, errors.NewAppError("failed to parse response", err)
 	}
 
-	r.logger.Info("Successfully obtained presigned upload URLs",
+	r.logger.Info("✅ Successfully obtained presigned upload URLs",
 		zap.String("fileID", fileID.Hex()),
 		zap.Time("urlExpiration", response.UploadURLExpirationTime))
 

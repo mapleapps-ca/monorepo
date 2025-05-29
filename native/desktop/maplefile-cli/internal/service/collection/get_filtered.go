@@ -61,12 +61,12 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 	//
 
 	if input == nil {
-		s.logger.Error("input is required")
+		s.logger.Error("❌ input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
 
 	if !input.IncludeOwned && !input.IncludeShared {
-		s.logger.Error("at least one filter option must be enabled")
+		s.logger.Error("❌ at least one filter option must be enabled")
 		return nil, errors.NewAppError("at least one filter option (include_owned or include_shared) must be enabled", nil)
 	}
 
@@ -80,12 +80,12 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 
 	userData, err := s.getUserByIsLoggedInUseCase.Execute(ctx)
 	if err != nil {
-		s.logger.Error("failed to get authenticated user", zap.Error(err))
+		s.logger.Error("❌ failed to get authenticated user", zap.Error(err))
 		return nil, errors.NewAppError("failed to get user data", err)
 	}
 
 	if userData == nil {
-		s.logger.Error("authenticated user not found")
+		s.logger.Error("❌ authenticated user not found")
 		return nil, errors.NewAppError("authenticated user not found; please login first", nil)
 	}
 
@@ -116,13 +116,13 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 		IncludeShared: input.IncludeShared,
 	}
 
-	s.logger.Debug("Getting filtered collections from cloud",
+	s.logger.Debug("☁️ Getting filtered collections from cloud",
 		zap.Bool("include_owned", input.IncludeOwned),
 		zap.Bool("include_shared", input.IncludeShared))
 
 	cloudResponse, err := s.getFilteredCollectionsFromCloudUseCase.Execute(ctx, request)
 	if err != nil {
-		s.logger.Error("failed to get filtered collections from cloud", zap.Error(err))
+		s.logger.Error("❌ failed to get filtered collections from cloud", zap.Error(err))
 		return nil, errors.NewAppError("failed to get filtered collections from cloud", err)
 	}
 
@@ -140,7 +140,7 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 	for _, cloudCollection := range cloudResponse.OwnedCollections {
 		localCollection, err := s.convertAndDecryptCollection(cloudCollection, masterKey)
 		if err != nil {
-			s.logger.Warn("failed to decrypt owned collection, skipping",
+			s.logger.Warn("⚠️ failed to decrypt owned collection, skipping",
 				zap.String("collection_id", cloudCollection.ID.Hex()),
 				zap.Error(err))
 			continue
@@ -152,7 +152,7 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 	for _, cloudCollection := range cloudResponse.SharedCollections {
 		localCollection, err := s.convertAndDecryptCollection(cloudCollection, masterKey)
 		if err != nil {
-			s.logger.Warn("failed to decrypt shared collection, skipping",
+			s.logger.Warn("⚠️ failed to decrypt shared collection, skipping",
 				zap.String("collection_id", cloudCollection.ID.Hex()),
 				zap.Error(err))
 			continue
@@ -160,7 +160,7 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 		output.SharedCollections = append(output.SharedCollections, localCollection)
 	}
 
-	s.logger.Info("Successfully retrieved and decrypted filtered collections",
+	s.logger.Info("✅ Successfully retrieved and decrypted filtered collections",
 		zap.Int("owned_count", len(output.OwnedCollections)),
 		zap.Int("shared_count", len(output.SharedCollections)),
 		zap.Int("total_count", output.TotalCount))

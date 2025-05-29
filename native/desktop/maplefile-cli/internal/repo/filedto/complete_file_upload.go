@@ -18,7 +18,7 @@ import (
 
 // CompleteFileUploadInCloud completes the file upload process and transitions the file to active state
 func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileID primitive.ObjectID, request *filedto.CompleteFileUploadRequest) (*filedto.CompleteFileUploadResponse, error) {
-	r.logger.Debug("Completing file upload",
+	r.logger.Debug("🐛 Completing file upload",
 		zap.String("fileID", fileID.Hex()),
 		zap.Int64("actualFileSize", request.ActualFileSizeInBytes),
 		zap.Bool("uploadConfirmed", request.UploadConfirmed))
@@ -47,11 +47,11 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 
 	// Create HTTP request
 	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/complete", serverURL, fileID.Hex())
-	r.logger.Debug("Making HTTP request", zap.String("url", requestURL))
+	r.logger.Debug("🔬 Making HTTP request", zap.String("url", requestURL))
 
 	req, err := http.NewRequestWithContext(ctx, "POST", requestURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		r.logger.Debug("failed to create HTTP request",
+		r.logger.Debug("❌ failed to create HTTP request",
 			zap.String("fileID", fileID.Hex()),
 			zap.Error(err),
 		)
@@ -65,7 +65,7 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 	// Execute the request
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
-		r.logger.Debug("failed to connect to server",
+		r.logger.Debug("❌ failed to connect to server",
 			zap.String("fileID", fileID.Hex()),
 			zap.Error(err),
 		)
@@ -76,7 +76,7 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 	// Read response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		r.logger.Debug("failed to read response",
+		r.logger.Debug("❌ failed to read response",
 			zap.String("fileID", fileID.Hex()),
 			zap.Error(err),
 		)
@@ -88,14 +88,14 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 		var errorResponse map[string]interface{}
 		if err := json.Unmarshal(body, &errorResponse); err == nil {
 			if errMsg, ok := errorResponse["message"].(string); ok {
-				r.logger.Debug("server error",
+				r.logger.Debug("⚠️ server error",
 					zap.String("fileID", fileID.Hex()),
 					zap.String("error", errMsg),
 				)
 				return nil, errors.NewAppError(fmt.Sprintf("server error: %s", errMsg), nil)
 			}
 		}
-		r.logger.Debug("server returned error status",
+		r.logger.Debug("⚠️ server returned error status",
 			zap.String("fileID", fileID.Hex()),
 			zap.Error(err),
 		)
@@ -105,14 +105,14 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 	// Parse the response
 	var response filedto.CompleteFileUploadResponse
 	if err := json.Unmarshal(body, &response); err != nil {
-		r.logger.Debug("failed to parse response",
+		r.logger.Debug("❌ failed to parse response",
 			zap.String("fileID", fileID.Hex()),
 			zap.Error(err),
 		)
 		return nil, errors.NewAppError("failed to parse response", err)
 	}
 
-	r.logger.Info("Successfully completed file upload",
+	r.logger.Info("✅ Successfully completed file upload",
 		zap.String("fileID", fileID.Hex()),
 		zap.Int64("actualFileSize", response.ActualFileSize),
 		zap.Bool("uploadVerified", response.UploadVerified))

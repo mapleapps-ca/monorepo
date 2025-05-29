@@ -42,15 +42,15 @@ func NewResetService(
 
 // ResetSyncState resets the entire sync state to default values
 func (s *resetService) ResetSyncState(ctx context.Context) (*ResetOutput, error) {
-	s.logger.Info("Resetting sync state to default values")
+	s.logger.Info("🔄 Resetting sync state to default values")
 
 	// Reset sync state using repository
 	if err := s.syncStateRepo.ResetSyncState(ctx); err != nil {
-		s.logger.Error("failed to reset sync state", zap.Error(err))
+		s.logger.Error("❌ failed to reset sync state", zap.Error(err))
 		return nil, errors.NewAppError("failed to reset sync state", err)
 	}
 
-	s.logger.Info("Successfully reset sync state")
+	s.logger.Info("✅ Successfully reset sync state")
 
 	return &ResetOutput{
 		Message: "Sync state has been reset to default values. Next sync will be a full synchronization.",
@@ -59,12 +59,12 @@ func (s *resetService) ResetSyncState(ctx context.Context) (*ResetOutput, error)
 
 // ResetCollectionSync resets only the collection sync state while preserving file sync state
 func (s *resetService) ResetCollectionSync(ctx context.Context) (*ResetOutput, error) {
-	s.logger.Info("Resetting collection sync state")
+	s.logger.Info("🔄 Resetting collection sync state")
 
 	// Get current sync state
 	currentState, err := s.syncStateRepo.GetSyncState(ctx)
 	if err != nil {
-		s.logger.Error("failed to get current sync state", zap.Error(err))
+		s.logger.Error("❌ failed to get current sync state", zap.Error(err))
 		return nil, errors.NewAppError("failed to get current sync state", err)
 	}
 
@@ -77,11 +77,11 @@ func (s *resetService) ResetCollectionSync(ctx context.Context) (*ResetOutput, e
 
 	// Save the updated state
 	if err := s.syncStateRepo.SaveSyncState(ctx, updatedState); err != nil {
-		s.logger.Error("failed to save sync state after collection reset", zap.Error(err))
+		s.logger.Error("❌ failed to save sync state after collection reset", zap.Error(err))
 		return nil, errors.NewAppError("failed to save sync state after collection reset", err)
 	}
 
-	s.logger.Info("Successfully reset collection sync state")
+	s.logger.Info("✅ Successfully reset collection sync state")
 
 	return &ResetOutput{
 		Message: "Collection sync state has been reset. Next collection sync will be a full synchronization.",
@@ -90,12 +90,12 @@ func (s *resetService) ResetCollectionSync(ctx context.Context) (*ResetOutput, e
 
 // ResetFileSync resets only the file sync state while preserving collection sync state
 func (s *resetService) ResetFileSync(ctx context.Context) (*ResetOutput, error) {
-	s.logger.Info("Resetting file sync state")
+	s.logger.Info("🔄 Resetting file sync state")
 
 	// Get current sync state
 	currentState, err := s.syncStateRepo.GetSyncState(ctx)
 	if err != nil {
-		s.logger.Error("failed to get current sync state", zap.Error(err))
+		s.logger.Error("❌ failed to get current sync state", zap.Error(err))
 		return nil, errors.NewAppError("failed to get current sync state", err)
 	}
 
@@ -108,11 +108,11 @@ func (s *resetService) ResetFileSync(ctx context.Context) (*ResetOutput, error) 
 
 	// Save the updated state
 	if err := s.syncStateRepo.SaveSyncState(ctx, updatedState); err != nil {
-		s.logger.Error("failed to save sync state after file reset", zap.Error(err))
+		s.logger.Error("❌ failed to save sync state after file reset", zap.Error(err))
 		return nil, errors.NewAppError("failed to save sync state after file reset", err)
 	}
 
-	s.logger.Info("Successfully reset file sync state")
+	s.logger.Info("✅ Successfully reset file sync state")
 
 	return &ResetOutput{
 		Message: "File sync state has been reset. Next file sync will be a full synchronization.",

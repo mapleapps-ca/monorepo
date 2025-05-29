@@ -30,5 +30,7 @@ func (uc *getByEmailUseCase) Execute(ctx context.Context, email string) (*user.U
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
+
+	// Developers Note: Yes we can return `user=nil`, this is not a mistake but a deliberate decision.
 	return user, nil
 }

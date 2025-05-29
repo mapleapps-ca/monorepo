@@ -10,7 +10,7 @@ import (
 )
 
 func (r *fileRepository) Update(ctx context.Context, file *dom_file.File) error {
-	r.logger.Debug("Updating file in local storage",
+	r.logger.Debug("💾 Updating file in local storage",
 		zap.String("fileID", file.ID.Hex()),
 		zap.String("fileName", file.Name))
 

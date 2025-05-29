@@ -55,8 +55,8 @@ func (uc *getCollectionUseCase) Execute(
 	}
 
 	if collection == nil {
-		uc.logger.Warn("🔍🚫 local collection not found", zap.String("collection_id", id.Hex()))
-		return nil, errors.NewAppError("local collection not found", nil)
+		uc.logger.Debug("🔍🚫 local collection not found", zap.String("collection_id", id.Hex()))
+		return nil, nil
 	}
 
 	uc.logger.Info("✅ Successfully retrieved collection", zap.String("collection_id", id.Hex()))

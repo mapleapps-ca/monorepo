@@ -26,7 +26,6 @@ func (r *collectionRepository) GetByID(ctx context.Context, id primitive.ObjectI
 
 	// Check if collection was found
 	if collBytes == nil {
-		r.logger.Warn("Collection not found in local storage", zap.String("collectionID", id.Hex()))
 		return nil, nil
 	}
 

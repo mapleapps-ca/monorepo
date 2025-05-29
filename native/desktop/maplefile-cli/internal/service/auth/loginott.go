@@ -38,7 +38,7 @@ func (s *loginOTTService) RequestLoginOTT(ctx context.Context, email string) err
 	}
 
 	// Log success
-	s.logger.Info("Login OTT request successful", zap.String("email", email))
+	s.logger.Info("🎉 Login OTT request successful", zap.String("email", email))
 
 	// Additional service-level logic could be added here if needed
 	_ = response

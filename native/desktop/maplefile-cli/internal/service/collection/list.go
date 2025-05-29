@@ -48,7 +48,7 @@ func (s *listService) ListRoots(ctx context.Context) (*ListOutput, error) {
 	// Call the use case to list root collections
 	collections, err := s.listUseCase.ListRoots(ctx)
 	if err != nil {
-		s.logger.Error("failed to list root collections", zap.Error(err))
+		s.logger.Error("❌ failed to list root collections", zap.Error(err))
 		return nil, err
 	}
 
@@ -62,21 +62,21 @@ func (s *listService) ListRoots(ctx context.Context) (*ListOutput, error) {
 func (s *listService) ListByParent(ctx context.Context, parentID string) (*ListOutput, error) {
 	// Validate input
 	if parentID == "" {
-		s.logger.Error("parent ID is required")
+		s.logger.Error("❌ parent ID is required")
 		return nil, errors.NewAppError("parent ID is required", nil)
 	}
 
 	// Convert parent ID string to ObjectID
 	parentObjectID, err := primitive.ObjectIDFromHex(parentID)
 	if err != nil {
-		s.logger.Error("invalid parent ID format", zap.String("parentID", parentID), zap.Error(err))
+		s.logger.Error("❌ invalid parent ID format", zap.String("parentID", parentID), zap.Error(err))
 		return nil, errors.NewAppError("invalid parent ID format", err)
 	}
 
 	// Call the use case to list collections by parent
 	collections, err := s.listUseCase.ListByParent(ctx, parentObjectID)
 	if err != nil {
-		s.logger.Error("failed to list collections by parent", zap.String("parentID", parentID), zap.Error(err))
+		s.logger.Error("❌ failed to list collections by parent", zap.String("parentID", parentID), zap.Error(err))
 		return nil, err
 	}
 
@@ -91,7 +91,7 @@ func (s *listService) ListModifiedLocally(ctx context.Context) (*ListOutput, err
 	// Call the use case to list modified collections
 	collections, err := s.listUseCase.ListModifiedLocally(ctx)
 	if err != nil {
-		s.logger.Error("failed to list modified collections", zap.Error(err))
+		s.logger.Error("❌ failed to list modified collections", zap.Error(err))
 		return nil, err
 	}
 

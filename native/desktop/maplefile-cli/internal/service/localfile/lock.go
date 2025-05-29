@@ -77,15 +77,15 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	// STEP 1: Validate inputs
 	//
 	if input == nil {
-		s.logger.Error("input is required")
+		s.logger.Error("❌ input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
 	if input.FileID == "" {
-		s.logger.Error("file ID is required")
+		s.logger.Error("❌ file ID is required")
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
 	if input.Password == "" {
-		s.logger.Error("password is required for E2EE operations")
+		s.logger.Error("❌ password is required for E2EE operations")
 		return nil, errors.NewAppError("password is required for E2EE operations", nil)
 	}
 
@@ -94,7 +94,7 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	//
 	fileObjectID, err := primitive.ObjectIDFromHex(input.FileID)
 	if err != nil {
-		s.logger.Error("invalid file ID format",
+		s.logger.Error("❌ invalid file ID format",
 			zap.String("fileID", input.FileID),
 			zap.Error(err))
 		return nil, errors.NewAppError("invalid file ID format", err)
@@ -103,19 +103,19 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	//
 	// STEP 3: Get file, user, and collection for E2EE operations
 	//
-	s.logger.Debug("Getting file for lock operation",
+	s.logger.Debug("🐛 Getting file for lock operation",
 		zap.String("fileID", input.FileID))
 
 	file, err := s.getFileUseCase.Execute(ctx, fileObjectID)
 	if err != nil {
-		s.logger.Error("failed to get file",
+		s.logger.Error("❌ failed to get file",
 			zap.String("fileID", input.FileID),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to get file", err)
 	}
 
 	if file == nil {
-		s.logger.Error("file not found", zap.String("fileID", input.FileID))
+		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID))
 		return nil, errors.NewAppError("file not found", nil)
 	}
 
@@ -144,14 +144,14 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	// STEP 4: Validate file status
 	//
 	if file.SyncStatus == dom_file.SyncStatusCloudOnly {
-		s.logger.Error("cannot lock cloud-only file",
+		s.logger.Error("❌ cannot lock cloud-only file",
 			zap.String("fileID", input.FileID),
 			zap.Any("syncStatus", file.SyncStatus))
 		return nil, errors.NewAppError("cannot lock a cloud-only file. File must have local decrypted version.", nil)
 	}
 
 	if file.StorageMode == dom_file.StorageModeEncryptedOnly {
-		s.logger.Info("file is already locked (encrypted-only)",
+		s.logger.Info("✅ file is already locked (encrypted-only)",
 			zap.String("fileID", input.FileID))
 		return &LockOutput{
 			FileID:         fileObjectID,
@@ -167,13 +167,13 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	// STEP 5: Validate decrypted file exists (we need it to encrypt)
 	//
 	if file.FilePath == "" {
-		s.logger.Error("no decrypted file path available",
+		s.logger.Error("❌ no decrypted file path available",
 			zap.String("fileID", input.FileID))
 		return nil, errors.NewAppError("no decrypted file available to lock", nil)
 	}
 
 	if _, err := os.Stat(file.FilePath); os.IsNotExist(err) {
-		s.logger.Error("decrypted file does not exist",
+		s.logger.Error("❌ decrypted file does not exist",
 			zap.String("fileID", input.FileID),
 			zap.String("filePath", file.FilePath))
 		return nil, errors.NewAppError("decrypted file does not exist on disk", nil)
@@ -182,7 +182,7 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	//
 	// STEP 6: E2EE DECRYPTION CHAIN: password → keyEncryptionKey → masterKey → collectionKey → fileKey
 	//
-	s.logger.Debug("Starting E2EE key chain decryption for lock operation")
+	s.logger.Debug("🐛 Starting E2EE key chain decryption for lock operation")
 
 	collectionKey, err := s.decryptCollectionKeyChain(user, collection, input.Password)
 	if err != nil {
@@ -204,7 +204,7 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	//
 	// STEP 7: Encrypt the decrypted file content using the file key
 	//
-	s.logger.Info("Encrypting file content for locking",
+	s.logger.Info("🔒 Encrypting file content for locking",
 		zap.String("fileID", input.FileID))
 
 	encryptedData, err := s.encryptFileContent(file.FilePath, fileKey)
@@ -224,7 +224,7 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 		return nil, errors.NewAppError("failed to save encrypted file", err)
 	}
 
-	s.logger.Debug("Successfully saved encrypted file",
+	s.logger.Debug("🐛 Successfully saved encrypted file",
 		zap.String("fileID", input.FileID),
 		zap.String("encryptedPath", encryptedPath))
 
@@ -232,19 +232,19 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	// STEP 9: Delete decrypted file
 	//
 	var deletedPath string
-	s.logger.Info("Deleting decrypted file for lock operation",
+	s.logger.Info("🗑️ Deleting decrypted file for lock operation",
 		zap.String("fileID", input.FileID),
 		zap.String("filePath", file.FilePath))
 
 	if err := s.deleteFileUseCase.Execute(ctx, file.FilePath); err != nil {
-		s.logger.Warn("Failed to delete decrypted file",
+		s.logger.Warn("⚠️ Failed to delete decrypted file",
 			zap.String("fileID", input.FileID),
 			zap.String("filePath", file.FilePath),
 			zap.Error(err))
 		// Continue anyway, we'll still update the storage mode
 	} else {
 		deletedPath = file.FilePath
-		s.logger.Debug("Successfully deleted decrypted file",
+		s.logger.Debug("🐛 Successfully deleted decrypted file",
 			zap.String("fileID", input.FileID),
 			zap.String("filePath", file.FilePath))
 	}
@@ -267,13 +267,13 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 
 	_, err = s.updateFileUseCase.Execute(ctx, updateInput)
 	if err != nil {
-		s.logger.Error("failed to update file storage mode during lock",
+		s.logger.Error("❌ failed to update file storage mode during lock",
 			zap.String("fileID", input.FileID),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to update file storage mode during lock", err)
 	}
 
-	s.logger.Info("Successfully locked file using E2EE",
+	s.logger.Info("🎉 Successfully locked file using E2EE",
 		zap.String("fileID", input.FileID),
 		zap.String("previousMode", previousMode),
 		zap.String("newMode", newMode))
@@ -291,7 +291,7 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 
 // decryptCollectionKeyChain decrypts the complete E2EE chain to get the collection key
 func (s *lockService) decryptCollectionKeyChain(user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
-	s.logger.Debug("Starting E2EE key chain decryption",
+	s.logger.Debug("🐛 Starting E2EE key chain decryption",
 		zap.String("userID", user.ID.Hex()),
 		zap.String("collectionID", collection.ID.Hex()))
 
@@ -332,7 +332,7 @@ func (s *lockService) decryptCollectionKeyChain(user *dom_user.User, collection 
 
 // encryptFileContent encrypts file content using the file key
 func (s *lockService) encryptFileContent(filePath string, fileKey []byte) ([]byte, error) {
-	s.logger.Debug("Encrypting file content", zap.String("filePath", filePath))
+	s.logger.Debug("🐛 Encrypting file content", zap.String("filePath", filePath))
 
 	// Read file content
 	content, err := os.ReadFile(filePath)
@@ -349,7 +349,7 @@ func (s *lockService) encryptFileContent(filePath string, fileKey []byte) ([]byt
 	// Combine nonce and ciphertext (matching the format used elsewhere)
 	combined := pkg_crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
 
-	s.logger.Debug("Successfully encrypted file content",
+	s.logger.Debug("🐛 Successfully encrypted file content",
 		zap.Int("originalSize", len(content)),
 		zap.Int("encryptedSize", len(combined)))
 

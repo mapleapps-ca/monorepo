@@ -43,7 +43,7 @@ func NewSyncFullService(
 
 // FullSync performs both collection and file synchronization
 func (s *syncFullService) Execute(ctx context.Context, input *FullSyncInput) (*syncdto.SyncResult, error) {
-	s.logger.Info("Starting full synchronization")
+	s.logger.Info("🚀 Starting full synchronization")
 
 	// Set defaults
 	if input == nil {
@@ -56,7 +56,7 @@ func (s *syncFullService) Execute(ctx context.Context, input *FullSyncInput) (*s
 		input.MaxBatches = 100
 	}
 
-	s.logger.Debug("Full sync input parameters",
+	s.logger.Debug("⚙️ Full sync input parameters",
 		zap.Int("batch_size", int(input.BatchSize)),   // Cast to int
 		zap.Int("max_batches", int(input.MaxBatches))) // Cast to int
 

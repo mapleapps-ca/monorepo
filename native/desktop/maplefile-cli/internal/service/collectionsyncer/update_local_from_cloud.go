@@ -67,7 +67,7 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	}
 	if cloudCollectionDTO == nil {
 		err := errors.NewAppError("cloud collection not found", nil)
-		uc.logger.Error("Failed to fetch collection from cloud",
+		uc.logger.Error("❌ Failed to fetch collection from cloud",
 			zap.Error(err))
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	//
 	if localCollection == nil {
 		err := errors.NewAppError("no local collection found", nil)
-		uc.logger.Error("Failed to fetch local collections",
+		uc.logger.Error("❌ Failed to fetch local collections",
 			zap.Error(err))
 		return nil, err
 	}
@@ -94,21 +94,21 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 	// CASE 1: Local collection is already same or newest version compared with the cloud collection.
 	if localCollection.Version >= cloudCollectionDTO.Version {
-		uc.logger.Debug("Local collection is already same or newest version compared with the cloud collection",
+		uc.logger.Debug("✅ Local collection is already same or newest version compared with the cloud collection",
 			zap.String("collection_id", cloudCollectionID.Hex()))
 		return nil, nil
 	}
 	// CASE 2: We must handle local deletion of the collection.
 	if cloudCollectionDTO.TombstoneVersion > localCollection.Version {
 		if err := uc.localRepository.Delete(ctx, localCollection.ID); err != nil {
-			uc.logger.Error("Failed to delete local collection",
+			uc.logger.Error("❌ Failed to delete local collection",
 				zap.String("collection_id", cloudCollectionID.Hex()),
 				zap.Uint64("local_version", localCollection.Version),
 				zap.Uint64("cloud_version", cloudCollectionDTO.Version),
 				zap.Error(err))
 			return nil, err
 		}
-		uc.logger.Debug("Local collection is marked as deleted",
+		uc.logger.Debug("🗑️ Local collection is marked as deleted",
 			zap.String("collection_id", cloudCollectionID.Hex()),
 			zap.Uint64("local_version", localCollection.Version),
 			zap.Uint64("cloud_version", cloudCollectionDTO.Version))
@@ -124,7 +124,7 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 	// Execute the use case to update the local collection record.
 	if err := uc.localRepository.Save(ctx, cloudCollection); err != nil {
-		uc.logger.Error("Failed to update new (local) collection from the cloud",
+		uc.logger.Error("❌ Failed to update new (local) collection from the cloud",
 			zap.String("id", cloudCollectionDTO.ID.Hex()),
 			zap.Error(err))
 		return nil, err
@@ -134,7 +134,7 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	// STEP 6: Return our local  collection response from the cloud.
 	//
 
-	uc.logger.Debug("Local collection is updated",
+	uc.logger.Debug("✅ Local collection is updated",
 		zap.String("id", cloudCollectionID.Hex()))
 	return cloudCollection, nil
 }

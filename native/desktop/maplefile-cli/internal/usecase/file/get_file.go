@@ -50,9 +50,6 @@ func (uc *getFileUseCase) Execute(
 		return nil, errors.NewAppError("failed to get local file", err)
 	}
 
-	if file == nil {
-		return nil, errors.NewAppError("local file not found", nil)
-	}
-
+	// Developers Note: Yes we can return `file=nil`, this is not a mistake but a deliberate decision.
 	return file, nil
 }

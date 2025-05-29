@@ -41,7 +41,7 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, 
 	}
 	b, err := domain.NewUserFromDeserialize(bBytes)
 	if err != nil {
-		r.logger.Error("failed to deserialize",
+		r.logger.Error("❌ Failed to deserialize user",
 			zap.Any("email", email),
 			zap.String("bin", string(bBytes)),
 			zap.Any("error", err))
@@ -63,7 +63,7 @@ func (r *UserRepo) ListAll(ctx context.Context) ([]*domain.User, error) {
 	err := r.dbClient.Iterate(func(key, value []byte) error {
 		account, err := domain.NewUserFromDeserialize(value)
 		if err != nil {
-			r.logger.Error("failed to deserialize",
+			r.logger.Error("❌ Failed to deserialize user during iteration",
 				zap.String("key", string(key)),
 				zap.String("value", string(value)),
 				zap.Any("error", err))

@@ -84,22 +84,22 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 
 	// Validate inputs
 	if input == nil {
-		s.logger.Error("input is required", zap.Any("input", input))
+		s.logger.Error("❌ Input is required", zap.Any("input", input))
 		return nil, errors.NewAppError("input is required", nil)
 	}
 	if input.Name == "" {
-		s.logger.Error("collection name is required", zap.Any("input", input))
+		s.logger.Error("❌ Collection name is required", zap.Any("input", input))
 		return nil, errors.NewAppError("collection name is required", nil)
 	}
 	if input.OwnerID.IsZero() {
-		s.logger.Error("owner ID is required", zap.Any("input", input))
+		s.logger.Error("❌ Owner ID is required", zap.Any("input", input))
 		return nil, errors.NewAppError("owner ID is required", nil)
 	}
 	if input.CollectionType == "" {
 		// Default to folder if not specified
 		input.CollectionType = dom_collection.CollectionTypeFolder
 	} else if input.CollectionType != dom_collection.CollectionTypeFolder && input.CollectionType != dom_collection.CollectionTypeAlbum {
-		s.logger.Error("invalid collection type", zap.String("type", input.CollectionType))
+		s.logger.Error("❌ Invalid collection type", zap.String("type", input.CollectionType))
 		return nil, errors.NewAppError("collection type must be either 'folder' or 'album'", nil)
 	}
 	if userPassword == "" {
@@ -113,12 +113,12 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	// Get user data
 	userData, err := s.getUserByIsLoggedInUseCase.Execute(ctx)
 	if err != nil {
-		s.logger.Error("failed to get authenticated user", zap.Error(err))
+		s.logger.Error("❌ Failed to get authenticated user", zap.Error(err))
 		return nil, errors.NewAppError("failed to get user data", err)
 	}
 
 	if userData == nil {
-		s.logger.Error("authenticated user not found")
+		s.logger.Error("❌ Authenticated user not found")
 		return nil, errors.NewAppError("authenticated user not found; please login first", nil)
 	}
 
@@ -127,7 +127,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	//
 
 	if err := s.transactionManager.Begin(); err != nil {
-		s.logger.Error("failed to begin transaction", zap.Error(err))
+		s.logger.Error("❌ Failed to begin transaction", zap.Error(err))
 		return nil, errors.NewAppError("failed to begin transaction", err)
 	}
 
@@ -217,7 +217,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 
 	collectionCloudID, err := s.createCollectionInCloudUseCase.Execute(ctx, collectionDTO)
 	if err != nil {
-		s.logger.Error("failed to create collection in the cloud", zap.Error(err))
+		s.logger.Error("❌ Failed to create collection in the cloud", zap.Error(err))
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to create collection in the cloud", err)
 	}
@@ -248,7 +248,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 
 	// Call the use case to create the collection
 	if err := s.createCollectionUseCase.Execute(ctx, col); err != nil {
-		s.logger.Error("failed to create local collection", zap.String("name", input.Name), zap.Error(err))
+		s.logger.Error("❌ Failed to create local collection", zap.String("name", input.Name), zap.Error(err))
 		s.transactionManager.Rollback()
 		return nil, err
 	}
@@ -257,12 +257,12 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	// STEP 7: Commit transaction and return method output.
 	//
 	if err := s.transactionManager.Commit(); err != nil {
-		s.logger.Error("failed to commit transaction", zap.Error(err))
+		s.logger.Error("❌ Failed to commit transaction", zap.Error(err))
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to commit transaction", err)
 	}
 
-	s.logger.Info("Successfully created E2EE collection",
+	s.logger.Info("✅ Successfully created E2EE collection",
 		zap.String("collectionID", collectionCloudID.Hex()),
 		zap.String("name", input.Name),
 		zap.String("state", col.State))

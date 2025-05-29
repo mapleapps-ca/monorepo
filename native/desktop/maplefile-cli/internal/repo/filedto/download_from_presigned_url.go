@@ -14,7 +14,7 @@ import (
 
 // DownloadFileViaPresignedURLFromCloud downloads file content from a presigned URL
 func (r *fileDTORepository) DownloadFileViaPresignedURLFromCloud(ctx context.Context, presignedURL string) ([]byte, error) {
-	r.logger.Debug("Downloading file from presigned URL",
+	r.logger.Debug("⬇️ Downloading file from presigned URL",
 		zap.String("presignedURL", presignedURL))
 
 	if presignedURL == "" {
@@ -39,7 +39,7 @@ func (r *fileDTORepository) DownloadFileViaPresignedURLFromCloud(ctx context.Con
 		// Read response body for error details
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			r.logger.Warn("Failed to read download error response body", zap.Error(err))
+			r.logger.Warn("⚠️ Failed to read download error response body", zap.Error(err))
 		}
 		return nil, errors.NewAppError(fmt.Sprintf("file download failed with status %d: %s", resp.StatusCode, string(body)), nil)
 	}
@@ -50,7 +50,7 @@ func (r *fileDTORepository) DownloadFileViaPresignedURLFromCloud(ctx context.Con
 		return nil, errors.NewAppError("failed to read downloaded file data", err)
 	}
 
-	r.logger.Info("Successfully downloaded file from presigned URL",
+	r.logger.Info("✅ Successfully downloaded file from presigned URL",
 		zap.Int("dataSize", len(fileData)),
 		zap.Int("statusCode", resp.StatusCode))
 
@@ -59,11 +59,11 @@ func (r *fileDTORepository) DownloadFileViaPresignedURLFromCloud(ctx context.Con
 
 // DownloadThumbnailViaPresignedURLFromCloud downloads thumbnail content from a presigned URL
 func (r *fileDTORepository) DownloadThumbnailViaPresignedURLFromCloud(ctx context.Context, presignedURL string) ([]byte, error) {
-	r.logger.Debug("Downloading thumbnail from presigned URL",
+	r.logger.Debug("🖼️ Downloading thumbnail from presigned URL",
 		zap.String("presignedURL", presignedURL))
 
 	if presignedURL == "" {
-		r.logger.Debug("No presigned thumbnail URL provided, skipping thumbnail download")
+		r.logger.Debug("ℹ️ No presigned thumbnail URL provided, skipping thumbnail download")
 		return nil, nil
 	}
 

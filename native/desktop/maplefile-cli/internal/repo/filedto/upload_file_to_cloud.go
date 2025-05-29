@@ -15,7 +15,7 @@ import (
 
 // UploadFileToCloud uploads the actual file content to cloud storage using presigned URL
 func (r *fileDTORepository) UploadFileToCloud(ctx context.Context, presignedURL string, fileData []byte) error {
-	r.logger.Debug("Uploading file content to cloud storage",
+	r.logger.Debug("🐛 Uploading file content to cloud storage",
 		zap.String("presignedURL", presignedURL),
 		zap.Int("dataSize", len(fileData)))
 
@@ -47,7 +47,7 @@ func (r *fileDTORepository) UploadFileToCloud(ctx context.Context, presignedURL 
 	// Read response body for error details
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		r.logger.Warn("Failed to read upload response body", zap.Error(err))
+		r.logger.Warn("⚠️ Failed to read upload response body", zap.Error(err))
 	}
 
 	// Check for successful upload
@@ -55,7 +55,7 @@ func (r *fileDTORepository) UploadFileToCloud(ctx context.Context, presignedURL 
 		return errors.NewAppError(fmt.Sprintf("file upload failed with status %d: %s", resp.StatusCode, string(body)), nil)
 	}
 
-	r.logger.Info("Successfully uploaded file content to cloud storage",
+	r.logger.Info("✅ Successfully uploaded file content to cloud storage",
 		zap.Int("dataSize", len(fileData)),
 		zap.Int("statusCode", resp.StatusCode))
 
@@ -64,7 +64,7 @@ func (r *fileDTORepository) UploadFileToCloud(ctx context.Context, presignedURL 
 
 // UploadThumbnailToCloud uploads thumbnail content to cloud storage using presigned URL
 func (r *fileDTORepository) UploadThumbnailToCloud(ctx context.Context, presignedURL string, thumbnailData []byte) error {
-	r.logger.Debug("Uploading thumbnail content to cloud storage",
+	r.logger.Debug("🐛 Uploading thumbnail content to cloud storage",
 		zap.String("presignedURL", presignedURL),
 		zap.Int("dataSize", len(thumbnailData)))
 
@@ -73,7 +73,7 @@ func (r *fileDTORepository) UploadThumbnailToCloud(ctx context.Context, presigne
 	}
 
 	if len(thumbnailData) == 0 {
-		r.logger.Debug("No thumbnail data provided, skipping thumbnail upload")
+		r.logger.Debug("👀 No thumbnail data provided, skipping thumbnail upload")
 		return nil
 	}
 
@@ -97,7 +97,7 @@ func (r *fileDTORepository) UploadThumbnailToCloud(ctx context.Context, presigne
 	// Read response body for error details
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		r.logger.Warn("Failed to read thumbnail upload response body", zap.Error(err))
+		r.logger.Warn("⚠️ Failed to read thumbnail upload response body", zap.Error(err))
 	}
 
 	// Check for successful upload
@@ -105,7 +105,7 @@ func (r *fileDTORepository) UploadThumbnailToCloud(ctx context.Context, presigne
 		return errors.NewAppError(fmt.Sprintf("thumbnail upload failed with status %d: %s", resp.StatusCode, string(body)), nil)
 	}
 
-	r.logger.Info("Successfully uploaded thumbnail content to cloud storage",
+	r.logger.Info("✅ Successfully uploaded thumbnail content to cloud storage",
 		zap.Int("dataSize", len(thumbnailData)),
 		zap.Int("statusCode", resp.StatusCode))
 

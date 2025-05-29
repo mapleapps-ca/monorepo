@@ -48,21 +48,21 @@ func NewGetService(
 func (s *getService) Get(ctx context.Context, id string) (*GetOutput, error) {
 	// Validate input
 	if id == "" {
-		s.logger.Error("collection ID is required")
+		s.logger.Error("❌ collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
 	// Convert ID string to ObjectID
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		s.logger.Error("invalid collection ID format", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ invalid collection ID format", zap.String("id", id), zap.Error(err))
 		return nil, errors.NewAppError("invalid collection ID format", err)
 	}
 
 	// Call the use case to get the collection
 	collection, err := s.useCase.Execute(ctx, objectID)
 	if err != nil {
-		s.logger.Error("failed to get local collection", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to get local collection", zap.String("id", id), zap.Error(err))
 		return nil, err
 	}
 
@@ -75,21 +75,21 @@ func (s *getService) Get(ctx context.Context, id string) (*GetOutput, error) {
 func (s *getService) GetPath(ctx context.Context, id string) ([]*collection.Collection, error) {
 	// Validate input
 	if id == "" {
-		s.logger.Error("collection ID is required")
+		s.logger.Error("❌ collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
 	// Convert ID string to ObjectID
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		s.logger.Error("invalid collection ID format", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ invalid collection ID format", zap.String("id", id), zap.Error(err))
 		return nil, errors.NewAppError("invalid collection ID format", err)
 	}
 
 	// Call the use case to get the path
 	path, err := s.pathUseCase.Execute(ctx, objectID)
 	if err != nil {
-		s.logger.Error("failed to get collection path", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to get collection path", zap.String("id", id), zap.Error(err))
 		return nil, err
 	}
 

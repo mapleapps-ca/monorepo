@@ -52,14 +52,14 @@ func NewUpdateService(
 func (s *updateService) Update(ctx context.Context, input UpdateInput) (*UpdateOutput, error) {
 	// Validate inputs
 	if input.ID == "" {
-		s.logger.Error("collection ID is required")
+		s.logger.Error("❌ collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
 	// Convert ID string to ObjectID
 	objectID, err := primitive.ObjectIDFromHex(input.ID)
 	if err != nil {
-		s.logger.Error("invalid collection ID format", zap.String("id", input.ID), zap.Error(err))
+		s.logger.Error("❌ invalid collection ID format", zap.String("id", input.ID), zap.Error(err))
 		return nil, errors.NewAppError("invalid collection ID format", err)
 	}
 
@@ -67,7 +67,7 @@ func (s *updateService) Update(ctx context.Context, input UpdateInput) (*UpdateO
 	if input.CollectionType != nil &&
 		*input.CollectionType != collection.CollectionTypeFolder &&
 		*input.CollectionType != collection.CollectionTypeAlbum {
-		s.logger.Error("invalid collection type", zap.String("type", *input.CollectionType))
+		s.logger.Error("❌ invalid collection type", zap.String("type", *input.CollectionType))
 		return nil, errors.NewAppError("collection type must be either 'folder' or 'album'", nil)
 	}
 
@@ -93,7 +93,7 @@ func (s *updateService) Update(ctx context.Context, input UpdateInput) (*UpdateO
 	// Call the use case to update the collection
 	collection, err := s.updateUseCase.Execute(ctx, useCaseInput)
 	if err != nil {
-		s.logger.Error("failed to update local collection", zap.String("id", input.ID), zap.Error(err))
+		s.logger.Error("❌ failed to update local collection", zap.String("id", input.ID), zap.Error(err))
 		return nil, err
 	}
 

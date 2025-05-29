@@ -79,15 +79,15 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	// STEP 1: Validate inputs
 	//
 	if input == nil {
-		s.logger.Error("input is required")
+		s.logger.Error("❌ input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
 	if input.FileID == "" {
-		s.logger.Error("file ID is required")
+		s.logger.Error("❌ file ID is required")
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
 	if input.UserPassword == "" {
-		s.logger.Error("user password is required for E2EE operations")
+		s.logger.Error("❌ user password is required for E2EE operations")
 		return nil, errors.NewAppError("user password is required for E2EE operations", nil)
 	}
 
@@ -96,7 +96,7 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	//
 	fileObjectID, err := primitive.ObjectIDFromHex(input.FileID)
 	if err != nil {
-		s.logger.Error("invalid file ID format",
+		s.logger.Error("❌ invalid file ID format",
 			zap.String("fileID", input.FileID),
 			zap.Error(err))
 		return nil, errors.NewAppError("invalid file ID format", err)
@@ -105,19 +105,19 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	//
 	// STEP 3: Get the file and validate it's cloud-only
 	//
-	s.logger.Debug("Getting file for onload operation",
+	s.logger.Debug("🔍 Getting file for onload operation",
 		zap.String("fileID", input.FileID))
 
 	file, err := s.getFileUseCase.Execute(ctx, fileObjectID)
 	if err != nil {
-		s.logger.Error("failed to get file",
+		s.logger.Error("❌ failed to get file",
 			zap.String("fileID", input.FileID),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to get file", err)
 	}
 
 	if file == nil {
-		s.logger.Error("file not found", zap.String("fileID", input.FileID))
+		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID))
 		return nil, errors.NewAppError("file not found", nil)
 	}
 
@@ -125,7 +125,7 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 
 	// Only work with cloud-only files
 	if file.SyncStatus != dom_file.SyncStatusCloudOnly {
-		s.logger.Error("file is not cloud-only",
+		s.logger.Error("❌ file is not cloud-only",
 			zap.String("fileID", input.FileID),
 			zap.Any("syncStatus", file.SyncStatus))
 		return nil, errors.NewAppError(
@@ -136,19 +136,19 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	//
 	// STEP 4: Download and decrypt file using the download service
 	//
-	s.logger.Info("Downloading and decrypting file from cloud",
+	s.logger.Info("⬇️ Downloading and decrypting file from cloud",
 		zap.String("fileID", input.FileID))
 
 	urlDuration := 1 * time.Hour // Default duration for download URLs
 	downloadResult, err := s.downloadService.DownloadAndDecryptFile(ctx, fileObjectID, input.UserPassword, urlDuration)
 	if err != nil {
-		s.logger.Error("failed to download and decrypt file",
+		s.logger.Error("❌ failed to download and decrypt file",
 			zap.String("fileID", input.FileID),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to download and decrypt file", err)
 	}
 
-	s.logger.Info("Successfully downloaded and decrypted file",
+	s.logger.Info("✅ Successfully downloaded and decrypted file",
 		zap.String("fileID", input.FileID),
 		zap.String("fileName", downloadResult.DecryptedMetadata.Name),
 		zap.Int64("size", downloadResult.OriginalSize))
@@ -158,7 +158,7 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	//
 	decryptedPath, err := s.saveDecryptedFile(ctx, file, downloadResult.DecryptedData, downloadResult.DecryptedMetadata.Name)
 	if err != nil {
-		s.logger.Error("failed to save decrypted file",
+		s.logger.Error("❌ failed to save decrypted file",
 			zap.String("fileID", input.FileID),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to save decrypted file", err)
@@ -170,11 +170,11 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	if downloadResult.ThumbnailData != nil && len(downloadResult.ThumbnailData) > 0 {
 		thumbnailPath, err := s.saveThumbnail(ctx, file, downloadResult.ThumbnailData, downloadResult.DecryptedMetadata.Name)
 		if err != nil {
-			s.logger.Warn("Failed to save thumbnail, continuing without it",
+			s.logger.Warn("⚠️ Failed to save thumbnail, continuing without it",
 				zap.String("fileID", input.FileID),
 				zap.Error(err))
 		} else {
-			s.logger.Debug("Successfully saved thumbnail",
+			s.logger.Debug("✅ Successfully saved thumbnail",
 				zap.String("fileID", input.FileID),
 				zap.String("thumbnailPath", thumbnailPath))
 		}
@@ -202,13 +202,13 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 
 	_, err = s.updateFileUseCase.Execute(ctx, updateInput)
 	if err != nil {
-		s.logger.Error("failed to update file sync status during onload",
+		s.logger.Error("❌ failed to update file sync status during onload",
 			zap.String("fileID", input.FileID),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to update file sync status during onload", err)
 	}
 
-	s.logger.Info("Successfully onloaded file",
+	s.logger.Info("✨ Successfully onloaded file",
 		zap.String("fileID", input.FileID),
 		zap.String("decryptedPath", decryptedPath),
 		zap.Any("previousStatus", previousStatus),
@@ -226,7 +226,7 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 
 // saveDecryptedFile saves the decrypted file content to local storage
 func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.File, decryptedData []byte, originalFileName string) (string, error) {
-	s.logger.Debug("Saving decrypted file locally", zap.String("fileID", file.ID.Hex()))
+	s.logger.Debug("💾 Saving decrypted file locally", zap.String("fileID", file.ID.Hex()))
 
 	// Get app data directory
 	appDataDir, err := s.configService.GetAppDataDirPath(ctx)
@@ -260,7 +260,7 @@ func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.Fi
 		return "", fmt.Errorf("failed to write decrypted file: %w", err)
 	}
 
-	s.logger.Debug("Successfully saved decrypted file",
+	s.logger.Debug("✅ Successfully saved decrypted file",
 		zap.String("fileID", file.ID.Hex()),
 		zap.String("filePath", destFilePath),
 		zap.Int("size", len(decryptedData)))
@@ -270,7 +270,7 @@ func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.Fi
 
 // saveThumbnail saves the decrypted thumbnail to local storage
 func (s *onloadService) saveThumbnail(ctx context.Context, file *dom_file.File, thumbnailData []byte, originalFileName string) (string, error) {
-	s.logger.Debug("Saving thumbnail locally", zap.String("fileID", file.ID.Hex()))
+	s.logger.Debug("🖼️ Saving thumbnail locally", zap.String("fileID", file.ID.Hex()))
 
 	// Get app data directory
 	appDataDir, err := s.configService.GetAppDataDirPath(ctx)
@@ -298,7 +298,7 @@ func (s *onloadService) saveThumbnail(ctx context.Context, file *dom_file.File, 
 		return "", fmt.Errorf("failed to write thumbnail: %w", err)
 	}
 
-	s.logger.Debug("Successfully saved thumbnail",
+	s.logger.Debug("✅ Successfully saved thumbnail",
 		zap.String("fileID", file.ID.Hex()),
 		zap.String("thumbnailPath", thumbnailPath),
 		zap.Int("size", len(thumbnailData)))

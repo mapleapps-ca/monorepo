@@ -77,7 +77,7 @@ func (s *emailVerificationService) VerifyEmail(ctx context.Context, code string)
 	}
 
 	// Log success
-	s.logger.Info("Email verification successful",
+	s.logger.Info("✅ Email verification successful",
 		zap.String("email", currentUser.Email),
 		zap.Int("role", int(currentUser.Role)))
 

@@ -44,21 +44,21 @@ func (tm *transactionManager) Begin() error {
 	defer tm.mutex.Unlock()
 
 	if tm.inTransaction {
-		tm.logger.Warn("Transaction already in progress")
+		tm.logger.Warn("⚠️ Transaction already in progress")
 		return errors.NewAppError("transaction already in progress", nil)
 	}
 
-	tm.logger.Debug("Beginning transaction")
+	tm.logger.Debug("⚙️ Beginning transaction")
 
 	// Begin transaction on collection repository
 	if err := tm.collectionRepo.OpenTransaction(); err != nil {
-		tm.logger.Error("Failed to begin transaction on collection repository", zap.Error(err))
+		tm.logger.Error("❌ Failed to begin transaction on collection repository", zap.Error(err))
 		return errors.NewAppError("failed to begin collection transaction", err)
 	}
 
 	// Begin transaction on file repository
 	if err := tm.fileRepo.OpenTransaction(); err != nil {
-		tm.logger.Error("Failed to begin transaction on file repository", zap.Error(err))
+		tm.logger.Error("❌ Failed to begin transaction on file repository", zap.Error(err))
 		// Rollback collection transaction
 		tm.collectionRepo.DiscardTransaction()
 		return errors.NewAppError("failed to begin file transaction", err)
@@ -66,7 +66,7 @@ func (tm *transactionManager) Begin() error {
 
 	tm.inTransaction = true
 	tm.transactionStarted = true
-	tm.logger.Debug("Transaction started successfully")
+	tm.logger.Debug("✅ Transaction started successfully")
 	return nil
 }
 
@@ -76,23 +76,23 @@ func (tm *transactionManager) Commit() error {
 	defer tm.mutex.Unlock()
 
 	if !tm.inTransaction {
-		tm.logger.Warn("No transaction in progress to commit")
+		tm.logger.Warn("⚠️ No transaction in progress to commit")
 		return errors.NewAppError("no transaction in progress", nil)
 	}
 
-	tm.logger.Debug("Committing transaction")
+	tm.logger.Debug("💾 Committing transaction")
 
 	var commitErrors []error
 
 	// Commit collection repository transaction
 	if err := tm.collectionRepo.CommitTransaction(); err != nil {
-		tm.logger.Error("Failed to commit collection transaction", zap.Error(err))
+		tm.logger.Error("❌ Failed to commit collection transaction", zap.Error(err))
 		commitErrors = append(commitErrors, err)
 	}
 
 	// Commit file repository transaction
 	if err := tm.fileRepo.CommitTransaction(); err != nil {
-		tm.logger.Error("Failed to commit file transaction", zap.Error(err))
+		tm.logger.Error("❌ Failed to commit file transaction", zap.Error(err))
 		commitErrors = append(commitErrors, err)
 	}
 
@@ -100,11 +100,11 @@ func (tm *transactionManager) Commit() error {
 	tm.transactionStarted = false
 
 	if len(commitErrors) > 0 {
-		tm.logger.Error("Transaction commit completed with errors", zap.Int("errorCount", len(commitErrors)))
+		tm.logger.Error("❌ Transaction commit completed with errors", zap.Int("errorCount", len(commitErrors)))
 		return errors.NewAppError("transaction commit failed", commitErrors[0])
 	}
 
-	tm.logger.Debug("Transaction committed successfully")
+	tm.logger.Debug("✅ Transaction committed successfully")
 	return nil
 }
 
@@ -114,11 +114,11 @@ func (tm *transactionManager) Rollback() error {
 	defer tm.mutex.Unlock()
 
 	if !tm.inTransaction {
-		tm.logger.Warn("No transaction in progress to rollback")
+		tm.logger.Warn("⚠️ No transaction in progress to rollback")
 		return nil // Not an error, just a no-op
 	}
 
-	tm.logger.Debug("Rolling back transaction")
+	tm.logger.Debug("↩️ Rolling back transaction")
 
 	// Discard collection repository transaction
 	tm.collectionRepo.DiscardTransaction()
@@ -129,7 +129,7 @@ func (tm *transactionManager) Rollback() error {
 	tm.inTransaction = false
 	tm.transactionStarted = false
 
-	tm.logger.Debug("Transaction rolled back successfully")
+	tm.logger.Debug("✅ Transaction rolled back successfully")
 	return nil
 }
 

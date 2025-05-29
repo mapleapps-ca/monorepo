@@ -50,7 +50,7 @@ func (r *completeLoginRepository) CompleteLogin(ctx context.Context, request *au
 
 	// Create HTTP request
 	completeURL := fmt.Sprintf("%s/iam/api/v1/complete-login", serverURL)
-	r.logger.Debug("Making HTTP request", zap.String("url", completeURL))
+	r.logger.Debug("🌐 Making HTTP request", zap.String("url", completeURL))
 
 	req, err := http.NewRequestWithContext(ctx, "POST", completeURL, bytes.NewBuffer(jsonData))
 	if err != nil {

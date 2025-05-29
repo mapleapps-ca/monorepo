@@ -68,7 +68,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	}
 	if cloudCollectionDTO == nil {
 		err := errors.NewAppError("cloud collection not found", nil)
-		uc.logger.Error("Failed to fetch collection from cloud",
+		uc.logger.Error("🚨 Failed to fetch collection from cloud",
 			zap.Error(err))
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 	// CASE 1: Make sure the cloud collection hasn't been deleted.
 	if cloudCollectionDTO.TombstoneVersion > 0 {
-		uc.logger.Debug("Skipping local collection creation from the cloud because it has been deleted",
+		uc.logger.Debug("⏭️ Skipping local collection creation from the cloud because it has been deleted",
 			zap.String("id", cloudCollectionDTO.ID.Hex()))
 		return nil, nil
 	}
@@ -93,7 +93,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 	// Execute the use case to create the local collection record.
 	if err := uc.localRepository.Create(ctx, newCollection); err != nil {
-		uc.logger.Error("Failed to create new (local) collection from the cloud",
+		uc.logger.Error("🚨 Failed to create new (local) collection from the cloud",
 			zap.String("id", cloudCollectionDTO.ID.Hex()),
 			zap.Error(err))
 		return nil, err

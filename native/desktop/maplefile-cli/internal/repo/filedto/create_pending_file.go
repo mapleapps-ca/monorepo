@@ -17,7 +17,7 @@ import (
 
 // CreatePendingFileInCloud creates a pending file record in the cloud and returns presigned URLs
 func (r *fileDTORepository) CreatePendingFileInCloud(ctx context.Context, request *filedto.CreatePendingFileRequest) (*filedto.CreatePendingFileResponse, error) {
-	r.logger.Debug("Creating pending file in cloud",
+	r.logger.Debug("📝 Creating pending file in cloud",
 		zap.String("fileID", request.ID.Hex()),
 		zap.String("collectionID", request.CollectionID.Hex()),
 		zap.Int64("expectedFileSize", request.ExpectedFileSizeInBytes))
@@ -42,7 +42,7 @@ func (r *fileDTORepository) CreatePendingFileInCloud(ctx context.Context, reques
 
 	// Create HTTP request
 	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/pending", serverURL)
-	r.logger.Debug("Making HTTP request", zap.String("url", requestURL))
+	r.logger.Debug("📡 Making HTTP request", zap.String("url", requestURL))
 
 	req, err := http.NewRequestWithContext(ctx, "POST", requestURL, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -83,7 +83,7 @@ func (r *fileDTORepository) CreatePendingFileInCloud(ctx context.Context, reques
 		return nil, errors.NewAppError("failed to parse response", err)
 	}
 
-	r.logger.Info("Successfully created pending file",
+	r.logger.Info("✅ Successfully created pending file",
 		zap.String("fileID", response.File.ID.Hex()),
 		zap.Time("urlExpiration", response.UploadURLExpirationTime))
 

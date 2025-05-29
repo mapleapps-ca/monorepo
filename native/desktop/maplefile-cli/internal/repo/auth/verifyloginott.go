@@ -50,7 +50,8 @@ func (r *loginOTTVerificationRepository) VerifyLoginOTT(ctx context.Context, req
 
 	// Make HTTP request to server
 	verifyURL := fmt.Sprintf("%s/iam/api/v1/verify-ott", serverURL)
-	r.logger.Debug("Making HTTP request", zap.String("url", verifyURL))
+	// Add emoji to log message
+	r.logger.Debug("🌐 Making HTTP request", zap.String("url", verifyURL))
 
 	req, err := http.NewRequestWithContext(ctx, "POST", verifyURL, bytes.NewBuffer(jsonData))
 	if err != nil {

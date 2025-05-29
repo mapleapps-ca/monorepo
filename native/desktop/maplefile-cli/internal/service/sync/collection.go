@@ -246,7 +246,7 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 					s.logger.Error("❌ Failed to delete local collection",
 						zap.String("collection_id", existingLocalCollection.ID.Hex()),
 						zap.Uint64("local_version", existingLocalCollection.Version),
-						zap.Uint64("cloud_version", existingLocalCollection.Version),
+						zap.Uint64("cloud_version", cloudCollection.Version),
 						zap.Error(err))
 					return nil, err
 				}
@@ -254,6 +254,7 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 					zap.String("collection_id", existingLocalCollection.ID.Hex()),
 					zap.Uint64("local_version", existingLocalCollection.Version),
 					zap.Uint64("cloud_version", cloudCollection.Version))
+				collectionSyncResult.CollectionsDeleted++
 				continue // Skip processing this collection
 			}
 
@@ -327,8 +328,9 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 	// Log final summary of the synchronization process
 	s.logger.Info("🎉 Collection synchronization completed",
 		zap.Int("processed", collectionSyncResult.CollectionsProcessed), // Total items received from sync service
-		zap.Int("updated", collectionSyncResult.CollectionsUpdated),     // Items locally created or updated (based on placeholder logic)
-		zap.Int("deleted", collectionSyncResult.CollectionsDeleted),     // Items marked for local deletion (based on placeholder logic)
+		zap.Int("added", collectionSyncResult.CollectionsAdded),         // Items locally created
+		zap.Int("updated", collectionSyncResult.CollectionsUpdated),     // Items locally updated
+		zap.Int("deleted", collectionSyncResult.CollectionsDeleted),     // Items marked for local deletion
 		zap.Int("errors", len(collectionSyncResult.Errors)))             // Number of errors encountered during processing
 
 	return collectionSyncResult, nil

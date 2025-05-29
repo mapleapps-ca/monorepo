@@ -16,7 +16,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
+	dom_keys "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_tx "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
 	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
@@ -107,19 +107,19 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 	// STEP 1: Validate inputs
 	//
 	if input == nil {
-		s.logger.Error("input is required")
+		s.logger.Error("❌ Input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
 	if input.FilePath == "" {
-		s.logger.Error("file path is required")
+		s.logger.Error("❌ File path is required")
 		return nil, errors.NewAppError("file path is required", nil)
 	}
 	if input.CollectionID.IsZero() {
-		s.logger.Error("collection ID is required")
+		s.logger.Error("❌ Collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 	if input.OwnerID.IsZero() {
-		s.logger.Error("owner ID is required")
+		s.logger.Error("❌ Owner ID is required")
 		return nil, errors.NewAppError("owner ID is required", nil)
 	}
 	if input.StorageMode == "" {
@@ -128,7 +128,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 	if input.StorageMode != dom_file.StorageModeEncryptedOnly &&
 		input.StorageMode != dom_file.StorageModeDecryptedOnly &&
 		input.StorageMode != dom_file.StorageModeHybrid {
-		s.logger.Error("invalid storage mode", zap.String("storageMode", input.StorageMode))
+		s.logger.Error("❌ Invalid storage mode", zap.String("storageMode", input.StorageMode))
 		return nil, errors.NewAppError("invalid storage mode. Must be 'encrypted_only', 'hybrid', or 'decrypted_only'", nil)
 	}
 	if userPassword == "" {
@@ -139,18 +139,18 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 	// STEP 2: Clean and validate file path
 	//
 	cleanFilePath := s.pathUtilsUseCase.Clean(ctx, input.FilePath)
-	s.logger.Debug("Cleaned file path",
+	s.logger.Debug("🔍 Cleaned file path",
 		zap.String("original", input.FilePath),
 		zap.String("cleaned", cleanFilePath))
 
 	// Check if file exists
 	exists, err := s.checkFileExistsUseCase.Execute(ctx, cleanFilePath)
 	if err != nil {
-		s.logger.Error("Failed to check file existence", zap.String("filePath", cleanFilePath), zap.Error(err))
+		s.logger.Error("❌ Failed to check file existence", zap.String("filePath", cleanFilePath), zap.Error(err))
 		return nil, errors.NewAppError("failed to check file existence", err)
 	}
 	if !exists {
-		s.logger.Error("File does not exist", zap.String("filePath", cleanFilePath))
+		s.logger.Error("❌ File does not exist", zap.String("filePath", cleanFilePath))
 		return nil, errors.NewAppError("file does not exist", nil)
 	}
 
@@ -178,14 +178,14 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 	// Get file information
 	fileInfo, err := s.getFileInfoUseCase.Execute(ctx, cleanFilePath)
 	if err != nil {
-		s.logger.Error("Failed to get file info", zap.String("filePath", cleanFilePath), zap.Error(err))
+		s.logger.Error("❌ Failed to get file info", zap.String("filePath", cleanFilePath), zap.Error(err))
 		return nil, errors.NewAppError("failed to get file info", err)
 	}
 	if fileInfo == nil {
 		return nil, errors.NewAppError("fileInfo does not exist", nil)
 	}
 	if fileInfo.IsDirectory {
-		s.logger.Error("Path is a directory, not a file", zap.String("filePath", cleanFilePath))
+		s.logger.Error("❌ Path is a directory, not a file", zap.String("filePath", cleanFilePath))
 		return nil, errors.NewAppError("the specified path is a directory, not a file", nil)
 	}
 
@@ -194,28 +194,28 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 	//
 	appDataDir, err := s.configService.GetAppDataDirPath(ctx)
 	if err != nil {
-		s.logger.Error("Failed to get app data directory path", zap.Error(err))
+		s.logger.Error("❌ Failed to get app data directory path", zap.Error(err))
 		return nil, errors.NewAppError("failed to get app data directory path", err)
 	}
 
 	// Create files storage directory (cross-platform compatible)
 	filesDir := s.pathUtilsUseCase.Join(ctx, appDataDir, "files")
 	if err := s.createDirectoryUseCase.ExecuteAll(ctx, filesDir); err != nil {
-		s.logger.Error("Failed to create files directory", zap.String("filesDir", filesDir), zap.Error(err))
+		s.logger.Error("❌ Failed to create files directory", zap.String("filesDir", filesDir), zap.Error(err))
 		return nil, errors.NewAppError("failed to create files directory", err)
 	}
 
 	// Create bin subdirectory
 	binDir := s.pathUtilsUseCase.Join(ctx, filesDir, "bin")
 	if err := s.createDirectoryUseCase.ExecuteAll(ctx, binDir); err != nil {
-		s.logger.Error("Failed to create bin directory", zap.String("binDir", binDir), zap.Error(err))
+		s.logger.Error("❌ Failed to create bin directory", zap.String("binDir", binDir), zap.Error(err))
 		return nil, errors.NewAppError("failed to create bin directory", err)
 	}
 
 	// Create collection-specific subdirectory
 	collectionDir := s.pathUtilsUseCase.Join(ctx, binDir, input.CollectionID.Hex())
 	if err := s.createDirectoryUseCase.ExecuteAll(ctx, collectionDir); err != nil {
-		s.logger.Error("Failed to create collection directory", zap.String("collectionDir", collectionDir), zap.Error(err))
+		s.logger.Error("❌ Failed to create collection directory", zap.String("collectionDir", collectionDir), zap.Error(err))
 		return nil, errors.NewAppError("failed to create collection directory", err)
 	}
 
@@ -242,12 +242,12 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 	//
 	// STEP 6: Copy file to app directory
 	//
-	s.logger.Info("Copying file to app directory",
+	s.logger.Info("📄 Copying file to app directory",
 		zap.String("source", cleanFilePath),
 		zap.String("destination", destFilePath))
 
 	if err := s.copyFileUseCase.Execute(ctx, cleanFilePath, destFilePath); err != nil {
-		s.logger.Error("Failed to copy file",
+		s.logger.Error("❌ Failed to copy file",
 			zap.String("source", cleanFilePath),
 			zap.String("destination", destFilePath),
 			zap.Error(err))
@@ -305,7 +305,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 
 	// Step 6
 	currentTime := time.Now()
-	historicalKey := keys.EncryptedHistoricalKey{
+	historicalKey := dom_keys.EncryptedHistoricalKey{
 		Ciphertext:    encryptedFileKeyData.Ciphertext,
 		Nonce:         encryptedFileKeyData.Nonce,
 		KeyVersion:    1,
@@ -322,12 +322,12 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 		CollectionID:      input.CollectionID,
 		OwnerID:           input.OwnerID,
 		EncryptedMetadata: encryptedMetadataString,
-		EncryptedFileKey: keys.EncryptedFileKey{
+		EncryptedFileKey: dom_keys.EncryptedFileKey{
 			Ciphertext:   encryptedFileKeyData.Ciphertext,
 			Nonce:        encryptedFileKeyData.Nonce,
 			KeyVersion:   1,
 			RotatedAt:    &currentTime,
-			PreviousKeys: []keys.EncryptedHistoricalKey{historicalKey},
+			PreviousKeys: []dom_keys.EncryptedHistoricalKey{historicalKey},
 		},
 		EncryptionVersion: "1.0",
 		EncryptedHash:     encryptedHashString,
@@ -350,11 +350,11 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 	// STEP 9: Save file record to database
 	//
 	if err := s.createFileUseCase.Execute(ctx, domainFile); err != nil {
-		s.logger.Error("Failed to create file record", zap.String("fileID", fileID.Hex()), zap.Error(err))
+		s.logger.Error("❌ Failed to create file record", zap.String("fileID", fileID.Hex()), zap.Error(err))
 		return nil, errors.NewAppError("failed to create file record", err)
 	}
 
-	s.logger.Info("Successfully added E2EE file",
+	s.logger.Info("✅ Successfully added E2EE file",
 		zap.String("fileID", fileID.Hex()),
 		zap.String("fileName", fileName),
 		zap.String("copiedPath", destFilePath))
@@ -458,7 +458,7 @@ func (s *addService) encryptComputeFileHash(ctx context.Context, filePath string
 	// Compute file hash - use buffered algorithm in case of large files.
 	fileHashBytes, err := s.computeFileHashUseCase.ExecuteForBytes(ctx, filePath)
 	if err != nil {
-		s.logger.Error("Failed to compute file hash",
+		s.logger.Error("❌ Failed to compute file hash",
 			zap.String("file_path", filePath),
 			zap.Error(err))
 		return "", errors.NewAppError("failed to compute file hash", err)

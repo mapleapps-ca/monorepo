@@ -80,7 +80,7 @@ func (s *syncProgressService) GetAllCollections(ctx context.Context, input *Sync
 	startTime := time.Now()
 	timeout := time.Duration(input.TimeoutSeconds) * time.Second
 
-	s.logger.Info("Starting paginated collection sync",
+	s.logger.Info("✨ Starting paginated collection sync",
 		zap.Int64("batch_size", input.BatchSize),
 		zap.Int("max_batches", input.MaxBatches),
 		zap.Duration("timeout", timeout))
@@ -96,14 +96,14 @@ func (s *syncProgressService) GetAllCollections(ctx context.Context, input *Sync
 	for batchCount < input.MaxBatches {
 		// Check timeout
 		if time.Since(startTime) > timeout {
-			s.logger.Warn("Sync operation timed out", zap.Duration("elapsed", time.Since(startTime)))
+			s.logger.Warn("⏱️ Sync operation timed out", zap.Duration("elapsed", time.Since(startTime)))
 			break
 		}
 
 		// Get next batch
 		response, err := s.syncDTORepo.GetCollectionSyncDataFromCloud(ctx, currentCursor, input.BatchSize)
 		if err != nil {
-			s.logger.Error("failed to get collection batch",
+			s.logger.Error("❌ failed to get collection batch",
 				zap.Int("batch", batchCount+1),
 				zap.Error(err))
 			return nil, errors.NewAppError("failed to get collection batch", err)
@@ -114,14 +114,14 @@ func (s *syncProgressService) GetAllCollections(ctx context.Context, input *Sync
 		output.TotalItems += len(response.Collections)
 		batchCount++
 
-		s.logger.Debug("Processed collection batch",
+		s.logger.Debug("✅ Processed collection batch",
 			zap.Int("batch_number", batchCount),
 			zap.Int("items_in_batch", len(response.Collections)),
 			zap.Int("total_items", output.TotalItems))
 
 		// Check if we have more data
 		if !response.HasMore || response.NextCursor == nil {
-			s.logger.Info("No more collection data available")
+			s.logger.Info("🏁 No more collection data available")
 			break
 		}
 
@@ -141,7 +141,7 @@ func (s *syncProgressService) GetAllCollections(ctx context.Context, input *Sync
 		output.Message = "Collection sync completed successfully"
 	}
 
-	s.logger.Info("Completed paginated collection sync",
+	s.logger.Info("✅ Completed paginated collection sync",
 		zap.Int("total_batches", output.TotalBatches),
 		zap.Int("total_items", output.TotalItems),
 		zap.Duration("elapsed_time", output.ElapsedTime))
@@ -169,7 +169,7 @@ func (s *syncProgressService) GetAllFiles(ctx context.Context, input *SyncProgre
 	startTime := time.Now()
 	timeout := time.Duration(input.TimeoutSeconds) * time.Second
 
-	s.logger.Info("Starting paginated file sync",
+	s.logger.Info("✨ Starting paginated file sync",
 		zap.Int64("batch_size", input.BatchSize),
 		zap.Int("max_batches", input.MaxBatches),
 		zap.Duration("timeout", timeout))
@@ -185,14 +185,14 @@ func (s *syncProgressService) GetAllFiles(ctx context.Context, input *SyncProgre
 	for batchCount < input.MaxBatches {
 		// Check timeout
 		if time.Since(startTime) > timeout {
-			s.logger.Warn("Sync operation timed out", zap.Duration("elapsed", time.Since(startTime)))
+			s.logger.Warn("⏱️ Sync operation timed out", zap.Duration("elapsed", time.Since(startTime)))
 			break
 		}
 
 		// Get next batch
 		response, err := s.syncDTORepo.GetFileSyncDataFromCloud(ctx, currentCursor, input.BatchSize)
 		if err != nil {
-			s.logger.Error("failed to get file batch",
+			s.logger.Error("❌ failed to get file batch",
 				zap.Int("batch", batchCount+1),
 				zap.Error(err))
 			return nil, errors.NewAppError("failed to get file batch", err)
@@ -203,14 +203,14 @@ func (s *syncProgressService) GetAllFiles(ctx context.Context, input *SyncProgre
 		output.TotalItems += len(response.Files)
 		batchCount++
 
-		s.logger.Debug("Processed file batch",
+		s.logger.Debug("✅ Processed file batch",
 			zap.Int("batch_number", batchCount),
 			zap.Int("items_in_batch", len(response.Files)),
 			zap.Int("total_items", output.TotalItems))
 
 		// Check if we have more data
 		if !response.HasMore || response.NextCursor == nil {
-			s.logger.Info("No more file data available")
+			s.logger.Info("🏁 No more file data available")
 			break
 		}
 
@@ -230,7 +230,7 @@ func (s *syncProgressService) GetAllFiles(ctx context.Context, input *SyncProgre
 		output.Message = "File sync completed successfully"
 	}
 
-	s.logger.Info("Completed paginated file sync",
+	s.logger.Info("✅ Completed paginated file sync",
 		zap.Int("total_batches", output.TotalBatches),
 		zap.Int("total_items", output.TotalItems),
 		zap.Duration("elapsed_time", output.ElapsedTime))
@@ -240,7 +240,7 @@ func (s *syncProgressService) GetAllFiles(ctx context.Context, input *SyncProgre
 
 // GetIncrementalSync performs incremental sync based on last sync timestamp
 func (s *syncProgressService) GetIncrementalSync(ctx context.Context, lastModified time.Time, lastID primitive.ObjectID, syncType string) (*SyncProgressOutput, error) {
-	s.logger.Info("Starting incremental sync",
+	s.logger.Info("✨ Starting incremental sync",
 		zap.Time("last_modified", lastModified),
 		zap.String("last_id", lastID.Hex()),
 		zap.String("sync_type", syncType))
@@ -263,7 +263,7 @@ func (s *syncProgressService) GetIncrementalSync(ctx context.Context, lastModifi
 	case "files":
 		return s.GetAllFiles(ctx, input)
 	default:
-		s.logger.Error("invalid sync type", zap.String("sync_type", syncType))
+		s.logger.Error("❌ invalid sync type", zap.String("sync_type", syncType))
 		return nil, errors.NewAppError("sync_type must be 'collections' or 'files'", nil)
 	}
 }

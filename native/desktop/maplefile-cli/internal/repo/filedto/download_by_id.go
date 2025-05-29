@@ -17,7 +17,7 @@ import (
 
 // DownloadByIDFromCloud downloads a FileDTO by its unique identifier from the cloud service
 func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id primitive.ObjectID) (*filedto.FileDTO, error) {
-	r.logger.Debug("Downloading file from cloud", zap.String("fileID", id.Hex()))
+	r.logger.Debug("⬇️ Downloading file from cloud", zap.String("fileID", id.Hex()))
 
 	if id.IsZero() {
 		return nil, errors.NewAppError("file ID is required", nil)
@@ -37,7 +37,7 @@ func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id primit
 
 	// Create HTTP request
 	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s", serverURL, id.Hex())
-	r.logger.Debug("Making HTTP request", zap.String("url", requestURL))
+	r.logger.Debug("🌐 Making HTTP request", zap.String("url", requestURL))
 
 	req, err := http.NewRequestWithContext(ctx, "GET", requestURL, nil)
 	if err != nil {
@@ -87,7 +87,7 @@ func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id primit
 		return nil, errors.NewAppError("file data not found in response", nil)
 	}
 
-	r.logger.Info("Successfully downloaded file from cloud",
+	r.logger.Info("✅ Successfully downloaded file from cloud",
 		zap.String("fileID", id.Hex()),
 		zap.String("collectionID", fileResponse.File.CollectionID.Hex()))
 

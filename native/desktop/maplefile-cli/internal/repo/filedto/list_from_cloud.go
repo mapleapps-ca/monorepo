@@ -17,7 +17,7 @@ import (
 
 // ListFromCloud lists FileDTOs from the cloud service based on the provided filter criteria
 func (r *fileDTORepository) ListFromCloud(ctx context.Context, filter filedto.FileFilter) ([]*filedto.FileDTO, error) {
-	r.logger.Debug("Listing files from cloud",
+	r.logger.Debug("☁️ Listing files from cloud",
 		zap.Any("filter", filter))
 
 	// Get server URL from configuration
@@ -50,7 +50,7 @@ func (r *fileDTORepository) ListFromCloud(ctx context.Context, filter filedto.Fi
 		requestURL += "?" + params.Encode()
 	}
 
-	r.logger.Debug("Making HTTP request", zap.String("url", requestURL))
+	r.logger.Debug("🌐 Making HTTP request", zap.String("url", requestURL))
 
 	req, err := http.NewRequestWithContext(ctx, "GET", requestURL, nil)
 	if err != nil {
@@ -97,7 +97,7 @@ func (r *fileDTORepository) ListFromCloud(ctx context.Context, filter filedto.Fi
 		filesResponse.Files = []*filedto.FileDTO{}
 	}
 
-	r.logger.Info("Successfully listed files from cloud",
+	r.logger.Info("✅ Successfully listed files from cloud",
 		zap.Int("count", len(filesResponse.Files)),
 		zap.String("collectionID", filter.CollectionID.Hex()))
 

@@ -136,7 +136,7 @@ func (s *tokenRepositoryImpl) refreshFromCloud(ctx context.Context, refreshToken
 
 	// Make HTTP request to server
 	refreshURL := fmt.Sprintf("%s/iam/api/v1/token/refresh", serverURL)
-	s.logger.Debug("Connecting to refresh token endpoint", zap.String("url", refreshURL))
+	s.logger.Debug("🌐 Connecting to refresh token endpoint", zap.String("url", refreshURL))
 
 	// Create and execute the HTTP request
 	req, err := http.NewRequest("POST", refreshURL, bytes.NewBuffer(jsonData))

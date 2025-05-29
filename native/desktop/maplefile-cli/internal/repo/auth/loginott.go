@@ -50,7 +50,7 @@ func (r *loginOTTRepository) RequestLoginOTT(ctx context.Context, request *auth.
 
 	// Create the HTTP request
 	requestURL := fmt.Sprintf("%s/iam/api/v1/request-ott", serverURL)
-	r.logger.Debug("Making HTTP request", zap.String("url", requestURL))
+	r.logger.Debug("➡️ Making HTTP request", zap.String("url", requestURL))
 
 	req, err := http.NewRequestWithContext(ctx, "POST", requestURL, bytes.NewBuffer(jsonData))
 	if err != nil {
