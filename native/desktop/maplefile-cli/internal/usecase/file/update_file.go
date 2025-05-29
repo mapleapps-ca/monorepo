@@ -17,7 +17,13 @@ import (
 // UpdateFileInput defines the input for updating a local file
 type UpdateFileInput struct {
 	ID                     primitive.ObjectID
+	CollectionID           *primitive.ObjectID
+	OwnerID                *primitive.ObjectID
 	EncryptedMetadata      *string
+	EncryptionVersion      *string
+	EncryptedHash          *string
+	EncryptedFileSize      *int64
+	EncryptedThumbnailSize *int64
 	DecryptedName          *string
 	DecryptedMimeType      *string
 	EncryptedFilePath      *string
@@ -27,6 +33,9 @@ type UpdateFileInput struct {
 	StorageMode            *string
 	SyncStatus             *file.SyncStatus
 	Version                *uint64
+	ModifiedAt             *time.Time
+	ModifiedByUserID       *primitive.ObjectID
+	State                  *string
 }
 
 // UpdateFileUseCase defines the interface for updating a local file
@@ -71,9 +80,37 @@ func (uc *updateFileUseCase) Execute(
 		return nil, err
 	}
 
+	if file == nil {
+		return nil, errors.NewAppError("file not found", nil)
+	}
+
 	// Update fields if provided
+	if input.CollectionID != nil {
+		file.CollectionID = *input.CollectionID
+	}
+
+	if input.OwnerID != nil {
+		file.OwnerID = *input.OwnerID
+	}
+
 	if input.EncryptedMetadata != nil {
 		file.EncryptedMetadata = *input.EncryptedMetadata
+	}
+
+	if input.EncryptionVersion != nil {
+		file.EncryptionVersion = *input.EncryptionVersion
+	}
+
+	if input.EncryptedHash != nil {
+		file.EncryptedHash = *input.EncryptedHash
+	}
+
+	if input.EncryptedFileSize != nil {
+		file.EncryptedFileSize = *input.EncryptedFileSize
+	}
+
+	if input.EncryptedThumbnailSize != nil {
+		file.EncryptedThumbnailSize = *input.EncryptedThumbnailSize
 	}
 
 	if input.DecryptedName != nil {
@@ -108,6 +145,21 @@ func (uc *updateFileUseCase) Execute(
 		file.Version = *input.Version
 	}
 
+	if input.ModifiedAt != nil {
+		file.ModifiedAt = *input.ModifiedAt
+	} else {
+		// Update timestamps and modification status only if not explicitly provided
+		file.ModifiedAt = time.Now()
+	}
+
+	if input.ModifiedByUserID != nil {
+		file.ModifiedByUserID = *input.ModifiedByUserID
+	}
+
+	if input.State != nil {
+		file.State = *input.State
+	}
+
 	if input.StorageMode != nil {
 		// Validate storage mode
 		if *input.StorageMode != dom_file.StorageModeEncryptedOnly &&
@@ -117,9 +169,6 @@ func (uc *updateFileUseCase) Execute(
 		}
 		file.StorageMode = *input.StorageMode
 	}
-
-	// Update timestamps and modification status
-	file.ModifiedAt = time.Now()
 
 	// Save the updated file
 	err = uc.repository.Update(ctx, file)
