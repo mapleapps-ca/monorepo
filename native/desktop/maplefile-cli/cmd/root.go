@@ -64,6 +64,8 @@ func NewRootCmd(
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
 	syncCollectionService svc_sync.SyncCollectionService,
+	syncFileService svc_sync.SyncFileService, // Add this parameter
+	syncFullService svc_sync.SyncFullService, // Add this parameter
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "maplefile-cli",
@@ -112,9 +114,11 @@ func NewRootCmd(
 		logger,
 	))
 
-	// Add the sync command with the new sync service
+	// Add the sync command with both collection and file sync services
 	rootCmd.AddCommand(sync.SyncCmd(
 		syncCollectionService,
+		syncFileService, // Pass the file sync service
+		syncFullService, // Pass the full sync service
 		logger,
 	))
 

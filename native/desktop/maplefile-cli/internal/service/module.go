@@ -44,10 +44,14 @@ func ServiceModule() fx.Option {
 		fx.Provide(collection.NewSoftDeleteService),
 		fx.Provide(collection.NewMoveService),
 
-		// Collection syncerservices
+		// Collection syncer services
 		fx.Provide(collectionsyncer.NewCreateLocalCollectionFromCloudCollectionService),
 		fx.Provide(collectionsyncer.NewUpdateLocalCollectionFromCloudCollectionService),
 		fx.Provide(collectionsyncer.NewCollectionDecryptionService),
+
+		// File syncer services
+		fx.Provide(filesyncer.NewCreateLocalFileFromCloudFileService),
+		fx.Provide(filesyncer.NewUpdateLocalFileFromCloudFileService),
 
 		// Local file services
 		fx.Provide(localfile.NewAddService),
@@ -56,7 +60,7 @@ func ServiceModule() fx.Option {
 		fx.Provide(localfile.NewLockService),
 		fx.Provide(localfile.NewUnlockService),
 
-		// File syncer services
+		// File syncer services (existing)
 		fx.Provide(filesyncer.NewOffloadService),
 		fx.Provide(filesyncer.NewOnloadService),
 		fx.Provide(filesyncer.NewCloudOnlyDeleteService),
@@ -78,7 +82,7 @@ func ServiceModule() fx.Option {
 		fx.Provide(syncdto.NewGetFullSyncService),
 		fx.Provide(syncdto.NewSyncProgressService),
 
-		// Main sync service
+		// Main sync services
 		fx.Provide(sync.NewSyncCollectionService),
 		fx.Provide(sync.NewSyncFileService),
 		fx.Provide(sync.NewSyncFullService),

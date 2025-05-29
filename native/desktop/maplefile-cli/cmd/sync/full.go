@@ -13,12 +13,13 @@ import (
 
 // fullCmd creates a command for full synchronization
 func fullCmd(
-	syncService svc_sync.SyncService,
+	syncFullService svc_sync.SyncFullService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var collectionBatchSize int64
 	var fileBatchSize int64
 	var maxBatches int
+	var password string
 
 	var cmd = &cobra.Command{
 		Use:   "full",
@@ -36,17 +37,26 @@ This is equivalent to running both 'sync collections' and 'sync files' commands.
 
 The sync process is incremental, only processing changes since the last sync.
 
+Note: This command syncs file metadata only. The actual file content remains
+in the cloud until you explicitly download (onload) files.
+
 Examples:
   # Perform full synchronization with default settings
-  maplefile-cli sync full
+  maplefile-cli sync full --password mypassword
 
   # Full sync with custom batch sizes
-  maplefile-cli sync full --collection-batch-size 25 --file-batch-size 30
+  maplefile-cli sync full --collection-batch-size 25 --file-batch-size 30 --password mypassword
 
   # Full sync with limited batches
-  maplefile-cli sync full --max-batches 50`,
+  maplefile-cli sync full --max-batches 50 --password mypassword`,
 		Run: func(cmd *cobra.Command, args []string) {
 			startTime := time.Now()
+
+			if password == "" {
+				fmt.Println("❌ Error: Password is required for E2EE operations.")
+				fmt.Println("Use --password flag to specify your account password.")
+				return
+			}
 
 			fmt.Println("🔄 Starting full synchronization...")
 			fmt.Println("📡 Connecting to cloud backend...")
@@ -56,10 +66,11 @@ Examples:
 				CollectionBatchSize: collectionBatchSize,
 				FileBatchSize:       fileBatchSize,
 				MaxBatches:          maxBatches,
+				Password:            password,
 			}
 
 			// Execute full sync
-			result, err := syncService.FullSync(cmd.Context(), input)
+			result, err := syncFullService.Execute(cmd.Context(), input)
 			if err != nil {
 				fmt.Printf("❌ Full sync failed: %v\n", err)
 				return
@@ -132,6 +143,7 @@ Examples:
 	cmd.Flags().Int64Var(&collectionBatchSize, "collection-batch-size", 50, "Number of collections to process per batch")
 	cmd.Flags().Int64Var(&fileBatchSize, "file-batch-size", 50, "Number of files to process per batch")
 	cmd.Flags().IntVar(&maxBatches, "max-batches", 100, "Maximum number of batches to process")
+	cmd.Flags().StringVarP(&password, "password", "", "", "User password for E2EE operations")
 
 	return cmd
 }

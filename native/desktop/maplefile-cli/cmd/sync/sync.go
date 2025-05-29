@@ -11,6 +11,8 @@ import (
 // SyncCmd creates a command for sync operations
 func SyncCmd(
 	syncCollectionService svc_sync.SyncCollectionService,
+	syncFileService svc_sync.SyncFileService,
+	syncFullService svc_sync.SyncFullService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -20,7 +22,7 @@ func SyncCmd(
 
 This command provides several subcommands for different types of synchronization:
 - collections: Sync only collections
-- files: Sync only files
+- files: Sync only file metadata
 - full: Sync both collections and files
 - reset: Reset the sync state to start fresh
 
@@ -31,7 +33,7 @@ Examples:
   # Sync only collections
   maplefile-cli sync collections
 
-  # Sync only files
+  # Sync only file metadata
   maplefile-cli sync files
 
   # Reset sync state
@@ -44,8 +46,8 @@ Examples:
 
 	// Add sync subcommands
 	cmd.AddCommand(collectionsCmd(syncCollectionService, logger))
-	// cmd.AddCommand(filesCmd(syncService, logger))
-	// cmd.AddCommand(fullCmd(syncService, logger))
+	cmd.AddCommand(filesCmd(syncFileService, logger))
+	cmd.AddCommand(fullCmd(syncFullService, logger))
 	// cmd.AddCommand(resetCmd(syncService, logger))
 
 	return cmd
