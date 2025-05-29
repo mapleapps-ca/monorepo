@@ -13,11 +13,12 @@ import (
 
 // filesCmd creates a command for syncing files
 func filesCmd(
-	syncService svc_sync.SyncService,
+	syncService svc_sync.SyncFileService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var batchSize int64
 	var maxBatches int
+	var password string
 
 	var cmd = &cobra.Command{
 		Use:   "files",
@@ -48,6 +49,12 @@ Examples:
 		Run: func(cmd *cobra.Command, args []string) {
 			startTime := time.Now()
 
+			if password == "" {
+				fmt.Println("❌ Error: Password is required for E2EE operations.")
+				fmt.Println("Use --password flag to specify your account password.")
+				return
+			}
+
 			fmt.Println("🔄 Starting file synchronization...")
 			fmt.Println("📡 Connecting to cloud backend...")
 
@@ -55,10 +62,11 @@ Examples:
 			input := &svc_sync.SyncFilesInput{
 				BatchSize:  batchSize,
 				MaxBatches: maxBatches,
+				Password:   password,
 			}
 
 			// Execute file sync
-			result, err := syncService.SyncFiles(cmd.Context(), input)
+			result, err := syncService.Execute(cmd.Context(), input)
 			if err != nil {
 				fmt.Printf("❌ File sync failed: %v\n", err)
 				return
@@ -104,6 +112,7 @@ Examples:
 	// Add command flags
 	cmd.Flags().Int64Var(&batchSize, "batch-size", 50, "Number of files to process per batch")
 	cmd.Flags().IntVar(&maxBatches, "max-batches", 100, "Maximum number of batches to process")
+	cmd.Flags().StringVarP(&password, "password", "", "", "User password for decrypting collection names")
 
 	return cmd
 }
