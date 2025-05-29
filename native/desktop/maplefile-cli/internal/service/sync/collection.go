@@ -241,7 +241,7 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 			//
 
 			// We must handle local deletion of the collection.
-			if cloudCollection.TombstoneVersion >= existingLocalCollection.Version || cloudCollection.State == "deleted" {
+			if cloudCollection.TombstoneVersion > existingLocalCollection.Version || cloudCollection.State == "deleted" {
 				if err := s.deleteCollectionUseCase.Execute(ctx, existingLocalCollection.ID); err != nil {
 					s.logger.Error("❌ Failed to delete local collection",
 						zap.String("collection_id", existingLocalCollection.ID.Hex()),

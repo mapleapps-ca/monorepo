@@ -91,6 +91,13 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	// Create a new collection domain object from the cloud data using a mapping function.
 	newCollection := mapCollectionDTOToDomain(cloudCollectionDTO)
 
+	uc.logger.Debug("🔍 Mapped local collection",
+		zap.String("id", newCollection.ID.Hex()),
+		zap.String("state", newCollection.State),
+		zap.String("name", newCollection.Name), // This might be empty!
+		zap.Any("parent_id", newCollection.ParentID),
+		zap.Int("sync_status", int(newCollection.SyncStatus)))
+
 	// Execute the use case to create the local collection record.
 	if err := uc.localRepository.Create(ctx, newCollection); err != nil {
 		uc.logger.Error("🚨 Failed to create new (local) collection from the cloud",
@@ -140,6 +147,11 @@ func mapCollectionDTOToDomain(dto *dom_collectiondto.CollectionDTO) *dom_collect
 		return nil
 	}
 
+	state := dto.State
+	if state == "" {
+		state = dom_collection.CollectionStateActive // Default to active
+	}
+
 	// Assuming dom_collection.Collection has fields compatible with uc_collectiondto.CollectionDTO
 	return &dom_collection.Collection{
 		ID:                     dto.ID,
@@ -156,9 +168,9 @@ func mapCollectionDTOToDomain(dto *dom_collectiondto.CollectionDTO) *dom_collect
 		ModifiedAt:             dto.ModifiedAt,
 		ModifiedByUserID:       dto.ModifiedByUserID,
 		Version:                dto.Version,
-		State:                  dto.State,
-		// Note: TombstoneVersion and TombstoneExpiry from sync item are not part of the main CollectionDTO
-		// and are not mapped here into the domain object. They are specific to the sync process.
+		State:                  state,
+		Name:                   "[Encrypted]", // Placeholder until you implement decryption
+		SyncStatus:             dom_collection.SyncStatusSynced,
 	}
 }
 

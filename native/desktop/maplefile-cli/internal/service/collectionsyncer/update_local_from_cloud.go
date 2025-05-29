@@ -122,6 +122,12 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	// Update a new collection domain object from the cloud data using a mapping function.
 	cloudCollection := mapCollectionDTOToDomain(cloudCollectionDTO)
 
+	uc.logger.Debug("🔍 Full cloud collection DTO",
+		zap.String("id", cloudCollectionDTO.ID.Hex()),
+		zap.String("state", cloudCollectionDTO.State),
+		zap.String("encrypted_name", cloudCollectionDTO.EncryptedName),
+		zap.Any("parent_id", cloudCollectionDTO.ParentID))
+
 	// Execute the use case to update the local collection record.
 	if err := uc.localRepository.Save(ctx, cloudCollection); err != nil {
 		uc.logger.Error("❌ Failed to update new (local) collection from the cloud",
