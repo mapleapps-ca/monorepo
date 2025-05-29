@@ -3,6 +3,8 @@ package sync
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -135,7 +137,18 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 	// Fetch file data in batches from the remote sync service
 	progressOutput, err := s.syncDTOProgressService.GetAllFiles(ctx, progressInput)
 	if err != nil {
-		s.logger.Error("❌ Failed to get files sync data from progress service", zap.Error(err))
+		// Add more detailed error logging
+		s.logger.Error("❌ Failed to get files sync data from progress service",
+			zap.Error(err),
+			zap.String("error_type", fmt.Sprintf("%T", err)),
+			zap.Any("progressInput", progressInput))
+
+		// Check if it's a specific backend error
+		if strings.Contains(err.Error(), "multi-key map") {
+			s.logger.Error("🔧 Backend MongoDB query error detected - check backend sort parameter construction")
+			return nil, errors.NewAppError("backend database query error - contact system administrator", err)
+		}
+
 		return nil, errors.NewAppError("failed to get files sync data", err)
 	}
 

@@ -92,9 +92,13 @@ func (impl fileMetadataRepositoryImpl) GetSyncData(ctx context.Context, userID p
 	}
 
 	// Set up options for pagination and sorting
+	sort := bson.D{
+		{Key: "modified_at", Value: 1},
+		{Key: "_id", Value: 1},
+	}
 	findOptions := options.Find().
-		SetSort(bson.M{"modified_at": 1, "_id": 1}). // Sort by modified_at ASC, then _id ASC
-		SetLimit(limit + 1)                          // Request one extra to check if there are more results
+		SetSort(sort).      // Sort by modified_at ASC, then _id ASC
+		SetLimit(limit + 1) // Request one extra to check if there are more results
 
 	// Project only the fields we need for sync
 	findOptions.SetProjection(bson.M{
