@@ -292,39 +292,32 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 		}
 	}
 
-	// TODO: UNCOMMENT THE CODE BELOW WHEN THE SYNC CODE ABOVE IS COMPLETED
-	// This block saves the final cursor received from the progress service,
-	// allowing the next sync run to resume from where this one left off.
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - //
+	// Update sync state if we processed any data and got a final cursor
+	if progressOutput.TotalItems > 0 && progressOutput.FinalCursor != nil {
+		saveInput := &syncstate.SaveInput{
+			LastCollectionSync: &progressOutput.FinalCursor.LastModified,
+			LastCollectionID:   &progressOutput.FinalCursor.LastID, // Use pointer to ObjectID if SaveInput expects pointer
+		}
+		s.logger.Debug("💾 Attempting to save sync state for collections",
+			zap.Time("lastCollectionSync", *saveInput.LastCollectionSync),
+			zap.String("lastCollectionID", saveInput.LastCollectionID.Hex())) // Convert ObjectID to string for logging
 
-	// // Update sync state if we processed any data and got a final cursor
-	// if progressOutput.TotalItems > 0 && progressOutput.FinalCursor != nil {
-	// 	saveInput := &syncstate.SaveInput{
-	// 		LastCollectionSync: &progressOutput.FinalCursor.LastModified,
-	// 		LastCollectionID:   &progressOutput.FinalCursor.LastID, // Use pointer to ObjectID if SaveInput expects pointer
-	// 	}
-	// 	s.logger.Debug("💾 Attempting to save sync state for collections",
-	// 		zap.Time("lastCollectionSync", *saveInput.LastCollectionSync),
-	// 		zap.String("lastCollectionID", saveInput.LastCollectionID.Hex())) // Convert ObjectID to string for logging
-
-	// 	_, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
-	// 	if err != nil {
-	// 		s.logger.Error("❌ Failed to update sync state for collections", zap.Error(err))
-	// 		// Don't fail the entire operation for sync state update failure, just log and add to errors
-	// 		collectionSyncResult.Errors = append(collectionSyncResult.Errors, "failed to update sync state: "+err.Error())
-	// 	} else {
-	// 		s.logger.Info("✅ Successfully updated sync state for collections")
-	// 	}
-	// } else if progressOutput.TotalItems > 0 && progressOutput.FinalCursor == nil {
-	// 	// This case indicates an issue where items were processed but no final cursor was provided.
-	// 	s.logger.Warn("⚠️ Processed items but did not receive a final cursor for collections. Sync state not updated.")
-	// 	collectionSyncResult.Errors = append(collectionSyncResult.Errors, "processed items but no final sync cursor received")
-	// } else {
-	// 	// No items processed, likely nothing new to sync in this run.
-	// 	s.logger.Info("💤 No items processed for collections. Sync state not updated.")
-	// }
-	//
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - //
+		_, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
+		if err != nil {
+			s.logger.Error("❌ Failed to update sync state for collections", zap.Error(err))
+			// Don't fail the entire operation for sync state update failure, just log and add to errors
+			collectionSyncResult.Errors = append(collectionSyncResult.Errors, "failed to update sync state: "+err.Error())
+		} else {
+			s.logger.Info("✅ Successfully updated sync state for collections")
+		}
+	} else if progressOutput.TotalItems > 0 && progressOutput.FinalCursor == nil {
+		// This case indicates an issue where items were processed but no final cursor was provided.
+		s.logger.Warn("⚠️ Processed items but did not receive a final cursor for collections. Sync state not updated.")
+		collectionSyncResult.Errors = append(collectionSyncResult.Errors, "processed items but no final sync cursor received")
+	} else {
+		// No items processed, likely nothing new to sync in this run.
+		s.logger.Info("💤 No items processed for collections. Sync state not updated.")
+	}
 
 	// Log final summary of the synchronization process
 	s.logger.Info("🎉 Collection synchronization completed",

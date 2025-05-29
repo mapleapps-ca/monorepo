@@ -119,6 +119,15 @@ func (s *syncProgressService) GetAllCollections(ctx context.Context, input *Sync
 			zap.Int("items_in_batch", len(response.Collections)),
 			zap.Int("total_items", output.TotalItems))
 
+		// 🔧 FIX: Set final cursor based on the last item in this batch
+		if len(response.Collections) > 0 {
+			lastItem := response.Collections[len(response.Collections)-1]
+			output.FinalCursor = &syncdto.SyncCursorDTO{
+				LastModified: lastItem.ModifiedAt,
+				LastID:       lastItem.ID,
+			}
+		}
+
 		// Check if we have more data
 		if !response.HasMore || response.NextCursor == nil {
 			s.logger.Info("🏁 No more collection data available")
@@ -127,7 +136,8 @@ func (s *syncProgressService) GetAllCollections(ctx context.Context, input *Sync
 
 		// Update cursor for next batch
 		currentCursor = response.NextCursor
-		output.FinalCursor = response.NextCursor
+		// 🔧 FIX: Don't overwrite our calculated final cursor with response.NextCursor
+		// output.FinalCursor = response.NextCursor  // Remove this line
 		output.HasMoreData = response.HasMore
 	}
 
