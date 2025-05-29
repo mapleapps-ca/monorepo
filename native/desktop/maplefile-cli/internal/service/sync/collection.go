@@ -18,8 +18,9 @@ import (
 
 // SyncCollectionsInput represents input for syncing collections, allowing customization of batching.
 type SyncCollectionsInput struct {
-	BatchSize  int64 `json:"batch_size,omitempty"`  // The maximum number of items per batch received from the cloud sync service.
-	MaxBatches int   `json:"max_batches,omitempty"` // The maximum number of batches to process in a single sync run.
+	BatchSize  int64  `json:"batch_size,omitempty"`  // The maximum number of items per batch received from the cloud sync service.
+	MaxBatches int    `json:"max_batches,omitempty"` // The maximum number of batches to process in a single sync run.
+	Password   string `json:"password,omitempty"`
 }
 
 // SyncCollectionService defines the interface for synchronizing collection data from a remote source (cloud)
@@ -221,7 +222,7 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 					continue // Go to the next item in the loop and do not continue in this function.
 				}
 
-				localCollection, err := s.createLocalCollectionFromCloudCollectionService.Execute(ctx, cloudCollection.ID)
+				localCollection, err := s.createLocalCollectionFromCloudCollectionService.Execute(ctx, cloudCollection.ID, input.Password)
 				if err != nil {
 					s.logger.Error("❌ Failed to get cloud collection and create it locally",
 						zap.String("id", cloudCollection.ID.Hex()),
@@ -274,7 +275,7 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 				continue // Skip processing this collection
 			}
 
-			localCollection, err := s.updateLocalCollectionFromCloudCollectionService.Execute(ctx, cloudCollection.ID)
+			localCollection, err := s.updateLocalCollectionFromCloudCollectionService.Execute(ctx, cloudCollection.ID, input.Password)
 			if err != nil {
 				s.logger.Error("❌ Failed to get cloud collection and save/delete it locally",
 					zap.String("id", cloudCollection.ID.Hex()),

@@ -16,14 +16,15 @@ import (
 
 // CreateLocalCollectionFromCloudCollectionService defines the interface for creating a local collection from a cloud collection
 type CreateLocalCollectionFromCloudCollectionService interface {
-	Execute(ctx context.Context, cloudID primitive.ObjectID) (*dom_collection.Collection, error)
+	Execute(ctx context.Context, cloudID primitive.ObjectID, password string) (*dom_collection.Collection, error)
 }
 
 // createLocalCollectionFromCloudCollectionService implements the CreateLocalCollectionFromCloudCollectionService interface
 type createLocalCollectionFromCloudCollectionService struct {
-	logger          *zap.Logger
-	cloudRepository collectiondto.CollectionDTORepository
-	localRepository dom_collection.CollectionRepository
+	logger            *zap.Logger
+	cloudRepository   collectiondto.CollectionDTORepository
+	localRepository   dom_collection.CollectionRepository
+	decryptionService CollectionDecryptionService
 }
 
 // NewCreateLocalCollectionFromCloudCollectionService creates a new use case for creating cloud collections
@@ -31,17 +32,19 @@ func NewCreateLocalCollectionFromCloudCollectionService(
 	logger *zap.Logger,
 	cloudRepository collectiondto.CollectionDTORepository,
 	localRepository dom_collection.CollectionRepository,
+	decryptionService CollectionDecryptionService,
 ) CreateLocalCollectionFromCloudCollectionService {
 	logger = logger.Named("CreateLocalCollectionFromCloudCollectionService")
 	return &createLocalCollectionFromCloudCollectionService{
-		logger:          logger,
-		cloudRepository: cloudRepository,
-		localRepository: localRepository,
+		logger:            logger,
+		cloudRepository:   cloudRepository,
+		localRepository:   localRepository,
+		decryptionService: decryptionService,
 	}
 }
 
 // Execute creates a new cloud collection
-func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.Context, cloudCollectionID primitive.ObjectID) (*dom_collection.Collection, error) {
+func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.Context, cloudCollectionID primitive.ObjectID, password string) (*dom_collection.Collection, error) {
 	//
 	// STEP 1: Validate the input
 	//
@@ -50,6 +53,9 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 	if cloudCollectionID.IsZero() {
 		e["cloudCollectionID"] = "Cloud ID is required"
+	}
+	if password == "" {
+		e["password"] = "Password is required"
 	}
 
 	// If any errors were found, return bad request error
@@ -90,6 +96,21 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 	// Create a new collection domain object from the cloud data using a mapping function.
 	newCollection := mapCollectionDTOToDomain(cloudCollectionDTO)
+
+	// Decrypt the collection name if password is provided
+	if password != "" {
+		decryptedName, err := uc.decryptionService.DecryptCollectionName(ctx, cloudCollectionDTO, password)
+		if err != nil {
+			uc.logger.Warn("⚠️ Failed to decrypt collection name, using placeholder",
+				zap.String("collectionID", cloudCollectionDTO.ID.Hex()),
+				zap.Error(err))
+			newCollection.Name = "[Encrypted]"
+		} else {
+			newCollection.Name = decryptedName
+		}
+	} else {
+		newCollection.Name = "[Encrypted]"
+	}
 
 	uc.logger.Debug("🔍 Mapped local collection",
 		zap.String("id", newCollection.ID.Hex()),

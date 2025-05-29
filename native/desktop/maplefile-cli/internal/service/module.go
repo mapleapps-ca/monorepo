@@ -47,6 +47,7 @@ func ServiceModule() fx.Option {
 		// Collection syncerservices
 		fx.Provide(collectionsyncer.NewCreateLocalCollectionFromCloudCollectionService),
 		fx.Provide(collectionsyncer.NewUpdateLocalCollectionFromCloudCollectionService),
+		fx.Provide(collectionsyncer.NewCollectionDecryptionService),
 
 		// Local file services
 		fx.Provide(localfile.NewAddService),

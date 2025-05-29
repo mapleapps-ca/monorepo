@@ -15,14 +15,15 @@ import (
 
 // UpdateLocalCollectionFromCloudCollectionService defines the interface for updating a local collection from a cloud collection
 type UpdateLocalCollectionFromCloudCollectionService interface {
-	Execute(ctx context.Context, cloudID primitive.ObjectID) (*dom_collection.Collection, error)
+	Execute(ctx context.Context, cloudID primitive.ObjectID, password string) (*dom_collection.Collection, error)
 }
 
 // updateLocalCollectionFromCloudCollectionService implements the UpdateLocalCollectionFromCloudCollectionService interface
 type updateLocalCollectionFromCloudCollectionService struct {
-	logger          *zap.Logger
-	cloudRepository collectiondto.CollectionDTORepository
-	localRepository dom_collection.CollectionRepository
+	logger            *zap.Logger
+	cloudRepository   collectiondto.CollectionDTORepository
+	localRepository   dom_collection.CollectionRepository
+	decryptionService CollectionDecryptionService
 }
 
 // NewUpdateLocalCollectionFromCloudCollectionService creates a new use case for updating local collection from the cloud
@@ -30,17 +31,19 @@ func NewUpdateLocalCollectionFromCloudCollectionService(
 	logger *zap.Logger,
 	cloudRepository collectiondto.CollectionDTORepository,
 	localRepository dom_collection.CollectionRepository,
+	decryptionService CollectionDecryptionService,
 ) UpdateLocalCollectionFromCloudCollectionService {
 	logger = logger.Named("UpdateLocalCollectionFromCloudCollectionService")
 	return &updateLocalCollectionFromCloudCollectionService{
-		logger:          logger,
-		cloudRepository: cloudRepository,
-		localRepository: localRepository,
+		logger:            logger,
+		cloudRepository:   cloudRepository,
+		localRepository:   localRepository,
+		decryptionService: decryptionService,
 	}
 }
 
 // Execute updates a local collection from the cloud
-func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.Context, cloudCollectionID primitive.ObjectID) (*dom_collection.Collection, error) {
+func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.Context, cloudCollectionID primitive.ObjectID, password string) (*dom_collection.Collection, error) {
 	//
 	// STEP 1: Validate the input
 	//
@@ -49,6 +52,9 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 	if cloudCollectionID.IsZero() {
 		e["cloudCollectionID"] = "Cloud ID is required"
+	}
+	if password == "" {
+		e["password"] = "Password is required"
 	}
 
 	// If any errors were found, return bad request error
@@ -121,6 +127,21 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 	// Update a new collection domain object from the cloud data using a mapping function.
 	cloudCollection := mapCollectionDTOToDomain(cloudCollectionDTO)
+
+	// Decrypt name if password provided
+	if password != "" {
+		decryptedName, err := uc.decryptionService.DecryptCollectionName(ctx, cloudCollectionDTO, password)
+		if err != nil {
+			uc.logger.Warn("⚠️ Failed to decrypt collection name during update",
+				zap.String("collectionID", cloudCollectionDTO.ID.Hex()),
+				zap.Error(err))
+			cloudCollection.Name = "[Encrypted]"
+		} else {
+			cloudCollection.Name = decryptedName
+		}
+	} else {
+		cloudCollection.Name = "[Encrypted]"
+	}
 
 	uc.logger.Debug("🔍 Full cloud collection DTO",
 		zap.String("id", cloudCollectionDTO.ID.Hex()),

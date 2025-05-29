@@ -18,6 +18,7 @@ func collectionsCmd(
 ) *cobra.Command {
 	var batchSize int64
 	var maxBatches int
+	var password string
 
 	var cmd = &cobra.Command{
 		Use:   "collections",
@@ -33,6 +34,8 @@ This command will:
 
 The sync process is incremental, only processing changes since the last sync.
 
+Note: Requires user password to decrypt collection names.
+
 Examples:
   # Sync collections with default settings
   maplefile-cli sync collections
@@ -45,6 +48,12 @@ Examples:
 		Run: func(cmd *cobra.Command, args []string) {
 			startTime := time.Now()
 
+			if password == "" {
+				fmt.Println("❌ Error: Password is required for E2EE operations.")
+				fmt.Println("Use --password flag to specify your account password.")
+				return
+			}
+
 			fmt.Println("🔄 Starting collection synchronization...")
 			fmt.Println("📡 Connecting to cloud backend...")
 
@@ -52,6 +61,7 @@ Examples:
 			input := &svc_sync.SyncCollectionsInput{
 				BatchSize:  batchSize,
 				MaxBatches: maxBatches,
+				Password:   password,
 			}
 
 			// Execute collection sync
@@ -98,6 +108,7 @@ Examples:
 	}
 
 	// Add command flags
+	cmd.Flags().StringVarP(&password, "password", "", "", "User password for decrypting collection names")
 	cmd.Flags().Int64Var(&batchSize, "batch-size", 50, "Number of collections to process per batch")
 	cmd.Flags().IntVar(&maxBatches, "max-batches", 100, "Maximum number of batches to process")
 
