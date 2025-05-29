@@ -13,6 +13,7 @@ func SyncCmd(
 	syncCollectionService svc_sync.SyncCollectionService,
 	syncFileService svc_sync.SyncFileService,
 	syncFullService svc_sync.SyncFullService,
+	syncDebugService svc_sync.SyncDebugService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -48,6 +49,7 @@ Examples:
 	cmd.AddCommand(collectionsCmd(syncCollectionService, logger))
 	cmd.AddCommand(filesCmd(syncFileService, logger))
 	cmd.AddCommand(fullCmd(syncFullService, logger))
+	cmd.AddCommand(debugCmd(syncDebugService, logger))
 	// cmd.AddCommand(resetCmd(syncService, logger))
 
 	return cmd

@@ -86,5 +86,6 @@ func ServiceModule() fx.Option {
 		fx.Provide(sync.NewSyncCollectionService),
 		fx.Provide(sync.NewSyncFileService),
 		fx.Provide(sync.NewSyncFullService),
+		fx.Provide(sync.NewSyncDebugService),
 	)
 }
