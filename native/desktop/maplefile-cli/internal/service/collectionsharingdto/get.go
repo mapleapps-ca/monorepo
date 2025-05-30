@@ -12,31 +12,31 @@ import (
 	uc_collectionsharingdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 )
 
-// GetCollectionMembersService defines the interface for collection sharing operations
-type GetCollectionMembersService interface {
+// CollectionSharingGetMembersService defines the interface for getting members via collection sharing operations
+type CollectionSharingGetMembersService interface {
 	Execute(ctx context.Context, collectionID string) ([]*collectiondto.CollectionMembershipDTO, error)
 }
 
-// getCollectionMembersService implements the SharingService interface
-type getCollectionMembersServiceImpl struct {
+// collectionSharingGetMembersServiceImpl implements the CollectionSharingGetMembersService interface
+type collectionSharingGetMembersServiceImpl struct {
 	logger                        *zap.Logger
 	getCollectionFromCloudUseCase uc_collectionsharingdto.GetCollectionFromCloudUseCase
 }
 
-// NewGetCollectionMembersService creates a new collection sharing service
+// NewGetCollectionMembersService creates a new get members via collection sharing service
 func NewGetCollectionMembersService(
 	logger *zap.Logger,
 	getCollectionFromCloudUseCase uc_collectionsharingdto.GetCollectionFromCloudUseCase,
-) GetCollectionMembersService {
-	logger = logger.Named("GetCollectionMembersService")
-	return &getCollectionMembersServiceImpl{
+) CollectionSharingGetMembersService {
+	logger = logger.Named("CollectionSharingGetMembersService")
+	return &collectionSharingGetMembersServiceImpl{
 		logger:                        logger,
 		getCollectionFromCloudUseCase: getCollectionFromCloudUseCase,
 	}
 }
 
 // Execute retrieves the members of a specific collection
-func (s *getCollectionMembersServiceImpl) Execute(ctx context.Context, collectionID string) ([]*collectiondto.CollectionMembershipDTO, error) {
+func (s *collectionSharingGetMembersServiceImpl) Execute(ctx context.Context, collectionID string) ([]*collectiondto.CollectionMembershipDTO, error) {
 	// Validate input
 	if collectionID == "" {
 		s.logger.Error("❌ Collection ID is required")
