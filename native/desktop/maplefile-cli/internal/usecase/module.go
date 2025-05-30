@@ -6,8 +6,8 @@ import (
 
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondsharingdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsharingdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/filedto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/fileupload"
@@ -50,9 +50,9 @@ func UseCaseModule() fx.Option {
 		fx.Provide(collection.NewSoftDeleteService),
 
 		// Cloud-based collection sharing use cases
-		fx.Provide(collectiondsharingdto.NewShareCollectionUseCase),
-		fx.Provide(collectiondsharingdto.NewRemoveMemberUseCase),
-		fx.Provide(collectiondsharingdto.NewListSharedCollectionsUseCase),
+		fx.Provide(collectionsharingdto.NewShareCollectionUseCase),
+		fx.Provide(collectionsharingdto.NewRemoveMemberUseCase),
+		fx.Provide(collectionsharingdto.NewListSharedCollectionsUseCase),
 
 		// File database use cases (for managing file records)
 		fx.Provide(file.NewCreateFileUseCase),

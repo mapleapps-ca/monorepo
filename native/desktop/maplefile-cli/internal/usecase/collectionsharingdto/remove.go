@@ -1,5 +1,5 @@
-// native/desktop/maplefile-cli/internal/usecase/collectiondsharingdto/remove.go
-package collectiondsharingdto
+// native/desktop/maplefile-cli/internal/usecase/collectionsharingdto/remove.go
+package collectionsharingdto
 
 import (
 	"context"
