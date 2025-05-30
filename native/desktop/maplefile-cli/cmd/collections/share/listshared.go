@@ -1,4 +1,4 @@
-// cmd/collections/sharing.go
+// cmd/collections/share/listshared.go
 package share
 
 import (
@@ -7,13 +7,12 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
 )
 
-// listSharedCmd creates a command for listing shared collections
-func listSharedCmd(
-	sharingService collection.SharingService,
+// ListSharedCmd creates a command for listing shared collections
+func ListSharedCmd(
+	listSharedService collectionsharing.ListSharedCollectionsService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var verbose bool
@@ -36,7 +35,7 @@ Examples:
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Execute list operation
-			output, err := sharingService.ListSharedCollections(cmd.Context())
+			output, err := listSharedService.Execute(cmd.Context())
 			if err != nil {
 				fmt.Printf("🐞 Error listing shared collections: %v\n", err)
 				logger.Error("Failed to list shared collections", zap.Error(err))
@@ -51,10 +50,8 @@ Examples:
 
 			fmt.Printf("\nFound %d shared collections:\n\n", output.Count)
 			for i, coll := range output.Collections {
-				displayName := coll.Name
-				if displayName == "" || displayName == "[Encrypted]" {
-					displayName = "[Encrypted]"
-				}
+				// CollectionDTO only has EncryptedName, not Name
+				displayName := "[Encrypted]"
 
 				fmt.Printf("%d. %s (ID: %s, Type: %s)\n",
 					i+1, displayName, coll.ID.Hex(), coll.CollectionType)
@@ -63,7 +60,6 @@ Examples:
 					fmt.Printf("   Owner ID: %s\n", coll.OwnerID.Hex())
 					fmt.Printf("   Created: %s\n", coll.CreatedAt.Format("2006-01-02 15:04:05"))
 					fmt.Printf("   Modified: %s\n", coll.ModifiedAt.Format("2006-01-02 15:04:05"))
-					fmt.Printf("   Sync Status: %s\n", coll.SyncStatus.String())
 					fmt.Println()
 				}
 			}

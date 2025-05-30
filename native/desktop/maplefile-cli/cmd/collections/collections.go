@@ -5,13 +5,19 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/collections/share"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
 )
 
 func CollectionsCmd(
 	createService collection.CreateService,
 	listService collection.ListService,
 	softDeleteService collection.SoftDeleteService,
+	sharingService collectionsharing.CollectionSharingService,
+	getMembersService collectionsharing.CollectionSharingGetMembersService,
+	listSharedService collectionsharing.ListSharedCollectionsService,
+	removeMemberService collectionsharing.CollectionSharingRemoveMembersService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -29,6 +35,15 @@ func CollectionsCmd(
 	cmd.AddCommand(createSubCollectionCmd(createService, logger))
 	cmd.AddCommand(listCollectionsCmd(listService, logger))
 	cmd.AddCommand(softDeleteCmd(softDeleteService, logger))
+	cmd.AddCommand(archiveCmd(softDeleteService, logger))
+	cmd.AddCommand(restoreCmd(softDeleteService, logger))
+	cmd.AddCommand(listByStateCmd(listService, logger))
+
+	// Add sharing subcommands
+	cmd.AddCommand(share.ShareCmd(sharingService, logger))
+	cmd.AddCommand(share.UnshareCmd(removeMemberService, logger))
+	cmd.AddCommand(share.MembersCmd(getMembersService, logger))
+	cmd.AddCommand(share.ListSharedCmd(listSharedService, logger))
 
 	return cmd
 }

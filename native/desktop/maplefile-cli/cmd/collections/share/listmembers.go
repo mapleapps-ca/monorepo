@@ -1,4 +1,4 @@
-// cmd/collections/sharing.go
+// cmd/collections/share/listmembers.go
 package share
 
 import (
@@ -8,13 +8,12 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
 )
 
-// membersCmd creates a command for listing collection members
-func membersCmd(
-	sharingService collection.SharingService,
+// MembersCmd creates a command for listing collection members
+func MembersCmd(
+	getMembersService collectionsharing.CollectionSharingGetMembersService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var collectionID string
@@ -45,7 +44,7 @@ Examples:
 			}
 
 			// Execute get members operation
-			members, err := sharingService.GetCollectionMembers(cmd.Context(), collectionID)
+			members, err := getMembersService.Execute(cmd.Context(), collectionID)
 			if err != nil {
 				fmt.Printf("🐞 Error getting collection members: %v\n", err)
 				if strings.Contains(err.Error(), "not found") {

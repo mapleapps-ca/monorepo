@@ -1,4 +1,4 @@
-// cmd/collections/sharing.go
+// cmd/collections/share/share.go
 package share
 
 import (
@@ -8,13 +8,13 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
 )
 
-// shareCmd creates a command for sharing collections
-func shareCmd(
-	sharingService collection.SharingService,
+// ShareCmd creates a command for sharing collections
+func ShareCmd(
+	sharingService collectionsharing.CollectionSharingService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var collectionID, recipientEmail, permissionLevel, password string
@@ -71,14 +71,14 @@ Permission levels:
 			}
 
 			// Validate permission level
-			if err := collection.ValidatePermissionLevel(permissionLevel); err != nil {
+			if err := collectionsharingdto.ValidatePermissionLevel(permissionLevel); err != nil {
 				fmt.Printf("🐞 Error: Invalid permission level: %s\n", permissionLevel)
 				fmt.Println("Valid permission levels are: read_only, read_write, admin")
 				return
 			}
 
 			// Create service input
-			input := &collection.ShareCollectionInput{
+			input := &collectionsharing.ShareCollectionInput{
 				CollectionID:         collectionID,
 				RecipientEmail:       recipientEmail,
 				PermissionLevel:      permissionLevel,
@@ -86,7 +86,7 @@ Permission levels:
 			}
 
 			// Execute share operation
-			output, err := sharingService.ShareCollection(cmd.Context(), input, password)
+			output, err := sharingService.Execute(cmd.Context(), input, password)
 			if err != nil {
 				fmt.Printf("🐞 Error sharing collection: %v\n", err)
 				if strings.Contains(err.Error(), "incorrect password") {

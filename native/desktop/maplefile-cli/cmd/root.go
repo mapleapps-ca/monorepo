@@ -25,6 +25,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	svc_auth "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
@@ -50,6 +51,10 @@ func NewRootCmd(
 	createCollectionService collection.CreateService,
 	collectionListService collection.ListService,
 	collectionSoftDeleteService collection.SoftDeleteService,
+	collectionSharingService collectionsharing.CollectionSharingService,
+	collectionGetMembersService collectionsharing.CollectionSharingGetMembersService,
+	collectionListSharedService collectionsharing.ListSharedCollectionsService,
+	collectionRemoveMemberService collectionsharing.CollectionSharingRemoveMembersService,
 	addFileService localfile.AddService,
 	listFileService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,
@@ -92,6 +97,10 @@ func NewRootCmd(
 		createCollectionService,
 		collectionListService,
 		collectionSoftDeleteService,
+		collectionSharingService,
+		collectionGetMembersService,
+		collectionListSharedService,
+		collectionRemoveMemberService,
 		logger,
 	))
 	rootCmd.AddCommand(files.FilesCmd(

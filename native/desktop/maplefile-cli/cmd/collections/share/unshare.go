@@ -1,4 +1,4 @@
-// cmd/collections/sharing.go
+// cmd/collections/share/unshare.go
 package share
 
 import (
@@ -8,13 +8,12 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
 )
 
-// unshareCmd creates a command for removing collection members
-func unshareCmd(
-	sharingService collection.SharingService,
+// UnshareCmd creates a command for removing collection members
+func UnshareCmd(
+	removeMemberService collectionsharing.CollectionSharingRemoveMembersService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var collectionID, recipientEmail string
@@ -51,14 +50,14 @@ Examples:
 			}
 
 			// Create service input
-			input := &collection.RemoveMemberInput{
+			input := &collectionsharing.RemoveMemberInput{
 				CollectionID:          collectionID,
 				RecipientEmail:        recipientEmail,
 				RemoveFromDescendants: removeFromDescendants,
 			}
 
 			// Execute remove operation
-			output, err := sharingService.RemoveMember(cmd.Context(), input)
+			_, err := removeMemberService.Execute(cmd.Context(), input)
 			if err != nil {
 				fmt.Printf("🐞 Error removing collection member: %v\n", err)
 				if strings.Contains(err.Error(), "permission") {
