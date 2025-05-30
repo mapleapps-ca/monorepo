@@ -24,8 +24,29 @@ type RemoveMemberOutput struct {
 	Message string `json:"message"`
 }
 
-// RemoveMember removes a user's access to a collection
-func (s *sharingService) RemoveMember(ctx context.Context, input *RemoveMemberInput) (*RemoveMemberOutput, error) {
+// RemoveMemberCollectionSharingService defines the interface for collection sharing operations
+type RemoveMemberCollectionSharingService interface {
+	Execute(ctx context.Context, input *RemoveMemberInput) (*RemoveMemberOutput, error)
+}
+
+type removeMemberCollectionSharingServiceImpl struct {
+	logger              *zap.Logger
+	removeMemberUseCase uc.RemoveMemberUseCase
+}
+
+// NewRemoveMemberCollectionSharingService creates a new collection sharing service
+func NewRemoveMemberCollectionSharingService(
+	logger *zap.Logger,
+	removeMemberUseCase uc.RemoveMemberUseCase,
+) RemoveMemberCollectionSharingService {
+	logger = logger.Named("RemoveMemberCollectionSharingService")
+	return &removeMemberCollectionSharingServiceImpl{
+		logger:              logger,
+		removeMemberUseCase: removeMemberUseCase,
+	}
+}
+
+func (s *removeMemberCollectionSharingServiceImpl) Execute(ctx context.Context, input *RemoveMemberInput) (*RemoveMemberOutput, error) {
 	// Validate inputs
 	if input == nil {
 		s.logger.Error("❌ Input is required")

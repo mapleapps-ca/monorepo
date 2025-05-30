@@ -9,10 +9,34 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
+	uc_collectionsharingdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 )
 
-// GetCollectionMembers retrieves the members of a specific collection
-func (s *sharingService) GetCollectionMembers(ctx context.Context, collectionID string) ([]*collectiondto.CollectionMembershipDTO, error) {
+// GetCollectionMembersService defines the interface for collection sharing operations
+type GetCollectionMembersService interface {
+	Execute(ctx context.Context, collectionID string) ([]*collectiondto.CollectionMembershipDTO, error)
+}
+
+// getCollectionMembersService implements the SharingService interface
+type getCollectionMembersServiceImpl struct {
+	logger                        *zap.Logger
+	getCollectionFromCloudUseCase uc_collectionsharingdto.GetCollectionFromCloudUseCase
+}
+
+// NewGetCollectionMembersService creates a new collection sharing service
+func NewGetCollectionMembersService(
+	logger *zap.Logger,
+	getCollectionFromCloudUseCase uc_collectionsharingdto.GetCollectionFromCloudUseCase,
+) GetCollectionMembersService {
+	logger = logger.Named("GetCollectionMembersService")
+	return &getCollectionMembersServiceImpl{
+		logger:                        logger,
+		getCollectionFromCloudUseCase: getCollectionFromCloudUseCase,
+	}
+}
+
+// Execute retrieves the members of a specific collection
+func (s *getCollectionMembersServiceImpl) Execute(ctx context.Context, collectionID string) ([]*collectiondto.CollectionMembershipDTO, error) {
 	// Validate input
 	if collectionID == "" {
 		s.logger.Error("❌ Collection ID is required")

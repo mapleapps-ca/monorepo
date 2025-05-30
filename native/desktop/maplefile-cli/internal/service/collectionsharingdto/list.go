@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
+	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsharingdto"
 )
 
 // ListSharedCollectionsOutput represents the output from listing shared collections
@@ -15,8 +16,31 @@ type ListSharedCollectionsOutput struct {
 	Count       int                            `json:"count"`
 }
 
-// ListSharedCollections lists all collections shared with the current user
-func (s *sharingService) ListSharedCollections(ctx context.Context) (*ListSharedCollectionsOutput, error) {
+// ListSharedCollectionsService defines the interface for collection sharing operations
+type ListSharedCollectionsService interface {
+	Execute(ctx context.Context) (*ListSharedCollectionsOutput, error)
+}
+
+// listSharedCollectionsServiceImpl implements the SharingService interface
+type listSharedCollectionsServiceImpl struct {
+	logger                       *zap.Logger
+	listSharedCollectionsUseCase uc.ListSharedCollectionsUseCase
+}
+
+// NewListSharedCollectionsService creates a new collection sharing service
+func NewListSharedCollectionsService(
+	logger *zap.Logger,
+	listSharedCollectionsUseCase uc.ListSharedCollectionsUseCase,
+) ListSharedCollectionsService {
+	logger = logger.Named("ListSharedCollectionsService")
+	return &listSharedCollectionsServiceImpl{
+		logger:                       logger,
+		listSharedCollectionsUseCase: listSharedCollectionsUseCase,
+	}
+}
+
+// Execute lists all collections shared with the current user
+func (s *listSharedCollectionsServiceImpl) Execute(ctx context.Context) (*ListSharedCollectionsOutput, error) {
 	// Execute use case
 	collections, err := s.listSharedCollectionsUseCase.Execute(ctx)
 	if err != nil {

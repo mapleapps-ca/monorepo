@@ -8,7 +8,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
 	uc_collectionsharingdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsharingdto"
@@ -31,10 +30,7 @@ type ShareCollectionOutput struct {
 
 // SharingService defines the interface for collection sharing operations
 type SharingService interface {
-	ShareCollection(ctx context.Context, input *ShareCollectionInput, userPassword string) (*ShareCollectionOutput, error)
-	RemoveMember(ctx context.Context, input *RemoveMemberInput) (*RemoveMemberOutput, error)
-	ListSharedCollections(ctx context.Context) (*ListSharedCollectionsOutput, error)
-	GetCollectionMembers(ctx context.Context, collectionID string) ([]*collectiondto.CollectionMembershipDTO, error)
+	Execute(ctx context.Context, input *ShareCollectionInput, userPassword string) (*ShareCollectionOutput, error)
 }
 
 // sharingService implements the SharingService interface
@@ -64,8 +60,8 @@ func NewSharingService(
 	}
 }
 
-// ShareCollection shares a collection with another user
-func (s *sharingService) ShareCollection(ctx context.Context, input *ShareCollectionInput, userPassword string) (*ShareCollectionOutput, error) {
+// Execute shares a collection with another user
+func (s *sharingService) Execute(ctx context.Context, input *ShareCollectionInput, userPassword string) (*ShareCollectionOutput, error) {
 	// Validate inputs
 	if input == nil {
 		s.logger.Error("❌ Input is required")
