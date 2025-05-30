@@ -1,5 +1,5 @@
-// internal/service/collectionsharingdto/get.go
-package collectionsharingdto
+// internal/service/collectionsharing/get.go
+package collectionsharing
 
 import (
 	"context"

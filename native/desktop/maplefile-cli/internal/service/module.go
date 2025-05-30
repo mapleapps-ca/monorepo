@@ -6,6 +6,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
@@ -59,6 +60,12 @@ func ServiceModule() fx.Option {
 		fx.Provide(localfile.NewLocalOnlyDeleteService),
 		fx.Provide(localfile.NewLockService),
 		fx.Provide(localfile.NewUnlockService),
+
+		// Collection sharing service
+		fx.Provide(collectionsharing.NewGetCollectionMembersService),
+		fx.Provide(collectionsharing.NewListSharedCollectionsService),
+		fx.Provide(collectionsharing.NewCollectionSharingService),
+		fx.Provide(collectionsharing.NewRemoveMemberCollectionSharingService),
 
 		// File syncer services (existing)
 		fx.Provide(filesyncer.NewOffloadService),

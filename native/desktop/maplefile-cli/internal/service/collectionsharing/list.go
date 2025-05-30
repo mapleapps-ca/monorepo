@@ -1,5 +1,5 @@
-// internal/service/collectionsharingdto/list.go
-package collectionsharingdto
+// internal/service/collectionsharing/list.go
+package collectionsharing
 
 import (
 	"context"
@@ -10,19 +10,19 @@ import (
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsharingdto"
 )
 
-// ListSharedCollectionsOutput represents the output from listing shared collections
-type ListSharedCollectionsOutput struct {
+// CollectionSharingListService represents the output from listing shared collections
+type CollectionSharingListService struct {
 	Collections []*collectiondto.CollectionDTO `json:"collections"`
 	Count       int                            `json:"count"`
 }
 
 // ListSharedCollectionsService defines the interface for collection sharing operations
 type ListSharedCollectionsService interface {
-	Execute(ctx context.Context) (*ListSharedCollectionsOutput, error)
+	Execute(ctx context.Context) (*CollectionSharingListService, error)
 }
 
-// listSharedCollectionsServiceImpl implements the SharingService interface
-type listSharedCollectionsServiceImpl struct {
+// collectionSharingListServiceImpl implements the SharingService interface
+type collectionSharingListServiceImpl struct {
 	logger                       *zap.Logger
 	listSharedCollectionsUseCase uc.ListSharedCollectionsUseCase
 }
@@ -32,15 +32,15 @@ func NewListSharedCollectionsService(
 	logger *zap.Logger,
 	listSharedCollectionsUseCase uc.ListSharedCollectionsUseCase,
 ) ListSharedCollectionsService {
-	logger = logger.Named("ListSharedCollectionsService")
-	return &listSharedCollectionsServiceImpl{
+	logger = logger.Named("CollectionSharingListService")
+	return &collectionSharingListServiceImpl{
 		logger:                       logger,
 		listSharedCollectionsUseCase: listSharedCollectionsUseCase,
 	}
 }
 
 // Execute lists all collections shared with the current user
-func (s *listSharedCollectionsServiceImpl) Execute(ctx context.Context) (*ListSharedCollectionsOutput, error) {
+func (s *collectionSharingListServiceImpl) Execute(ctx context.Context) (*CollectionSharingListService, error) {
 	// Execute use case
 	collections, err := s.listSharedCollectionsUseCase.Execute(ctx)
 	if err != nil {
@@ -51,7 +51,7 @@ func (s *listSharedCollectionsServiceImpl) Execute(ctx context.Context) (*ListSh
 	s.logger.Info("✅ Successfully listed shared collections",
 		zap.Int("count", len(collections)))
 
-	return &ListSharedCollectionsOutput{
+	return &CollectionSharingListService{
 		Collections: collections,
 		Count:       len(collections),
 	}, nil

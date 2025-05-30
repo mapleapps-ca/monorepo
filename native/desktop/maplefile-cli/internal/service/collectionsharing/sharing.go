@@ -1,5 +1,5 @@
-// internal/service/collectionsharingdto/sharing.go
-package collectionsharingdto
+// internal/service/collectionsharing/sharing.go
+package collectionsharing
 
 import (
 	"context"
@@ -28,13 +28,13 @@ type ShareCollectionOutput struct {
 	MembershipsCreated int    `json:"memberships_created"`
 }
 
-// SharingService defines the interface for collection sharing operations
-type SharingService interface {
+// CollectionSharingService defines the interface for collection sharing operations
+type CollectionSharingService interface {
 	Execute(ctx context.Context, input *ShareCollectionInput, userPassword string) (*ShareCollectionOutput, error)
 }
 
-// sharingService implements the SharingService interface
-type sharingService struct {
+// collectionSharingService implements the CollectionSharingService interface
+type collectionSharingService struct {
 	logger                        *zap.Logger
 	shareCollectionUseCase        uc.ShareCollectionUseCase
 	removeMemberUseCase           uc.RemoveMemberUseCase
@@ -42,16 +42,16 @@ type sharingService struct {
 	getCollectionFromCloudUseCase uc_collectionsharingdto.GetCollectionFromCloudUseCase
 }
 
-// NewSharingService creates a new collection sharing service
-func NewSharingService(
+// NewCollectionSharingService creates a new collection sharing service
+func NewCollectionSharingService(
 	logger *zap.Logger,
 	shareCollectionUseCase uc.ShareCollectionUseCase,
 	removeMemberUseCase uc.RemoveMemberUseCase,
 	listSharedCollectionsUseCase uc.ListSharedCollectionsUseCase,
 	getCollectionFromCloudUseCase uc_collectionsharingdto.GetCollectionFromCloudUseCase,
-) SharingService {
+) CollectionSharingService {
 	logger = logger.Named("CollectionSharingService")
-	return &sharingService{
+	return &collectionSharingService{
 		logger:                        logger,
 		shareCollectionUseCase:        shareCollectionUseCase,
 		removeMemberUseCase:           removeMemberUseCase,
@@ -61,7 +61,7 @@ func NewSharingService(
 }
 
 // Execute shares a collection with another user
-func (s *sharingService) Execute(ctx context.Context, input *ShareCollectionInput, userPassword string) (*ShareCollectionOutput, error) {
+func (s *collectionSharingService) Execute(ctx context.Context, input *ShareCollectionInput, userPassword string) (*ShareCollectionOutput, error) {
 	// Validate inputs
 	if input == nil {
 		s.logger.Error("❌ Input is required")

@@ -1,5 +1,5 @@
-// internal/service/collectionsharingdto/remove.go
-package collectionsharingdto
+// internal/service/collectionsharing/remove.go
+package collectionsharing
 
 import (
 	"context"
@@ -24,12 +24,12 @@ type RemoveMemberOutput struct {
 	Message string `json:"message"`
 }
 
-// RemoveMemberCollectionSharingService defines the interface for collection sharing operations
-type RemoveMemberCollectionSharingService interface {
+// CollectionSharingRemoveMembersService defines the interface for collection sharing operations
+type CollectionSharingRemoveMembersService interface {
 	Execute(ctx context.Context, input *RemoveMemberInput) (*RemoveMemberOutput, error)
 }
 
-type removeMemberCollectionSharingServiceImpl struct {
+type collectionSharingRemoveMembersServiceImpl struct {
 	logger              *zap.Logger
 	removeMemberUseCase uc.RemoveMemberUseCase
 }
@@ -38,15 +38,15 @@ type removeMemberCollectionSharingServiceImpl struct {
 func NewRemoveMemberCollectionSharingService(
 	logger *zap.Logger,
 	removeMemberUseCase uc.RemoveMemberUseCase,
-) RemoveMemberCollectionSharingService {
-	logger = logger.Named("RemoveMemberCollectionSharingService")
-	return &removeMemberCollectionSharingServiceImpl{
+) CollectionSharingRemoveMembersService {
+	logger = logger.Named("CollectionSharingRemoveMembersService")
+	return &collectionSharingRemoveMembersServiceImpl{
 		logger:              logger,
 		removeMemberUseCase: removeMemberUseCase,
 	}
 }
 
-func (s *removeMemberCollectionSharingServiceImpl) Execute(ctx context.Context, input *RemoveMemberInput) (*RemoveMemberOutput, error) {
+func (s *collectionSharingRemoveMembersServiceImpl) Execute(ctx context.Context, input *RemoveMemberInput) (*RemoveMemberOutput, error) {
 	// Validate inputs
 	if input == nil {
 		s.logger.Error("❌ Input is required")
