@@ -1,3 +1,4 @@
+// Package pkg provides core infrastructure components and dependencies used across the backend services.
 package pkg
 
 import (

@@ -14,7 +14,7 @@ import (
 
 func Module() fx.Option {
 	return fx.Options(
-		pkg.Module(),
+		pkg.Module(), // Shared utilities, types, and helpers used across layers
 		commonhttp.Module(),
 		iam.Module(),
 		maplefile.Module(),
