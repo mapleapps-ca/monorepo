@@ -18,6 +18,12 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.uber.org/dig v1.18.0 // indirect
+	go.uber.org/mock v0.5.2 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
+	golang.org/x/mod v0.18.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/tools v0.22.0 // indirect
 )
+
+tool go.uber.org/mock/mockgen
