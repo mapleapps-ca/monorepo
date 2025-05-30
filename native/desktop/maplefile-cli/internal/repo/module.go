@@ -7,6 +7,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collectiondsharingdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/filedto"
@@ -142,6 +143,11 @@ func RepoModule() fx.Option {
 		// Cloud Sync DTO repository
 		//----------------------------------------------
 		fx.Provide(syncdto.NewSyncDTORepository),
+
+		//----------------------------------------------
+		// Cloud Collection Sharing DTO repository
+		//----------------------------------------------
+		fx.Provide(collectiondsharingdto.NewCollectionSharingDTORepository),
 
 		//----------------------------------------------
 		// Transaction manager
