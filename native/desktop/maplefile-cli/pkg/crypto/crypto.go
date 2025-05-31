@@ -3,11 +3,13 @@ package crypto
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 
+	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/crypto/nacl/secretbox"
@@ -62,13 +64,36 @@ func GenerateRandomBytes(size int) ([]byte, error) {
 	return buf, nil
 }
 
+// GenerateVerificationID creates a human-readable representation of a public key
+// JavaScript equivalent: The same BIP39 mnemonic implementation
+// Generate VerificationID from public key (deterministic)
+func GenerateVerificationID(publicKey []byte) (string, error) {
+	// 1. Hash the public key with SHA256
+	hash := sha256.Sum256(publicKey)
+
+	// 2. Use the hash as entropy for BIP39
+	mnemonic, err := bip39.NewMnemonic(hash[:])
+	if err != nil {
+		return "", fmt.Errorf("failed to generate verification ID: %w", err)
+	}
+
+	return mnemonic, nil
+}
+
 // GenerateKeyPair generates a NaCl box keypair for asymmetric encryption
-func GenerateKeyPair() (publicKey []byte, privateKey []byte, err error) {
+func GenerateKeyPair() (publicKey []byte, privateKey []byte, verificationID string, err error) {
 	pubKey, privKey, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate key pair: %w", err)
+		return nil, nil, "", fmt.Errorf("failed to generate key pair: %w", err)
 	}
-	return pubKey[:], privKey[:], nil
+
+	// Generate deterministic verification ID
+	verificationID, err = GenerateVerificationID(publicKey[:])
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	return pubKey[:], privKey[:], verificationID, nil
 }
 
 // DeriveKeyFromPassword derives a key from a password using Argon2id

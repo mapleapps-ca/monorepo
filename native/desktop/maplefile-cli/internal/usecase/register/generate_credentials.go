@@ -57,8 +57,8 @@ func (uc *generateCredentialsUseCase) Execute(ctx context.Context, password stri
 		return nil, fmt.Errorf("error generating master key: %w", err)
 	}
 
-	// Generate key pair
-	publicKey, privateKey, err := crypto.GenerateKeyPair()
+	// Generate key pair (and create verification ID from public key too!).
+	publicKey, privateKey, verificationID, err := crypto.GenerateKeyPair()
 	if err != nil {
 		return nil, fmt.Errorf("error generating key pair: %w", err)
 	}
@@ -92,9 +92,6 @@ func (uc *generateCredentialsUseCase) Execute(ctx context.Context, password stri
 	if err != nil {
 		return nil, fmt.Errorf("error encrypting master key with recovery key: %w", err)
 	}
-
-	// Create verification ID from public key
-	verificationID := crypto.EncodeToBase64URL(publicKey)[:12]
 
 	// Store current key in history
 	currentTime := time.Now()

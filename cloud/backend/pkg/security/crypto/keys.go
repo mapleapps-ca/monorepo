@@ -2,10 +2,12 @@ package crypto
 
 import (
 	"crypto/rand"
-	"encoding/base64"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"io"
 
+	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/nacl/box"
 )
@@ -23,17 +25,23 @@ func GenerateRandomKey(size int) ([]byte, error) {
 
 // GenerateKeyPair generates a public/private key pair
 // JavaScript equivalent: sodium.crypto_box_keypair()
-func GenerateKeyPair() (publicKey, privateKey []byte, err error) {
+func GenerateKeyPair() (publicKey, privateKey []byte, verificationID string, err error) {
 	pubKey, privKey, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	// Convert from fixed-size arrays to slices
 	publicKey = pubKey[:]
 	privateKey = privKey[:]
 
-	return publicKey, privateKey, nil
+	// Generate deterministic verification ID
+	verificationID, err = GenerateVerificationID(publicKey[:])
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	return publicKey, privateKey, verificationID, nil
 }
 
 // DeriveKeyFromPassword derives a key encryption key from a password using Argon2id
@@ -69,9 +77,16 @@ func GenerateRandomNonce() ([]byte, error) {
 
 // GenerateVerificationID creates a human-readable representation of a public key
 // JavaScript equivalent: The same BIP39 mnemonic implementation
+// Generate VerificationID from public key (deterministic)
 func GenerateVerificationID(publicKey []byte) (string, error) {
-	// Implementation using a BIP39 mnemonic library
-	// This would need to be the same in both Go and JavaScript
-	// For demonstration, we'll use a simplified approach:
-	return base64.URLEncoding.EncodeToString(publicKey)[:12], nil
+	// 1. Hash the public key with SHA256
+	hash := sha256.Sum256(publicKey)
+
+	// 2. Use the hash as entropy for BIP39
+	mnemonic, err := bip39.NewMnemonic(hash[:])
+	if err != nil {
+		return "", fmt.Errorf("failed to generate verification ID: %w", err)
+	}
+
+	return mnemonic, nil
 }
