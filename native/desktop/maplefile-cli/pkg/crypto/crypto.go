@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/argon2"
@@ -68,16 +69,38 @@ func GenerateRandomBytes(size int) ([]byte, error) {
 // JavaScript equivalent: The same BIP39 mnemonic implementation
 // Generate VerificationID from public key (deterministic)
 func GenerateVerificationID(publicKey []byte) (string, error) {
+	log.Printf("pkg.crypto.GenerateVerificationID - publicKey: %v\n", publicKey[:])
+	if publicKey == nil {
+		err := fmt.Errorf("no public key entered")
+		log.Printf("pkg.crypto.VerifyVerificationID - Failed to generate verification ID with error: %v\n", err)
+		return "", fmt.Errorf("failed to generate verification ID: %w", err)
+	}
+
 	// 1. Hash the public key with SHA256
-	hash := sha256.Sum256(publicKey)
+	hash := sha256.Sum256(publicKey[:])
+
+	log.Printf("pkg.crypto.GenerateVerificationID - hash(publicKey): %v\n", hash)
 
 	// 2. Use the hash as entropy for BIP39
 	mnemonic, err := bip39.NewMnemonic(hash[:])
 	if err != nil {
+		log.Printf("pkg.crypto.VerifyVerificationID - Failed to generate verification ID with error: %v\n", err)
 		return "", fmt.Errorf("failed to generate verification ID: %w", err)
 	}
 
+	log.Printf("pkg.crypto.GenerateVerificationID - publicKey=%v | mnemonic: %v\n", publicKey[:], mnemonic)
 	return mnemonic, nil
+}
+
+// Verify VerificationID matches public key
+func VerifyVerificationID(publicKey []byte, verificationID string) bool {
+	expectedID, err := GenerateVerificationID(publicKey)
+	if err != nil {
+		log.Printf("pkg.crypto.VerifyVerificationID - Failed to generate verification ID with error: %v\n", err)
+		return false
+	}
+	log.Printf("pkg.crypto.VerifyVerificationID - expectedID=%v | verificationID: %v\n", expectedID, verificationID)
+	return expectedID == verificationID
 }
 
 // GenerateKeyPair generates a NaCl box keypair for asymmetric encryption
@@ -87,12 +110,19 @@ func GenerateKeyPair() (publicKey []byte, privateKey []byte, verificationID stri
 		return nil, nil, "", fmt.Errorf("failed to generate key pair: %w", err)
 	}
 
+	if pubKey == nil {
+		return nil, nil, "", fmt.Errorf("public key is empty")
+	}
+
+	log.Printf("pkg.crypto.GenerateKeyPair - Submitting to GenerateVerificationID: publicKey: %v\n", publicKey)
+
 	// Generate deterministic verification ID
 	verificationID, err = GenerateVerificationID(publicKey[:])
 	if err != nil {
 		return nil, nil, "", err
 	}
 
+	log.Printf("pkg.crypto.GenerateKeyPair - verificationID: %v\n", verificationID)
 	return pubKey[:], privKey[:], verificationID, nil
 }
 

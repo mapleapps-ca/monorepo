@@ -33,12 +33,12 @@ Use the --skip-cloud flag to only save locally without registering with the clou
 
 			// Validate required fields
 			if email == "" || password == "" || firstName == "" || lastName == "" {
-				fmt.Println("Error: email, password, first name, and last name are required")
+				fmt.Println("❌ Error: email, password, first name, and last name are required")
 				return
 			}
 
 			if !agreeTerms {
-				fmt.Println("Error: you must agree to the Terms of Service")
+				fmt.Println("❌ Error: you must agree to the Terms of Service")
 				return
 			}
 
@@ -48,7 +48,7 @@ Use the --skip-cloud flag to only save locally without registering with the clou
 			}
 
 			// Generate E2EE fields
-			fmt.Println("Generating secure cryptographic keys...")
+			fmt.Println("🔑 Generating secure cryptographic keys...")
 
 			// Prepare the registration input
 			input := register.RegisterUserInput{
@@ -70,23 +70,23 @@ Use the --skip-cloud flag to only save locally without registering with the clou
 			// Register the user
 			output, err := registerService.RegisterUser(ctx, input)
 			if err != nil {
-				fmt.Printf("Error during registration: %v\n", err)
+				fmt.Printf("❌ Error during registration: %v\n", err)
 				return
 			}
 
 			// Display success message
 			if skipRemoteRegistration {
 				fmt.Println("\n✅ Registration information saved locally.")
-				fmt.Println("To complete registration with the cloud server, run the command again without the --skip-cloud flag.")
+				fmt.Println("👉 To complete registration with the cloud server, run the command again without the --skip-cloud flag.")
 			} else {
 				fmt.Println("\n✅ Registration successful!")
 				if output.ServerResponse != "" {
 					fmt.Println(output.ServerResponse)
 				} else {
-					fmt.Println("Please check your email for verification instructions.")
+					fmt.Println("📧 Please check your email for verification instructions.")
 				}
-				fmt.Println("\nIMPORTANT: Please ensure you have saved your password securely.")
-				fmt.Println("You will need it to log in to your account.")
+				fmt.Println("\n⚠️ IMPORTANT: Please ensure you have saved your password securely.")
+				fmt.Println("👉 You will need it to log in to your account.")
 			}
 		},
 	}

@@ -162,9 +162,11 @@ func (svc *gatewayFederatedUserRegisterServiceImpl) Execute(
 	if req.MasterKeyEncryptedWithRecoveryKey == "" {
 		e["masterKeyEncryptedWithRecoveryKey"] = "Master key encrypted with recovery key is required"
 	}
-	if req.VerificationID == "" {
-		e["verificationID"] = "Verification ID is required"
-	}
+
+	// Developers Note: It's OK if user forgets, fall back to cloud service to generate it for the user.
+	// if req.VerificationID == "" {
+	// 	e["verificationID"] = "Verification ID is required"
+	// }
 
 	if len(e) != 0 {
 		return httperror.NewForBadRequest(&e)
@@ -294,6 +296,20 @@ func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserFor
 	masterKeyEncryptedWithRecoveryKey := keys.MasterKeyEncryptedWithRecoveryKey{
 		Nonce:      encMasterWithRecoveryBytes[:crypto.NonceSize],
 		Ciphertext: encMasterWithRecoveryBytes[crypto.NonceSize:],
+	}
+
+	// Generate VerificationID if not provided via server side.
+	if req.VerificationID == "" {
+		verificationID, err := crypto.GenerateVerificationID(publicKeyBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate verification id from given public key via server-side and no verification id provided client-side")
+		}
+		req.VerificationID = verificationID
+	}
+
+	// Defensive Coding: Verify the `verificationID` to make sure we are enforcing the fact that `verificationID` are derived from public keys.
+	if !crypto.VerifyVerificationID(publicKeyBytes, req.VerificationID) {
+		return nil, fmt.Errorf("failed to verify the user verification id, was it generated from the public key?")
 	}
 
 	// Create the PublicKey object

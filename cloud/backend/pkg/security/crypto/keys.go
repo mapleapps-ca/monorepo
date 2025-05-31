@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/argon2"
@@ -89,4 +90,15 @@ func GenerateVerificationID(publicKey []byte) (string, error) {
 	}
 
 	return mnemonic, nil
+}
+
+// Verify VerificationID matches public key
+func VerifyVerificationID(publicKey []byte, verificationID string) bool {
+	expectedID, err := GenerateVerificationID(publicKey)
+	if err != nil {
+		log.Printf("pkg.crypto.VerifyVerificationID - Failed to generate verification ID with error: %v\n", err)
+		return false
+	}
+	log.Printf("pkg.crypto.VerifyVerificationID - expectedID=%v | verificationID: %v\n", expectedID, verificationID)
+	return expectedID == verificationID
 }

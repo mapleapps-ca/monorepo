@@ -4,6 +4,7 @@ package register
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
@@ -61,6 +62,13 @@ func (uc *generateCredentialsUseCase) Execute(ctx context.Context, password stri
 	publicKey, privateKey, verificationID, err := crypto.GenerateKeyPair()
 	if err != nil {
 		return nil, fmt.Errorf("error generating key pair: %w", err)
+	}
+
+	log.Printf("usecase.register.GenerateCredentialsUseCase - publicKey: %v\n", publicKey)
+
+	// Defensive Coding: Verify the `verificationID` to make sure we are enforcing the fact that `verificationID` are derived from public keys.
+	if !crypto.VerifyVerificationID(publicKey, verificationID) {
+		return nil, fmt.Errorf("failed to verify the user verification id, was it generated from the public key?")
 	}
 
 	// Generate recovery key
