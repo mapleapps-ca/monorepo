@@ -101,15 +101,27 @@ func (uc *shareCollectionUseCase) Execute(ctx context.Context, input *ShareColle
 	// User must be owner or have admin permission
 	canShare := collectionToShare.OwnerID == currentUser.ID
 	if !canShare {
+		uc.logger.Debug("🔍 Checking if user is an admin member")
 		// Check if user is an admin member
 		for _, member := range collectionToShare.Members {
+			uc.logger.Debug("🔍 Member sharing check",
+				zap.Any("member.RecipientID", member.RecipientID),
+				zap.Any("currentUser.ID", currentUser.ID),
+				zap.Any("member.PermissionLevel", member.PermissionLevel),
+				zap.Any("collectionsharingdto.CollectionDTOPermissionAdmin", collectionsharingdto.CollectionDTOPermissionAdmin),
+			)
 			if member.RecipientID == currentUser.ID && member.PermissionLevel == collectionsharingdto.CollectionDTOPermissionAdmin {
+				uc.logger.Debug("✅ Member sharing check passed!")
 				canShare = true
 				break
 			}
 		}
 	}
 	if !canShare {
+		uc.logger.Error("🚫 You don't have permission to share this collection",
+			zap.Any("collectionToShare.OwnerID", collectionToShare.OwnerID),
+			zap.Any("currentUser.ID", currentUser.ID),
+		)
 		return nil, errors.NewAppError("you don't have permission to share this collection", nil)
 	}
 
