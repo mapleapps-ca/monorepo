@@ -311,7 +311,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 		KeyVersion:    1,
 		RotatedAt:     currentTime,
 		RotatedReason: "Initial collection creation",
-		Algorithm:     crypto.XSalsa20Poly1305Algorithm, // Poly1305 for authentication and XSalsa20 uses a 192-bit nonce (24 bytes) - which matches our `SecretBoxNonceSize = 24` - we use `xsalsa20poly1305`.
+		Algorithm:     crypto.ChaCha20Poly1305Algorithm,
 	}
 
 	//

@@ -7,6 +7,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // userVerificationDataTransformer implements auth.UserVerificationDataTransformer
@@ -57,21 +58,22 @@ func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *u
 	}
 	user.PublicKey.Key = publicKeyBytes
 
-	// Store Encrypted Master Key
+	// Store Encrypted Master Key - Updated for ChaCha20-Poly1305 (12-byte nonces)
 	encMasterKeyBytes, err := base64.StdEncoding.DecodeString(data.EncryptedMasterKey)
-	if err == nil && len(encMasterKeyBytes) >= 24 {
-		// Assuming the first 24 bytes are the nonce
-		nonceSize := 24 // sodium.crypto_secretbox_NONCEBYTES
+	if err == nil && len(encMasterKeyBytes) >= crypto.ChaCha20Poly1305NonceSize {
+		// Use ChaCha20-Poly1305 nonce size (12 bytes)
+		nonceSize := crypto.ChaCha20Poly1305NonceSize
 		user.EncryptedMasterKey.Nonce = encMasterKeyBytes[:nonceSize]
 		user.EncryptedMasterKey.Ciphertext = encMasterKeyBytes[nonceSize:]
 	} else {
 		return fmt.Errorf("🔑💔 error decoding encrypted master key: %v", err)
 	}
 
-	// Store Encrypted Private Key
+	// Store Encrypted Private Key - Updated for ChaCha20-Poly1305 (12-byte nonces)
 	encPrivateKeyBytes, err := base64.StdEncoding.DecodeString(data.EncryptedPrivateKey)
-	if err == nil && len(encPrivateKeyBytes) >= 24 {
-		nonceSize := 24 // sodium.crypto_secretbox_NONCEBYTES
+	if err == nil && len(encPrivateKeyBytes) >= crypto.ChaCha20Poly1305NonceSize {
+		// Use ChaCha20-Poly1305 nonce size (12 bytes)
+		nonceSize := crypto.ChaCha20Poly1305NonceSize
 		user.EncryptedPrivateKey.Nonce = encPrivateKeyBytes[:nonceSize]
 		user.EncryptedPrivateKey.Ciphertext = encPrivateKeyBytes[nonceSize:]
 	} else {
@@ -80,6 +82,14 @@ func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *u
 
 	// Store ChallengeID
 	user.VerificationID = data.ChallengeID
+
+	// Store extra security data such as KDF parameters and key rotation policy.
+	user.KDFParams = data.KDFParams
+	user.LastPasswordChange = data.LastPasswordChange
+	user.KDFParamsNeedUpgrade = data.KDFParamsNeedUpgrade
+	user.CurrentKeyVersion = data.CurrentKeyVersion
+	user.LastKeyRotation = data.LastKeyRotation
+	user.KeyRotationPolicy = data.KeyRotationPolicy
 
 	return nil
 }

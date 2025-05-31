@@ -1,11 +1,13 @@
 package crypto
 
 import (
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 
+	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/nacl/box"
-	"golang.org/x/crypto/nacl/secretbox"
 )
 
 // EncryptData represents encrypted data with its nonce
@@ -14,28 +16,27 @@ type EncryptData struct {
 	Nonce      []byte
 }
 
-// EncryptWithSecretKey encrypts data with a symmetric key
-// JavaScript equivalent: sodium.crypto_secretbox_easy()
+// EncryptWithSecretKey encrypts data with a symmetric key using ChaCha20-Poly1305
+// JavaScript equivalent: sodium.crypto_secretbox_easy() but using ChaCha20-Poly1305
 func EncryptWithSecretKey(data, key []byte) (*EncryptData, error) {
 	if len(key) != MasterKeySize {
-		return nil, errors.New("invalid key size")
+		return nil, fmt.Errorf("invalid key size: expected %d, got %d", MasterKeySize, len(key))
+	}
+
+	// Create ChaCha20-Poly1305 cipher
+	cipher, err := chacha20poly1305.New(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cipher: %w", err)
 	}
 
 	// Generate nonce
 	nonce, err := GenerateRandomNonce()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate nonce: %w", err)
 	}
 
-	// Create a fixed-size array from slice for secretbox
-	var keyArray [32]byte
-	copy(keyArray[:], key)
-
-	var nonceArray [24]byte
-	copy(nonceArray[:], nonce)
-
 	// Encrypt
-	ciphertext := secretbox.Seal(nil, data, &nonceArray, &keyArray)
+	ciphertext := cipher.Seal(nil, nonce, data, nil)
 
 	return &EncryptData{
 		Ciphertext: ciphertext,
@@ -43,49 +44,68 @@ func EncryptWithSecretKey(data, key []byte) (*EncryptData, error) {
 	}, nil
 }
 
-// DecryptWithSecretKey decrypts data with a symmetric key
-// JavaScript equivalent: sodium.crypto_secretbox_open_easy()
+// DecryptWithSecretKey decrypts data with a symmetric key using ChaCha20-Poly1305
+// JavaScript equivalent: sodium.crypto_secretbox_open_easy() but using ChaCha20-Poly1305
 func DecryptWithSecretKey(encryptedData *EncryptData, key []byte) ([]byte, error) {
 	if len(key) != MasterKeySize {
-		return nil, errors.New("invalid key size")
+		return nil, fmt.Errorf("invalid key size: expected %d, got %d", MasterKeySize, len(key))
 	}
 
-	// Create fixed-size arrays from slices
-	var keyArray [32]byte
-	copy(keyArray[:], key)
+	if len(encryptedData.Nonce) != NonceSize {
+		return nil, fmt.Errorf("invalid nonce size: expected %d, got %d", NonceSize, len(encryptedData.Nonce))
+	}
 
-	var nonceArray [24]byte
-	copy(nonceArray[:], encryptedData.Nonce)
+	// Create ChaCha20-Poly1305 cipher
+	cipher, err := chacha20poly1305.New(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cipher: %w", err)
+	}
 
 	// Decrypt
-	plaintext, ok := secretbox.Open(nil, encryptedData.Ciphertext, &nonceArray, &keyArray)
-	if !ok {
-		return nil, errors.New("decryption failed")
+	plaintext, err := cipher.Open(nil, encryptedData.Nonce, encryptedData.Ciphertext, nil)
+	if err != nil {
+		return nil, fmt.Errorf("decryption failed: %w", err)
 	}
 
 	return plaintext, nil
 }
 
-// EncryptWithPublicKey encrypts data with a public key
+// EncryptWithPublicKey encrypts data with a public key using NaCl box (XSalsa20-Poly1305)
+// Note: Asymmetric encryption still uses NaCl box for compatibility
 // JavaScript equivalent: sodium.crypto_box_seal()
 func EncryptWithPublicKey(data, recipientPublicKey []byte) ([]byte, error) {
 	if len(recipientPublicKey) != PublicKeySize {
-		return nil, errors.New("invalid public key size")
+		return nil, fmt.Errorf("invalid public key size: expected %d, got %d", PublicKeySize, len(recipientPublicKey))
 	}
 
 	// Convert to fixed-size array
 	var pubKeyArray [32]byte
 	copy(pubKeyArray[:], recipientPublicKey)
 
-	// Encrypt
-	return box.Seal(nil, data, &[24]byte{}, &pubKeyArray, nil), nil
+	// Generate nonce for box encryption (24 bytes for NaCl box)
+	var nonce [24]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return nil, fmt.Errorf("failed to generate nonce: %w", err)
+	}
+
+	// For sealed box, we need to use SealAnonymous
+	sealed, err := box.SealAnonymous(nil, data, &pubKeyArray, rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to seal data: %w", err)
+	}
+
+	return sealed, nil
 }
 
-// DecryptWithPrivateKey decrypts data with a private key
+// DecryptWithPrivateKey decrypts data with a private key using NaCl box
+// Note: Asymmetric encryption still uses NaCl box for compatibility
 // JavaScript equivalent: sodium.crypto_box_seal_open()
 func DecryptWithPrivateKey(encryptedData, publicKey, privateKey []byte) ([]byte, error) {
-	if len(privateKey) != PrivateKeySize || len(publicKey) != PublicKeySize {
-		return nil, errors.New("invalid key size")
+	if len(privateKey) != PrivateKeySize {
+		return nil, fmt.Errorf("invalid private key size: expected %d, got %d", PrivateKeySize, len(privateKey))
+	}
+	if len(publicKey) != PublicKeySize {
+		return nil, fmt.Errorf("invalid public key size: expected %d, got %d", PublicKeySize, len(publicKey))
 	}
 
 	// Convert to fixed-size arrays
@@ -95,17 +115,17 @@ func DecryptWithPrivateKey(encryptedData, publicKey, privateKey []byte) ([]byte,
 	var privKeyArray [32]byte
 	copy(privKeyArray[:], privateKey)
 
-	// Decrypt
-	plaintext, ok := box.Open(nil, encryptedData, &[24]byte{}, &pubKeyArray, &privKeyArray)
+	// Decrypt using OpenAnonymous for sealed box
+	plaintext, ok := box.OpenAnonymous(nil, encryptedData, &pubKeyArray, &privKeyArray)
 	if !ok {
-		return nil, errors.New("decryption failed")
+		return nil, errors.New("decryption failed: invalid keys or corrupted data")
 	}
 
 	return plaintext, nil
 }
 
-// EncryptFileChunked encrypts a file in chunks
-// JavaScript equivalent: sodium.crypto_secretstream_*
+// EncryptFileChunked encrypts a file in chunks using ChaCha20-Poly1305
+// JavaScript equivalent: sodium.crypto_secretstream_* but using ChaCha20-Poly1305
 func EncryptFileChunked(reader io.Reader, key []byte) ([]byte, error) {
 	// This would be a more complex implementation using
 	// chunked encryption. For brevity, we'll use a simpler approach
@@ -113,12 +133,12 @@ func EncryptFileChunked(reader io.Reader, key []byte) ([]byte, error) {
 
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read data: %w", err)
 	}
 
 	encData, err := EncryptWithSecretKey(data, key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to encrypt data: %w", err)
 	}
 
 	// Combine nonce and ciphertext
@@ -129,12 +149,12 @@ func EncryptFileChunked(reader io.Reader, key []byte) ([]byte, error) {
 	return result, nil
 }
 
-// DecryptFileChunked decrypts a chunked encrypted file
-// JavaScript equivalent: sodium.crypto_secretstream_*
+// DecryptFileChunked decrypts a chunked encrypted file using ChaCha20-Poly1305
+// JavaScript equivalent: sodium.crypto_secretstream_* but using ChaCha20-Poly1305
 func DecryptFileChunked(encryptedData, key []byte) ([]byte, error) {
 	// Split nonce and ciphertext
 	if len(encryptedData) < NonceSize {
-		return nil, errors.New("encrypted data too short")
+		return nil, fmt.Errorf("encrypted data too short: expected at least %d bytes, got %d", NonceSize, len(encryptedData))
 	}
 
 	nonce := encryptedData[:NonceSize]

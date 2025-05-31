@@ -180,7 +180,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 		KeyVersion:    1,
 		RotatedAt:     currentTime,
 		RotatedReason: "Initial collection creation",
-		Algorithm:     crypto.XSalsa20Poly1305Algorithm,
+		Algorithm:     crypto.ChaCha20Poly1305Algorithm,
 	}
 
 	//

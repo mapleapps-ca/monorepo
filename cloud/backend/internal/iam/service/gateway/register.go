@@ -229,7 +229,7 @@ func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserFor
 		return nil, fmt.Errorf("invalid encrypted master key format: %w", err)
 	}
 
-	// Split into nonce and ciphertext based on crypto.NonceSize
+	// Split into nonce and ciphertext based on crypto.NonceSize (now 12 bytes for ChaCha20-Poly1305)
 	if len(encMasterKeyBytes) < crypto.NonceSize {
 		return nil, fmt.Errorf("encrypted master key data too short")
 	}
@@ -242,7 +242,7 @@ func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserFor
 		Ciphertext:    encMasterKeyBytes[crypto.NonceSize:],
 		RotatedAt:     currentTime,
 		RotatedReason: "Initial user registration",
-		Algorithm:     crypto.XSalsa20Poly1305Algorithm, // Poly1305 for authentication and XSalsa20 uses a 192-bit nonce (24 bytes) - which matches our `SecretBoxNonceSize = 24` - we use `xsalsa20poly1305`.
+		Algorithm:     crypto.ChaCha20Poly1305Algorithm,
 	}
 
 	encryptedMasterKey := keys.EncryptedMasterKey{

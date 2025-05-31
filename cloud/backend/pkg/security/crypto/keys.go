@@ -16,20 +16,24 @@ import (
 // GenerateRandomKey generates a new random key using crypto_secretbox_keygen
 // JavaScript equivalent: sodium.randombytes_buf(crypto.MasterKeySize)
 func GenerateRandomKey(size int) ([]byte, error) {
+	if size <= 0 {
+		return nil, errors.New("key size must be positive")
+	}
+
 	key := make([]byte, size)
 	_, err := io.ReadFull(rand.Reader, key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate random key: %w", err)
 	}
 	return key, nil
 }
 
-// GenerateKeyPair generates a public/private key pair
+// GenerateKeyPair generates a public/private key pair using NaCl box
 // JavaScript equivalent: sodium.crypto_box_keypair()
 func GenerateKeyPair() (publicKey, privateKey []byte, verificationID string, err error) {
 	pubKey, privKey, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", fmt.Errorf("failed to generate key pair: %w", err)
 	}
 
 	// Convert from fixed-size arrays to slices
@@ -39,7 +43,7 @@ func GenerateKeyPair() (publicKey, privateKey []byte, verificationID string, err
 	// Generate deterministic verification ID
 	verificationID, err = GenerateVerificationID(publicKey[:])
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", fmt.Errorf("failed to generate verification ID: %w", err)
 	}
 
 	return publicKey, privateKey, verificationID, nil
@@ -49,7 +53,7 @@ func GenerateKeyPair() (publicKey, privateKey []byte, verificationID string, err
 // JavaScript equivalent: sodium.crypto_pwhash()
 func DeriveKeyFromPassword(password string, salt []byte) ([]byte, error) {
 	if len(salt) != Argon2SaltSize {
-		return nil, errors.New("invalid salt size")
+		return nil, fmt.Errorf("invalid salt size: expected %d, got %d", Argon2SaltSize, len(salt))
 	}
 
 	// These parameters must match between Go and JavaScript
@@ -65,13 +69,13 @@ func DeriveKeyFromPassword(password string, salt []byte) ([]byte, error) {
 	return key, nil
 }
 
-// GenerateRandomNonce generates a random nonce for encryption operations
+// GenerateRandomNonce generates a random nonce for ChaCha20-Poly1305 encryption operations
 // JavaScript equivalent: sodium.randombytes_buf(crypto.NonceSize)
 func GenerateRandomNonce() ([]byte, error) {
-	nonce := make([]byte, NonceSize)
+	nonce := make([]byte, NonceSize) // NonceSize is now 12 for ChaCha20-Poly1305
 	_, err := io.ReadFull(rand.Reader, nonce)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate random nonce: %w", err)
 	}
 	return nonce, nil
 }
@@ -80,6 +84,10 @@ func GenerateRandomNonce() ([]byte, error) {
 // JavaScript equivalent: The same BIP39 mnemonic implementation
 // Generate VerificationID from public key (deterministic)
 func GenerateVerificationID(publicKey []byte) (string, error) {
+	if len(publicKey) == 0 {
+		return "", errors.New("public key cannot be empty")
+	}
+
 	// 1. Hash the public key with SHA256
 	hash := sha256.Sum256(publicKey)
 
@@ -92,7 +100,7 @@ func GenerateVerificationID(publicKey []byte) (string, error) {
 	return mnemonic, nil
 }
 
-// Verify VerificationID matches public key
+// VerifyVerificationID checks if a verification ID matches a public key
 func VerifyVerificationID(publicKey []byte, verificationID string) bool {
 	expectedID, err := GenerateVerificationID(publicKey)
 	if err != nil {

@@ -109,7 +109,7 @@ func (uc *generateCredentialsUseCase) Execute(ctx context.Context, password stri
 		Nonce:         encryptedMasterKey.Nonce,
 		RotatedAt:     currentTime,
 		RotatedReason: "Initial user registration",
-		Algorithm:     crypto.XSalsa20Poly1305Algorithm, // Poly1305 for authentication and XSalsa20 uses a 192-bit nonce (24 bytes) - which matches our `SecretBoxNonceSize = 24` - we use `xsalsa20poly1305`.
+		Algorithm:     crypto.ChaCha20Poly1305Algorithm,
 	}
 
 	return &Credentials{

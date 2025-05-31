@@ -12,8 +12,8 @@ import (
 
 	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/argon2"
+	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/nacl/box"
-	"golang.org/x/crypto/nacl/secretbox"
 )
 
 const (
@@ -24,10 +24,15 @@ const (
 	CollectionKeySize    = 32
 	FileKeySize          = 32
 
-	// SecretBox (symmetric encryption) constants
-	SecretBoxKeySize   = 32
-	SecretBoxNonceSize = 24
-	SecretBoxOverhead  = 16
+	// ChaCha20-Poly1305 (symmetric encryption) constants
+	ChaCha20Poly1305KeySize   = 32 // ChaCha20 key size
+	ChaCha20Poly1305NonceSize = 12 // ChaCha20-Poly1305 nonce size
+	ChaCha20Poly1305Overhead  = 16 // Poly1305 authentication tag size
+
+	// Legacy naming for backward compatibility
+	SecretBoxKeySize   = ChaCha20Poly1305KeySize
+	SecretBoxNonceSize = ChaCha20Poly1305NonceSize
+	SecretBoxOverhead  = ChaCha20Poly1305Overhead
 
 	// Box (asymmetric encryption) constants
 	BoxPublicKeySize = 32
@@ -45,7 +50,6 @@ const (
 	Argon2SaltSize    = 16
 
 	// Encryption algorithm identifiers
-	XSalsa20Poly1305Algorithm = "xsalsa20poly1305"
 	ChaCha20Poly1305Algorithm = "chacha20poly1305"
 )
 
@@ -73,6 +77,7 @@ func GenerateRandomBytes(size int) ([]byte, error) {
 // JavaScript equivalent: The same BIP39 mnemonic implementation
 // Generate VerificationID from public key (deterministic)
 func GenerateVerificationID(publicKey []byte) (string, error) {
+	log.Printf("pkg.crypto.GenerateVerificationID - publicKey: %v\n", publicKey[:])
 	if publicKey == nil {
 		err := fmt.Errorf("no public key entered")
 		log.Printf("pkg.crypto.VerifyVerificationID - Failed to generate verification ID with error: %v\n", err)
@@ -82,12 +87,16 @@ func GenerateVerificationID(publicKey []byte) (string, error) {
 	// 1. Hash the public key with SHA256
 	hash := sha256.Sum256(publicKey[:])
 
+	log.Printf("pkg.crypto.GenerateVerificationID - hash(publicKey): %v\n", hash)
+
 	// 2. Use the hash as entropy for BIP39
 	mnemonic, err := bip39.NewMnemonic(hash[:])
 	if err != nil {
 		log.Printf("pkg.crypto.VerifyVerificationID - Failed to generate verification ID with error: %v\n", err)
 		return "", fmt.Errorf("failed to generate verification ID: %w", err)
 	}
+
+	log.Printf("pkg.crypto.GenerateVerificationID - publicKey=%v | mnemonic: %v\n", publicKey[:], mnemonic)
 	return mnemonic, nil
 }
 
@@ -98,6 +107,7 @@ func VerifyVerificationID(publicKey []byte, verificationID string) bool {
 		log.Printf("pkg.crypto.VerifyVerificationID - Failed to generate verification ID with error: %v\n", err)
 		return false
 	}
+	log.Printf("pkg.crypto.VerifyVerificationID - expectedID=%v | verificationID: %v\n", expectedID, verificationID)
 	return expectedID == verificationID
 }
 
@@ -108,12 +118,19 @@ func GenerateKeyPair() (publicKey []byte, privateKey []byte, verificationID stri
 		return nil, nil, "", fmt.Errorf("failed to generate key pair: %w", err)
 	}
 
+	if pubKey == nil {
+		return nil, nil, "", fmt.Errorf("public key is empty")
+	}
+
+	log.Printf("pkg.crypto.GenerateKeyPair - Submitting to GenerateVerificationID: publicKey: %v\n", pubKey[:])
+
 	// Generate deterministic verification ID
 	verificationID, err = GenerateVerificationID(pubKey[:])
 	if err != nil {
 		return nil, nil, "", err
 	}
 
+	log.Printf("pkg.crypto.GenerateKeyPair - verificationID: %v\n", verificationID)
 	return pubKey[:], privKey[:], verificationID, nil
 }
 
@@ -136,26 +153,26 @@ func DeriveKeyFromPassword(password string, salt []byte) ([]byte, error) {
 	return key, nil
 }
 
-// EncryptWithSecretBox encrypts data with a symmetric key using NaCl secretbox
+// EncryptWithSecretBox encrypts data with a symmetric key using ChaCha20-Poly1305
 func EncryptWithSecretBox(data, key []byte) (*EncryptedData, error) {
-	if len(key) != SecretBoxKeySize {
-		return nil, fmt.Errorf("invalid key size: expected %d, got %d", SecretBoxKeySize, len(key))
+	if len(key) != ChaCha20Poly1305KeySize {
+		return nil, fmt.Errorf("invalid key size: expected %d, got %d", ChaCha20Poly1305KeySize, len(key))
+	}
+
+	// Create ChaCha20-Poly1305 cipher
+	cipher, err := chacha20poly1305.New(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cipher: %w", err)
 	}
 
 	// Generate nonce
-	nonce, err := GenerateRandomBytes(SecretBoxNonceSize)
+	nonce, err := GenerateRandomBytes(ChaCha20Poly1305NonceSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate nonce: %w", err)
 	}
 
-	// Create fixed-size arrays
-	var keyArray [32]byte
-	var nonceArray [24]byte
-	copy(keyArray[:], key)
-	copy(nonceArray[:], nonce)
-
 	// Encrypt
-	ciphertext := secretbox.Seal(nil, data, &nonceArray, &keyArray)
+	ciphertext := cipher.Seal(nil, nonce, data, nil)
 
 	return &EncryptedData{
 		Ciphertext: ciphertext,
@@ -173,26 +190,26 @@ func EncryptDataWithKey(data, key []byte) (ciphertext []byte, nonce []byte, err 
 	return encData.Ciphertext, encData.Nonce, nil
 }
 
-// DecryptWithSecretBox decrypts data with a symmetric key using NaCl secretbox
+// DecryptWithSecretBox decrypts data with a symmetric key using ChaCha20-Poly1305
 func DecryptWithSecretBox(ciphertext, nonce, key []byte) ([]byte, error) {
-	if len(key) != SecretBoxKeySize {
-		return nil, fmt.Errorf("invalid key size: expected %d, got %d", SecretBoxKeySize, len(key))
+	if len(key) != ChaCha20Poly1305KeySize {
+		return nil, fmt.Errorf("invalid key size: expected %d, got %d", ChaCha20Poly1305KeySize, len(key))
 	}
 
-	if len(nonce) != SecretBoxNonceSize {
-		return nil, fmt.Errorf("invalid nonce size: expected %d, got %d", SecretBoxNonceSize, len(nonce))
+	if len(nonce) != ChaCha20Poly1305NonceSize {
+		return nil, fmt.Errorf("invalid nonce size: expected %d, got %d", ChaCha20Poly1305NonceSize, len(nonce))
 	}
 
-	// Create fixed-size arrays
-	var keyArray [32]byte
-	var nonceArray [24]byte
-	copy(keyArray[:], key)
-	copy(nonceArray[:], nonce)
+	// Create ChaCha20-Poly1305 cipher
+	cipher, err := chacha20poly1305.New(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cipher: %w", err)
+	}
 
 	// Decrypt
-	plaintext, ok := secretbox.Open(nil, ciphertext, &nonceArray, &keyArray)
-	if !ok {
-		return nil, errors.New("failed to decrypt: invalid key, nonce, or corrupted ciphertext")
+	plaintext, err := cipher.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt: %w", err)
 	}
 
 	return plaintext, nil
@@ -384,7 +401,7 @@ func CombineNonceAndCiphertext(nonce, ciphertext []byte) []byte {
 }
 
 // SplitNonceAndCiphertext splits a combined byte slice into nonce and ciphertext
-// Assumes the nonce is SecretBoxNonceSize (24 bytes)
+// For ChaCha20-Poly1305, the nonce size is 12 bytes
 func SplitNonceAndCiphertext(combined []byte, nonceSize int) (nonce []byte, ciphertext []byte, err error) {
 	if len(combined) < nonceSize {
 		return nil, nil, fmt.Errorf("combined data too short: expected at least %d bytes, got %d", nonceSize, len(combined))
