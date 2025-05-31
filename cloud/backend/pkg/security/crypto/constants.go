@@ -22,4 +22,8 @@ const (
 	Argon2Parallelism = 1
 	Argon2KeySize     = 32
 	Argon2SaltSize    = 16
+
+	// Encryption algorithm identifiers
+	XSalsa20Poly1305Algorithm = "xsalsa20poly1305"
+	ChaCha20Poly1305Algorithm = "chacha20poly1305"
 )

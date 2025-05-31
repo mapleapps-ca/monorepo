@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/security/crypto"
 )
 
 // MasterKey represents the root encryption key for a user
@@ -32,7 +34,7 @@ func (emk *EncryptedMasterKey) GetKeyByVersion(version int) *EncryptedHistorical
 			KeyVersion: emk.KeyVersion,
 			Ciphertext: emk.Ciphertext,
 			Nonce:      emk.Nonce,
-			Algorithm:  "chacha20poly1305", // or your current algorithm
+			Algorithm:  crypto.XSalsa20Poly1305Algorithm, // Poly1305 for authentication and XSalsa20 uses a 192-bit nonce (24 bytes) - which matches our `SecretBoxNonceSize = 24` - we use `xsalsa20poly1305`.
 		}
 	}
 

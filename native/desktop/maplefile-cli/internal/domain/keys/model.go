@@ -32,7 +32,7 @@ func (emk *EncryptedMasterKey) GetKeyByVersion(version int) *EncryptedHistorical
 			KeyVersion: emk.KeyVersion,
 			Ciphertext: emk.Ciphertext,
 			Nonce:      emk.Nonce,
-			Algorithm:  "chacha20poly1305", //TODO: Confirm this is the algorithm used.
+			Algorithm:  "xsalsa20poly1305",
 		}
 	}
 
