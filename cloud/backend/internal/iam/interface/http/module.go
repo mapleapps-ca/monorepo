@@ -28,6 +28,7 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(gateway.NewGatewayRefreshTokenHTTPHandler),
 			// unifiedhttp.AsRoute(gateway.NewGatewayResetPasswordHTTPHandler),
 			// unifiedhttp.AsRoute(gateway.NewGatewayForgotPasswordHTTPHandler),
+			unifiedhttp.AsRoute(gateway.NewGatewayFederatedUserPublicLookupHTTPHandler),
 		),
 	)
 }

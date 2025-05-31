@@ -29,6 +29,7 @@ func Module() fx.Option {
 			// me.NewUpdateMeService,
 			// me.NewVerifyProfileService,
 			// me.NewDeleteMeService,
+			gateway.NewGatewayFederatedUserPublicLookupService,
 		),
 	)
 }

@@ -23,6 +23,7 @@ func RemoteCmd(
 
 	// Add Cloud-related commands
 	cmd.AddCommand(HealthCheckCmd(configService))
+	cmd.AddCommand(PublicUserLookupCmd(configService))
 
 	return cmd
 }
