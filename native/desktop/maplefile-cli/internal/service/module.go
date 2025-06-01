@@ -34,6 +34,8 @@ func ServiceModule() fx.Option {
 		fx.Provide(auth.NewLoginOTTService),
 		fx.Provide(auth.NewLoginOTTVerificationService),
 		fx.Provide(auth.NewCompleteLoginService),
+		fx.Provide(auth.NewRecoveryService),
+		fx.Provide(auth.NewRecoveryKeyService),
 
 		// Collection services
 		fx.Provide(collection.NewCreateService),
