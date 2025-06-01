@@ -20,11 +20,11 @@ type GatewayFederatedUserPublicLookupRequestDTO struct {
 }
 
 type GatewayFederatedUserPublicLookupResponseDTO struct {
-	UserID         string `json:"user_id"`
-	Email          string `json:"email"`
-	Name           string `json:"name"`       // Optional: for display
-	PublicKey      string `json:"public_key"` // Base64 encoded
-	VerificationID string `json:"verification_id"`
+	UserID            string `json:"user_id"`
+	Email             string `json:"email"`
+	Name              string `json:"name"`                 // Optional: for display
+	PublicKeyInBase64 string `json:"public_key_in_base64"` // Base64 encoded
+	VerificationID    string `json:"verification_id"`
 }
 
 type GatewayFederatedUserPublicLookupService interface {
@@ -102,11 +102,11 @@ func (svc *gatewayFederatedUserPublicLookupServiceImpl) Execute(sessCtx context.
 	}
 
 	dto := &GatewayFederatedUserPublicLookupResponseDTO{
-		UserID:         u.ID.Hex(),
-		Email:          u.Email,
-		Name:           u.Name,
-		PublicKey:      base64.StdEncoding.EncodeToString(u.PublicKey.Key),
-		VerificationID: u.VerificationID,
+		UserID:            u.ID.Hex(),
+		Email:             u.Email,
+		Name:              u.Name,
+		PublicKeyInBase64: base64.StdEncoding.EncodeToString(u.PublicKey.Key),
+		VerificationID:    u.VerificationID,
 	}
 
 	return dto, nil

@@ -8,7 +8,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 )
 
-func RemoteCmd(
+func CloudCmd(
 	configService config.ConfigService,
 	logger *zap.Logger,
 ) *cobra.Command {

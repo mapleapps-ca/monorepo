@@ -86,7 +86,7 @@ func NewRootCmd(
 	// Attach sub-commands to our main root
 	rootCmd.AddCommand(version.VersionCmd())
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
-	rootCmd.AddCommand(cloud.RemoteCmd(configService, logger))
+	rootCmd.AddCommand(cloud.CloudCmd(configService, logger))
 	rootCmd.AddCommand(register.RegisterCmd(regService))
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(emailVerificationService, logger))
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))

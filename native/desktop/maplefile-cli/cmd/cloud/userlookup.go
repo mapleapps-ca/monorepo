@@ -63,11 +63,11 @@ func PublicUserLookupCmd(configService config.ConfigService) *cobra.Command {
 
 			// Parse the JSON response
 			var apiResponse struct {
-				UserID         string `json:"user_id"`
-				Email          string `json:"email"`
-				Name           string `json:"name"`       // Optional: for display
-				PublicKey      string `json:"public_key"` // Base64 encoded
-				VerificationID string `json:"verification_id"`
+				UserID            string `json:"user_id"`
+				Email             string `json:"email"`
+				Name              string `json:"name"`                 // Optional: for display
+				PublicKeyInBase64 string `json:"public_key_in_base64"` // Base64 encoded
+				VerificationID    string `json:"verification_id"`
 			}
 			if err := json.Unmarshal(body, &apiResponse); err != nil {
 				fmt.Printf("Error parsing response: %v\n", err)
@@ -79,7 +79,7 @@ func PublicUserLookupCmd(configService config.ConfigService) *cobra.Command {
 			fmt.Printf("User ID: %s\n", apiResponse.UserID)
 			fmt.Printf("Email: %s\n", apiResponse.Email)
 			fmt.Printf("Name: %s\n", apiResponse.Name)
-			fmt.Printf("PublicKey (Base64 encoded): %s\n", apiResponse.PublicKey)
+			fmt.Printf("PublicKey (Base64 encoded): %s\n", apiResponse.PublicKeyInBase64)
 			fmt.Printf("VerificationID: %s\n", apiResponse.VerificationID)
 		},
 	}
