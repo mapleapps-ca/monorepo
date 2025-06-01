@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"go.uber.org/zap"
@@ -36,7 +37,9 @@ func (r *publicLookupDTORepository) GetFromCloud(ctx context.Context, req *publi
 	}
 
 	// Create HTTP request
-	publicUserLookupURL := fmt.Sprintf("%s/iam/api/v1/users/lookup?email=%s", serverURL, req.Email)
+	// Ensure email is URL-encoded to handle special characters like '+'
+	encodedEmail := url.QueryEscape(req.Email)
+	publicUserLookupURL := fmt.Sprintf("%s/iam/api/v1/users/lookup?email=%s", serverURL, encodedEmail)
 	request, err := http.NewRequestWithContext(ctx, "GET", publicUserLookupURL, nil)
 	if err != nil {
 		r.logger.Error("🚨 Failed to create HTTP request",
@@ -69,6 +72,7 @@ func (r *publicLookupDTORepository) GetFromCloud(ctx context.Context, req *publi
 			return nil, errors.NewAppError("email does not exist", nil)
 		}
 		r.logger.Error("🚨 Server returned an error status code",
+			zap.String("publicUserLookupURL", publicUserLookupURL),
 			zap.String("status", resp.Status),
 			zap.String("body", string(body)),
 			zap.Int("statusCode", resp.StatusCode))
@@ -83,6 +87,7 @@ func (r *publicLookupDTORepository) GetFromCloud(ctx context.Context, req *publi
 	}
 
 	r.logger.Info("✨ Successfully fetched collection from cloud server",
-		zap.String("email", req.Email))
+		zap.String("email", req.Email),
+		zap.String("publicUserLookupURL", publicUserLookupURL))
 	return &response, nil
 }

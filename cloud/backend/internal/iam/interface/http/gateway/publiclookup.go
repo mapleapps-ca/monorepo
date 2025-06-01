@@ -5,11 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	_ "time/tzdata"
 
-	"go.uber.org/zap"
-
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/interface/http/middleware"
 	sv_gateway "github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/service/gateway"
@@ -56,8 +56,20 @@ func (h *GatewayFederatedUserPublicLookupHTTPHandler) Execute(w http.ResponseWri
 		return
 	}
 
+	decodedEmail, err := url.QueryUnescape(email)
+	if err == nil {
+		h.logger.Warn("failed to query unescape email",
+			zap.Any("raw_email", email),
+			zap.Error(err))
+		http.Error(w, "email parameter required", http.StatusBadRequest)
+		return
+	}
+
+	h.logger.Debug("received email",
+		zap.Any("email", decodedEmail))
+
 	var req sv_gateway.GatewayFederatedUserPublicLookupRequestDTO
-	req.Email = email
+	req.Email = decodedEmail
 
 	////
 	//// Start the transaction.
