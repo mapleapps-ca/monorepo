@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"strings"
 
 	"go.uber.org/zap"
@@ -62,6 +63,9 @@ func (svc *gatewayFederatedUserPublicLookupServiceImpl) Execute(sessCtx context.
 	req.Email = strings.ReplaceAll(req.Email, "\t", "")
 	req.Email = strings.TrimSpace(req.Email)
 
+	svc.logger.Debug("sanitized email",
+		zap.Any("email", req.Email))
+
 	//
 	// STEP 2: Validation of input.
 	//
@@ -83,6 +87,8 @@ func (svc *gatewayFederatedUserPublicLookupServiceImpl) Execute(sessCtx context.
 	// }
 
 	if len(e) != 0 {
+		svc.logger.Warn("failed validating",
+			zap.Any("e", e))
 		return nil, httperror.NewForBadRequest(&e)
 	}
 
@@ -98,7 +104,8 @@ func (svc *gatewayFederatedUserPublicLookupServiceImpl) Execute(sessCtx context.
 		return nil, err
 	}
 	if u == nil {
-		return nil, httperror.NewForBadRequestWithSingleField("email", "Email address does not exists")
+		svc.logger.Error(fmt.Sprintf("failed getting user by email from database because email does not exist:%s", req.Email))
+		return nil, httperror.NewForBadRequestWithSingleField("email", fmt.Sprintf("Email address does not exist: %s", req.Email))
 	}
 
 	dto := &GatewayFederatedUserPublicLookupResponseDTO{

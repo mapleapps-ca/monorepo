@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -63,10 +64,15 @@ func (r *publicLookupDTORepository) GetFromCloud(ctx context.Context, req *publi
 
 	// Check for error status codes
 	if resp.StatusCode != http.StatusOK {
+		if strings.Contains(string(body), "email") {
+			r.logger.Warn("⚠️ Server returned email not found error")
+			return nil, errors.NewAppError("email does not exist", nil)
+		}
 		r.logger.Error("🚨 Server returned an error status code",
 			zap.String("status", resp.Status),
+			zap.String("body", string(body)),
 			zap.Int("statusCode", resp.StatusCode))
-		return nil, errors.NewAppError(fmt.Sprintf("server returned error status: %s", resp.Status), nil)
+		return nil, errors.NewAppError(fmt.Sprintf("server returned error status: %s\nResponse: %s", resp.Status, string(body)), nil)
 	}
 
 	// Parse the response

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
@@ -111,6 +112,12 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 	}
 	publicLookupResponse, err := s.getPublicLookupFromCloudUseCase.Execute(ctx, publicLookupRequest)
 	if err != nil {
+		if strings.Contains(err.Error(), "email") {
+			err := fmt.Errorf("email does not exist: %v", input.RecipientEmail)
+			s.logger.Error("Failed lookup up email",
+				zap.String("email", input.RecipientEmail), zap.Error(err))
+			return nil, err
+		}
 		s.logger.Error("Failed lookup up email",
 			zap.String("email", input.RecipientEmail), zap.Error(err))
 		return nil, err

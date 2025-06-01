@@ -107,6 +107,5 @@ func VerifyVerificationID(publicKey []byte, verificationID string) bool {
 		log.Printf("pkg.crypto.VerifyVerificationID - Failed to generate verification ID with error: %v\n", err)
 		return false
 	}
-	log.Printf("pkg.crypto.VerifyVerificationID - expectedID=%v | verificationID: %v\n", expectedID, verificationID)
 	return expectedID == verificationID
 }
