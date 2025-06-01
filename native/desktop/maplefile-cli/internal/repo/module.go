@@ -11,6 +11,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/filedto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/publiclookupdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/syncdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/syncstate"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/transaction"
@@ -148,6 +149,11 @@ func RepoModule() fx.Option {
 		// Cloud Collection Sharing DTO repository
 		//----------------------------------------------
 		fx.Provide(collectiondsharingdto.NewCollectionSharingDTORepository),
+
+		//----------------------------------------------
+		// Cloud Public Lookup DTO repository
+		//----------------------------------------------
+		fx.Provide(publiclookupdto.NewPublicLookupDTORepository),
 
 		//----------------------------------------------
 		// Transaction manager

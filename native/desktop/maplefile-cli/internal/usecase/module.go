@@ -12,6 +12,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/filedto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/publiclookupdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/syncdto"
@@ -108,5 +109,8 @@ func UseCaseModule() fx.Option {
 		fx.Provide(syncdto.NewGetFileSyncDataUseCase),
 		fx.Provide(syncdto.NewBuildSyncCursorUseCase),
 		fx.Provide(syncdto.NewProcessSyncResponseUseCase),
+
+		// Get public lookup DTO
+		fx.Provide(publiclookupdto.NewGetPublicLookupFromCloudUseCase),
 	)
 }
