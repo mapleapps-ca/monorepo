@@ -1,4 +1,4 @@
-// monorepo/native/desktop/maplefile-cli/cmd/healthcheck/healthcheck.go
+// monorepo/native/desktop/maplefile-cli/cmd/cloud/userlookup.go
 package cloud
 
 import (
@@ -11,9 +11,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
+	uc_publiclookupdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/publiclookupdto"
 )
 
-func PublicUserLookupCmd(configService config.ConfigService) *cobra.Command {
+func PublicUserLookupCmd(
+	configService config.ConfigService,
+	getPublicLookupFromCloudUseCase uc_publiclookupdto.GetPublicLookupFromCloudUseCase,
+) *cobra.Command {
 	var email string
 
 	var cmd = &cobra.Command{

@@ -6,10 +6,12 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
+	uc_publiclookupdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/publiclookupdto"
 )
 
 func CloudCmd(
 	configService config.ConfigService,
+	getPublicLookupFromCloudUseCase uc_publiclookupdto.GetPublicLookupFromCloudUseCase,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -23,7 +25,7 @@ func CloudCmd(
 
 	// Add Cloud-related commands
 	cmd.AddCommand(HealthCheckCmd(configService))
-	cmd.AddCommand(PublicUserLookupCmd(configService))
+	cmd.AddCommand(PublicUserLookupCmd(configService, getPublicLookupFromCloudUseCase))
 
 	return cmd
 }

@@ -3,9 +3,11 @@ package share
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
@@ -45,7 +47,11 @@ Permission levels:
   - admin: Can manage collection settings, share with others, and modify member permissions
 `,
 		Run: func(cmd *cobra.Command, args []string) {
+			//
+			// STEP 1
 			// Validate required fields
+			//
+
 			if collectionID == "" {
 				fmt.Println("🐞 Error: Collection ID is required.")
 				fmt.Println("Use --id flag to specify the collection ID.")
@@ -77,13 +83,27 @@ Permission levels:
 				return
 			}
 
+			// Convert string ID to ObjectID
+			collectionObjectID, err := primitive.ObjectIDFromHex(collectionID)
+			if err != nil {
+				log.Fatalf("invalid collection ID format: %v\n", err)
+			}
+
+			//
+			// STEP 2: Create request
+			//
+
 			// Create service input
 			input := &collectionsharing.ShareCollectionInput{
-				CollectionID:         collectionID,
+				CollectionID:         collectionObjectID,
 				RecipientEmail:       recipientEmail,
 				PermissionLevel:      permissionLevel,
 				ShareWithDescendants: shareWithDescendants,
 			}
+
+			//
+			// STEP 3: Submit into our service.
+			//
 
 			// Execute share operation
 			output, err := sharingService.Execute(cmd.Context(), input, password)
