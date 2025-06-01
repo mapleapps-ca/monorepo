@@ -1,11 +1,11 @@
-// github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/interface/http/gateway/register.go
+// github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/interface/http/gateway/publiclookup.go
 package gateway
 
 import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/url"
+	"strings"
 	_ "time/tzdata"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -50,26 +50,28 @@ func (r *GatewayFederatedUserPublicLookupHTTPHandler) ServeHTTP(w http.ResponseW
 func (h *GatewayFederatedUserPublicLookupHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	// 🔍 DEBUG: Log the raw query string to see what's actually received
+	h.logger.Debug("🔍 Raw query string", zap.String("raw_query", r.URL.RawQuery))
+
+	// r.URL.Query().Get() already URL-decodes the parameter automatically
 	email := r.URL.Query().Get("email")
 	if email == "" {
 		http.Error(w, "email parameter required", http.StatusBadRequest)
 		return
 	}
 
-	decodedEmail, err := url.QueryUnescape(email)
-	if err == nil {
-		h.logger.Warn("failed to query unescape email",
-			zap.Any("raw_email", email),
-			zap.Error(err))
-		http.Error(w, "email parameter required", http.StatusBadRequest)
+	// 🔍 DEBUG: Log what we got from Query().Get()
+	h.logger.Debug("🔍 Email from Query().Get()", zap.String("email", email))
+	h.logger.Debug("received email", zap.String("email", email))
+
+	// Basic email validation
+	if !strings.Contains(email, "@") {
+		http.Error(w, "invalid email format", http.StatusBadRequest)
 		return
 	}
 
-	h.logger.Debug("received email",
-		zap.Any("email", decodedEmail))
-
 	var req sv_gateway.GatewayFederatedUserPublicLookupRequestDTO
-	req.Email = decodedEmail
+	req.Email = email
 
 	////
 	//// Start the transaction.

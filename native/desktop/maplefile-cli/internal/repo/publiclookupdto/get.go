@@ -36,16 +36,39 @@ func (r *publicLookupDTORepository) GetFromCloud(ctx context.Context, req *publi
 		return nil, errors.NewAppError("email is required", nil)
 	}
 
-	// Create HTTP request
-	// Ensure email is URL-encoded to handle special characters like '+'
-	encodedEmail := url.QueryEscape(req.Email)
-	publicUserLookupURL := fmt.Sprintf("%s/iam/api/v1/users/lookup?email=%s", serverURL, encodedEmail)
+	// 🔍 DEBUG: Log original email
+	r.logger.Debug("🔍 Original email from request", zap.String("email", req.Email))
+
+	// ✅ ROBUST: Use url.Values for proper query parameter encoding
+	baseURL := fmt.Sprintf("%s/iam/api/v1/users/lookup", serverURL)
+
+	// Parse the base URL
+	parsedURL, err := url.Parse(baseURL)
+	if err != nil {
+		r.logger.Error("🚨 Failed to parse base URL", zap.String("url", baseURL), zap.Error(err))
+		return nil, errors.NewAppError("failed to parse base URL", err)
+	}
+
+	// Create query parameters using url.Values (handles encoding automatically)
+	query := parsedURL.Query()
+	query.Set("email", req.Email) // This automatically URL encodes the email
+	parsedURL.RawQuery = query.Encode()
+
+	publicUserLookupURL := parsedURL.String()
+
+	// 🔍 DEBUG: Log final URL
+	r.logger.Debug("🔍 Final URL being called", zap.String("url", publicUserLookupURL))
+
 	request, err := http.NewRequestWithContext(ctx, "GET", publicUserLookupURL, nil)
 	if err != nil {
 		r.logger.Error("🚨 Failed to create HTTP request",
 			zap.String("url", publicUserLookupURL), zap.Error(err))
 		return nil, errors.NewAppError("failed to create HTTP request", err)
 	}
+
+	// 🔍 DEBUG: Log the actual request URL that will be sent
+	r.logger.Debug("🔍 HTTP Request URL", zap.String("request_url", request.URL.String()))
+	r.logger.Debug("🔍 Query parameters", zap.String("raw_query", request.URL.RawQuery))
 
 	// Set headers
 	request.Header.Set("Authorization", "JWT "+accessToken)
