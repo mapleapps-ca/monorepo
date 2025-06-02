@@ -73,6 +73,11 @@ func (svc *getFileSyncDataServiceImpl) Execute(ctx context.Context, userID primi
 		return nil, httperror.NewForNotFoundWithSingleField("message", "File sync results not found")
 	}
 
+	svc.logger.Debug("fetched file data for synching",
+		zap.Any("data_len", len(syncData.Files)),
+		zap.Any("user_id", userID),
+	)
+
 	// //
 	// // STEP 4: Check if the user has access to this file
 	// //
