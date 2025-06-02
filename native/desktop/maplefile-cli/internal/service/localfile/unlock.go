@@ -364,17 +364,16 @@ func (s *unlockService) decryptFileContent(encryptedFilePath string, fileKey []b
 	}
 
 	// The encrypted data should be in the format: nonce (24 bytes) + ciphertext
-	const nonceSize = 24
-	if len(encryptedData) < nonceSize {
+	if len(encryptedData) < pkg_crypto.ChaCha20Poly1305NonceSize {
 		return nil, errors.NewAppError("encrypted file too short", nil)
 	}
 
 	// Extract nonce and ciphertext from combined data
-	nonce := make([]byte, nonceSize)
-	copy(nonce, encryptedData[:nonceSize])
+	nonce := make([]byte, pkg_crypto.ChaCha20Poly1305NonceSize)
+	copy(nonce, encryptedData[:pkg_crypto.ChaCha20Poly1305NonceSize])
 
-	ciphertext := make([]byte, len(encryptedData)-nonceSize)
-	copy(ciphertext, encryptedData[nonceSize:])
+	ciphertext := make([]byte, len(encryptedData)-pkg_crypto.ChaCha20Poly1305NonceSize)
+	copy(ciphertext, encryptedData[pkg_crypto.ChaCha20Poly1305NonceSize:])
 
 	// Decrypt the content
 	decryptedData, err := pkg_crypto.DecryptWithSecretBox(ciphertext, nonce, fileKey)
