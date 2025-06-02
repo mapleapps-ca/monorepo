@@ -83,7 +83,7 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	}
 
 	//
-	// STEP 4: Create local file from cloud data
+	// STEP 4: Create local (metadata-only) file from cloud data
 	//
 	newFile := mapFileDTOToDomain(cloudFileDTO)
 

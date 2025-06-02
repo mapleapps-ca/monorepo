@@ -1,4 +1,4 @@
-// monorepo/native/desktop/maplefile-cli/internal/repo/filedto/download_by_id.go
+// native/desktop/maplefile-cli/internal/repo/filedto/download_by_id.go
 package filedto
 
 import (
@@ -17,7 +17,7 @@ import (
 
 // DownloadByIDFromCloud downloads a FileDTO by its unique identifier from the cloud service
 func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id primitive.ObjectID) (*filedto.FileDTO, error) {
-	r.logger.Debug("⬇️ Downloading file from cloud", zap.String("fileID", id.Hex()))
+	r.logger.Debug("⬇️ Downloading file metadata from cloud", zap.String("fileID", id.Hex()))
 
 	if id.IsZero() {
 		return nil, errors.NewAppError("file ID is required", nil)
@@ -75,21 +75,32 @@ func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id primit
 		return nil, errors.NewAppError(fmt.Sprintf("server returned error status: %s", resp.Status), nil)
 	}
 
-	// Parse the response
+	// FIXED: Try parsing as direct FileDTO first, then as wrapped response
+	var fileDTO *filedto.FileDTO
+
+	// First, try parsing as direct FileDTO (most likely case)
+	if err := json.Unmarshal(body, &fileDTO); err == nil && fileDTO != nil && !fileDTO.ID.IsZero() {
+		r.logger.Info("✅ Successfully downloaded file metadata from cloud (direct format)",
+			zap.String("fileID", id.Hex()),
+			zap.String("collectionID", fileDTO.CollectionID.Hex()))
+		return fileDTO, nil
+	}
+
+	// If that fails, try parsing as wrapped response
 	var fileResponse struct {
 		File *filedto.FileDTO `json:"file"`
 	}
-	if err := json.Unmarshal(body, &fileResponse); err != nil {
-		return nil, errors.NewAppError("failed to parse response", err)
+	if err := json.Unmarshal(body, &fileResponse); err == nil && fileResponse.File != nil {
+		r.logger.Info("✅ Successfully downloaded file metadata from cloud (wrapped format)",
+			zap.String("fileID", id.Hex()),
+			zap.String("collectionID", fileResponse.File.CollectionID.Hex()))
+		return fileResponse.File, nil
 	}
 
-	if fileResponse.File == nil {
-		return nil, errors.NewAppError("file data not found in response", nil)
-	}
-
-	r.logger.Info("✅ Successfully downloaded file from cloud",
+	// If both parsing attempts fail, log the raw response for debugging
+	r.logger.Error("❌ Failed to parse file response in any expected format",
 		zap.String("fileID", id.Hex()),
-		zap.String("collectionID", fileResponse.File.CollectionID.Hex()))
+		zap.String("rawResponse", string(body)))
 
-	return fileResponse.File, nil
+	return nil, errors.NewAppError("failed to parse file response - unexpected format", nil)
 }
