@@ -12,8 +12,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncdto"
 )
 
-// syncRepository implements the syncdto.SyncDTORepository interface
-type syncRepository struct {
+// syncDTORepository implements the syncdto.SyncDTORepository interface
+type syncDTORepository struct {
 	logger          *zap.Logger
 	configService   config.ConfigService
 	tokenRepository auth.TokenRepository
@@ -27,7 +27,7 @@ func NewSyncDTORepository(
 	tokenRepository auth.TokenRepository,
 ) syncdto.SyncDTORepository {
 	logger = logger.Named("SyncDTORepository")
-	return &syncRepository{
+	return &syncDTORepository{
 		logger:          logger,
 		configService:   configService,
 		tokenRepository: tokenRepository,

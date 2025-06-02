@@ -117,13 +117,18 @@ func (impl fileMetadataRepositoryImpl) GetSyncData(ctx context.Context, userID p
 		syncItems = syncItems[:limit]
 	}
 
-	// Set next cursor if there are more results
-	if hasMore && len(syncItems) > 0 {
+	// Always set cursor when we have items, regardless of hasMore
+	if len(syncItems) > 0 {
 		lastItem := syncItems[len(syncItems)-1]
 		nextCursor = &dom_sync.FileSyncCursor{
 			LastModified: lastItem.ModifiedAt,
 			LastID:       lastItem.ID,
 		}
+
+		impl.Logger.Debug("Setting next cursor",
+			zap.String("lastID", lastItem.ID.Hex()),
+			zap.Time("lastModified", lastItem.ModifiedAt),
+			zap.Bool("hasMore", hasMore))
 	}
 
 	response := &dom_sync.FileSyncResponse{
@@ -135,6 +140,7 @@ func (impl fileMetadataRepositoryImpl) GetSyncData(ctx context.Context, userID p
 	impl.Logger.Info("Successfully retrieved file sync data",
 		zap.Int("items_count", len(syncItems)),
 		zap.Bool("has_more", hasMore),
+		zap.Bool("has_cursor", nextCursor != nil),
 		zap.Any("user_id", userID))
 
 	return response, nil

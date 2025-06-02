@@ -16,7 +16,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncdto"
 )
 
-func (r *syncRepository) GetCollectionSyncDataFromCloud(ctx context.Context, cursor *syncdto.SyncCursorDTO, limit int64) (*syncdto.CollectionSyncResponseDTO, error) {
+func (r *syncDTORepository) GetCollectionSyncDataFromCloud(ctx context.Context, cursor *syncdto.SyncCursorDTO, limit int64) (*syncdto.CollectionSyncResponseDTO, error) {
 	r.logger.Debug("🔍 Getting collection syncdto data from cloud",
 		zap.Any("cursor", cursor),
 		zap.Int64("limit", limit))

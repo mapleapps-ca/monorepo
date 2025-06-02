@@ -119,8 +119,10 @@ func (s *syncProgressService) GetAllCollections(ctx context.Context, input *Sync
 			zap.Int("items_in_batch", len(response.Collections)),
 			zap.Int("total_items", output.TotalItems))
 
-		// 🔧 FIX: Set final cursor based on the last item in this batch
-		if len(response.Collections) > 0 {
+		// Always capture the cursor from response if available (same logic as files)
+		if response.NextCursor != nil {
+			output.FinalCursor = response.NextCursor
+		} else if len(response.Collections) > 0 {
 			lastItem := response.Collections[len(response.Collections)-1]
 			output.FinalCursor = &syncdto.SyncCursorDTO{
 				LastModified: lastItem.ModifiedAt,
@@ -128,17 +130,22 @@ func (s *syncProgressService) GetAllCollections(ctx context.Context, input *Sync
 			}
 		}
 
-		// Check if we have more data
-		if !response.HasMore || response.NextCursor == nil {
+		// Update hasMoreData flag
+		output.HasMoreData = response.HasMore
+
+		// Check if we should continue
+		if !response.HasMore {
 			s.logger.Info("🏁 No more collection data available")
 			break
 		}
 
 		// Update cursor for next batch
 		currentCursor = response.NextCursor
-		// 🔧 FIX: Don't overwrite our calculated final cursor with response.NextCursor
-		// output.FinalCursor = response.NextCursor  // Remove this line
-		output.HasMoreData = response.HasMore
+		if currentCursor == nil {
+			s.logger.Warn("⚠️ No next cursor provided but hasMore=true, stopping")
+			break
+		}
+
 	}
 
 	output.TotalBatches = batchCount
@@ -218,16 +225,40 @@ func (s *syncProgressService) GetAllFiles(ctx context.Context, input *SyncProgre
 			zap.Int("items_in_batch", len(response.Files)),
 			zap.Int("total_items", output.TotalItems))
 
-		// Check if we have more data
-		if !response.HasMore || response.NextCursor == nil {
-			s.logger.Info("🏁 No more file data available")
+		// ✅ FIX: Always capture the cursor from response if available
+		if response.NextCursor != nil {
+			output.FinalCursor = response.NextCursor
+			s.logger.Debug("📍 Captured cursor from response",
+				zap.String("lastID", response.NextCursor.LastID.Hex()),
+				zap.Time("lastModified", response.NextCursor.LastModified),
+				zap.Bool("hasMore", response.HasMore))
+		} else if len(response.Files) > 0 {
+			// ✅ FALLBACK: Build cursor from last processed item if none provided
+			lastItem := response.Files[len(response.Files)-1]
+			output.FinalCursor = &syncdto.SyncCursorDTO{
+				LastModified: lastItem.ModifiedAt,
+				LastID:       lastItem.ID,
+			}
+			s.logger.Debug("📍 Built cursor from last item",
+				zap.String("lastID", lastItem.ID.Hex()),
+				zap.Time("lastModified", lastItem.ModifiedAt))
+		}
+
+		// Update hasMoreData flag
+		output.HasMoreData = response.HasMore
+
+		// Check if we should continue
+		if !response.HasMore {
+			s.logger.Info("🏁 No more file data available (hasMore=false)")
 			break
 		}
 
 		// Update cursor for next batch
 		currentCursor = response.NextCursor
-		output.FinalCursor = response.NextCursor
-		output.HasMoreData = response.HasMore
+		if currentCursor == nil {
+			s.logger.Warn("⚠️ No next cursor provided but hasMore=true, stopping")
+			break
+		}
 	}
 
 	output.TotalBatches = batchCount
@@ -243,6 +274,7 @@ func (s *syncProgressService) GetAllFiles(ctx context.Context, input *SyncProgre
 	s.logger.Info("✅ Completed paginated file sync",
 		zap.Int("total_batches", output.TotalBatches),
 		zap.Int("total_items", output.TotalItems),
+		zap.Bool("hasFinalCursor", output.FinalCursor != nil),
 		zap.Duration("elapsed_time", output.ElapsedTime))
 
 	return output, nil

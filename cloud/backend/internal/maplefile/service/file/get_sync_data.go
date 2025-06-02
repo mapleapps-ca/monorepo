@@ -125,6 +125,7 @@ func (svc *getFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom_
 
 	svc.logger.Debug("File sync data successfully retrieved",
 		zap.String("user_id", userID.Hex()),
+		zap.Any("next_cursor.", syncData.NextCursor),
 		zap.Int("files_count", len(syncData.Files)))
 
 	return syncData, nil

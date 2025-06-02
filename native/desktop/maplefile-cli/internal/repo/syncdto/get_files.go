@@ -16,7 +16,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncdto"
 )
 
-func (r *syncRepository) GetFileSyncDataFromCloud(ctx context.Context, cursor *syncdto.SyncCursorDTO, limit int64) (*syncdto.FileSyncResponseDTO, error) {
+func (r *syncDTORepository) GetFileSyncDataFromCloud(ctx context.Context, cursor *syncdto.SyncCursorDTO, limit int64) (*syncdto.FileSyncResponseDTO, error) {
 	r.logger.Debug("🐛 Getting file syncdto data from cloud",
 		zap.Any("cursor", cursor),
 		zap.Int64("limit", limit))
@@ -118,6 +118,7 @@ func (r *syncRepository) GetFileSyncDataFromCloud(ctx context.Context, cursor *s
 
 	r.logger.Info("✅ Successfully retrieved file syncdto data from cloud",
 		zap.Int("files_count", len(response.Files)),
+		zap.Any("next_cursor", response.NextCursor),
 		zap.Bool("has_more", response.HasMore))
 
 	return &response, nil

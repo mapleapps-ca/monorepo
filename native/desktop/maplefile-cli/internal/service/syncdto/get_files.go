@@ -74,6 +74,7 @@ func (s *getFilesService) GetFileSyncData(ctx context.Context, input *GetFilesIn
 
 	s.logger.Info("✅ Successfully retrieved file sync data",
 		zap.Int("files_count", len(response.Files)),
+		zap.Any("next_cursor", response.NextCursor),
 		zap.Bool("has_more", response.HasMore))
 
 	message := "File sync data retrieved successfully"

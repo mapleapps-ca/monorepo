@@ -123,5 +123,6 @@ func (h *FileSyncHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info("Successfully served file sync data",
 		zap.Any("user_id", userID),
 		zap.Int("files_count", len(response.Files)),
-		zap.Bool("has_more", response.HasMore))
+		zap.Bool("has_more", response.HasMore),
+		zap.Any("next_cursor", response.NextCursor))
 }
