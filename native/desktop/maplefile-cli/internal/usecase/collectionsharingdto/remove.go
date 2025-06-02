@@ -82,22 +82,24 @@ func (uc *removeMemberUseCase) Execute(ctx context.Context, input *RemoveMemberI
 		return nil, errors.NewAppError("user not authenticated", nil)
 	}
 
-	// Check if current user has permission to remove members
-	canRemove := coll.OwnerID == currentUser.ID
-	if !canRemove {
-		// Check if user is an admin member
-		for _, member := range coll.Members {
-			if member.RecipientID == currentUser.ID && member.PermissionLevel == collectionsharingdto.CollectionDTOPermissionAdmin {
-				canRemove = true
-				break
-			}
-		}
-	}
-	if !canRemove {
-		return nil, errors.NewAppError("you don't have permission to remove members from this collection", nil)
-	}
+	// Debug: Let's see exactly what user we got and from where
+	uc.logger.Debug("🔍 Current user authentication details",
+		zap.String("retrievedUserID", currentUser.ID.Hex()),
+		zap.String("retrievedUserEmail", currentUser.Email),
+		zap.String("retrievedUserName", currentUser.Name))
 
-	// Get recipient user information
+	// Debug: Let's also check credentials from config
+	// This will help us understand if the issue is in token/credential retrieval
+	uc.logger.Debug("🔍 Expected vs Retrieved user mismatch investigation needed")
+
+	// Debug logging for permission check
+	uc.logger.Debug("🔍 Permission check details",
+		zap.String("currentUserID", currentUser.ID.Hex()),
+		zap.String("currentUserEmail", currentUser.Email),
+		zap.String("collectionOwnerID", coll.OwnerID.Hex()),
+		zap.Int("memberCount", len(coll.Members)))
+
+	// Get recipient user information first to determine what we're trying to do
 	recipientUser, err := uc.getUserByEmailUseCase.Execute(ctx, input.RecipientEmail)
 	if err != nil {
 		uc.logger.Error("❌ Failed to get recipient user", zap.String("email", input.RecipientEmail), zap.Error(err))
@@ -105,6 +107,80 @@ func (uc *removeMemberUseCase) Execute(ctx context.Context, input *RemoveMemberI
 	}
 	if recipientUser == nil {
 		return nil, errors.NewAppError("recipient user not found", nil)
+	}
+
+	// Check if user is trying to remove themselves (self-removal is always allowed if they're a member)
+	isSelfRemoval := recipientUser.ID == currentUser.ID
+	uc.logger.Debug("🔍 Self-removal check",
+		zap.Bool("isSelfRemoval", isSelfRemoval),
+		zap.String("recipientUserID", recipientUser.ID.Hex()),
+		zap.String("currentUserID", currentUser.ID.Hex()))
+
+	// Check if current user has permission to remove members
+	canRemove := coll.OwnerID == currentUser.ID
+	uc.logger.Debug("🔍 Owner check",
+		zap.Bool("isOwner", canRemove),
+		zap.String("collectionOwnerID", coll.OwnerID.Hex()),
+		zap.String("currentUserID", currentUser.ID.Hex()))
+
+	if !canRemove {
+		// Check if user is an admin member
+		uc.logger.Debug("🔍 Checking admin membership")
+		for i, member := range coll.Members {
+			uc.logger.Debug("🔍 Checking member",
+				zap.Int("memberIndex", i),
+				zap.String("memberRecipientID", member.RecipientID.Hex()),
+				zap.String("memberEmail", member.RecipientEmail),
+				zap.String("memberPermissionLevel", member.PermissionLevel),
+				zap.String("expectedAdminLevel", collectionsharingdto.CollectionDTOPermissionAdmin),
+				zap.Bool("idMatch", member.RecipientID == currentUser.ID),
+				zap.Bool("permissionMatch", member.PermissionLevel == collectionsharingdto.CollectionDTOPermissionAdmin))
+
+			if member.RecipientID == currentUser.ID && member.PermissionLevel == collectionsharingdto.CollectionDTOPermissionAdmin {
+				uc.logger.Debug("✅ Found admin membership for current user")
+				canRemove = true
+				break
+			}
+		}
+	}
+
+	// If user can't remove others, check if this is self-removal
+	if !canRemove && isSelfRemoval {
+		// Allow self-removal if the user is actually a member of the collection
+		for _, member := range coll.Members {
+			if member.RecipientID == currentUser.ID {
+				uc.logger.Debug("✅ Allowing self-removal - user is a member")
+				canRemove = true
+				break
+			}
+		}
+	}
+
+	if !canRemove {
+		if isSelfRemoval {
+			uc.logger.Error("🚫 Self-removal denied - user is not a member of this collection",
+				zap.String("currentUserID", currentUser.ID.Hex()),
+				zap.String("currentUserEmail", currentUser.Email))
+			return nil, errors.NewAppError("you are not a member of this collection", nil)
+		} else {
+			uc.logger.Error("🚫 Permission denied for remove operation",
+				zap.String("currentUserID", currentUser.ID.Hex()),
+				zap.String("currentUserEmail", currentUser.Email),
+				zap.String("collectionOwnerID", coll.OwnerID.Hex()),
+				zap.Bool("isOwner", coll.OwnerID == currentUser.ID),
+				zap.Int("totalMembers", len(coll.Members)))
+
+			// Log all members for debugging
+			for i, member := range coll.Members {
+				uc.logger.Debug("🔍 Collection member details",
+					zap.Int("index", i),
+					zap.String("recipientID", member.RecipientID.Hex()),
+					zap.String("recipientEmail", member.RecipientEmail),
+					zap.String("permissionLevel", member.PermissionLevel))
+			}
+
+			return nil, errors.NewAppError("you don't have permission to remove members from this collection", nil)
+		}
 	}
 
 	// Check if recipient is the owner (owners cannot be removed)

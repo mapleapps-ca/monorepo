@@ -33,7 +33,7 @@ func NewLogoutUseCase(
 	}
 }
 
-// Logout handles the business logic for user logout
+// Logout handles the business logic for user logout - simple credential clearing only
 func (uc *logoutUseCase) Logout(ctx context.Context) error {
 	// Check if user is currently logged in
 	credentials, err := uc.configService.GetLoggedInUserCredentials(ctx)
