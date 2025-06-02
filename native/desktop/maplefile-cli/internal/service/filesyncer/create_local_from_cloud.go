@@ -129,6 +129,7 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	//
 	collectionKey, err := s.decryptCollectionKeyChain(user, collection, password)
 	if err != nil {
+		s.logger.Error("failed to decrypt collection key chain", zap.Error(err))
 		return nil, errors.NewAppError("failed to decrypt collection key chain", err)
 	}
 	defer crypto.ClearBytes(collectionKey)
@@ -149,6 +150,7 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	//
 	decryptedMetadata, err := s.decryptFileMetadata(newFile.EncryptedMetadata, newFileKey)
 	if err != nil {
+		s.logger.Error("failed to decrypt file metadata", zap.Error(err))
 		return nil, errors.NewAppError("failed to decrypt file metadata", err)
 	}
 
