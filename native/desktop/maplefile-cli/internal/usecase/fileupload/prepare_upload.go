@@ -3,7 +3,6 @@ package fileupload
 
 import (
 	"context"
-	"encoding/json"
 
 	"go.uber.org/zap"
 
@@ -41,26 +40,6 @@ func (uc *prepareFileUploadUseCase) Execute(
 		return nil, errors.NewAppError("invalid inputs", nil)
 	}
 
-	// Prepare metadata
-	metadata := map[string]interface{}{
-		"name":      file.Name,
-		"mime_type": file.MimeType,
-		"size":      file.FileSize,
-	}
-
-	// Convert to JSON
-	metadataJSON, err := json.Marshal(metadata)
-	if err != nil {
-		return nil, errors.NewAppError("failed to marshal metadata", err)
-	}
-
-	// File key should already be encrypted in the file record
-	// Convert domain EncryptedFileKey to DTO format
-	encryptedFileKey := filedto.EncryptedFileKey{
-		Ciphertext: file.EncryptedFileKey.Ciphertext,
-		Nonce:      file.EncryptedFileKey.Nonce,
-	}
-
 	// Determine file size based on storage mode
 	var expectedFileSize int64
 	if file.StorageMode == dom_file.StorageModeEncryptedOnly || file.StorageMode == dom_file.StorageModeHybrid {
@@ -75,8 +54,8 @@ func (uc *prepareFileUploadUseCase) Execute(
 	request := &filedto.CreatePendingFileRequest{
 		ID:                           file.ID,
 		CollectionID:                 collection.ID,
-		EncryptedMetadata:            crypto.EncodeToBase64(metadataJSON),
-		EncryptedFileKey:             encryptedFileKey,
+		EncryptedMetadata:            file.EncryptedMetadata,
+		EncryptedFileKey:             file.EncryptedFileKey,
 		EncryptionVersion:            "v1",
 		EncryptedHash:                file.EncryptedHash,
 		ExpectedFileSizeInBytes:      expectedFileSize,

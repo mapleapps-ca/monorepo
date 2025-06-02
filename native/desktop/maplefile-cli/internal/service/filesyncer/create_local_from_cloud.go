@@ -162,10 +162,10 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	newFile.EncryptedFileSize = decryptedMetadata.EncryptedFileSize
 	newFile.FilePath = decryptedMetadata.DecryptedFilePath
 	newFile.FileSize = decryptedMetadata.DecryptedFileSize
-	newFile.EncryptedFilePath = decryptedMetadata.EncryptedThumbnailPath // Developer Note: Future feature
-	newFile.EncryptedFileSize = decryptedMetadata.EncryptedThumbnailSize // Developer Note: Future feature
-	newFile.ThumbnailPath = decryptedMetadata.DecryptedThumbnailPath     // Developer Note: Future feature
-	newFile.ThumbnailSize = decryptedMetadata.DecryptedThumbnailSize     // Developer Note: Future feature
+	newFile.EncryptedThumbnailPath = decryptedMetadata.EncryptedThumbnailPath // Developer Note: Future feature
+	newFile.EncryptedThumbnailSize = decryptedMetadata.EncryptedThumbnailSize // Developer Note: Future feature
+	newFile.ThumbnailPath = decryptedMetadata.DecryptedThumbnailPath          // Developer Note: Future feature
+	newFile.ThumbnailSize = decryptedMetadata.DecryptedThumbnailSize          // Developer Note: Future feature
 	newFile.StorageMode = dom_file.StorageModeHybrid
 
 	//
@@ -342,6 +342,18 @@ func (s *createLocalFileFromCloudFileService) decryptFileMetadata(encryptedMetad
 		return nil, fmt.Errorf("failed to parse decrypted metadata: %w", err)
 	}
 
-	s.logger.Debug("✅ Successfully decrypted file metadata", zap.String("fileName", metadata.Name))
+	s.logger.Debug("✅ Successfully decrypted file metadata",
+		zap.String("fileName", metadata.Name),
+		zap.String("mimeType", metadata.MimeType),
+		zap.Int64("size", metadata.Size),
+		zap.Int64("created", metadata.Created),
+		zap.String("encryptedFilePath", metadata.EncryptedFilePath),
+		zap.Int64("EncryptedFileSize", metadata.EncryptedFileSize),
+		zap.String("decryptedFilePath", metadata.DecryptedFilePath),
+		zap.Int64("decryptedFileSize", metadata.DecryptedFileSize),
+		zap.String("encryptedThumbnailPath", metadata.EncryptedThumbnailPath),
+		zap.Int64("encryptedThumbnailSize", metadata.EncryptedThumbnailSize),
+		zap.String("decryptedThumbnailPath", metadata.DecryptedThumbnailPath),
+		zap.Int64("decryptedThumbnailSize", metadata.DecryptedThumbnailSize))
 	return &metadata, nil
 }

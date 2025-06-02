@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
 // FileDTORepository defines the interface for interacting with the cloud service
@@ -60,20 +62,14 @@ type FileDTORepository interface {
 
 // CreatePendingFileRequest represents the request to create a pending file record
 type CreatePendingFileRequest struct {
-	ID                           primitive.ObjectID `json:"id"`
-	CollectionID                 primitive.ObjectID `json:"collection_id"`
-	EncryptedMetadata            string             `json:"encrypted_metadata"`
-	EncryptedFileKey             EncryptedFileKey   `json:"encrypted_file_key"`
-	EncryptionVersion            string             `json:"encryption_version"`
-	EncryptedHash                string             `json:"encrypted_hash"`
-	ExpectedFileSizeInBytes      int64              `json:"expected_file_size_in_bytes"`
-	ExpectedThumbnailSizeInBytes int64              `json:"expected_thumbnail_size_in_bytes,omitempty"`
-}
-
-// EncryptedFileKey represents an encrypted file key with nonce
-type EncryptedFileKey struct {
-	Ciphertext []byte `json:"ciphertext"`
-	Nonce      []byte `json:"nonce"`
+	ID                           primitive.ObjectID    `json:"id"`
+	CollectionID                 primitive.ObjectID    `json:"collection_id"`
+	EncryptedMetadata            string                `json:"encrypted_metadata"`
+	EncryptedFileKey             keys.EncryptedFileKey `json:"encrypted_file_key"`
+	EncryptionVersion            string                `json:"encryption_version"`
+	EncryptedHash                string                `json:"encrypted_hash"`
+	ExpectedFileSizeInBytes      int64                 `json:"expected_file_size_in_bytes"`
+	ExpectedThumbnailSizeInBytes int64                 `json:"expected_thumbnail_size_in_bytes,omitempty"`
 }
 
 // CreatePendingFileResponse represents the response from creating a pending file

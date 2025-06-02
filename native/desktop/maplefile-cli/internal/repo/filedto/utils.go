@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
 // Helper functions for converting between domain and DTO types
@@ -16,31 +15,6 @@ func ConvertDomainToDTO(domainFile *filedto.FileDTO) *filedto.FileDTO {
 	// In this case, they're the same type, so just return as-is
 	// This function exists for future extensibility
 	return domainFile
-}
-
-// ConvertDTOToDomain converts a repository DTO to the domain format
-func ConvertDTOToDomain(dtoFile *filedto.FileDTO) *filedto.FileDTO {
-	// In this case, they're the same type, so just return as-is
-	// This function exists for future extensibility
-	return dtoFile
-}
-
-// ConvertDomainEncryptedFileKey converts domain EncryptedFileKey to DTO EncryptedFileKey
-func ConvertDomainEncryptedFileKey(domainKey keys.EncryptedFileKey) filedto.EncryptedFileKey {
-	return filedto.EncryptedFileKey{
-		Ciphertext: domainKey.Ciphertext,
-		Nonce:      domainKey.Nonce,
-	}
-}
-
-// ConvertDTOEncryptedFileKey converts DTO EncryptedFileKey to domain EncryptedFileKey
-func ConvertDTOEncryptedFileKey(dtoKey filedto.EncryptedFileKey) keys.EncryptedFileKey {
-	return keys.EncryptedFileKey{
-		Ciphertext: dtoKey.Ciphertext,
-		Nonce:      dtoKey.Nonce,
-		KeyVersion: 1, // Default version
-		RotatedAt:  nil,
-	}
 }
 
 // ValidateCreatePendingFileRequest validates the create pending file request

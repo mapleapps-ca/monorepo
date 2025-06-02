@@ -76,14 +76,24 @@ func (uc *createFileUseCase) Execute(ctx context.Context, data *file.File) error
 	switch data.StorageMode {
 	case file.StorageModeEncryptedOnly:
 		if data.EncryptedFilePath == "" {
+			uc.logger.Error(" encrypted-only storage mode is missing data",
+				zap.String("EncryptedFilePath", data.EncryptedFilePath),
+			)
 			return errors.NewAppError("encrypted file path is required for encrypted-only storage mode", nil)
 		}
 	case file.StorageModeDecryptedOnly:
 		if data.FilePath == "" {
+			uc.logger.Error(" decrypted-only storage mode is missing data",
+				zap.String("FilePath", data.FilePath),
+			)
 			return errors.NewAppError("file path is required for decrypted-only storage mode", nil)
 		}
 	case file.StorageModeHybrid:
 		if data.EncryptedFilePath == "" || data.FilePath == "" {
+			uc.logger.Error("hybrid storage mode is missing data",
+				zap.String("EncryptedFilePath", data.EncryptedFilePath),
+				zap.String("FilePath", data.FilePath),
+			)
 			return errors.NewAppError("both encrypted and decrypted file paths are required for hybrid storage mode", nil)
 		}
 	}
