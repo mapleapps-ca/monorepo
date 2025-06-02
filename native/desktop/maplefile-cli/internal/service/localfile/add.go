@@ -279,22 +279,30 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 		return nil, errors.NewAppError("failed to encrypt file key", err)
 	}
 
-	// STEP 3: Encrypt file metadata with fileKey (E2EE spec)
-	metadataMap := map[string]interface{}{
-		"name":      fileName,
-		"mime_type": mimeType,
-		"size":      fileInfo.Size,
-		"created":   fileInfo.ModifiedAt.Unix(),
-	}
-	encryptedMetadataString, err := s.encryptFileMetadata(metadataMap, fileKey)
-	if err != nil {
-		return nil, errors.NewAppError("failed to encrypt file metadata", err)
-	}
-
-	// STEP 4: Encrypt file content with fileKey (E2EE spec)
+	// STEP 3: Encrypt file content with fileKey (E2EE spec)
 	encryptedFileData, err := s.encryptFileContent(destFilePath, fileKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to encrypt file content", err)
+	}
+
+	// STEP 4: Encrypt file metadata with fileKey (E2EE spec)
+	metadata := &dom_file.FileMetadata{
+		Name:                   fileName,
+		MimeType:               mimeType,
+		Size:                   fileInfo.Size,
+		Created:                fileInfo.ModifiedAt.Unix(),
+		DecryptedFilePath:      destFilePath, // Decrypted file path (what we copied)
+		DecryptedFileSize:      fileInfo.Size,
+		EncryptedFilePath:      encryptedFileData.Path,
+		EncryptedFileSize:      encryptedFileData.Size,
+		EncryptedThumbnailPath: "", // Developer Note: Future feature
+		EncryptedThumbnailSize: 0,  // Developer Note: Future feature
+		DecryptedThumbnailPath: "", // Developer Note: Future feature
+		DecryptedThumbnailSize: 0,  // Developer Note: Future feature
+	}
+	encryptedMetadataString, err := s.encryptFileMetadata(metadata, fileKey)
+	if err != nil {
+		return nil, errors.NewAppError("failed to encrypt file metadata", err)
 	}
 
 	// STEP 5: Encrypt file hash with fileKey (E2EE spec)
@@ -335,6 +343,7 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 		EncryptedFileSize: encryptedFileData.Size,
 		Name:              fileName, // Keep plaintext for local use
 		MimeType:          mimeType,
+		Metadata:          metadata,     // Decrypted metadata.
 		FilePath:          destFilePath, // Decrypted file path (what we copied)
 		FileSize:          fileInfo.Size,
 		StorageMode:       input.StorageMode,
@@ -403,7 +412,7 @@ func (s *addService) decryptCollectionKeyChain(user *dom_user.User, collection *
 }
 
 // Encrypt file metadata with fileKey
-func (s *addService) encryptFileMetadata(metadata map[string]interface{}, fileKey []byte) (string, error) {
+func (s *addService) encryptFileMetadata(metadata *dom_file.FileMetadata, fileKey []byte) (string, error) {
 	metadataBytes, err := json.Marshal(metadata)
 	if err != nil {
 		return "", err

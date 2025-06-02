@@ -29,8 +29,9 @@ type File struct {
 	// Hash of the encrypted file for integrity checking
 	EncryptedHash string `json:"encrypted_hash" bson:"encrypted_hash"`
 	// Decrypted metadata for local use (client device side only)
-	Name     string `json:"name" bson:"name"`
-	MimeType string `json:"mime_type" bson:"mime_type"`
+	Name     string        `json:"name" bson:"name"`
+	MimeType string        `json:"mime_type" bson:"mime_type"`
+	Metadata *FileMetadata `json:"metadata" bson:"metadata"`
 
 	// Encrypted File Storage Details
 	// The path on the local filesystem where the encrypted file is stored
@@ -78,4 +79,20 @@ type File struct {
 	State            string    `bson:"state" json:"state"`                         // pending, active, deleted, archived
 	TombstoneVersion uint64    `bson:"tombstone_version" json:"tombstone_version"` // The `version` number that this collection was deleted at.
 	TombstoneExpiry  time.Time `bson:"tombstone_expiry" json:"tombstone_expiry"`
+}
+
+// FileMetadata represents decrypted file metadata
+type FileMetadata struct {
+	Name                   string `json:"name"`
+	MimeType               string `json:"mime_type"`
+	Size                   int64  `json:"size"`
+	Created                int64  `json:"created"`
+	EncryptedFilePath      string `json:"encrypted_file_path" bson:"encrypted_file_path"`
+	EncryptedFileSize      int64  `json:"encrypted_file_size" bson:"encrypted_file_size"`
+	DecryptedFilePath      string `json:"decrypted_file_path" bson:"decrypted_file_path"`
+	DecryptedFileSize      int64  `json:"decrypted_file_size" bson:"decrypted_file_size"`
+	EncryptedThumbnailPath string `json:"encrypted_thumbnail_path,omitempty" bson:"encrypted_thumbnail_path,omitempty"`
+	EncryptedThumbnailSize int64  `json:"encrypted_thumbnai_size" bson:"encrypted_thumbnai_size"`
+	DecryptedThumbnailPath string `json:"decrypted_thumbnail_path,omitempty" bson:"decrypted_thumbnail_path,omitempty"`
+	DecryptedThumbnailSize int64  `json:"decrypted_thumbnail_size" bson:"decrypted_thumbnail_size"`
 }
