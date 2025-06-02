@@ -202,15 +202,17 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 	// STEP 5: Encrypt collection key for recipient (E2EE)
 	//
 
-	publicKeyInString, err := base64.RawURLEncoding.DecodeString(publicLookupResponse.PublicKeyInBase64)
+	// Decode the public key with fallback to multiple base64 encodings
+	publicKeyBytes, err := s.decodePublicKeyFromBase64(publicLookupResponse.PublicKeyInBase64)
 	if err != nil {
-		return nil, fmt.Errorf("💔 error decoding encrypted challenge: %v", err)
+		s.logger.Error("❌ Failed to decode recipient public key", zap.Error(err))
+		return nil, fmt.Errorf("failed to decode recipient public key: %v", err)
 	}
 
 	encryptedCollectionKey, err := s.encryptCollectionKeyForRecipient(
 		ctx,
 		currentUser,
-		[]byte(publicKeyInString),
+		publicKeyBytes,
 		collectionToShare,
 		userPassword,
 	)
@@ -228,11 +230,12 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 
 	// Create use case input
 	useCaseInput := &uc.ShareCollectionInputDTO{
-		CollectionID:         input.CollectionID,
-		RecipientID:          publicLookupResponse.UserID,
-		RecipientEmail:       publicLookupResponse.Email,
-		PermissionLevel:      input.PermissionLevel,
-		ShareWithDescendants: input.ShareWithDescendants,
+		CollectionID:           input.CollectionID,
+		RecipientID:            publicLookupResponse.UserID,
+		RecipientEmail:         publicLookupResponse.Email,
+		PermissionLevel:        input.PermissionLevel,
+		EncryptedCollectionKey: encryptedCollectionKey, // Pass the encrypted collection key for E2EE
+		ShareWithDescendants:   input.ShareWithDescendants,
 	}
 
 	// Execute use case
@@ -257,8 +260,47 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 	}, nil
 }
 
+// decodePublicKeyFromBase64 attempts to decode a public key using multiple base64 encodings
+// This handles different base64 formats that might be returned from the server
+func (s *collectionSharingService) decodePublicKeyFromBase64(publicKeyBase64 string) ([]byte, error) {
+	if publicKeyBase64 == "" {
+		return nil, fmt.Errorf("public key cannot be empty")
+	}
+
+	// Try URL-safe base64 without padding first (most common in our system)
+	publicKeyBytes, err := base64.RawURLEncoding.DecodeString(publicKeyBase64)
+	if err == nil {
+		s.logger.Debug("✅ Successfully decoded public key using RawURLEncoding")
+		return publicKeyBytes, nil
+	}
+
+	s.logger.Debug("🔄 RawURLEncoding failed, trying StdEncoding", zap.Error(err))
+
+	// Try standard base64 encoding as fallback
+	publicKeyBytes, err = base64.StdEncoding.DecodeString(publicKeyBase64)
+	if err == nil {
+		s.logger.Debug("✅ Successfully decoded public key using StdEncoding")
+		return publicKeyBytes, nil
+	}
+
+	s.logger.Debug("🔄 StdEncoding failed, trying URLEncoding", zap.Error(err))
+
+	// Try URL-safe base64 with padding as another fallback
+	publicKeyBytes, err = base64.URLEncoding.DecodeString(publicKeyBase64)
+	if err == nil {
+		s.logger.Debug("✅ Successfully decoded public key using URLEncoding")
+		return publicKeyBytes, nil
+	}
+
+	s.logger.Error("❌ All base64 decoding attempts failed for public key",
+		zap.String("publicKeyBase64", publicKeyBase64),
+		zap.Error(err))
+
+	return nil, fmt.Errorf("failed to decode public key with any base64 encoding (tried RawURL, Std, URL): %v", err)
+}
+
 // encryptCollectionKeyForRecipient encrypts the collection key for the recipient using their public key
-func (uc *collectionSharingService) encryptCollectionKeyForRecipient(
+func (s *collectionSharingService) encryptCollectionKeyForRecipient(
 	ctx context.Context,
 	currentUser *dom_user.User,
 	recipientUserPublicKey []byte,
@@ -302,4 +344,12 @@ func (uc *collectionSharingService) encryptCollectionKeyForRecipient(
 
 	// Step 5: Encode to base64 for transmission
 	return base64.StdEncoding.EncodeToString(encryptedForRecipient), nil
+}
+
+// Helper function for min (Go doesn't have a built-in min for integers in older versions)
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
