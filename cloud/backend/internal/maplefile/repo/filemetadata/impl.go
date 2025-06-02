@@ -16,13 +16,13 @@ import (
 type fileMetadataRepositoryImpl struct {
 	Logger     *zap.Logger
 	DbClient   *mongo.Client
-	Collection *mongo.Collection
+	Collection *mongo.Collection // Only files collection - SRP maintained
 }
 
 func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mongo.Client) dom_file.FileMetadataRepository {
 	loggerp = loggerp.Named("FileMetadataRepository")
 
-	// Initialize collection in the MapleFile database
+	// Initialize collection in the MapleFile database - ONLY files collection
 	fc := client.Database(appCfg.DB.MapleFileName).Collection("files")
 
 	// Reset indexes for development purposes

@@ -13,49 +13,16 @@ import (
 	dom_sync "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/file"
 )
 
-func (impl fileMetadataRepositoryImpl) GetSyncData(ctx context.Context, userID primitive.ObjectID, cursor *dom_sync.FileSyncCursor, limit int64) (*dom_sync.FileSyncResponse, error) {
+func (impl fileMetadataRepositoryImpl) GetSyncData(ctx context.Context, userID primitive.ObjectID, cursor *dom_sync.FileSyncCursor, limit int64, accessibleCollectionIDs []primitive.ObjectID) (*dom_sync.FileSyncResponse, error) {
 	impl.Logger.Debug("Getting file sync data",
 		zap.Any("user_id", userID),
 		zap.Any("cursor", cursor),
-		zap.Int64("limit", limit))
+		zap.Int64("limit", limit),
+		zap.Int("accessible_collections_count", len(accessibleCollectionIDs)))
 
-	// First, get all collection IDs that the user has access to
-	// This is a bit complex because we need to join with collections to check access
-	collectionFilter := bson.M{
-		"$or": []bson.M{
-			{"owner_id": userID},             // Collections owned by user
-			{"members.recipient_id": userID}, // Collections shared with user
-		},
-	}
-
-	// Get accessible collection IDs
-	collectionCursor, err := impl.Collection.Find(ctx, collectionFilter, options.Find().SetProjection(bson.M{"_id": 1}))
-	if err != nil {
-		impl.Logger.Error("Failed to get accessible collections for file sync", zap.Error(err))
-		return nil, err
-	}
-	defer collectionCursor.Close(ctx)
-
-	var accessibleCollectionIDs []primitive.ObjectID
-	for collectionCursor.Next(ctx) {
-		var result struct {
-			ID primitive.ObjectID `bson:"_id"`
-		}
-		if err := collectionCursor.Decode(&result); err != nil {
-			impl.Logger.Error("Failed to decode collection ID", zap.Error(err))
-			continue
-		}
-		accessibleCollectionIDs = append(accessibleCollectionIDs, result.ID)
-	}
-
-	if err := collectionCursor.Err(); err != nil {
-		impl.Logger.Error("Cursor error during collection access check", zap.Error(err))
-		return nil, err
-	}
-
-	// If user has no accessible collections, return empty result
+	// If no accessible collections provided, return empty result
 	if len(accessibleCollectionIDs) == 0 {
-		impl.Logger.Info("User has no accessible collections for file sync", zap.Any("user_id", userID))
+		impl.Logger.Info("No accessible collections provided for file sync", zap.Any("user_id", userID))
 		return &dom_sync.FileSyncResponse{
 			Files:      []dom_sync.FileSyncItem{},
 			NextCursor: nil,
@@ -116,7 +83,7 @@ func (impl fileMetadataRepositoryImpl) GetSyncData(ctx context.Context, userID p
 		zap.Any("options", findOptions),
 		zap.Int("accessible_collections", len(accessibleCollectionIDs)))
 
-	// Execute the query
+	// Execute the query on the files collection
 	cursor_result, err := impl.Collection.Find(ctx, baseFilter, findOptions)
 	if err != nil {
 		impl.Logger.Error("Failed to execute file sync query", zap.Error(err))

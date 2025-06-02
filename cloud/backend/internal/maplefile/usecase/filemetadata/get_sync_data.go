@@ -13,7 +13,7 @@ import (
 )
 
 type GetFileMetadataSyncDataUseCase interface {
-	Execute(ctx context.Context, userID primitive.ObjectID, cursor *dom_file.FileSyncCursor, limit int64) (*dom_file.FileSyncResponse, error)
+	Execute(ctx context.Context, userID primitive.ObjectID, cursor *dom_file.FileSyncCursor, limit int64, accessibleCollectionIDs []primitive.ObjectID) (*dom_file.FileSyncResponse, error)
 }
 
 type getFileMetadataSyncDataUseCaseImpl struct {
@@ -31,7 +31,7 @@ func NewGetFileMetadataSyncDataUseCase(
 	return &getFileMetadataSyncDataUseCaseImpl{config, logger, repo}
 }
 
-func (uc *getFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, userID primitive.ObjectID, cursor *dom_file.FileSyncCursor, limit int64) (*dom_file.FileSyncResponse, error) {
+func (uc *getFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, userID primitive.ObjectID, cursor *dom_file.FileSyncCursor, limit int64, accessibleCollectionIDs []primitive.ObjectID) (*dom_file.FileSyncResponse, error) {
 	//
 	// STEP 1: Validation.
 	//
@@ -40,24 +40,30 @@ func (uc *getFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, userI
 	if userID.IsZero() {
 		e["user_id"] = "User ID is required"
 	}
-	if cursor == nil {
-		e["cursor"] = "Cursor is required"
+	if len(accessibleCollectionIDs) == 0 {
+		e["accessible_collections"] = "At least one accessible collection is required"
 	}
 	if len(e) != 0 {
-		uc.logger.Warn("Failed validating get filtered collections",
+		uc.logger.Warn("Failed validating get file sync data",
 			zap.Any("error", e))
 		return nil, httperror.NewForBadRequest(&e)
 	}
 
+	uc.logger.Debug("Getting file sync data",
+		zap.String("user_id", userID.Hex()),
+		zap.Int("accessible_collections_count", len(accessibleCollectionIDs)),
+		zap.Any("cursor", cursor),
+		zap.Int64("limit", limit))
+
 	//
-	// STEP 2: Get filtered collections from repository.
+	// STEP 2: Get file sync data from repository for accessible collections.
 	//
 
-	result, err := uc.repo.GetSyncData(ctx, userID, cursor, limit)
+	result, err := uc.repo.GetSyncData(ctx, userID, cursor, limit, accessibleCollectionIDs)
 	if err != nil {
-		uc.logger.Error("Failed to get filtered collections from repository",
+		uc.logger.Error("Failed to get file sync data from repository",
 			zap.Any("error", err),
-			zap.Any("user_id", userID))
+			zap.String("user_id", userID.Hex()))
 		return nil, err
 	}
 

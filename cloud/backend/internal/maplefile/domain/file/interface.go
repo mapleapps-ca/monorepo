@@ -44,8 +44,8 @@ type FileMetadataRepository interface {
 	Archive(id primitive.ObjectID) error
 	Restore(id primitive.ObjectID) error
 
-	// GetSyncData retrieves file sync data with pagination for the specified user
-	GetSyncData(ctx context.Context, userID primitive.ObjectID, cursor *FileSyncCursor, limit int64) (*FileSyncResponse, error)
+	// GetSyncData retrieves file sync data with pagination for the specified user and accessible collections
+	GetSyncData(ctx context.Context, userID primitive.ObjectID, cursor *FileSyncCursor, limit int64, accessibleCollectionIDs []primitive.ObjectID) (*FileSyncResponse, error)
 }
 
 // FileObjectStorageRepository defines the interface for interacting with the actual encrypted file data storage.

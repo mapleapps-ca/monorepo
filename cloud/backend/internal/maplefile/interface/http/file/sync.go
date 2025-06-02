@@ -13,28 +13,29 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config/constants"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/interface/http/middleware"
+	file_service "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/service/file"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
 type FileSyncHTTPHandler struct {
-	config     *config.Configuration
-	logger     *zap.Logger
-	repository dom_file.FileMetadataRepository
-	middleware middleware.Middleware
+	config          *config.Configuration
+	logger          *zap.Logger
+	fileSyncService file_service.GetFileSyncDataService // CHANGED: Use service instead of repository
+	middleware      middleware.Middleware
 }
 
 func NewFileSyncHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
-	repository dom_file.FileMetadataRepository,
+	fileSyncService file_service.GetFileSyncDataService, // CHANGED: Inject service instead of repository
 	middleware middleware.Middleware,
 ) *FileSyncHTTPHandler {
 	logger = logger.Named("FileSyncHTTPHandler")
 	return &FileSyncHTTPHandler{
-		config:     config,
-		logger:     logger,
-		repository: repository,
-		middleware: middleware,
+		config:          config,
+		logger:          logger,
+		fileSyncService: fileSyncService, // CHANGED: Use service
+		middleware:      middleware,
 	}
 }
 
@@ -101,8 +102,8 @@ func (h *FileSyncHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		zap.Int64("limit", limit),
 		zap.Any("cursor", cursor))
 
-	// Call repository to get sync data
-	response, err := h.repository.GetSyncData(ctx, userID, cursor, limit)
+	// CHANGED: Call service instead of repository directly (userID comes from context)
+	response, err := h.fileSyncService.Execute(ctx, cursor, limit)
 	if err != nil {
 		h.logger.Error("Failed to get file sync data",
 			zap.Any("user_id", userID),
