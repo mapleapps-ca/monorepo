@@ -10,7 +10,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
@@ -20,6 +19,7 @@ import (
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsharingdto"
 	uc_publiclookupdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/publiclookupdto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // ShareCollectionInput represents input for sharing a collection at the service level

@@ -1,4 +1,4 @@
-// native/desktop/maplefile-cli/internal/service/filedownload/download.go
+// internal/service/filedownload/download.go
 package filedownload
 
 import (
@@ -230,7 +230,7 @@ func (s *downloadService) decryptCollectionKeyChain(user *dom_user.User, collect
 	defer crypto.ClearBytes(keyEncryptionKey)
 	s.logger.Debug("✅ Successfully derived key encryption key")
 
-	// STEP 2: Decrypt masterKey with keyEncryptionKey
+	// STEP 2: Decrypt masterKey with keyEncryptionKey (ChaCha20-Poly1305)
 	s.logger.Debug("🧠 Step 2: Decrypting master key with key encryption key")
 	if len(user.EncryptedMasterKey.Ciphertext) == 0 || len(user.EncryptedMasterKey.Nonce) == 0 {
 		s.logger.Error("❌ User encrypted master key is empty or invalid",
@@ -253,7 +253,7 @@ func (s *downloadService) decryptCollectionKeyChain(user *dom_user.User, collect
 	defer crypto.ClearBytes(masterKey)
 	s.logger.Debug("✅ Successfully decrypted master key")
 
-	// STEP 3: Decrypt collectionKey with masterKey
+	// STEP 3: Decrypt collectionKey with masterKey (ChaCha20-Poly1305)
 	s.logger.Debug("🧠 Step 3: Decrypting collection key with master key")
 	if collection.EncryptedCollectionKey == nil {
 		s.logger.Error("❌ Collection has no encrypted key", zap.String("collectionID", collection.ID.Hex()))
@@ -281,34 +281,33 @@ func (s *downloadService) decryptCollectionKeyChain(user *dom_user.User, collect
 	return collectionKey, nil
 }
 
-// decryptFileMetadata decrypts the encrypted file metadata
+// decryptFileMetadata decrypts the encrypted file metadata using ChaCha20-Poly1305
 func (s *downloadService) decryptFileMetadata(encryptedMetadata string, fileKey []byte) (*DecryptedFileMetadata, error) {
 	s.logger.Debug("🔑 Decrypting file metadata")
 
 	// The encrypted metadata is stored as base64 encoded (nonce + ciphertext)
-	// This matches the format used in addService.encryptFileMetadata
+	// Format: base64(12-byte-nonce + ciphertext) for ChaCha20-Poly1305
 	combined, err := base64.StdEncoding.DecodeString(encryptedMetadata)
 	if err != nil {
 		s.logger.Error("❌ Failed to decode encrypted metadata from base64", zap.Error(err))
 		return nil, fmt.Errorf("failed to decode encrypted metadata: %w", err)
 	}
 
-	// Split nonce and ciphertext
-	const nonceSize = 24
-	if len(combined) < nonceSize {
+	// Split nonce and ciphertext for ChaCha20-Poly1305 (12-byte nonce)
+	if len(combined) < crypto.ChaCha20Poly1305NonceSize {
 		s.logger.Error("❌ Combined data too short",
-			zap.Int("expectedMinSize", nonceSize),
+			zap.Int("expectedMinSize", crypto.ChaCha20Poly1305NonceSize),
 			zap.Int("actualSize", len(combined)))
-		return nil, fmt.Errorf("combined data too short: expected at least %d bytes, got %d", nonceSize, len(combined))
+		return nil, fmt.Errorf("combined data too short: expected at least %d bytes for ChaCha20-Poly1305, got %d", crypto.ChaCha20Poly1305NonceSize, len(combined))
 	}
 
-	nonce := make([]byte, nonceSize)
-	copy(nonce, combined[:nonceSize])
+	nonce := make([]byte, crypto.ChaCha20Poly1305NonceSize)
+	copy(nonce, combined[:crypto.ChaCha20Poly1305NonceSize])
 
-	ciphertext := make([]byte, len(combined)-nonceSize)
-	copy(ciphertext, combined[nonceSize:])
+	ciphertext := make([]byte, len(combined)-crypto.ChaCha20Poly1305NonceSize)
+	copy(ciphertext, combined[crypto.ChaCha20Poly1305NonceSize:])
 
-	// Decrypt metadata
+	// Decrypt metadata using ChaCha20-Poly1305
 	decryptedBytes, err := crypto.DecryptWithSecretBox(ciphertext, nonce, fileKey)
 	if err != nil {
 		s.logger.Error("❌ Failed to decrypt metadata", zap.Error(err))
@@ -326,28 +325,27 @@ func (s *downloadService) decryptFileMetadata(encryptedMetadata string, fileKey 
 	return &metadata, nil
 }
 
-// decryptFileContent decrypts the encrypted file content
+// decryptFileContent decrypts the encrypted file content using ChaCha20-Poly1305
 func (s *downloadService) decryptFileContent(encryptedData, fileKey []byte) ([]byte, error) {
 	s.logger.Debug("🔑 Decrypting file content", zap.Int("encryptedSize", len(encryptedData)))
 
-	// The encrypted data should be in the format: nonce (24 bytes) + ciphertext
-	const nonceSize = 24
-	if len(encryptedData) < nonceSize {
+	// The encrypted data should be in the format: nonce (12 bytes) + ciphertext for ChaCha20-Poly1305
+	if len(encryptedData) < crypto.ChaCha20Poly1305NonceSize {
 		s.logger.Error("❌ Encrypted data too short",
-			zap.Int("expectedMinSize", nonceSize),
+			zap.Int("expectedMinSize", crypto.ChaCha20Poly1305NonceSize),
 			zap.Int("actualSize", len(encryptedData)))
-		return nil, fmt.Errorf("encrypted data too short: expected at least %d bytes, got %d",
-			nonceSize, len(encryptedData))
+		return nil, fmt.Errorf("encrypted data too short: expected at least %d bytes for ChaCha20-Poly1305, got %d",
+			crypto.ChaCha20Poly1305NonceSize, len(encryptedData))
 	}
 
 	// Extract nonce and ciphertext from combined data
-	nonce := make([]byte, nonceSize)
-	copy(nonce, encryptedData[:nonceSize])
+	nonce := make([]byte, crypto.ChaCha20Poly1305NonceSize)
+	copy(nonce, encryptedData[:crypto.ChaCha20Poly1305NonceSize])
 
-	ciphertext := make([]byte, len(encryptedData)-nonceSize)
-	copy(ciphertext, encryptedData[nonceSize:])
+	ciphertext := make([]byte, len(encryptedData)-crypto.ChaCha20Poly1305NonceSize)
+	copy(ciphertext, encryptedData[crypto.ChaCha20Poly1305NonceSize:])
 
-	// Decrypt the content
+	// Decrypt the content using ChaCha20-Poly1305
 	decryptedData, err := crypto.DecryptWithSecretBox(ciphertext, nonce, fileKey)
 	if err != nil {
 		s.logger.Error("❌ Failed to decrypt file content", zap.Error(err))
