@@ -13,6 +13,7 @@ import (
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/files"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/filesync"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/logout"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/recovery"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
@@ -50,6 +51,7 @@ func NewRootCmd(
 	loginOTTService svc_auth.LoginOTTService,
 	loginOTTVerificationService svc_auth.LoginOTTVerificationService,
 	completeLoginService svc_auth.CompleteLoginService,
+	logoutService svc_auth.LogoutService,
 	recoveryService svc_auth.RecoveryService,
 	recoveryKeyService svc_auth.RecoveryKeyService,
 	createCollectionService collection.CreateService,
@@ -97,6 +99,7 @@ func NewRootCmd(
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
 	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(loginOTTVerificationService, logger))
 	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
+	rootCmd.AddCommand(logout.LogoutCmd(logoutService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, tokenRepository))
 	rootCmd.AddCommand(recovery.RecoveryCmd(recoveryService, logger))
 	rootCmd.AddCommand(recovery.ShowRecoveryKeyCmd(recoveryKeyService, logger))

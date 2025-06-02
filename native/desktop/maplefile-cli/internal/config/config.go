@@ -49,6 +49,7 @@ type ConfigService interface {
 		refreshToken string,
 		refreshTokenExpiryTime *time.Time,
 	) error
+	ClearLoggedInUserCredentials(ctx context.Context) error
 }
 
 // repository defines the interface for loading and saving configuration

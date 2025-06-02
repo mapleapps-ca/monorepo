@@ -77,5 +77,23 @@ func (s *configService) GetLoggedInUserCredentials(ctx context.Context) (*Creden
 	return config.Credentials, nil
 }
 
+func (s *configService) ClearLoggedInUserCredentials(ctx context.Context) error {
+	config, err := s.getConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Clear credentials by setting them to empty values
+	config.Credentials = &Credentials{
+		Email:                  "",
+		AccessToken:            "",
+		AccessTokenExpiryTime:  nil,
+		RefreshToken:           "",
+		RefreshTokenExpiryTime: nil,
+	}
+
+	return s.saveConfig(ctx, config)
+}
+
 // Ensure our implementation satisfies the interface
 var _ ConfigService = (*configService)(nil)
