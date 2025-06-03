@@ -79,6 +79,8 @@ func NewRootCmd(
 	syncFileService svc_sync.SyncFileService,
 	syncFullService svc_sync.SyncFullService,
 	syncDebugService svc_sync.SyncDebugService,
+	synchronizedSharingService collectionsharing.SynchronizedCollectionSharingService,
+	originalSharingService collectionsharing.CollectionSharingService,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "maplefile-cli",
@@ -111,6 +113,8 @@ func NewRootCmd(
 		collectionGetMembersService,
 		collectionListSharedService,
 		collectionRemoveMemberService,
+		synchronizedSharingService,
+		originalSharingService,
 		logger,
 	))
 	rootCmd.AddCommand(files.FilesCmd(

@@ -69,6 +69,7 @@ func ServiceModule() fx.Option {
 		fx.Provide(collectionsharing.NewListSharedCollectionsService),
 		fx.Provide(collectionsharing.NewCollectionSharingService),
 		fx.Provide(collectionsharing.NewRemoveMemberCollectionSharingService),
+		fx.Provide(collectionsharing.NewSynchronizedCollectionSharingService),
 
 		// File syncer services (existing)
 		fx.Provide(filesyncer.NewOffloadService),

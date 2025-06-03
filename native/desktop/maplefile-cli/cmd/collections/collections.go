@@ -18,6 +18,9 @@ func CollectionsCmd(
 	getMembersService collectionsharing.CollectionSharingGetMembersService,
 	listSharedService collectionsharing.ListSharedCollectionsService,
 	removeMemberService collectionsharing.CollectionSharingRemoveMembersService,
+
+	synchronizedSharingService collectionsharing.SynchronizedCollectionSharingService,
+	originalSharingService collectionsharing.CollectionSharingService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
@@ -40,7 +43,7 @@ func CollectionsCmd(
 	cmd.AddCommand(listByStateCmd(listService, logger))
 
 	// Add sharing subcommands
-	cmd.AddCommand(share.ShareCmd(sharingService, logger))
+	cmd.AddCommand(share.ShareCmdWithSync(synchronizedSharingService, originalSharingService, logger))
 	cmd.AddCommand(share.UnshareCmd(removeMemberService, logger))
 	cmd.AddCommand(share.MembersCmd(getMembersService, logger))
 	cmd.AddCommand(share.ListSharedCmd(listSharedService, logger))
