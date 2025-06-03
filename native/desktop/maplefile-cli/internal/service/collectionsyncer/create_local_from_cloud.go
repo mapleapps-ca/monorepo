@@ -96,6 +96,32 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 		return nil, err
 	}
 
+	uc.logger.Debug("🔍 Cloud collection DTO debugging",
+		zap.String("cloudCollectionID", cloudCollectionDTO.ID.Hex()),
+		zap.String("cloudCollectionOwnerID", cloudCollectionDTO.OwnerID.Hex()),
+		zap.String("cloudCollectionEncryptedName", cloudCollectionDTO.EncryptedName),
+		zap.String("cloudCollectionType", cloudCollectionDTO.CollectionType),
+		zap.String("cloudCollectionState", cloudCollectionDTO.State),
+		zap.Int("cloudCollectionMembersCount", len(cloudCollectionDTO.Members)),
+		zap.Any("cloudCollectionParentID", cloudCollectionDTO.ParentID))
+
+	for i, memberDTO := range cloudCollectionDTO.Members {
+		uc.logger.Debug("🔍 Cloud collection member DTO",
+			zap.Int("memberIndex", i),
+			zap.String("memberID", memberDTO.ID.Hex()),
+			zap.String("recipientID", memberDTO.RecipientID.Hex()),
+			zap.String("recipientEmail", memberDTO.RecipientEmail),
+			zap.String("permissionLevel", memberDTO.PermissionLevel),
+			zap.Bool("isInherited", memberDTO.IsInherited),
+			zap.Int("encryptedKeyLength", len(memberDTO.EncryptedCollectionKey)))
+	}
+
+	// ENHANCED DEBUGGING: Log current user info for comparison
+	uc.logger.Debug("🔍 Current user info for comparison",
+		zap.String("currentUserID", user.ID.Hex()),
+		zap.String("currentUserEmail", user.Email),
+		zap.String("currentUserName", user.Name))
+
 	//
 	// STEP 4: Perform any necessary validation before creating the local collection.
 	//
@@ -120,10 +146,38 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 	collectionKey, err := uc.decryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, newCollection, password)
 	if err != nil {
-		uc.logger.Warn("⚠️ Failed to decrypt collection key, using placeholder",
+		// ENHANCED HANDLING: Instead of failing completely, create the collection with encrypted name
+		uc.logger.Warn("⚠️ Failed to decrypt collection key, creating collection with encrypted name only",
 			zap.String("collectionID", cloudCollectionDTO.ID.Hex()),
 			zap.Error(err))
-		return nil, err
+
+		// Set a placeholder name to indicate encryption issue
+		newCollection.Name = "[Encrypted - No Access]"
+
+		// Still create the collection record for sync purposes, but mark it as problematic
+		newCollection.SyncStatus = dom_collection.SyncStatusCloudOnly // Or create a new status
+
+		// DEBUGGING: Log the issue for investigation
+		uc.logger.Error("🚨 SYNC ISSUE: Collection accessible in sync but not decryptable",
+			zap.String("collectionID", cloudCollectionDTO.ID.Hex()),
+			zap.String("collectionOwnerID", cloudCollectionDTO.OwnerID.Hex()),
+			zap.String("currentUserID", user.ID.Hex()),
+			zap.Int("membersCount", len(cloudCollectionDTO.Members)),
+			zap.String("suggestedAction", "Check backend API membership data for this collection"))
+
+		// Execute the use case to create the local collection record with limited data
+		if err := uc.localRepository.Create(ctx, newCollection); err != nil {
+			uc.logger.Error("🚨 Failed to create new (local) collection from the cloud even with fallback",
+				zap.String("id", cloudCollectionDTO.ID.Hex()),
+				zap.Error(err))
+			return nil, err
+		}
+
+		uc.logger.Info("⚠️ Created collection with limited access",
+			zap.String("id", newCollection.ID.Hex()),
+			zap.String("name", newCollection.Name))
+
+		return newCollection, nil
 	}
 	defer crypto.ClearBytes(collectionKey)
 
@@ -132,11 +186,11 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	//
 	collectionName, err := uc.decryptionService.ExecuteDecryptData(ctx, cloudCollectionDTO.EncryptedName, collectionKey)
 	if err != nil {
-		uc.logger.Error("failed to decrypt file metadata", zap.Error(err))
-		return nil, errors.NewAppError("failed to decrypt file metadata", err)
+		uc.logger.Error("failed to decrypt collection name", zap.Error(err))
+		return nil, errors.NewAppError("failed to decrypt collection name", err)
 	}
 	if collectionName == "" {
-		uc.logger.Error("failed to decrypt collection name", zap.Error(err))
+		uc.logger.Error("failed to decrypt collection name - empty result", zap.Error(err))
 		return nil, errors.NewAppError("failed to decrypt collection name", err)
 	}
 	newCollection.Name = collectionName

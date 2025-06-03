@@ -41,7 +41,8 @@ func NewCollectionDecryptionService(
 func (s *collectionDecryptionService) ExecuteDecryptCollectionKeyChain(ctx context.Context, user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
 	s.logger.Debug("🔑 Starting E2EE key chain decryption",
 		zap.String("userID", user.ID.Hex()),
-		zap.String("collectionID", collection.ID.Hex()))
+		zap.String("collectionID", collection.ID.Hex()),
+		zap.String("collectionOwnerID", collection.OwnerID.Hex()))
 
 	// STEP 1: Derive keyEncryptionKey from password
 	s.logger.Debug("🧠 Step 1: Deriving key encryption key from password")
@@ -52,6 +53,26 @@ func (s *collectionDecryptionService) ExecuteDecryptCollectionKeyChain(ctx conte
 	}
 	defer crypto.ClearBytes(keyEncryptionKey)
 	s.logger.Debug("✅ Successfully derived key encryption key")
+
+	// STEP 2: Check if user is the owner or a member
+	isOwner := collection.OwnerID == user.ID
+	s.logger.Debug("🔍 Checking user role",
+		zap.Bool("isOwner", isOwner),
+		zap.String("userID", user.ID.Hex()),
+		zap.String("ownerID", collection.OwnerID.Hex()))
+
+	if isOwner {
+		// SCENARIO A: User is the owner - decrypt with master key
+		return s.decryptAsOwner(ctx, user, collection, keyEncryptionKey)
+	} else {
+		// SCENARIO B: User is a member - decrypt with private key
+		return s.decryptAsMember(ctx, user, collection, keyEncryptionKey)
+	}
+}
+
+// decryptAsOwner handles decryption when the user is the collection owner
+func (s *collectionDecryptionService) decryptAsOwner(ctx context.Context, user *dom_user.User, collection *dom_collection.Collection, keyEncryptionKey []byte) ([]byte, error) {
+	s.logger.Debug("👑 Decrypting as collection owner")
 
 	// STEP 2: Decrypt masterKey with keyEncryptionKey (ChaCha20-Poly1305)
 	s.logger.Debug("🧠 Step 2: Decrypting master key with key encryption key")
@@ -99,7 +120,109 @@ func (s *collectionDecryptionService) ExecuteDecryptCollectionKeyChain(ctx conte
 		s.logger.Error("❌ Failed to decrypt collection key", zap.Error(err))
 		return nil, fmt.Errorf("failed to decrypt collection key: %w", err)
 	}
-	s.logger.Debug("✅ Successfully decrypted collection key")
+	s.logger.Debug("✅ Successfully decrypted collection key as owner")
+
+	return collectionKey, nil
+}
+
+// decryptAsMember handles decryption when the user is a collection member (not owner)
+func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user *dom_user.User, collection *dom_collection.Collection, keyEncryptionKey []byte) ([]byte, error) {
+	s.logger.Debug("👥 Decrypting as collection member")
+
+	// ENHANCED DEBUGGING: Log all collection details
+	s.logger.Debug("🔍 Collection debugging info",
+		zap.String("collectionID", collection.ID.Hex()),
+		zap.String("collectionOwnerID", collection.OwnerID.Hex()),
+		zap.String("currentUserID", user.ID.Hex()),
+		zap.Int("totalMembers", len(collection.Members)),
+		zap.String("collectionName", collection.Name), // This might show if decryption worked
+		zap.String("encryptedName", collection.EncryptedName))
+
+	// ENHANCED DEBUGGING: Log each member
+	for i, member := range collection.Members {
+		s.logger.Debug("🔍 Collection member details",
+			zap.Int("memberIndex", i),
+			zap.String("memberID", member.ID.Hex()),
+			zap.String("recipientID", member.RecipientID.Hex()),
+			zap.String("recipientEmail", member.RecipientEmail),
+			zap.String("permissionLevel", member.PermissionLevel),
+			zap.Bool("isInherited", member.IsInherited),
+			zap.Int("encryptedKeyLength", len(member.EncryptedCollectionKey)),
+			zap.Bool("userMatch", member.RecipientID == user.ID))
+	}
+
+	// STEP 1: Find the user's membership record
+	var userMembership *dom_collection.CollectionMembership
+	for _, member := range collection.Members {
+		if member.RecipientID == user.ID {
+			userMembership = member
+			break
+		}
+	}
+
+	if userMembership == nil {
+		s.logger.Error("❌ User is not a member of this collection",
+			zap.String("userID", user.ID.Hex()),
+			zap.String("collectionID", collection.ID.Hex()),
+			zap.String("userEmail", user.Email), // Add user email for easier debugging
+			zap.Int("totalMembers", len(collection.Members)))
+
+		// ENHANCED DEBUGGING: Log what we expected vs what we got
+		s.logger.Error("🚨 DEBUGGING: Expected user not found in members",
+			zap.String("expectedUserID", user.ID.Hex()),
+			zap.String("expectedUserEmail", user.Email))
+
+		return nil, fmt.Errorf("user is not a member of this collection")
+	}
+
+	s.logger.Debug("✅ Found user membership record",
+		zap.String("membershipID", userMembership.ID.Hex()),
+		zap.String("permissionLevel", userMembership.PermissionLevel),
+		zap.Int("encryptedKeySize", len(userMembership.EncryptedCollectionKey)))
+
+	// Rest of the function remains the same...
+	// STEP 2: Decrypt masterKey with keyEncryptionKey to get private key
+	masterKey, err := crypto.DecryptWithSecretBox(
+		user.EncryptedMasterKey.Ciphertext,
+		user.EncryptedMasterKey.Nonce,
+		keyEncryptionKey,
+	)
+	if err != nil {
+		s.logger.Error("❌ Failed to decrypt master key", zap.Error(err))
+		return nil, fmt.Errorf("failed to decrypt master key: %w", err)
+	}
+	defer crypto.ClearBytes(masterKey)
+
+	// STEP 3: Decrypt private key with master key
+	privateKey, err := crypto.DecryptWithSecretBox(
+		user.EncryptedPrivateKey.Ciphertext,
+		user.EncryptedPrivateKey.Nonce,
+		masterKey,
+	)
+	if err != nil {
+		s.logger.Error("❌ Failed to decrypt private key", zap.Error(err))
+		return nil, fmt.Errorf("failed to decrypt private key: %w", err)
+	}
+	defer crypto.ClearBytes(privateKey)
+
+	// STEP 4: Decrypt collection key using private key (BoxSeal)
+	s.logger.Debug("🧠 Step 4: Decrypting member-specific collection key with private key")
+	if len(userMembership.EncryptedCollectionKey) == 0 {
+		s.logger.Error("❌ Member has no encrypted collection key",
+			zap.String("membershipID", userMembership.ID.Hex()))
+		return nil, fmt.Errorf("member has no encrypted collection key")
+	}
+
+	collectionKey, err := crypto.DecryptWithBoxSeal(
+		userMembership.EncryptedCollectionKey,
+		user.PublicKey.Key,
+		privateKey,
+	)
+	if err != nil {
+		s.logger.Error("❌ Failed to decrypt member's collection key", zap.Error(err))
+		return nil, fmt.Errorf("failed to decrypt member's collection key: %w", err)
+	}
+	s.logger.Debug("✅ Successfully decrypted collection key as member")
 
 	return collectionKey, nil
 }
