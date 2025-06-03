@@ -199,3 +199,5 @@ private_*.md
 todo.txt
 private_docs
 private_docs/*
+web/maplefile-frontend.zip
+web/papercloud-frontend.zip

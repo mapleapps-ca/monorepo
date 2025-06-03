@@ -3,6 +3,7 @@ package collection
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -12,7 +13,9 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/config/constants"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/domain/keys"
+	uc_federateduser "github.com/mapleapps-ca/monorepo/cloud/backend/internal/iam/usecase/federateduser"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/domain/collection"
+	uc_user "github.com/mapleapps-ca/monorepo/cloud/backend/internal/maplefile/usecase/user"
 	"github.com/mapleapps-ca/monorepo/cloud/backend/pkg/httperror"
 )
 
@@ -82,21 +85,27 @@ type CreateCollectionService interface {
 }
 
 type createCollectionServiceImpl struct {
-	config *config.Configuration
-	logger *zap.Logger
-	repo   dom_collection.CollectionRepository
+	config                      *config.Configuration
+	logger                      *zap.Logger
+	userGetByIDUseCase          uc_user.UserGetByIDUseCase
+	federatedUserGetByIDUseCase uc_federateduser.FederatedUserGetByIDUseCase
+	repo                        dom_collection.CollectionRepository
 }
 
 func NewCreateCollectionService(
 	config *config.Configuration,
 	logger *zap.Logger,
+	userGetByIDUseCase uc_user.UserGetByIDUseCase,
+	federatedUserGetByIDUseCase uc_federateduser.FederatedUserGetByIDUseCase,
 	repo dom_collection.CollectionRepository,
 ) CreateCollectionService {
 	logger = logger.Named("CreateCollectionService")
 	return &createCollectionServiceImpl{
-		config: config,
-		logger: logger,
-		repo:   repo,
+		config:                      config,
+		logger:                      logger,
+		userGetByIDUseCase:          userGetByIDUseCase,
+		federatedUserGetByIDUseCase: federatedUserGetByIDUseCase,
+		repo:                        repo,
 	}
 }
 
@@ -219,6 +228,14 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
 	}
 
+	federateduser, err := svc.federatedUserGetByIDUseCase.Execute(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting federated user from database: %v", err)
+	}
+	if federateduser == nil {
+		return nil, fmt.Errorf("User does not exist for federated iam id: %v", userID.Hex())
+	}
+
 	//
 	// STEP 3: Create collection object by mapping DTO and applying server-side logic
 	//
@@ -246,6 +263,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	for i := range collection.Members { // Iterate by index to allow modification if needed
 		if collection.Members[i].RecipientID == userID {
 			// Owner is found. Ensure they have Admin permission and correct granted_by/is_inherited status.
+			collection.Members[i].RecipientEmail = federateduser.Email
 			collection.Members[i].PermissionLevel = dom_collection.CollectionPermissionAdmin
 			collection.Members[i].GrantedByID = userID
 			collection.Members[i].IsInherited = false
@@ -261,12 +279,12 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 		ownerMembership := dom_collection.CollectionMembership{
 			ID:              primitive.NewObjectID(), // Unique ID for this specific membership record
 			RecipientID:     userID,
+			RecipientEmail:  federateduser.Email,
 			CollectionID:    collection.ID,                            // Link to the newly created collection ID
 			PermissionLevel: dom_collection.CollectionPermissionAdmin, // Owner must have Admin
 			GrantedByID:     userID,                                   // Owner implicitly grants themselves permission
 			IsInherited:     false,                                    // Owner membership is never inherited
 			CreatedAt:       now,                                      // Server timestamp for membership creation
-			// RecipientEmail is typically populated for shared members, not strictly required for owner's implicit membership.
 			// InheritedFromID is nil for direct membership.
 		}
 		// Append the mandatory owner membership. If req.Members was empty, this initializes the slice.
@@ -281,8 +299,8 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	//
 	// STEP 4: Create collection in repository
 	//
-	err := svc.repo.Create(ctx, collection)
-	if err != nil {
+
+	if err := svc.repo.Create(ctx, collection); err != nil {
 		svc.logger.Error("Failed to create collection",
 			zap.Any("error", err),
 			zap.Any("owner_id", collection.OwnerID),
