@@ -97,19 +97,15 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	// Create a new collection domain object from the cloud data using a mapping function.
 	newCollection := mapCollectionDTOToDomain(cloudCollectionDTO)
 
-	// Decrypt the collection name if password is provided
-	if password != "" {
-		decryptedName, err := uc.decryptionService.DecryptCollectionName(ctx, cloudCollectionDTO, password)
-		if err != nil {
-			uc.logger.Warn("⚠️ Failed to decrypt collection name, using placeholder",
-				zap.String("collectionID", cloudCollectionDTO.ID.Hex()),
-				zap.Error(err))
-			newCollection.Name = "[Encrypted]"
-		} else {
-			newCollection.Name = decryptedName
-		}
-	} else {
+	// Decrypt the collection with provided password
+	decryptedName, err := uc.decryptionService.DecryptCollectionName(ctx, cloudCollectionDTO, password)
+	if err != nil {
+		uc.logger.Warn("⚠️ Failed to decrypt collection name, using placeholder",
+			zap.String("collectionID", cloudCollectionDTO.ID.Hex()),
+			zap.Error(err))
 		newCollection.Name = "[Encrypted]"
+	} else {
+		newCollection.Name = decryptedName
 	}
 
 	uc.logger.Debug("🔍 Mapped local collection",
@@ -189,9 +185,13 @@ func mapCollectionDTOToDomain(dto *dom_collectiondto.CollectionDTO) *dom_collect
 		ModifiedAt:             dto.ModifiedAt,
 		ModifiedByUserID:       dto.ModifiedByUserID,
 		Version:                dto.Version,
-		State:                  state,
-		Name:                   "[Encrypted]", // Placeholder until you implement decryption
-		SyncStatus:             dom_collection.SyncStatusSynced,
+
+		Name:       "[Encrypted]", // Placeholder until you implement decryption
+		SyncStatus: dom_collection.SyncStatusSynced,
+
+		State:            state,
+		TombstoneVersion: dto.TombstoneVersion,
+		TombstoneExpiry:  dto.TombstoneExpiry,
 	}
 }
 
