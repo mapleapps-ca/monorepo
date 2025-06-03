@@ -10,6 +10,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
+	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/httperror"
 )
 
@@ -20,10 +22,11 @@ type UpdateLocalCollectionFromCloudCollectionService interface {
 
 // updateLocalCollectionFromCloudCollectionService implements the UpdateLocalCollectionFromCloudCollectionService interface
 type updateLocalCollectionFromCloudCollectionService struct {
-	logger            *zap.Logger
-	cloudRepository   collectiondto.CollectionDTORepository
-	localRepository   dom_collection.CollectionRepository
-	decryptionService CollectionDecryptionService
+	logger                     *zap.Logger
+	cloudRepository            collectiondto.CollectionDTORepository
+	localRepository            dom_collection.CollectionRepository
+	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase
+	decryptionService          CollectionDecryptionService
 }
 
 // NewUpdateLocalCollectionFromCloudCollectionService creates a new use case for updating local collection from the cloud
@@ -31,14 +34,16 @@ func NewUpdateLocalCollectionFromCloudCollectionService(
 	logger *zap.Logger,
 	cloudRepository collectiondto.CollectionDTORepository,
 	localRepository dom_collection.CollectionRepository,
+	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	decryptionService CollectionDecryptionService,
 ) UpdateLocalCollectionFromCloudCollectionService {
 	logger = logger.Named("UpdateLocalCollectionFromCloudCollectionService")
 	return &updateLocalCollectionFromCloudCollectionService{
-		logger:            logger,
-		cloudRepository:   cloudRepository,
-		localRepository:   localRepository,
-		decryptionService: decryptionService,
+		logger:                     logger,
+		cloudRepository:            cloudRepository,
+		localRepository:            localRepository,
+		getUserByIsLoggedInUseCase: getUserByIsLoggedInUseCase,
+		decryptionService:          decryptionService,
 	}
 }
 
@@ -63,7 +68,19 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	}
 
 	//
-	// STEP 2: Submit our request to the cloud to get the collection details and get related local collections.
+	// Step 2: Get user and collection for E2EE key chain
+	//
+
+	user, err := uc.getUserByIsLoggedInUseCase.Execute(ctx)
+	if err != nil {
+		return nil, errors.NewAppError("failed to get logged in user", err)
+	}
+	if user == nil {
+		return nil, errors.NewAppError("user not found", nil)
+	}
+
+	//
+	// STEP 3: Submit our request to the cloud to get the collection details and get related local collections.
 	//
 
 	// Call the repository to get the collection
@@ -85,7 +102,7 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	}
 
 	//
-	// STEP 3: Confirm that the local collection exists.
+	// STEP 4: Confirm that the local collection exists.
 	//
 	if localCollection == nil {
 		err := errors.NewAppError("no local collection found", nil)
@@ -95,7 +112,7 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	}
 
 	//
-	// STEP 4: Confirm we are eligible for updating the local collection.
+	// STEP 5: Confirm we are eligible for updating the local collection.
 	//
 
 	// CASE 1: Local collection is already same or newest version compared with the cloud collection.
@@ -122,26 +139,40 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	}
 
 	//
-	// STEP 5: Update the local existing collection from the cloud.
+	// STEP 6: Decrypt the collection with provided password
+	//
+
+	collectionKey, err := uc.decryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, localCollection, password)
+	if err != nil {
+		uc.logger.Warn("⚠️ Failed to decrypt collection key, using placeholder",
+			zap.String("collectionID", cloudCollectionDTO.ID.Hex()),
+			zap.Error(err))
+		return nil, err
+	}
+	defer crypto.ClearBytes(collectionKey)
+
+	//
+	// Step 7: Decrypt any encrypted collection data
+	//
+	collectionName, err := uc.decryptionService.ExecuteDecryptData(ctx, cloudCollectionDTO.EncryptedName, collectionKey)
+	if err != nil {
+		uc.logger.Error("failed to decrypt file metadata", zap.Error(err))
+		return nil, errors.NewAppError("failed to decrypt file metadata", err)
+	}
+	if collectionName == "" {
+		uc.logger.Error("failed to decrypt collection name", zap.Error(err))
+		return nil, errors.NewAppError("failed to decrypt collection name", err)
+	}
+
+	//
+	// STEP 6: Update the local existing collection from the cloud.
 	//
 
 	// Update a new collection domain object from the cloud data using a mapping function.
 	cloudCollection := mapCollectionDTOToDomain(cloudCollectionDTO)
 
-	// Decrypt name if password provided
-	if password != "" {
-		decryptedName, err := uc.decryptionService.DecryptCollectionName(ctx, cloudCollectionDTO, password)
-		if err != nil {
-			uc.logger.Warn("⚠️ Failed to decrypt collection name during update",
-				zap.String("collectionID", cloudCollectionDTO.ID.Hex()),
-				zap.Error(err))
-			cloudCollection.Name = "[Encrypted]"
-		} else {
-			cloudCollection.Name = decryptedName
-		}
-	} else {
-		cloudCollection.Name = "[Encrypted]"
-	}
+	// IMPORTANT: Assign our decrypted values to.
+	cloudCollection.Name = collectionName
 
 	uc.logger.Debug("🔍 Full cloud collection DTO",
 		zap.String("id", cloudCollectionDTO.ID.Hex()),
@@ -162,6 +193,8 @@ func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	//
 
 	uc.logger.Debug("✅ Local collection is updated",
-		zap.String("id", cloudCollectionID.Hex()))
+		zap.String("id", cloudCollection.ID.Hex()),
+		zap.String("name", cloudCollection.Name),
+	)
 	return cloudCollection, nil
 }

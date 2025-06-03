@@ -2,11 +2,13 @@ package collectionsyncer
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
+	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
@@ -14,7 +16,8 @@ import (
 
 // CollectionDecryptionService handles decryption of collection data
 type CollectionDecryptionService interface {
-	DecryptCollectionName(ctx context.Context, collectionDTO *collectiondto.CollectionDTO, userPassword string) (string, error)
+	ExecuteDecryptCollectionKeyChain(ctx context.Context, user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error)
+	ExecuteDecryptData(ctx context.Context, encryptedData string, fileKey []byte) (string, error)
 }
 
 // collectionDecryptionService implements CollectionDecryptionService
@@ -35,103 +38,106 @@ func NewCollectionDecryptionService(
 	}
 }
 
-// DecryptCollectionName decrypts a collection's encrypted name
-func (s *collectionDecryptionService) DecryptCollectionName(ctx context.Context, collectionDTO *collectiondto.CollectionDTO, userPassword string) (string, error) {
-	// Validate inputs
-	if collectionDTO == nil {
-		return "", errors.NewAppError("collection DTO is required", nil)
-	}
-	if userPassword == "" {
-		return "", errors.NewAppError("user password is required for decryption", nil)
-	}
-	if collectionDTO.EncryptedName == "" {
-		return "", errors.NewAppError("encrypted name is required", nil)
-	}
-	if collectionDTO.EncryptedCollectionKey == nil {
-		return "", errors.NewAppError("encrypted collection key is required", nil)
-	}
+func (s *collectionDecryptionService) ExecuteDecryptCollectionKeyChain(ctx context.Context, user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
+	s.logger.Debug("🔑 Starting E2EE key chain decryption",
+		zap.String("userID", user.ID.Hex()),
+		zap.String("collectionID", collection.ID.Hex()))
 
-	// Get user data for decryption keys
-	userData, err := s.getUserByIsLoggedInUseCase.Execute(ctx)
+	// STEP 1: Derive keyEncryptionKey from password
+	s.logger.Debug("🧠 Step 1: Deriving key encryption key from password")
+	keyEncryptionKey, err := crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
 	if err != nil {
-		s.logger.Error("❌ Failed to get authenticated user", zap.Error(err))
-		return "", errors.NewAppError("failed to get user data", err)
-	}
-	if userData == nil {
-		return "", errors.NewAppError("authenticated user not found; please login first", nil)
-	}
-
-	// Step 1: Derive keyEncryptionKey from password + salt (E2EE spec)
-	keyEncryptionKey, err := s.deriveKeyEncryptionKey(userPassword, userData.PasswordSalt)
-	if err != nil {
-		return "", errors.NewAppError("failed to derive key encryption key", err)
+		s.logger.Error("❌ Failed to derive key encryption key", zap.Error(err))
+		return nil, fmt.Errorf("failed to derive key encryption key: %w", err)
 	}
 	defer crypto.ClearBytes(keyEncryptionKey)
+	s.logger.Debug("✅ Successfully derived key encryption key")
 
-	// Step 2: Decrypt masterKey with keyEncryptionKey (E2EE spec)
-	masterKey, err := s.decryptMasterKey(userData, keyEncryptionKey)
-	if err != nil {
-		return "", errors.NewAppError("failed to decrypt master key - incorrect password?", err)
-	}
-	defer crypto.ClearBytes(masterKey)
-
-	// Step 3: Decrypt collectionKey with masterKey (E2EE spec)
-	collectionKey, err := crypto.DecryptWithSecretBox(
-		collectionDTO.EncryptedCollectionKey.Ciphertext,
-		collectionDTO.EncryptedCollectionKey.Nonce,
-		masterKey,
-	)
-	if err != nil {
-		return "", errors.NewAppError("failed to decrypt collection key", err)
-	}
-	defer crypto.ClearBytes(collectionKey)
-
-	// Step 4: Decrypt collection name with collectionKey (E2EE spec)
-	decryptedName, err := s.decryptCollectionName(collectionDTO.EncryptedName, collectionKey)
-	if err != nil {
-		return "", errors.NewAppError("failed to decrypt collection name", err)
+	// STEP 2: Decrypt masterKey with keyEncryptionKey (ChaCha20-Poly1305)
+	s.logger.Debug("🧠 Step 2: Decrypting master key with key encryption key")
+	if len(user.EncryptedMasterKey.Ciphertext) == 0 || len(user.EncryptedMasterKey.Nonce) == 0 {
+		s.logger.Error("❌ User encrypted master key is empty or invalid",
+			zap.Int("ciphertextLen", len(user.EncryptedMasterKey.Ciphertext)),
+			zap.Int("nonceLen", len(user.EncryptedMasterKey.Nonce)))
+		return nil, fmt.Errorf("user encrypted master key is invalid")
 	}
 
-	s.logger.Debug("✅ Successfully decrypted collection name",
-		zap.String("collectionID", collectionDTO.ID.Hex()),
-		zap.String("decryptedName", decryptedName))
-
-	return decryptedName, nil
-}
-
-// Helper: Derive keyEncryptionKey from password (E2EE spec)
-func (s *collectionDecryptionService) deriveKeyEncryptionKey(password string, salt []byte) ([]byte, error) {
-	return crypto.DeriveKeyFromPassword(password, salt)
-}
-
-// Helper: Decrypt masterKey with keyEncryptionKey (E2EE spec)
-func (s *collectionDecryptionService) decryptMasterKey(user *dom_user.User, keyEncryptionKey []byte) ([]byte, error) {
-	return crypto.DecryptWithSecretBox(
+	masterKey, err := crypto.DecryptWithSecretBox(
 		user.EncryptedMasterKey.Ciphertext,
 		user.EncryptedMasterKey.Nonce,
 		keyEncryptionKey,
 	)
+	if err != nil {
+		s.logger.Error("❌ Failed to decrypt master key - this usually means incorrect password",
+			zap.Error(err),
+			zap.String("userID", user.ID.Hex()))
+		return nil, fmt.Errorf("failed to decrypt master key - incorrect password?: %w", err)
+	}
+	defer crypto.ClearBytes(masterKey)
+	s.logger.Debug("✅ Successfully decrypted master key")
+
+	// STEP 3: Decrypt collectionKey with masterKey (ChaCha20-Poly1305)
+	s.logger.Debug("🧠 Step 3: Decrypting collection key with master key")
+	if collection.EncryptedCollectionKey == nil {
+		s.logger.Error("❌ Collection has no encrypted key", zap.String("collectionID", collection.ID.Hex()))
+		return nil, errors.NewAppError("collection has no encrypted key", nil)
+	}
+
+	if len(collection.EncryptedCollectionKey.Ciphertext) == 0 || len(collection.EncryptedCollectionKey.Nonce) == 0 {
+		s.logger.Error("❌ Collection encrypted key is empty or invalid",
+			zap.Int("ciphertextLen", len(collection.EncryptedCollectionKey.Ciphertext)),
+			zap.Int("nonceLen", len(collection.EncryptedCollectionKey.Nonce)))
+		return nil, fmt.Errorf("collection encrypted key is invalid")
+	}
+
+	collectionKey, err := crypto.DecryptWithSecretBox(
+		collection.EncryptedCollectionKey.Ciphertext,
+		collection.EncryptedCollectionKey.Nonce,
+		masterKey,
+	)
+	if err != nil {
+		s.logger.Error("❌ Failed to decrypt collection key", zap.Error(err))
+		return nil, fmt.Errorf("failed to decrypt collection key: %w", err)
+	}
+	s.logger.Debug("✅ Successfully decrypted collection key")
+
+	return collectionKey, nil
 }
 
-// Helper: Decrypt collection name with collectionKey (E2EE spec)
-func (s *collectionDecryptionService) decryptCollectionName(encryptedName string, collectionKey []byte) (string, error) {
-	// Decode from base64
-	combined, err := crypto.DecodeFromBase64(encryptedName)
+func (s *collectionDecryptionService) ExecuteDecryptData(ctx context.Context, encryptedDatga string, fileKey []byte) (string, error) {
+	s.logger.Debug("🔑 Decrypting collection data")
+
+	// The encrypted metadata is stored as base64 encoded (nonce + ciphertext)
+	// Format: base64(12-byte-nonce + ciphertext) for ChaCha20-Poly1305
+	combined, err := base64.StdEncoding.DecodeString(encryptedDatga)
 	if err != nil {
-		return "", err
+		s.logger.Error("❌ Failed to decode encrypted data from base64", zap.Error(err))
+		return "", fmt.Errorf("failed to decode encrypted data: %w", err)
 	}
 
-	// Split nonce and ciphertext
-	nonce, ciphertext, err := crypto.SplitNonceAndCiphertext(combined, crypto.SecretBoxNonceSize)
-	if err != nil {
-		return "", err
+	// Split nonce and ciphertext for ChaCha20-Poly1305 (12-byte nonce)
+	if len(combined) < crypto.ChaCha20Poly1305NonceSize {
+		s.logger.Error("❌ Combined data too short",
+			zap.Int("expectedMinSize", crypto.ChaCha20Poly1305NonceSize),
+			zap.Int("actualSize", len(combined)))
+		return "", fmt.Errorf("combined data too short: expected at least %d bytes for ChaCha20-Poly1305, got %d", crypto.ChaCha20Poly1305NonceSize, len(combined))
 	}
 
-	// Decrypt
-	decryptedBytes, err := crypto.DecryptWithSecretBox(ciphertext, nonce, collectionKey)
+	nonce := make([]byte, crypto.ChaCha20Poly1305NonceSize)
+	copy(nonce, combined[:crypto.ChaCha20Poly1305NonceSize])
+
+	ciphertext := make([]byte, len(combined)-crypto.ChaCha20Poly1305NonceSize)
+	copy(ciphertext, combined[crypto.ChaCha20Poly1305NonceSize:])
+
+	// Decrypt metadata using ChaCha20-Poly1305
+	decryptedBytes, err := crypto.DecryptWithSecretBox(ciphertext, nonce, fileKey)
 	if err != nil {
-		return "", err
+		s.logger.Error("❌ Failed to decrypt collection data", zap.Error(err))
+		return "nil", fmt.Errorf("failed to decrypt collection data: %w", err)
 	}
 
+	s.logger.Debug("✅ Successfully decrypted collection data",
+		zap.String("decrypted_data", string(decryptedBytes)),
+	)
 	return string(decryptedBytes), nil
 }

@@ -11,6 +11,8 @@ import (
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	dom_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
+	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/httperror"
 )
 
@@ -21,10 +23,11 @@ type CreateLocalCollectionFromCloudCollectionService interface {
 
 // createLocalCollectionFromCloudCollectionService implements the CreateLocalCollectionFromCloudCollectionService interface
 type createLocalCollectionFromCloudCollectionService struct {
-	logger            *zap.Logger
-	cloudRepository   collectiondto.CollectionDTORepository
-	localRepository   dom_collection.CollectionRepository
-	decryptionService CollectionDecryptionService
+	logger                     *zap.Logger
+	cloudRepository            collectiondto.CollectionDTORepository
+	localRepository            dom_collection.CollectionRepository
+	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase
+	decryptionService          CollectionDecryptionService
 }
 
 // NewCreateLocalCollectionFromCloudCollectionService creates a new use case for creating cloud collections
@@ -32,14 +35,16 @@ func NewCreateLocalCollectionFromCloudCollectionService(
 	logger *zap.Logger,
 	cloudRepository collectiondto.CollectionDTORepository,
 	localRepository dom_collection.CollectionRepository,
+	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	decryptionService CollectionDecryptionService,
 ) CreateLocalCollectionFromCloudCollectionService {
 	logger = logger.Named("CreateLocalCollectionFromCloudCollectionService")
 	return &createLocalCollectionFromCloudCollectionService{
-		logger:            logger,
-		cloudRepository:   cloudRepository,
-		localRepository:   localRepository,
-		decryptionService: decryptionService,
+		logger:                     logger,
+		cloudRepository:            cloudRepository,
+		localRepository:            localRepository,
+		getUserByIsLoggedInUseCase: getUserByIsLoggedInUseCase,
+		decryptionService:          decryptionService,
 	}
 }
 
@@ -64,7 +69,19 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	}
 
 	//
-	// STEP 2: Submit our request to the cloud to get the collection details.
+	// Step 2: Get user and collection for E2EE key chain
+	//
+
+	user, err := uc.getUserByIsLoggedInUseCase.Execute(ctx)
+	if err != nil {
+		return nil, errors.NewAppError("failed to get logged in user", err)
+	}
+	if user == nil {
+		return nil, errors.NewAppError("user not found", nil)
+	}
+
+	//
+	// STEP 3: Submit our request to the cloud to get the collection details.
 	//
 
 	// Call the repository to get the collection
@@ -80,10 +97,10 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	}
 
 	//
-	// STEP 3: Perform any necessary validation before creating the local collection.
+	// STEP 4: Perform any necessary validation before creating the local collection.
 	//
 
-	// CASE 1: Make sure the cloud collection hasn't been deleted.
+	// Make sure the cloud collection hasn't been deleted.
 	if cloudCollectionDTO.TombstoneVersion > 0 {
 		uc.logger.Debug("⏭️ Skipping local collection creation from the cloud because it has been deleted",
 			zap.String("id", cloudCollectionDTO.ID.Hex()))
@@ -91,22 +108,38 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	}
 
 	//
-	// STEP 4: Create a new collection domain object from the cloud data using a mapping function.
+	// STEP 5: Create a new collection domain object from the cloud data using a mapping function.
 	//
 
 	// Create a new collection domain object from the cloud data using a mapping function.
 	newCollection := mapCollectionDTOToDomain(cloudCollectionDTO)
 
-	// Decrypt the collection with provided password
-	decryptedName, err := uc.decryptionService.DecryptCollectionName(ctx, cloudCollectionDTO, password)
+	//
+	// STEP 6: Decrypt the collection with provided password
+	//
+
+	collectionKey, err := uc.decryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, newCollection, password)
 	if err != nil {
-		uc.logger.Warn("⚠️ Failed to decrypt collection name, using placeholder",
+		uc.logger.Warn("⚠️ Failed to decrypt collection key, using placeholder",
 			zap.String("collectionID", cloudCollectionDTO.ID.Hex()),
 			zap.Error(err))
-		newCollection.Name = "[Encrypted]"
-	} else {
-		newCollection.Name = decryptedName
+		return nil, err
 	}
+	defer crypto.ClearBytes(collectionKey)
+
+	//
+	// Step 7: Decrypt any encrypted collection data
+	//
+	collectionName, err := uc.decryptionService.ExecuteDecryptData(ctx, cloudCollectionDTO.EncryptedName, collectionKey)
+	if err != nil {
+		uc.logger.Error("failed to decrypt file metadata", zap.Error(err))
+		return nil, errors.NewAppError("failed to decrypt file metadata", err)
+	}
+	if collectionName == "" {
+		uc.logger.Error("failed to decrypt collection name", zap.Error(err))
+		return nil, errors.NewAppError("failed to decrypt collection name", err)
+	}
+	newCollection.Name = collectionName
 
 	uc.logger.Debug("🔍 Mapped local collection",
 		zap.String("id", newCollection.ID.Hex()),
@@ -124,7 +157,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	}
 
 	//
-	// STEP 5: Return our local  collection response from the cloud.
+	// STEP 8: Return our local  collection response from the cloud.
 	//
 
 	return newCollection, nil
