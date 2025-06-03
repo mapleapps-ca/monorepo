@@ -49,7 +49,9 @@ func (impl *templatedEmailer) SendMapleFileModuleUserLoginOneTimeTokenEmail(ctx 
 	if err := impl.papercloudEmailer.Send(ctx, impl.papercloudEmailer.GetSenderEmail(), "Login token", email, body); err != nil {
 		return fmt.Errorf("sending papercloud login one-time token verification error: %w", err)
 	}
-	log.Println("success in sending papercloud login one-time token email")
+
+	// For debugging purposes only.
+	log.Printf("success in sending papercloud login one-time token email: %v\n", oneTimeToken)
 	return nil
 }
 

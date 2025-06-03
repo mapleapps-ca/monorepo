@@ -270,12 +270,14 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 			// Optionally update membership CreatedAt here if server should control it, otherwise keep DTO value.
 			// collection.Members[i].CreatedAt = now
 			ownerAlreadyMember = true
+			svc.logger.Debug("✅ Owner membership exists with Admin permissions")
 			break
 		}
 	}
 
 	// If owner is not in the members list, add their mandatory membership.
 	if !ownerAlreadyMember {
+		svc.logger.Debug("☑️ Owner is not in the members list, add their mandatory membership now")
 		ownerMembership := dom_collection.CollectionMembership{
 			ID:              primitive.NewObjectID(), // Unique ID for this specific membership record
 			RecipientID:     userID,
@@ -289,7 +291,33 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 		}
 		// Append the mandatory owner membership. If req.Members was empty, this initializes the slice.
 		collection.Members = append(collection.Members, ownerMembership)
+
+		svc.logger.Debug("✅ Owner membership added with Admin permissions")
 	}
+
+	svc.logger.Debug("🔍 Collection debugging info",
+		zap.String("collectionID", collection.ID.Hex()),
+		zap.String("collectionOwnerID", collection.OwnerID.Hex()),
+		zap.String("currentUserID", userID.Hex()),
+		zap.Int("totalMembers", len(collection.Members)),
+		zap.String("encryptedName", collection.EncryptedName))
+
+	for i, memberDTO := range collection.Members {
+		svc.logger.Debug("🔍 Cloud collection member DTO",
+			zap.Int("memberIndex", i),
+			zap.String("memberID", memberDTO.ID.Hex()),
+			zap.String("recipientID", memberDTO.RecipientID.Hex()),
+			zap.String("recipientEmail", memberDTO.RecipientEmail),
+			zap.String("permissionLevel", memberDTO.PermissionLevel),
+			zap.Bool("isInherited", memberDTO.IsInherited),
+			zap.Int("encryptedKeyLength", len(memberDTO.EncryptedCollectionKey)))
+	}
+
+	// ENHANCED DEBUGGING: Log current user info for comparison
+	svc.logger.Debug("🔍 Current user info for comparison",
+		zap.String("currentUserID", federateduser.ID.Hex()),
+		zap.String("currentUserEmail", federateduser.Email),
+		zap.String("currentUserName", federateduser.Name))
 
 	// Note: Fields like ParentID, AncestorIDs, EncryptedCollectionKey,
 	// EncryptedName, CollectionType, and recursively mapped Children are copied directly from the DTO

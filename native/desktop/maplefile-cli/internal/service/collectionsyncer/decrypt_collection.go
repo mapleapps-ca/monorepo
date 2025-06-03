@@ -154,8 +154,16 @@ func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user 
 	// STEP 1: Find the user's membership record
 	var userMembership *dom_collection.CollectionMembership
 	for _, member := range collection.Members {
+		s.logger.Debug("🔍 Trying to match users membership record ",
+			zap.String("recipientID", member.RecipientID.Hex()),
+			zap.String("user.ID", user.ID.Hex()),
+		)
 		if member.RecipientID == user.ID {
 			userMembership = member
+			s.logger.Debug("✅ Matched users membership record!",
+				zap.String("recipientID", member.RecipientID.Hex()),
+				zap.String("user.ID", user.ID.Hex()),
+			)
 			break
 		}
 	}

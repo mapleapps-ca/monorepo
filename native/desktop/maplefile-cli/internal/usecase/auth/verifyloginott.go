@@ -64,6 +64,7 @@ func (uc *loginOTTVerificationUseCase) VerifyLoginOTT(ctx context.Context, email
 	}
 
 	if existingUser == nil {
+		//TODO: REMOVE THIS
 		return nil, nil, errors.NewAppError(
 			fmt.Sprintf("user with email %s not found; please register first", email),
 			nil,
