@@ -188,6 +188,12 @@ func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user 
 		zap.String("permissionLevel", userMembership.PermissionLevel),
 		zap.Int("encryptedKeySize", len(userMembership.EncryptedCollectionKey)))
 
+	// Developer Note: Our member must have been included the `EncryptedCollectionKey` field with the membership. If this is empty then our code won't work!
+	if len(userMembership.EncryptedCollectionKey) == 0 {
+		s.logger.Error("❌ No encrypted collection key included with membership shared")
+		return nil, fmt.Errorf("no encrypted collection key included with membership shared")
+	}
+
 	// Rest of the function remains the same...
 	// STEP 2: Decrypt masterKey with keyEncryptionKey to get private key
 	masterKey, err := crypto.DecryptWithSecretBox(
@@ -215,7 +221,7 @@ func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user 
 
 	// STEP 4: Decrypt collection key using private key (BoxSeal)
 	s.logger.Debug("🧠 Step 4: Decrypting member-specific collection key with private key")
-	if len(userMembership.EncryptedCollectionKey) == 0 {
+	if len(userMembership.EncryptedCollectionKey) == 0 { //<--
 		s.logger.Error("❌ Member has no encrypted collection key",
 			zap.String("membershipID", userMembership.ID.Hex()))
 		return nil, fmt.Errorf("member has no encrypted collection key")
