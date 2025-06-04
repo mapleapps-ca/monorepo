@@ -94,7 +94,7 @@ func RepoModule() fx.Option {
 		//----------------------------------------------
 		// Auth repositories
 		//----------------------------------------------
-		fx.Provide(authdto.NewTokenRepository),
+		fx.Provide(authdto.NewTokenDTORepository),
 		fx.Provide(authdto.NewEmailVerificationDTORepository),
 		fx.Provide(authdto.NewLoginOTTDTORepository),
 		fx.Provide(authdto.NewLoginOTTVerificationDTORepository),

@@ -16,7 +16,7 @@ import (
 type syncDTORepository struct {
 	logger          *zap.Logger
 	configService   config.ConfigService
-	tokenRepository dom_authdto.TokenRepository
+	tokenRepository dom_authdto.TokenDTORepository
 	httpClient      *http.Client
 }
 
@@ -24,7 +24,7 @@ type syncDTORepository struct {
 func NewSyncDTORepository(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	tokenRepository dom_authdto.TokenRepository,
+	tokenRepository dom_authdto.TokenDTORepository,
 ) syncdto.SyncDTORepository {
 	logger = logger.Named("SyncDTORepository")
 	return &syncDTORepository{

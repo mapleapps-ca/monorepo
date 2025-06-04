@@ -19,7 +19,7 @@ import (
 func RefreshTokenCmd(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	tokenRepository authdto.TokenRepository,
+	tokenRepository authdto.TokenDTORepository,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "refreshtoken",

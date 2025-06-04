@@ -16,7 +16,7 @@ import (
 type publicLookupDTORepository struct {
 	logger          *zap.Logger
 	configService   config.ConfigService
-	tokenRepository dom_authdto.TokenRepository
+	tokenRepository dom_authdto.TokenDTORepository
 	httpClient      *http.Client
 }
 
@@ -24,7 +24,7 @@ type publicLookupDTORepository struct {
 func NewPublicLookupDTORepository(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	tokenRepository dom_authdto.TokenRepository,
+	tokenRepository dom_authdto.TokenDTORepository,
 ) publiclookupdto.PublicLookupDTORepository {
 	logger = logger.Named("PublicLookupDTORepository")
 	return &publicLookupDTORepository{

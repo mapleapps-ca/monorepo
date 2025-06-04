@@ -23,7 +23,7 @@ type CompleteLoginUseCase interface {
 // completeLoginUseCase implements the CompleteLoginUseCase interface
 type completeLoginUseCase struct {
 	logger          *zap.Logger
-	tokenRepository dom_authdto.TokenRepository
+	tokenRepository dom_authdto.TokenDTORepository
 	repository      dom_authdto.CompleteLoginDTORepository
 	userRepo        user.Repository
 }
@@ -31,7 +31,7 @@ type completeLoginUseCase struct {
 // NewCompleteLoginUseCase creates a new login completion use case
 func NewCompleteLoginUseCase(
 	logger *zap.Logger,
-	tokenRepository dom_authdto.TokenRepository,
+	tokenRepository dom_authdto.TokenDTORepository,
 	repository dom_authdto.CompleteLoginDTORepository,
 	userRepo user.Repository,
 ) CompleteLoginUseCase {

@@ -18,13 +18,13 @@ type RefreshTokenUseCase interface {
 // refreshTokenUseCaseImpl implements the RefreshTokenUseCase interface
 type refreshTokenUseCaseImpl struct {
 	logger          *zap.Logger
-	tokenRepository dom_authdto.TokenRepository
+	tokenRepository dom_authdto.TokenDTORepository
 }
 
 // NewRefreshTokenUseCase creates a new instance of RefreshTokenUseCase
 func NewRefreshTokenUseCase(
 	logger *zap.Logger,
-	tokenRepository dom_authdto.TokenRepository,
+	tokenRepository dom_authdto.TokenDTORepository,
 ) RefreshTokenUseCase {
 	logger = logger.Named("RefreshTokenUseCase")
 	return &refreshTokenUseCaseImpl{

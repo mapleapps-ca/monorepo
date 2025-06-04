@@ -44,7 +44,7 @@ import (
 func NewRootCmd(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	tokenRepository authdto.TokenRepository,
+	tokenRepository authdto.TokenDTORepository,
 	userRepo user.Repository,
 	regService svc_register.RegisterService,
 	emailVerificationService svc_authdto.EmailVerificationService,

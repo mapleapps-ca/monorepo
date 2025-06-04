@@ -44,7 +44,7 @@ type recoveryUseCase struct {
 	logger          *zap.Logger
 	recoveryRepo    dom_authdto.RecoveryRepository
 	userRepo        user.Repository
-	tokenRepository dom_authdto.TokenRepository
+	tokenRepository dom_authdto.TokenDTORepository
 }
 
 // NewRecoveryUseCase creates a new recovery use case
@@ -52,7 +52,7 @@ func NewRecoveryUseCase(
 	logger *zap.Logger,
 	recoveryRepo dom_authdto.RecoveryRepository,
 	userRepo user.Repository,
-	tokenRepository dom_authdto.TokenRepository,
+	tokenRepository dom_authdto.TokenDTORepository,
 ) RecoveryUseCase {
 	logger = logger.Named("RecoveryUseCase")
 	return &recoveryUseCase{

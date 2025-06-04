@@ -16,7 +16,7 @@ import (
 type collectionSharingDTORepository struct {
 	logger          *zap.Logger
 	configService   config.ConfigService
-	tokenRepository dom_authdto.TokenRepository
+	tokenRepository dom_authdto.TokenDTORepository
 	httpClient      *http.Client
 }
 
@@ -24,7 +24,7 @@ type collectionSharingDTORepository struct {
 func NewCollectionSharingDTORepository(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	tokenRepository dom_authdto.TokenRepository,
+	tokenRepository dom_authdto.TokenDTORepository,
 ) collectionsharingdto.CollectionSharingDTORepository {
 	logger = logger.Named("CollectionSharingDTORepository")
 	return &collectionSharingDTORepository{

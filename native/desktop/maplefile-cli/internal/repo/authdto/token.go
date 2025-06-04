@@ -17,22 +17,22 @@ import (
 	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 )
 
-// tokenRepositoryImpl implements the TokenRepository interface
-type tokenRepositoryImpl struct {
+// tokenDTORepositoryImpl implements the TokenDTORepository interface
+type tokenDTORepositoryImpl struct {
 	logger        *zap.Logger
 	configService config.ConfigService
 }
 
-// NewTokenRepository creates a new instance of TokenRepository
-func NewTokenRepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.TokenRepository {
+// NewTokenDTORepository creates a new instance of TokenDTORepository
+func NewTokenDTORepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.TokenDTORepository {
 	logger = logger.Named("TokenRepository")
-	return &tokenRepositoryImpl{
+	return &tokenDTORepositoryImpl{
 		logger:        logger,
 		configService: configService,
 	}
 }
 
-func (s *tokenRepositoryImpl) Save(
+func (s *tokenDTORepositoryImpl) Save(
 	ctx context.Context,
 	email string,
 	accessToken string,
@@ -43,7 +43,7 @@ func (s *tokenRepositoryImpl) Save(
 	return s.configService.SetLoggedInUserCredentials(ctx, email, accessToken, accessTokenExpiryDate, refreshToken, refreshTokenExpiryDate)
 }
 
-func (s *tokenRepositoryImpl) GetAccessToken(ctx context.Context) (string, error) {
+func (s *tokenDTORepositoryImpl) GetAccessToken(ctx context.Context) (string, error) {
 	creds, err := s.configService.GetLoggedInUserCredentials(ctx)
 	if err != nil {
 		return "", fmt.Errorf("error getting logged in user credentials: %w", err)
@@ -82,7 +82,7 @@ func (s *tokenRepositoryImpl) GetAccessToken(ctx context.Context) (string, error
 	return creds.AccessToken, nil
 }
 
-func (s *tokenRepositoryImpl) GetAccessTokenAfterForcedRefresh(ctx context.Context) (string, error) {
+func (s *tokenDTORepositoryImpl) GetAccessTokenAfterForcedRefresh(ctx context.Context) (string, error) {
 	creds, err := s.configService.GetLoggedInUserCredentials(ctx)
 	if err != nil {
 		return "", fmt.Errorf("error getting logged in user credentials: %w", err)
@@ -116,7 +116,7 @@ type TokenRefreshResponseDTO struct {
 }
 
 // RefreshToken refreshes the authentication token using the provided refresh token
-func (s *tokenRepositoryImpl) refreshFromCloud(ctx context.Context, refreshToken string) (*TokenRefreshResponseDTO, error) {
+func (s *tokenDTORepositoryImpl) refreshFromCloud(ctx context.Context, refreshToken string) (*TokenRefreshResponseDTO, error) {
 	// Get the server URL from configuration
 	serverURL, err := s.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
