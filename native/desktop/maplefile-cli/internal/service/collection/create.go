@@ -15,6 +15,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_tx "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
 	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
@@ -47,6 +48,7 @@ type createService struct {
 	primitiveIDObjectGenerator     sprimitive.SecurePrimitiveObjectIDGenerator
 	transactionManager             dom_tx.Manager
 	getUserByIsLoggedInUseCase     uc_user.GetByIsLoggedInUseCase
+	collectionEncryptionService    svc_collectioncrypto.CollectionEncryptionService
 	createCollectionInCloudUseCase uc_collectiondto.CreateCollectionInCloudUseCase
 	getUserByEmailUseCase          uc_user.GetByEmailUseCase
 	createCollectionUseCase        uc_collection.CreateCollectionUseCase
@@ -59,6 +61,7 @@ func NewCreateService(
 	primitiveIDObjectGenerator sprimitive.SecurePrimitiveObjectIDGenerator,
 	transactionManager dom_tx.Manager,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
+	collectionEncryptionService svc_collectioncrypto.CollectionEncryptionService,
 	createCollectionInCloudUseCase uc_collectiondto.CreateCollectionInCloudUseCase,
 	getUserByEmailUseCase uc_user.GetByEmailUseCase,
 	createCollectionUseCase uc_collection.CreateCollectionUseCase,
@@ -70,6 +73,7 @@ func NewCreateService(
 		primitiveIDObjectGenerator:     primitiveIDObjectGenerator,
 		transactionManager:             transactionManager,
 		getUserByIsLoggedInUseCase:     getUserByIsLoggedInUseCase,
+		collectionEncryptionService:    collectionEncryptionService,
 		createCollectionInCloudUseCase: createCollectionInCloudUseCase,
 		getUserByEmailUseCase:          getUserByEmailUseCase,
 		createCollectionUseCase:        createCollectionUseCase,

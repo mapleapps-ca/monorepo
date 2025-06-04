@@ -48,6 +48,7 @@ func ServiceModule() fx.Option {
 
 		// Collection encryption and decrpytion services
 		fx.Provide(collectioncrypto.NewCollectionDecryptionService),
+		fx.Provide(collectioncrypto.NewCollectionEncryptionService),
 
 		// Collection syncer services
 		fx.Provide(collectionsyncer.NewCreateLocalCollectionFromCloudCollectionService),

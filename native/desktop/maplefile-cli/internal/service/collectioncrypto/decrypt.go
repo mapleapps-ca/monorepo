@@ -251,12 +251,12 @@ func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user 
 	return collectionKey, nil
 }
 
-func (s *collectionDecryptionService) ExecuteDecryptData(ctx context.Context, encryptedDatga string, fileKey []byte) (string, error) {
+func (s *collectionDecryptionService) ExecuteDecryptData(ctx context.Context, encryptedData string, fileKey []byte) (string, error) {
 	s.logger.Debug("🔑 Decrypting collection data")
 
 	// The encrypted metadata is stored as base64 encoded (nonce + ciphertext)
 	// Format: base64(12-byte-nonce + ciphertext) for ChaCha20-Poly1305
-	combined, err := base64.StdEncoding.DecodeString(encryptedDatga)
+	combined, err := base64.StdEncoding.DecodeString(encryptedData)
 	if err != nil {
 		s.logger.Error("❌ Failed to decode encrypted data from base64", zap.Error(err))
 		return "", fmt.Errorf("failed to decode encrypted data: %w", err)
