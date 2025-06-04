@@ -19,7 +19,7 @@ func NewUserVerificationDataTransformer() dom_authdto.UserVerificationDataTransf
 }
 
 // UpdateUserWithVerificationData updates a user model with verification data
-func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *user.User, data *dom_authdto.VerifyLoginOTTResponse) error {
+func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *user.User, data *dom_authdto.VerifyLoginOTTResponseDTO) error {
 	if user == nil {
 		return fmt.Errorf("❌ user cannot be nil")
 	}

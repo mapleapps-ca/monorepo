@@ -6,15 +6,15 @@ import (
 	"time"
 )
 
-// CompleteLoginRequest represents the data sent to the server to complete login
-type CompleteLoginRequest struct {
+// CompleteLoginRequestDTO represents the data sent to the server to complete login
+type CompleteLoginRequestDTO struct {
 	Email         string `json:"email"`
 	ChallengeID   string `json:"challengeId"`
 	DecryptedData string `json:"decryptedData"`
 }
 
-// TokenResponse represents the response from the server with auth tokens
-type TokenResponse struct {
+// TokenResponseDTO represents the response from the server with auth tokens
+type TokenResponseDTO struct {
 	AccessToken            string    `json:"access_token"`
 	AccessTokenExpiryTime  time.Time `json:"access_token_expiry_time"`
 	RefreshToken           string    `json:"refresh_token"`
@@ -22,6 +22,6 @@ type TokenResponse struct {
 }
 
 // CompleteLoginRepository defines methods for the login completion process
-type CompleteLoginRepository interface {
-	CompleteLogin(ctx context.Context, request *CompleteLoginRequest) (*TokenResponse, error)
+type CompleteLoginDTORepository interface {
+	CompleteLogin(ctx context.Context, request *CompleteLoginRequestDTO) (*TokenResponseDTO, error)
 }

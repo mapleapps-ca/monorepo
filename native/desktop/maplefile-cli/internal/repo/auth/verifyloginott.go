@@ -17,17 +17,17 @@ import (
 	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 )
 
-// loginOTTVerificationRepository implements LoginOTTVerificationRepository interface
-type loginOTTVerificationRepository struct {
+// loginOTTVerificationDTORepository implements LoginOTTVerificationDTORepository interface
+type loginOTTVerificationDTORepository struct {
 	logger        *zap.Logger
 	configService config.ConfigService
 	httpClient    *http.Client
 }
 
-// NewLoginOTTVerificationRepository creates a new repository for login OTT verification
-func NewLoginOTTVerificationRepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.LoginOTTVerificationRepository {
-	logger = logger.Named("LoginOTTVerificationRepository")
-	return &loginOTTVerificationRepository{
+// NewLoginOTTVerificationDTORepository creates a new repository for login OTT verification
+func NewLoginOTTVerificationDTORepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.LoginOTTVerificationDTORepository {
+	logger = logger.Named("LoginOTTVerificationDTORepository")
+	return &loginOTTVerificationDTORepository{
 		logger:        logger,
 		configService: configService,
 		httpClient:    &http.Client{Timeout: 30 * time.Second},
@@ -35,7 +35,7 @@ func NewLoginOTTVerificationRepository(logger *zap.Logger, configService config.
 }
 
 // VerifyLoginOTT verifies a login one-time token with the server
-func (r *loginOTTVerificationRepository) VerifyLoginOTT(ctx context.Context, request *dom_authdto.VerifyLoginOTTRequest) (*dom_authdto.VerifyLoginOTTResponse, error) {
+func (r *loginOTTVerificationDTORepository) VerifyLoginOTT(ctx context.Context, request *dom_authdto.VerifyLoginOTTRequestDTO) (*dom_authdto.VerifyLoginOTTResponseDTO, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -85,7 +85,7 @@ func (r *loginOTTVerificationRepository) VerifyLoginOTT(ctx context.Context, req
 	}
 
 	// Parse the response
-	var verifyResponse dom_authdto.VerifyLoginOTTResponse
+	var verifyResponse dom_authdto.VerifyLoginOTTResponseDTO
 	if err := json.Unmarshal(body, &verifyResponse); err != nil {
 		return nil, errors.NewAppError("failed to parse response", err)
 	}

@@ -15,7 +15,7 @@ import (
 
 // CompleteLoginService provides high-level functionality for login completion
 type CompleteLoginService interface {
-	CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponse, error)
+	CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponseDTO, error)
 }
 
 // completeLoginService implements the CompleteLoginService interface
@@ -43,7 +43,7 @@ func NewCompleteLoginService(
 }
 
 // CompleteLogin handles the entire flow of login completion
-func (s *completeLoginService) CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponse, error) {
+func (s *completeLoginService) CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponseDTO, error) {
 	// Call the use case to complete login and get token and updated user
 	tokenResp, updatedUser, err := s.useCase.CompleteLogin(ctx, email, password)
 	if err != nil {

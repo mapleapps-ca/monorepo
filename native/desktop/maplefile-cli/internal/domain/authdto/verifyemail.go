@@ -6,26 +6,26 @@ import (
 	"time"
 )
 
-// EmailVerification represents an email verification request
-type EmailVerification struct {
+// EmailVerificationDTO represents an email verification request
+type EmailVerificationDTO struct {
 	Code      string    `json:"code"`
 	Email     string    `json:"email"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// VerifyEmailRequest represents the data needed to verify an email
-type VerifyEmailRequest struct {
+// VerifyEmailRequestDTO represents the data needed to verify an email
+type VerifyEmailRequestDTO struct {
 	Code string `json:"code"`
 }
 
-// VerifyEmailResponse represents the expected response from the server
-type VerifyEmailResponse struct {
+// VerifyEmailResponseDTO represents the expected response from the server
+type VerifyEmailResponseDTO struct {
 	Message  string `json:"message"`
 	UserRole int    `json:"user_role"`
 	Status   int    `json:"profile_verification_status,omitempty"`
 }
 
-// EmailVerificationRepository defines the interface for email verification
-type EmailVerificationRepository interface {
-	VerifyEmail(ctx context.Context, code string) (*VerifyEmailResponse, error)
+// EmailVerificationDTORepository defines the interface for email verification
+type EmailVerificationDTORepository interface {
+	VerifyEmail(ctx context.Context, code string) (*VerifyEmailResponseDTO, error)
 }

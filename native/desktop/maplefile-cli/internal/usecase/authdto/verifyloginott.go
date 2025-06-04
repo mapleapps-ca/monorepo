@@ -16,13 +16,13 @@ import (
 
 // LoginOTTVerificationUseCase defines the interface for login OTT verification use cases
 type LoginOTTVerificationUseCase interface {
-	VerifyLoginOTT(ctx context.Context, email, ott string) (*dom_authdto.VerifyLoginOTTResponse, *user.User, error)
+	VerifyLoginOTT(ctx context.Context, email, ott string) (*dom_authdto.VerifyLoginOTTResponseDTO, *user.User, error)
 }
 
 // loginOTTVerificationUseCase implements the LoginOTTVerificationUseCase interface
 type loginOTTVerificationUseCase struct {
 	logger          *zap.Logger
-	repository      dom_authdto.LoginOTTVerificationRepository
+	repository      dom_authdto.LoginOTTVerificationDTORepository
 	userRepo        user.Repository
 	dataTransformer dom_authdto.UserVerificationDataTransformer
 }
@@ -30,7 +30,7 @@ type loginOTTVerificationUseCase struct {
 // NewLoginOTTVerificationUseCase creates a new login OTT verification use case
 func NewLoginOTTVerificationUseCase(
 	logger *zap.Logger,
-	repository dom_authdto.LoginOTTVerificationRepository,
+	repository dom_authdto.LoginOTTVerificationDTORepository,
 	userRepo user.Repository,
 	dataTransformer dom_authdto.UserVerificationDataTransformer,
 ) LoginOTTVerificationUseCase {
@@ -44,7 +44,7 @@ func NewLoginOTTVerificationUseCase(
 }
 
 // VerifyLoginOTT verifies a login OTT and updates the user with verification data
-func (uc *loginOTTVerificationUseCase) VerifyLoginOTT(ctx context.Context, email, ott string) (*dom_authdto.VerifyLoginOTTResponse, *user.User, error) {
+func (uc *loginOTTVerificationUseCase) VerifyLoginOTT(ctx context.Context, email, ott string) (*dom_authdto.VerifyLoginOTTResponseDTO, *user.User, error) {
 	// Validate inputs
 	if email == "" {
 		return nil, nil, errors.NewAppError("email is required", nil)
@@ -72,7 +72,7 @@ func (uc *loginOTTVerificationUseCase) VerifyLoginOTT(ctx context.Context, email
 	}
 
 	// Create request and verify the OTT
-	request := &dom_authdto.VerifyLoginOTTRequest{
+	request := &dom_authdto.VerifyLoginOTTRequestDTO{
 		Email: email,
 		OTT:   ott,
 	}

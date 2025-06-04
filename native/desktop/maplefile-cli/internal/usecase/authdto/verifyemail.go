@@ -13,20 +13,20 @@ import (
 
 // EmailVerificationUseCase defines the interface for email verification use cases
 type EmailVerificationUseCase interface {
-	VerifyEmail(ctx context.Context, code string) (*dom_authdto.VerifyEmailResponse, *user.User, error)
+	VerifyEmail(ctx context.Context, code string) (*dom_authdto.VerifyEmailResponseDTO, *user.User, error)
 }
 
 // emailVerificationUseCase implements the EmailVerificationUseCase interface
 type emailVerificationUseCase struct {
 	logger         *zap.Logger
-	repository     dom_authdto.EmailVerificationRepository
+	repository     dom_authdto.EmailVerificationDTORepository
 	userRepository user.Repository
 }
 
 // NewEmailVerificationUseCase creates a new email verification use case
 func NewEmailVerificationUseCase(
 	logger *zap.Logger,
-	repository dom_authdto.EmailVerificationRepository,
+	repository dom_authdto.EmailVerificationDTORepository,
 	userRepository user.Repository,
 ) EmailVerificationUseCase {
 	logger = logger.Named("EmailVerificationUseCase")
@@ -38,7 +38,7 @@ func NewEmailVerificationUseCase(
 }
 
 // VerifyEmail verifies an email with the provided code
-func (uc *emailVerificationUseCase) VerifyEmail(ctx context.Context, code string) (*dom_authdto.VerifyEmailResponse, *user.User, error) {
+func (uc *emailVerificationUseCase) VerifyEmail(ctx context.Context, code string) (*dom_authdto.VerifyEmailResponseDTO, *user.User, error) {
 	// Validate input
 	if code == "" {
 		return nil, nil, errors.NewAppError("verification code is required", nil)

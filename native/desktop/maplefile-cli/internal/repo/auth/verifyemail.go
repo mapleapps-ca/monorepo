@@ -17,17 +17,17 @@ import (
 	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 )
 
-// emailVerificationRepository implements EmailVerificationRepository interface
-type emailVerificationRepository struct {
+// emailVerificationDTORepository implements EmailVerificationRepository interface
+type emailVerificationDTORepository struct {
 	logger        *zap.Logger
 	configService config.ConfigService
 	httpClient    *http.Client
 }
 
-// NewEmailVerificationRepository creates a new repository for email verification
-func NewEmailVerificationRepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.EmailVerificationRepository {
-	logger = logger.Named("EmailVerificationRepository")
-	return &emailVerificationRepository{
+// NewEmailVerificationDTORepository creates a new repository for email verification
+func NewEmailVerificationDTORepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.EmailVerificationDTORepository {
+	logger = logger.Named("EmailVerificationDTORepository")
+	return &emailVerificationDTORepository{
 		logger:        logger,
 		configService: configService,
 		httpClient:    &http.Client{Timeout: 30 * time.Second},
@@ -35,7 +35,7 @@ func NewEmailVerificationRepository(logger *zap.Logger, configService config.Con
 }
 
 // VerifyEmail sends a verification request to the server
-func (r *emailVerificationRepository) VerifyEmail(ctx context.Context, code string) (*dom_authdto.VerifyEmailResponse, error) {
+func (r *emailVerificationDTORepository) VerifyEmail(ctx context.Context, code string) (*dom_authdto.VerifyEmailResponseDTO, error) {
 	r.logger.Debug("✨ Starting email verification process")
 
 	// Get server URL from config
@@ -47,7 +47,7 @@ func (r *emailVerificationRepository) VerifyEmail(ctx context.Context, code stri
 	r.logger.Debug("➡️ Retrieved server URL", zap.String("serverURL", serverURL))
 
 	// Create the request payload
-	verifyReq := dom_authdto.VerifyEmailRequest{
+	verifyReq := dom_authdto.VerifyEmailRequestDTO{
 		Code: code,
 	}
 	r.logger.Debug("➡️ Created verification request payload")
@@ -111,7 +111,7 @@ func (r *emailVerificationRepository) VerifyEmail(ctx context.Context, code stri
 	r.logger.Debug("➡️ Server returned success status code")
 
 	// Parse the response
-	var response dom_authdto.VerifyEmailResponse
+	var response dom_authdto.VerifyEmailResponseDTO
 	if err := json.Unmarshal(body, &response); err != nil {
 		r.logger.Error("❌ Failed to parse success response body", zap.Error(err), zap.ByteString("responseBody", body))
 		return nil, errors.NewAppError("failed to parse response", err)

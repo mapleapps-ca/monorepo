@@ -10,7 +10,7 @@ import (
 
 // UserVerificationDataTransformer handles transforming verification data for users
 type UserVerificationDataTransformer interface {
-	UpdateUserWithVerificationData(user *user.User, data *VerifyLoginOTTResponse) error
+	UpdateUserWithVerificationData(user *user.User, data *VerifyLoginOTTResponseDTO) error
 }
 
 // userVerificationDataTransformer implements UserVerificationDataTransformer
@@ -22,7 +22,7 @@ func NewUserVerificationDataTransformer() UserVerificationDataTransformer {
 }
 
 // UpdateUserWithVerificationData updates a user model with verification data
-func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *user.User, data *VerifyLoginOTTResponse) error {
+func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *user.User, data *VerifyLoginOTTResponseDTO) error {
 	if user == nil {
 		return fmt.Errorf("user cannot be nil")
 	}

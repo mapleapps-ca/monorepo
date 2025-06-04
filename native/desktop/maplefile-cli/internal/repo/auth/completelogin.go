@@ -18,16 +18,16 @@ import (
 )
 
 // completeLoginRepository implements CompleteLoginRepository interface
-type completeLoginRepository struct {
+type completeLoginDTORepository struct {
 	logger        *zap.Logger
 	configService config.ConfigService
 	httpClient    *http.Client
 }
 
-// NewCompleteLoginRepository creates a new repository for login completion
-func NewCompleteLoginRepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.CompleteLoginRepository {
+// NewCompleteLoginDTORepository creates a new repository for login completion
+func NewCompleteLoginDTORepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.CompleteLoginDTORepository {
 	logger = logger.Named("CompleteLoginRepository")
-	return &completeLoginRepository{
+	return &completeLoginDTORepository{
 		logger:        logger,
 		configService: configService,
 		httpClient:    &http.Client{Timeout: 30 * time.Second},
@@ -35,7 +35,7 @@ func NewCompleteLoginRepository(logger *zap.Logger, configService config.ConfigS
 }
 
 // CompleteLogin sends the login completion request to the server
-func (r *completeLoginRepository) CompleteLogin(ctx context.Context, request *dom_authdto.CompleteLoginRequest) (*dom_authdto.TokenResponse, error) {
+func (r *completeLoginDTORepository) CompleteLogin(ctx context.Context, request *dom_authdto.CompleteLoginRequestDTO) (*dom_authdto.TokenResponseDTO, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -78,7 +78,7 @@ func (r *completeLoginRepository) CompleteLogin(ctx context.Context, request *do
 	}
 
 	// Parse the response
-	var tokenResp dom_authdto.TokenResponse
+	var tokenResp dom_authdto.TokenResponseDTO
 	if err := json.Unmarshal(body, &tokenResp); err != nil {
 		return nil, errors.NewAppError("error parsing token response", err)
 	}

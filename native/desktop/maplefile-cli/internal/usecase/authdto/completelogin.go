@@ -17,14 +17,14 @@ import (
 
 // CompleteLoginUseCase defines the interface for login completion use cases
 type CompleteLoginUseCase interface {
-	CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponse, *user.User, error)
+	CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponseDTO, *user.User, error)
 }
 
 // completeLoginUseCase implements the CompleteLoginUseCase interface
 type completeLoginUseCase struct {
 	logger          *zap.Logger
 	tokenRepository dom_authdto.TokenRepository
-	repository      dom_authdto.CompleteLoginRepository
+	repository      dom_authdto.CompleteLoginDTORepository
 	userRepo        user.Repository
 }
 
@@ -32,7 +32,7 @@ type completeLoginUseCase struct {
 func NewCompleteLoginUseCase(
 	logger *zap.Logger,
 	tokenRepository dom_authdto.TokenRepository,
-	repository dom_authdto.CompleteLoginRepository,
+	repository dom_authdto.CompleteLoginDTORepository,
 	userRepo user.Repository,
 ) CompleteLoginUseCase {
 	logger = logger.Named("CompleteLoginUseCase")
@@ -45,7 +45,7 @@ func NewCompleteLoginUseCase(
 }
 
 // CompleteLogin handles the business logic for login completion
-func (uc *completeLoginUseCase) CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponse, *user.User, error) {
+func (uc *completeLoginUseCase) CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponseDTO, *user.User, error) {
 	// Validate inputs
 	if email == "" {
 		return nil, nil, errors.NewAppError("email is required", nil)
@@ -120,7 +120,7 @@ func (uc *completeLoginUseCase) CompleteLogin(ctx context.Context, email, passwo
 	decryptedChallengeBase64 := crypto.EncodeToBase64(decryptedChallenge)
 
 	// Send decrypted challenge to server to complete login
-	completeLoginReq := &dom_authdto.CompleteLoginRequest{
+	completeLoginReq := &dom_authdto.CompleteLoginRequestDTO{
 		Email:         email,
 		ChallengeID:   challengeID,
 		DecryptedData: decryptedChallengeBase64,

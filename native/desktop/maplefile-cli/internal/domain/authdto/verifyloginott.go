@@ -8,14 +8,14 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
-// VerifyLoginOTTRequest represents the data structure sent to the verify-ott endpoint
-type VerifyLoginOTTRequest struct {
+// VerifyLoginOTTRequestDTO represents the data structure sent to the verify-ott endpoint
+type VerifyLoginOTTRequestDTO struct {
 	Email string `json:"email"`
 	OTT   string `json:"ott"`
 }
 
-// VerifyLoginOTTResponse represents the response from the verify-ott API
-type VerifyLoginOTTResponse struct {
+// VerifyLoginOTTResponseDTO represents the response from the verify-ott API
+type VerifyLoginOTTResponseDTO struct {
 	Salt                string         `json:"salt"`
 	KDFParams           keys.KDFParams `json:"kdf_params" bson:"kdf_params"`
 	PublicKey           string         `json:"publicKey"`
@@ -33,6 +33,6 @@ type VerifyLoginOTTResponse struct {
 }
 
 // LoginOTTVerificationRepository defines methods for verifying login OTTs
-type LoginOTTVerificationRepository interface {
-	VerifyLoginOTT(ctx context.Context, request *VerifyLoginOTTRequest) (*VerifyLoginOTTResponse, error)
+type LoginOTTVerificationDTORepository interface {
+	VerifyLoginOTT(ctx context.Context, request *VerifyLoginOTTRequestDTO) (*VerifyLoginOTTResponseDTO, error)
 }

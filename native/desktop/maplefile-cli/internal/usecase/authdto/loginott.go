@@ -13,17 +13,17 @@ import (
 
 // LoginOTTUseCase defines the interface for login OTT use cases
 type LoginOTTUseCase interface {
-	RequestLoginOTT(ctx context.Context, email string) (*dom_authdto.LoginOTTResponse, error)
+	RequestLoginOTT(ctx context.Context, email string) (*dom_authdto.LoginOTTResponseDTO, error)
 }
 
 // loginOTTUseCase implements the LoginOTTUseCase interface
 type loginOTTUseCase struct {
 	logger     *zap.Logger
-	repository dom_authdto.LoginOTTRepository
+	repository dom_authdto.LoginOTTDTORepository
 }
 
 // NewLoginOTTUseCase creates a new login OTT use case
-func NewLoginOTTUseCase(logger *zap.Logger, repository dom_authdto.LoginOTTRepository) LoginOTTUseCase {
+func NewLoginOTTUseCase(logger *zap.Logger, repository dom_authdto.LoginOTTDTORepository) LoginOTTUseCase {
 	logger = logger.Named("LoginOTTUseCase")
 	return &loginOTTUseCase{
 		logger:     logger,
@@ -32,7 +32,7 @@ func NewLoginOTTUseCase(logger *zap.Logger, repository dom_authdto.LoginOTTRepos
 }
 
 // RequestLoginOTT handles the business logic for requesting a login OTT
-func (uc *loginOTTUseCase) RequestLoginOTT(ctx context.Context, email string) (*dom_authdto.LoginOTTResponse, error) {
+func (uc *loginOTTUseCase) RequestLoginOTT(ctx context.Context, email string) (*dom_authdto.LoginOTTResponseDTO, error) {
 	// Validate input
 	if email == "" {
 		return nil, errors.NewAppError("email is required", nil)
@@ -45,9 +45,9 @@ func (uc *loginOTTUseCase) RequestLoginOTT(ctx context.Context, email string) (*
 	uc.logger.Info("Requesting login OTT", zap.String("email", email))
 
 	// Create request and forward to repository
-	request := &dom_authdto.LoginOTTRequest{
+	request := &dom_authdto.LoginOTTRequestDTO{
 		Email: email,
 	}
 
-	return uc.repository.RequestLoginOTT(ctx, request)
+	return uc.repository.RequestLoginOTTFromCloud(ctx, request)
 }
