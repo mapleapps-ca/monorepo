@@ -5,7 +5,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/auth"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collectiondsharingdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/collectiondto"
@@ -94,12 +94,12 @@ func RepoModule() fx.Option {
 		//----------------------------------------------
 		// Auth repositories
 		//----------------------------------------------
-		fx.Provide(auth.NewTokenRepository),
-		fx.Provide(auth.NewEmailVerificationDTORepository),
-		fx.Provide(auth.NewLoginOTTDTORepository),
-		fx.Provide(auth.NewLoginOTTVerificationDTORepository),
-		fx.Provide(auth.NewCompleteLoginDTORepository),
-		fx.Provide(auth.NewRecoveryRepository),
+		fx.Provide(authdto.NewTokenRepository),
+		fx.Provide(authdto.NewEmailVerificationDTORepository),
+		fx.Provide(authdto.NewLoginOTTDTORepository),
+		fx.Provide(authdto.NewLoginOTTVerificationDTORepository),
+		fx.Provide(authdto.NewCompleteLoginDTORepository),
+		fx.Provide(authdto.NewRecoveryRepository),
 
 		//----------------------------------------------
 		// Local collection repository

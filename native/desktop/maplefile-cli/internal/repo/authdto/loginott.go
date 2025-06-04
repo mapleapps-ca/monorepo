@@ -1,5 +1,5 @@
 // monorepo/native/desktop/maplefile-cli/internal/repo/auth/loginott.go
-package auth
+package authdto
 
 import (
 	"bytes"

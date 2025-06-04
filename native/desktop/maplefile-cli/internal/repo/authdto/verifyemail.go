@@ -1,5 +1,5 @@
 // monorepo/native/desktop/maplefile-cli/internal/repo/auth/verifyemail.go
-package auth
+package authdto
 
 import (
 	"bytes"

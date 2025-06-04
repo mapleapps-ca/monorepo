@@ -1,5 +1,5 @@
 // native/desktop/maplefile-cli/internal/repo/auth/token.go
-package auth
+package authdto
 
 import (
 	"bytes"
