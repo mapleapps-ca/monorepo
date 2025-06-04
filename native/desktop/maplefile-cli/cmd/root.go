@@ -14,7 +14,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/files"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/filesync"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/logout"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/me"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/recovery"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
@@ -99,7 +98,12 @@ func NewRootCmd(
 	// Attach sub-commands to our main root
 	rootCmd.AddCommand(version.VersionCmd())
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
-	rootCmd.AddCommand(cloud.CloudCmd(configService, getPublicLookupFromCloudUseCase, logger))
+	rootCmd.AddCommand(cloud.CloudCmd(
+		configService,
+		getPublicLookupFromCloudUseCase,
+		getMeService,
+		updateMeService,
+		logger))
 	rootCmd.AddCommand(register.RegisterCmd(regService))
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(emailVerificationService, logger))
 	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
@@ -148,12 +152,6 @@ func NewRootCmd(
 		syncFileService, // Pass the file sync service
 		syncFullService, // Pass the full sync service
 		syncDebugService,
-		logger,
-	))
-
-	rootCmd.AddCommand(me.MeCmd(
-		getMeService,
-		updateMeService,
 		logger,
 	))
 
