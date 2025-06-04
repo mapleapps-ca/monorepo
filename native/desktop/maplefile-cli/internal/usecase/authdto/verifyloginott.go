@@ -3,7 +3,6 @@ package authdto
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -64,10 +63,22 @@ func (uc *loginOTTVerificationUseCase) VerifyLoginOTT(ctx context.Context, email
 	}
 
 	if existingUser == nil {
-		//TODO: REMOVE THIS
-		return nil, nil, errors.NewAppError(
-			fmt.Sprintf("user with email %s not found; please register first", email),
-			nil,
+		uc.logger.Debug("no existing user exists, create lite user now",
+			zap.String("email", email),
+		)
+		newUser := &user.User{
+			Email: email,
+		}
+
+		if err := uc.userRepo.UpsertByEmail(ctx, newUser); err != nil {
+			return nil, nil, errors.NewAppError("failed to save new user", err)
+		}
+
+		// Now our new user exists in our database so return it now.
+		existingUser = newUser
+
+		uc.logger.Debug("new user exists on local database",
+			zap.String("email", email),
 		)
 	}
 
@@ -89,6 +100,14 @@ func (uc *loginOTTVerificationUseCase) VerifyLoginOTT(ctx context.Context, email
 
 	// Update modified timestamp
 	existingUser.ModifiedAt = time.Now()
+
+	if err := uc.userRepo.UpsertByEmail(ctx, existingUser); err != nil {
+		return nil, nil, errors.NewAppError("failed to save existing user", err)
+	}
+
+	uc.logger.Debug("existing user updated with local keys",
+		zap.String("email", email),
+	)
 
 	return response, existingUser, nil
 }
