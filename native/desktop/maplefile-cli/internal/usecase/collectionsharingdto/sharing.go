@@ -9,6 +9,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
 // ShareCollectionInput represents input for sharing a collection
@@ -17,8 +18,8 @@ type ShareCollectionInputDTO struct {
 	RecipientID            primitive.ObjectID `json:"recipient_id"`
 	RecipientEmail         string             `json:"recipient_email"`
 	PermissionLevel        string             `json:"permission_level"`
-	EncryptedCollectionKey string             `json:"encrypted_collection_key"`
-	ShareWithDescendants   bool               `json:"share_with_descendants"`
+	EncryptedCollectionKey *keys.EncryptedCollectionKey
+	ShareWithDescendants   bool `json:"share_with_descendants"`
 }
 
 // ShareCollectionUseCase defines the interface for sharing collections
@@ -62,7 +63,7 @@ func (uc *shareCollectionUseCase) Execute(ctx context.Context, input *ShareColle
 	if input.PermissionLevel == "" {
 		return nil, errors.NewAppError("permission level is required", nil)
 	}
-	if input.EncryptedCollectionKey == "" {
+	if input.EncryptedCollectionKey == nil {
 		return nil, errors.NewAppError("encrypted collection key is required for E2EE operations", nil)
 	}
 	if err := collectionsharingdto.ValidatePermissionLevel(input.PermissionLevel); err != nil {

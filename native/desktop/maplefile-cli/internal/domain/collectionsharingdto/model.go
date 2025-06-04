@@ -2,17 +2,18 @@
 package collectionsharingdto
 
 import (
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // ShareCollectionRequestDTO represents a request to share a collection
 type ShareCollectionRequestDTO struct {
-	CollectionID           primitive.ObjectID `json:"collection_id"`
-	RecipientID            primitive.ObjectID `json:"recipient_id"`
-	RecipientEmail         string             `json:"recipient_email"`
-	PermissionLevel        string             `json:"permission_level"`
-	EncryptedCollectionKey string             `json:"encrypted_collection_key"`
-	ShareWithDescendants   bool               `json:"share_with_descendants"`
+	CollectionID           primitive.ObjectID           `json:"collection_id"`
+	RecipientID            primitive.ObjectID           `json:"recipient_id"`
+	RecipientEmail         string                       `json:"recipient_email"`
+	PermissionLevel        string                       `json:"permission_level"`
+	EncryptedCollectionKey *keys.EncryptedCollectionKey `json:"encrypted_collection_key"`
+	ShareWithDescendants   bool                         `json:"share_with_descendants"`
 }
 
 // ShareCollectionResponseDTO represents the response from sharing a collection

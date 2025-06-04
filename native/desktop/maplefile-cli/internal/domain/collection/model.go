@@ -94,7 +94,7 @@ type CollectionMembership struct {
 	// EncryptedCollectionKey is the collection's symmetric key, specifically encrypted for the RecipientID.
 	// This key is encrypted using the recipient's public key (box_seal), allowing only the recipient to decrypt it using their private key.
 	// This ensures that only authorized recipients can access the collection's data.
-	EncryptedCollectionKey []byte `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
+	EncryptedCollectionKey *keys.EncryptedCollectionKey `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
 
 	// Access details
 

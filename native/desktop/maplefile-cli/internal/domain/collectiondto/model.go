@@ -75,8 +75,7 @@ type CollectionMembershipDTO struct {
 	RecipientEmail string             `bson:"recipient_email" json:"recipient_email"` // Email for display purposes
 	GrantedByID    primitive.ObjectID `bson:"granted_by_id" json:"granted_by_id"`     // User who shared the collection
 
-	// Collection key encrypted with recipient's public key using box_seal. This matches the box_seal format which doesn't need a separate nonce.
-	EncryptedCollectionKey []byte `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
+	EncryptedCollectionKey *keys.EncryptedCollectionKey `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
 
 	// Access details
 	PermissionLevel string    `bson:"permission_level" json:"permission_level"`

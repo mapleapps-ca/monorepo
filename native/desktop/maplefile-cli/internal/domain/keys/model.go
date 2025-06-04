@@ -217,3 +217,36 @@ type MasterKeyEncryptedWithRecoveryKey struct {
 	Ciphertext []byte `json:"ciphertext" bson:"ciphertext"`
 	Nonce      []byte `json:"nonce" bson:"nonce"`
 }
+
+// NewEncryptedCollectionKeyFromBoxSeal creates an EncryptedCollectionKey from box_seal encrypted bytes
+func NewEncryptedCollectionKeyFromBoxSeal(boxSealBytes []byte) *EncryptedCollectionKey {
+	now := time.Now()
+	return &EncryptedCollectionKey{
+		Ciphertext:   boxSealBytes, // box_seal data contains everything (ephemeral key + nonce + ciphertext)
+		Nonce:        nil,          // box_seal handles nonce internally
+		KeyVersion:   1,
+		RotatedAt:    &now,
+		PreviousKeys: []EncryptedHistoricalKey{}, // No previous keys for new shares
+	}
+}
+
+// ToBoxSealBytes extracts the box_seal bytes from EncryptedCollectionKey
+func (e *EncryptedCollectionKey) ToBoxSealBytes() []byte {
+	if e == nil {
+		return nil
+	}
+
+	// Handle different storage formats based on your backend response
+	if len(e.Nonce) > 0 && len(e.Ciphertext) > 0 {
+		// If both nonce and ciphertext are separate (as in your backend response)
+		// This suggests the backend might be storing them separately
+		// We need to combine them back into the box_seal format
+		combined := make([]byte, len(e.Nonce)+len(e.Ciphertext))
+		copy(combined[:len(e.Nonce)], e.Nonce)
+		copy(combined[len(e.Nonce):], e.Ciphertext)
+		return combined
+	}
+
+	// If only ciphertext exists, assume it contains the full box_seal data
+	return e.Ciphertext
+}
