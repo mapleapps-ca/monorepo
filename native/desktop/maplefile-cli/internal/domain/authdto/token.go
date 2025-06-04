@@ -1,5 +1,5 @@
-// internal/domain/auth/token.go
-package auth
+// internal/domain/authdto/token.go
+package authdto
 
 import (
 	"context"

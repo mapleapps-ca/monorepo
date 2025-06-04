@@ -14,7 +14,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 )
 
 // tokenRepositoryImpl implements the TokenRepository interface
@@ -24,7 +24,7 @@ type tokenRepositoryImpl struct {
 }
 
 // NewTokenRepository creates a new instance of TokenRepository
-func NewTokenRepository(logger *zap.Logger, configService config.ConfigService) auth.TokenRepository {
+func NewTokenRepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.TokenRepository {
 	logger = logger.Named("TokenRepository")
 	return &tokenRepositoryImpl{
 		logger:        logger,

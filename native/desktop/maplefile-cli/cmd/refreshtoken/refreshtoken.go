@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 )
 
@@ -19,7 +19,7 @@ import (
 func RefreshTokenCmd(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	tokenRepository auth.TokenRepository,
+	tokenRepository authdto.TokenRepository,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "refreshtoken",

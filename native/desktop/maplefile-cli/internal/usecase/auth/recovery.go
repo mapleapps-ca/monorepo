@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
@@ -24,7 +24,7 @@ type RecoveryUseCase interface {
 	InitiateRecovery(ctx context.Context, email, recoveryKey string) (*RecoveryData, error)
 
 	// CompleteRecovery sets new password and completes recovery
-	CompleteRecovery(ctx context.Context, recoveryData *RecoveryData, newPassword string) (*auth.RecoveryCompleteResponse, *user.User, error)
+	CompleteRecovery(ctx context.Context, recoveryData *RecoveryData, newPassword string) (*dom_authdto.RecoveryCompleteResponse, *user.User, error)
 }
 
 // RecoveryData holds decrypted data during recovery process
@@ -42,17 +42,17 @@ type RecoveryData struct {
 // recoveryUseCase implements the RecoveryUseCase interface
 type recoveryUseCase struct {
 	logger          *zap.Logger
-	recoveryRepo    auth.RecoveryRepository
+	recoveryRepo    dom_authdto.RecoveryRepository
 	userRepo        user.Repository
-	tokenRepository auth.TokenRepository
+	tokenRepository dom_authdto.TokenRepository
 }
 
 // NewRecoveryUseCase creates a new recovery use case
 func NewRecoveryUseCase(
 	logger *zap.Logger,
-	recoveryRepo auth.RecoveryRepository,
+	recoveryRepo dom_authdto.RecoveryRepository,
 	userRepo user.Repository,
-	tokenRepository auth.TokenRepository,
+	tokenRepository dom_authdto.TokenRepository,
 ) RecoveryUseCase {
 	logger = logger.Named("RecoveryUseCase")
 	return &recoveryUseCase{
@@ -95,7 +95,7 @@ func (uc *recoveryUseCase) InitiateRecovery(ctx context.Context, email, recovery
 	uc.logger.Debug("🔐 Initiating recovery process", zap.String("email", email))
 
 	// Create recovery request
-	request := &auth.RecoveryRequest{
+	request := &dom_authdto.RecoveryRequest{
 		Email:       email,
 		RecoveryKey: base64.RawURLEncoding.EncodeToString(recoveryKey),
 	}
@@ -192,7 +192,7 @@ func (uc *recoveryUseCase) InitiateRecovery(ctx context.Context, email, recovery
 }
 
 // CompleteRecovery sets new password and completes recovery
-func (uc *recoveryUseCase) CompleteRecovery(ctx context.Context, recoveryData *RecoveryData, newPassword string) (*auth.RecoveryCompleteResponse, *user.User, error) {
+func (uc *recoveryUseCase) CompleteRecovery(ctx context.Context, recoveryData *RecoveryData, newPassword string) (*dom_authdto.RecoveryCompleteResponse, *user.User, error) {
 	// Validate inputs
 	if recoveryData == nil {
 		return nil, nil, errors.NewAppError("recovery data is required", nil)
@@ -237,7 +237,7 @@ func (uc *recoveryUseCase) CompleteRecovery(ctx context.Context, recoveryData *R
 	encPrivateKeyBytes := append(encryptedPrivateKey.Nonce, encryptedPrivateKey.Ciphertext...)
 
 	// Create complete recovery request
-	completeRequest := &auth.RecoveryCompleteRequest{
+	completeRequest := &dom_authdto.RecoveryCompleteRequest{
 		Email:               recoveryData.Email,
 		SessionID:           recoveryData.SessionID,
 		NewPassword:         newPassword,

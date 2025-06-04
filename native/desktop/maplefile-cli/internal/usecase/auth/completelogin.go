@@ -10,29 +10,29 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // CompleteLoginUseCase defines the interface for login completion use cases
 type CompleteLoginUseCase interface {
-	CompleteLogin(ctx context.Context, email, password string) (*auth.TokenResponse, *user.User, error)
+	CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponse, *user.User, error)
 }
 
 // completeLoginUseCase implements the CompleteLoginUseCase interface
 type completeLoginUseCase struct {
 	logger          *zap.Logger
-	tokenRepository auth.TokenRepository
-	repository      auth.CompleteLoginRepository
+	tokenRepository dom_authdto.TokenRepository
+	repository      dom_authdto.CompleteLoginRepository
 	userRepo        user.Repository
 }
 
 // NewCompleteLoginUseCase creates a new login completion use case
 func NewCompleteLoginUseCase(
 	logger *zap.Logger,
-	tokenRepository auth.TokenRepository,
-	repository auth.CompleteLoginRepository,
+	tokenRepository dom_authdto.TokenRepository,
+	repository dom_authdto.CompleteLoginRepository,
 	userRepo user.Repository,
 ) CompleteLoginUseCase {
 	logger = logger.Named("CompleteLoginUseCase")
@@ -45,7 +45,7 @@ func NewCompleteLoginUseCase(
 }
 
 // CompleteLogin handles the business logic for login completion
-func (uc *completeLoginUseCase) CompleteLogin(ctx context.Context, email, password string) (*auth.TokenResponse, *user.User, error) {
+func (uc *completeLoginUseCase) CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponse, *user.User, error) {
 	// Validate inputs
 	if email == "" {
 		return nil, nil, errors.NewAppError("email is required", nil)
@@ -120,7 +120,7 @@ func (uc *completeLoginUseCase) CompleteLogin(ctx context.Context, email, passwo
 	decryptedChallengeBase64 := crypto.EncodeToBase64(decryptedChallenge)
 
 	// Send decrypted challenge to server to complete login
-	completeLoginReq := &auth.CompleteLoginRequest{
+	completeLoginReq := &dom_authdto.CompleteLoginRequest{
 		Email:         email,
 		ChallengeID:   challengeID,
 		DecryptedData: decryptedChallengeBase64,

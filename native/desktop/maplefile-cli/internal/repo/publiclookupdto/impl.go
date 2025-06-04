@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/publiclookupdto"
 )
 
@@ -16,7 +16,7 @@ import (
 type publicLookupDTORepository struct {
 	logger          *zap.Logger
 	configService   config.ConfigService
-	tokenRepository auth.TokenRepository
+	tokenRepository dom_authdto.TokenRepository
 	httpClient      *http.Client
 }
 
@@ -24,7 +24,7 @@ type publicLookupDTORepository struct {
 func NewPublicLookupDTORepository(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	tokenRepository auth.TokenRepository,
+	tokenRepository dom_authdto.TokenRepository,
 ) publiclookupdto.PublicLookupDTORepository {
 	logger = logger.Named("PublicLookupDTORepository")
 	return &publicLookupDTORepository{

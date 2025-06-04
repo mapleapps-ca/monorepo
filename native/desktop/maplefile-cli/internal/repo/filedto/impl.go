@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
 )
 
@@ -16,7 +16,7 @@ import (
 type fileDTORepository struct {
 	logger        *zap.Logger
 	configService config.ConfigService
-	tokenRepo     auth.TokenRepository
+	tokenRepo     dom_authdto.TokenRepository
 	httpClient    *http.Client
 }
 
@@ -24,7 +24,7 @@ type fileDTORepository struct {
 func NewFileDTORepository(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	tokenRepo auth.TokenRepository,
+	tokenRepo dom_authdto.TokenRepository,
 ) filedto.FileDTORepository {
 	logger = logger.Named("FileDTORepository")
 	return &fileDTORepository{

@@ -1,4 +1,4 @@
-package auth
+package authdto
 
 import (
 	"time"

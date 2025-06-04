@@ -14,7 +14,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 )
 
 // loginOTTRepository implements LoginOTTRepository interface
@@ -25,7 +25,7 @@ type loginOTTRepository struct {
 }
 
 // NewLoginOTTRepository creates a new repository for login OTT operations
-func NewLoginOTTRepository(logger *zap.Logger, configService config.ConfigService) auth.LoginOTTRepository {
+func NewLoginOTTRepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.LoginOTTRepository {
 	logger = logger.Named("LoginOTTRepository")
 	return &loginOTTRepository{
 		logger:        logger,
@@ -35,7 +35,7 @@ func NewLoginOTTRepository(logger *zap.Logger, configService config.ConfigServic
 }
 
 // RequestLoginOTT makes the HTTP request to get a login OTT
-func (r *loginOTTRepository) RequestLoginOTT(ctx context.Context, request *auth.LoginOTTRequest) (*auth.LoginOTTResponse, error) {
+func (r *loginOTTRepository) RequestLoginOTT(ctx context.Context, request *dom_authdto.LoginOTTRequest) (*dom_authdto.LoginOTTResponse, error) {
 	// Get server URL from config
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -84,7 +84,7 @@ func (r *loginOTTRepository) RequestLoginOTT(ctx context.Context, request *auth.
 	}
 
 	// Success response
-	return &auth.LoginOTTResponse{
+	return &dom_authdto.LoginOTTResponse{
 		Success: true,
 		Message: "One-time login token request successful",
 	}, nil

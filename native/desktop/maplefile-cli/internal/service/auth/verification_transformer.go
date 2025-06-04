@@ -5,21 +5,21 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
-// userVerificationDataTransformer implements auth.UserVerificationDataTransformer
+// userVerificationDataTransformer implements dom_authdto.UserVerificationDataTransformer
 type userVerificationDataTransformer struct{}
 
 // NewUserVerificationDataTransformer creates a new transformer
-func NewUserVerificationDataTransformer() auth.UserVerificationDataTransformer {
+func NewUserVerificationDataTransformer() dom_authdto.UserVerificationDataTransformer {
 	return &userVerificationDataTransformer{}
 }
 
 // UpdateUserWithVerificationData updates a user model with verification data
-func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *user.User, data *auth.VerifyLoginOTTResponse) error {
+func (t *userVerificationDataTransformer) UpdateUserWithVerificationData(user *user.User, data *dom_authdto.VerifyLoginOTTResponse) error {
 	if user == nil {
 		return fmt.Errorf("❌ user cannot be nil")
 	}

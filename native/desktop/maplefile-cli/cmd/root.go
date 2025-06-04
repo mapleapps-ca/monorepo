@@ -23,7 +23,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyloginott"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/version"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	svc_auth "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
@@ -44,7 +44,7 @@ import (
 func NewRootCmd(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	tokenRepository auth.TokenRepository,
+	tokenRepository authdto.TokenRepository,
 	userRepo user.Repository,
 	regService svc_register.RegisterService,
 	emailVerificationService svc_auth.EmailVerificationService,

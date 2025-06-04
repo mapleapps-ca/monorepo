@@ -14,7 +14,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 )
 
 // completeLoginRepository implements CompleteLoginRepository interface
@@ -25,7 +25,7 @@ type completeLoginRepository struct {
 }
 
 // NewCompleteLoginRepository creates a new repository for login completion
-func NewCompleteLoginRepository(logger *zap.Logger, configService config.ConfigService) auth.CompleteLoginRepository {
+func NewCompleteLoginRepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.CompleteLoginRepository {
 	logger = logger.Named("CompleteLoginRepository")
 	return &completeLoginRepository{
 		logger:        logger,
@@ -35,7 +35,7 @@ func NewCompleteLoginRepository(logger *zap.Logger, configService config.ConfigS
 }
 
 // CompleteLogin sends the login completion request to the server
-func (r *completeLoginRepository) CompleteLogin(ctx context.Context, request *auth.CompleteLoginRequest) (*auth.TokenResponse, error) {
+func (r *completeLoginRepository) CompleteLogin(ctx context.Context, request *dom_authdto.CompleteLoginRequest) (*dom_authdto.TokenResponse, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -78,7 +78,7 @@ func (r *completeLoginRepository) CompleteLogin(ctx context.Context, request *au
 	}
 
 	// Parse the response
-	var tokenResp auth.TokenResponse
+	var tokenResp dom_authdto.TokenResponse
 	if err := json.Unmarshal(body, &tokenResp); err != nil {
 		return nil, errors.NewAppError("error parsing token response", err)
 	}

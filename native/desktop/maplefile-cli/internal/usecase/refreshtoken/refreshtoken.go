@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 )
 
 // RefreshTokenUseCase defines the interface for refreshing tokens
@@ -18,13 +18,13 @@ type RefreshTokenUseCase interface {
 // refreshTokenUseCaseImpl implements the RefreshTokenUseCase interface
 type refreshTokenUseCaseImpl struct {
 	logger          *zap.Logger
-	tokenRepository auth.TokenRepository
+	tokenRepository dom_authdto.TokenRepository
 }
 
 // NewRefreshTokenUseCase creates a new instance of RefreshTokenUseCase
 func NewRefreshTokenUseCase(
 	logger *zap.Logger,
-	tokenRepository auth.TokenRepository,
+	tokenRepository dom_authdto.TokenRepository,
 ) RefreshTokenUseCase {
 	logger = logger.Named("RefreshTokenUseCase")
 	return &refreshTokenUseCaseImpl{

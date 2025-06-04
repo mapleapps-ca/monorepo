@@ -10,29 +10,29 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 )
 
 // LoginOTTVerificationUseCase defines the interface for login OTT verification use cases
 type LoginOTTVerificationUseCase interface {
-	VerifyLoginOTT(ctx context.Context, email, ott string) (*auth.VerifyLoginOTTResponse, *user.User, error)
+	VerifyLoginOTT(ctx context.Context, email, ott string) (*dom_authdto.VerifyLoginOTTResponse, *user.User, error)
 }
 
 // loginOTTVerificationUseCase implements the LoginOTTVerificationUseCase interface
 type loginOTTVerificationUseCase struct {
 	logger          *zap.Logger
-	repository      auth.LoginOTTVerificationRepository
+	repository      dom_authdto.LoginOTTVerificationRepository
 	userRepo        user.Repository
-	dataTransformer auth.UserVerificationDataTransformer
+	dataTransformer dom_authdto.UserVerificationDataTransformer
 }
 
 // NewLoginOTTVerificationUseCase creates a new login OTT verification use case
 func NewLoginOTTVerificationUseCase(
 	logger *zap.Logger,
-	repository auth.LoginOTTVerificationRepository,
+	repository dom_authdto.LoginOTTVerificationRepository,
 	userRepo user.Repository,
-	dataTransformer auth.UserVerificationDataTransformer,
+	dataTransformer dom_authdto.UserVerificationDataTransformer,
 ) LoginOTTVerificationUseCase {
 	logger = logger.Named("LoginOTTVerificationUseCase")
 	return &loginOTTVerificationUseCase{
@@ -44,7 +44,7 @@ func NewLoginOTTVerificationUseCase(
 }
 
 // VerifyLoginOTT verifies a login OTT and updates the user with verification data
-func (uc *loginOTTVerificationUseCase) VerifyLoginOTT(ctx context.Context, email, ott string) (*auth.VerifyLoginOTTResponse, *user.User, error) {
+func (uc *loginOTTVerificationUseCase) VerifyLoginOTT(ctx context.Context, email, ott string) (*dom_authdto.VerifyLoginOTTResponse, *user.User, error) {
 	// Validate inputs
 	if email == "" {
 		return nil, nil, errors.NewAppError("email is required", nil)
@@ -72,7 +72,7 @@ func (uc *loginOTTVerificationUseCase) VerifyLoginOTT(ctx context.Context, email
 	}
 
 	// Create request and verify the OTT
-	request := &auth.VerifyLoginOTTRequest{
+	request := &dom_authdto.VerifyLoginOTTRequest{
 		Email: email,
 		OTT:   ott,
 	}

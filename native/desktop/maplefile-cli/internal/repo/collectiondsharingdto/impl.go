@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
 )
 
@@ -16,7 +16,7 @@ import (
 type collectionSharingDTORepository struct {
 	logger          *zap.Logger
 	configService   config.ConfigService
-	tokenRepository auth.TokenRepository
+	tokenRepository dom_authdto.TokenRepository
 	httpClient      *http.Client
 }
 
@@ -24,7 +24,7 @@ type collectionSharingDTORepository struct {
 func NewCollectionSharingDTORepository(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	tokenRepository auth.TokenRepository,
+	tokenRepository dom_authdto.TokenRepository,
 ) collectionsharingdto.CollectionSharingDTORepository {
 	logger = logger.Named("CollectionSharingDTORepository")
 	return &collectionSharingDTORepository{

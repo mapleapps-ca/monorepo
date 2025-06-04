@@ -14,7 +14,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 )
 
 // loginOTTVerificationRepository implements LoginOTTVerificationRepository interface
@@ -25,7 +25,7 @@ type loginOTTVerificationRepository struct {
 }
 
 // NewLoginOTTVerificationRepository creates a new repository for login OTT verification
-func NewLoginOTTVerificationRepository(logger *zap.Logger, configService config.ConfigService) auth.LoginOTTVerificationRepository {
+func NewLoginOTTVerificationRepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.LoginOTTVerificationRepository {
 	logger = logger.Named("LoginOTTVerificationRepository")
 	return &loginOTTVerificationRepository{
 		logger:        logger,
@@ -35,7 +35,7 @@ func NewLoginOTTVerificationRepository(logger *zap.Logger, configService config.
 }
 
 // VerifyLoginOTT verifies a login one-time token with the server
-func (r *loginOTTVerificationRepository) VerifyLoginOTT(ctx context.Context, request *auth.VerifyLoginOTTRequest) (*auth.VerifyLoginOTTResponse, error) {
+func (r *loginOTTVerificationRepository) VerifyLoginOTT(ctx context.Context, request *dom_authdto.VerifyLoginOTTRequest) (*dom_authdto.VerifyLoginOTTResponse, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -85,7 +85,7 @@ func (r *loginOTTVerificationRepository) VerifyLoginOTT(ctx context.Context, req
 	}
 
 	// Parse the response
-	var verifyResponse auth.VerifyLoginOTTResponse
+	var verifyResponse dom_authdto.VerifyLoginOTTResponse
 	if err := json.Unmarshal(body, &verifyResponse); err != nil {
 		return nil, errors.NewAppError("failed to parse response", err)
 	}

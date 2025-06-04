@@ -8,14 +8,14 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
 )
 
 // CompleteLoginService provides high-level functionality for login completion
 type CompleteLoginService interface {
-	CompleteLogin(ctx context.Context, email, password string) (*auth.TokenResponse, error)
+	CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponse, error)
 }
 
 // completeLoginService implements the CompleteLoginService interface
@@ -43,7 +43,7 @@ func NewCompleteLoginService(
 }
 
 // CompleteLogin handles the entire flow of login completion
-func (s *completeLoginService) CompleteLogin(ctx context.Context, email, password string) (*auth.TokenResponse, error) {
+func (s *completeLoginService) CompleteLogin(ctx context.Context, email, password string) (*dom_authdto.TokenResponse, error) {
 	// Call the use case to complete login and get token and updated user
 	tokenResp, updatedUser, err := s.useCase.CompleteLogin(ctx, email, password)
 	if err != nil {

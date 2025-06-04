@@ -7,26 +7,26 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 )
 
 // EmailVerificationUseCase defines the interface for email verification use cases
 type EmailVerificationUseCase interface {
-	VerifyEmail(ctx context.Context, code string) (*auth.VerifyEmailResponse, *user.User, error)
+	VerifyEmail(ctx context.Context, code string) (*dom_authdto.VerifyEmailResponse, *user.User, error)
 }
 
 // emailVerificationUseCase implements the EmailVerificationUseCase interface
 type emailVerificationUseCase struct {
 	logger         *zap.Logger
-	repository     auth.EmailVerificationRepository
+	repository     dom_authdto.EmailVerificationRepository
 	userRepository user.Repository
 }
 
 // NewEmailVerificationUseCase creates a new email verification use case
 func NewEmailVerificationUseCase(
 	logger *zap.Logger,
-	repository auth.EmailVerificationRepository,
+	repository dom_authdto.EmailVerificationRepository,
 	userRepository user.Repository,
 ) EmailVerificationUseCase {
 	logger = logger.Named("EmailVerificationUseCase")
@@ -38,7 +38,7 @@ func NewEmailVerificationUseCase(
 }
 
 // VerifyEmail verifies an email with the provided code
-func (uc *emailVerificationUseCase) VerifyEmail(ctx context.Context, code string) (*auth.VerifyEmailResponse, *user.User, error) {
+func (uc *emailVerificationUseCase) VerifyEmail(ctx context.Context, code string) (*dom_authdto.VerifyEmailResponse, *user.User, error) {
 	// Validate input
 	if code == "" {
 		return nil, nil, errors.NewAppError("verification code is required", nil)

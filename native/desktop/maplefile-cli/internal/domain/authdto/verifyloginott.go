@@ -1,5 +1,5 @@
-// monorepo/native/desktop/maplefile-cli/internal/domain/auth/verifyloginott.go
-package auth
+// monorepo/native/desktop/maplefile-cli/internal/domain/authdto/verifyloginott.go
+package authdto
 
 import (
 	"context"

@@ -14,7 +14,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/auth"
+	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 )
 
 // recoveryRepository implements RecoveryRepository interface
@@ -25,7 +25,7 @@ type recoveryRepository struct {
 }
 
 // NewRecoveryRepository creates a new repository for recovery operations
-func NewRecoveryRepository(logger *zap.Logger, configService config.ConfigService) auth.RecoveryRepository {
+func NewRecoveryRepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.RecoveryRepository {
 	logger = logger.Named("RecoveryRepository")
 	return &recoveryRepository{
 		logger:        logger,
@@ -35,7 +35,7 @@ func NewRecoveryRepository(logger *zap.Logger, configService config.ConfigServic
 }
 
 // InitiateRecovery starts the recovery process
-func (r *recoveryRepository) InitiateRecovery(ctx context.Context, request *auth.RecoveryRequest) (*auth.RecoveryVerifyResponse, error) {
+func (r *recoveryRepository) InitiateRecovery(ctx context.Context, request *dom_authdto.RecoveryRequest) (*dom_authdto.RecoveryVerifyResponse, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -84,7 +84,7 @@ func (r *recoveryRepository) InitiateRecovery(ctx context.Context, request *auth
 	}
 
 	// Parse the response
-	var verifyResp auth.RecoveryVerifyResponse
+	var verifyResp dom_authdto.RecoveryVerifyResponse
 	if err := json.Unmarshal(body, &verifyResp); err != nil {
 		return nil, errors.NewAppError("error parsing recovery response", err)
 	}
@@ -94,7 +94,7 @@ func (r *recoveryRepository) InitiateRecovery(ctx context.Context, request *auth
 }
 
 // CompleteRecovery completes the recovery process with new password
-func (r *recoveryRepository) CompleteRecovery(ctx context.Context, request *auth.RecoveryCompleteRequest) (*auth.RecoveryCompleteResponse, error) {
+func (r *recoveryRepository) CompleteRecovery(ctx context.Context, request *dom_authdto.RecoveryCompleteRequest) (*dom_authdto.RecoveryCompleteResponse, error) {
 	// Get server URL from configuration
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -143,7 +143,7 @@ func (r *recoveryRepository) CompleteRecovery(ctx context.Context, request *auth
 	}
 
 	// Parse the response
-	var completeResp auth.RecoveryCompleteResponse
+	var completeResp dom_authdto.RecoveryCompleteResponse
 	if err := json.Unmarshal(body, &completeResp); err != nil {
 		return nil, errors.NewAppError("error parsing recovery complete response", err)
 	}

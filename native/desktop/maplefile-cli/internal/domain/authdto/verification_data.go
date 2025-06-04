@@ -1,5 +1,5 @@
-// monorepo/native/desktop/maplefile-cli/internal/domain/auth/verification_data.go
-package auth
+// monorepo/native/desktop/maplefile-cli/internal/domain/authdto/verification_data.go
+package authdto
 
 import (
 	"encoding/base64"
