@@ -11,6 +11,7 @@ import (
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	dom_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/httperror"
@@ -27,7 +28,7 @@ type createLocalCollectionFromCloudCollectionService struct {
 	cloudRepository            collectiondto.CollectionDTORepository
 	localRepository            dom_collection.CollectionRepository
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase
-	decryptionService          CollectionDecryptionService
+	decryptionService          collectioncrypto.CollectionDecryptionService
 }
 
 // NewCreateLocalCollectionFromCloudCollectionService creates a new use case for creating cloud collections
@@ -36,7 +37,7 @@ func NewCreateLocalCollectionFromCloudCollectionService(
 	cloudRepository collectiondto.CollectionDTORepository,
 	localRepository dom_collection.CollectionRepository,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
-	decryptionService CollectionDecryptionService,
+	decryptionService collectioncrypto.CollectionDecryptionService,
 ) CreateLocalCollectionFromCloudCollectionService {
 	logger = logger.Named("CreateLocalCollectionFromCloudCollectionService")
 	return &createLocalCollectionFromCloudCollectionService{

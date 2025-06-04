@@ -10,6 +10,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/httperror"
@@ -26,7 +27,7 @@ type updateLocalCollectionFromCloudCollectionService struct {
 	cloudRepository            collectiondto.CollectionDTORepository
 	localRepository            dom_collection.CollectionRepository
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase
-	decryptionService          CollectionDecryptionService
+	decryptionService          collectioncrypto.CollectionDecryptionService
 }
 
 // NewUpdateLocalCollectionFromCloudCollectionService creates a new use case for updating local collection from the cloud
@@ -35,7 +36,7 @@ func NewUpdateLocalCollectionFromCloudCollectionService(
 	cloudRepository collectiondto.CollectionDTORepository,
 	localRepository dom_collection.CollectionRepository,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
-	decryptionService CollectionDecryptionService,
+	decryptionService collectioncrypto.CollectionDecryptionService,
 ) UpdateLocalCollectionFromCloudCollectionService {
 	logger = logger.Named("UpdateLocalCollectionFromCloudCollectionService")
 	return &updateLocalCollectionFromCloudCollectionService{

@@ -1,4 +1,4 @@
-package collectionsyncer
+package collectioncrypto
 
 import (
 	"context"
