@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 )
@@ -63,7 +65,7 @@ func (r *collectionSharingDTORepository) GetCollectionWithMembersFromCloud(ctx c
 	}
 
 	// Parse response - this will be a CollectionDTO format from the API
-	var collectionDTO struct {
+	var collectionResponse struct {
 		ID             primitive.ObjectID `json:"id"`
 		OwnerID        primitive.ObjectID `json:"owner_id"`
 		EncryptedName  string             `json:"encrypted_name"`
@@ -75,36 +77,57 @@ func (r *collectionSharingDTORepository) GetCollectionWithMembersFromCloud(ctx c
 			PermissionLevel string             `json:"permission_level"`
 			GrantedByID     primitive.ObjectID `json:"granted_by_id"`
 			IsInherited     bool               `json:"is_inherited"`
+			InheritedFromID primitive.ObjectID `json:"inherited_from_id,omitempty"`
 			CreatedAt       string             `json:"created_at"`
+			// Handle encrypted collection key as bytes from API
+			EncryptedCollectionKey []byte `json:"encrypted_collection_key"`
 		} `json:"members"`
 		CreatedAt  string `json:"created_at"`
 		ModifiedAt string `json:"modified_at"`
 	}
 
-	if err := json.Unmarshal(body, &collectionDTO); err != nil {
+	if err := json.Unmarshal(body, &collectionResponse); err != nil {
 		r.logger.Error("❌ Failed to parse collection response", zap.Error(err))
 		return nil, errors.NewAppError("failed to parse response", err)
 	}
 
+	// Parse timestamps
+	createdAt, _ := time.Parse(time.RFC3339, collectionResponse.CreatedAt)
+	modifiedAt, _ := time.Parse(time.RFC3339, collectionResponse.ModifiedAt)
+
 	// Convert to domain model
 	domainCollection := &collectiondto.CollectionDTO{
-		ID:             collectionDTO.ID,
-		OwnerID:        collectionDTO.OwnerID,
-		EncryptedName:  collectionDTO.EncryptedName,
-		CollectionType: collectionDTO.CollectionType,
-		Members:        make([]*collectiondto.CollectionMembershipDTO, len(collectionDTO.Members)),
+		ID:             collectionResponse.ID,
+		OwnerID:        collectionResponse.OwnerID,
+		EncryptedName:  collectionResponse.EncryptedName,
+		CollectionType: collectionResponse.CollectionType,
+		CreatedAt:      createdAt,
+		ModifiedAt:     modifiedAt,
+		Members:        make([]*collectiondto.CollectionMembershipDTO, len(collectionResponse.Members)),
 	}
 
 	// Convert members
-	for i, member := range collectionDTO.Members {
+	for i, member := range collectionResponse.Members {
+		memberCreatedAt, _ := time.Parse(time.RFC3339, member.CreatedAt)
+
+		// Convert bytes to EncryptedCollectionKey struct
+		var encryptedCollectionKey *keys.EncryptedCollectionKey
+		if len(member.EncryptedCollectionKey) > 0 {
+			// Create EncryptedCollectionKey from box_seal bytes
+			encryptedCollectionKey = keys.NewEncryptedCollectionKeyFromBoxSeal(member.EncryptedCollectionKey)
+		}
+
 		domainCollection.Members[i] = &collectiondto.CollectionMembershipDTO{
-			ID:              member.ID,
-			CollectionID:    collectionDTO.ID,
-			RecipientID:     member.RecipientID,
-			RecipientEmail:  member.RecipientEmail,
-			GrantedByID:     member.GrantedByID,
-			PermissionLevel: member.PermissionLevel,
-			IsInherited:     member.IsInherited,
+			ID:                     member.ID,
+			CollectionID:           collectionResponse.ID,
+			RecipientID:            member.RecipientID,
+			RecipientEmail:         member.RecipientEmail,
+			GrantedByID:            member.GrantedByID,
+			PermissionLevel:        member.PermissionLevel,
+			IsInherited:            member.IsInherited,
+			InheritedFromID:        member.InheritedFromID,
+			CreatedAt:              memberCreatedAt,
+			EncryptedCollectionKey: encryptedCollectionKey,
 		}
 	}
 

@@ -13,6 +13,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_publiclookupdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/publiclookupdto"
 	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
@@ -202,8 +203,7 @@ func (s *synchronizedCollectionSharingService) executeCloudSharing(
 	s.logger.Debug("🔍 Sharing request details",
 		zap.String("collectionID", input.CollectionID.Hex()),
 		zap.String("recipientEmail", input.RecipientEmail),
-		zap.String("encryptedCollectionKeyBase64", encryptedCollectionKey),
-		zap.Int("encryptedKeyLength", len(encryptedCollectionKey)))
+		zap.Int("encryptedKeyLength", len(encryptedCollectionKey.ToBoxSealBytes())))
 
 	response, err := s.shareCollectionUseCase.Execute(ctx, useCaseInput, userPassword)
 	if err != nil {
@@ -261,12 +261,6 @@ func (s *synchronizedCollectionSharingService) updateLocalCollectionWithNewMembe
 		return fmt.Errorf("failed to encrypt key for member: %w", err)
 	}
 
-	// Convert base64 string to bytes for storage
-	encryptedKeyBytes, err := base64.StdEncoding.DecodeString(encryptedKeyForMember)
-	if err != nil {
-		return fmt.Errorf("failed to decode encrypted key: %w", err)
-	}
-
 	// Create new membership
 	newMember := &collection.CollectionMembership{
 		ID:                     primitive.NewObjectID(), // Generate new membership ID
@@ -274,7 +268,7 @@ func (s *synchronizedCollectionSharingService) updateLocalCollectionWithNewMembe
 		RecipientID:            publicLookupResponse.UserID,
 		RecipientEmail:         input.RecipientEmail,
 		GrantedByID:            currentUser.ID,
-		EncryptedCollectionKey: encryptedKeyBytes,
+		EncryptedCollectionKey: encryptedKeyForMember,
 		PermissionLevel:        input.PermissionLevel,
 		CreatedAt:              time.Now(),
 		IsInherited:            false,
@@ -312,17 +306,18 @@ func (s *synchronizedCollectionSharingService) updateLocalCollectionWithNewMembe
 }
 
 // encryptCollectionKeyForRecipient encrypts the collection key for the recipient
+// Returns the EncryptedCollectionKey struct instead of base64 string
 func (s *synchronizedCollectionSharingService) encryptCollectionKeyForRecipient(
 	ctx context.Context,
 	currentUser *dom_user.User,
 	recipientPublicKey []byte,
 	collectionToShare *collection.Collection,
 	userPassword string,
-) (string, error) {
+) (*keys.EncryptedCollectionKey, error) {
 	// Derive keyEncryptionKey from password
 	keyEncryptionKey, err := crypto.DeriveKeyFromPassword(userPassword, currentUser.PasswordSalt)
 	if err != nil {
-		return "", fmt.Errorf("failed to derive key encryption key: %w", err)
+		return nil, fmt.Errorf("failed to derive key encryption key: %w", err)
 	}
 	defer crypto.ClearBytes(keyEncryptionKey)
 
@@ -333,7 +328,7 @@ func (s *synchronizedCollectionSharingService) encryptCollectionKeyForRecipient(
 		keyEncryptionKey,
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to decrypt master key: %w", err)
+		return nil, fmt.Errorf("failed to decrypt master key: %w", err)
 	}
 	defer crypto.ClearBytes(masterKey)
 
@@ -344,30 +339,31 @@ func (s *synchronizedCollectionSharingService) encryptCollectionKeyForRecipient(
 		masterKey,
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to decrypt collection key: %w", err)
+		return nil, fmt.Errorf("failed to decrypt collection key: %w", err)
 	}
 	defer crypto.ClearBytes(collectionKey)
 
 	// Encrypt for recipient
 	encryptedForRecipient, err := crypto.EncryptWithBoxSeal(collectionKey, recipientPublicKey)
 	if err != nil {
-		return "", fmt.Errorf("failed to encrypt collection key for recipient: %w", err)
+		return nil, fmt.Errorf("failed to encrypt collection key for recipient: %w", err)
 	}
 
-	encryptedForRecipientString := base64.StdEncoding.EncodeToString(encryptedForRecipient)
+	// Create EncryptedCollectionKey struct from box_seal bytes
+	encryptedCollectionKey := keys.NewEncryptedCollectionKeyFromBoxSeal(encryptedForRecipient)
 
-	if err := s.verifyEncryptedKey(encryptedForRecipientString, recipientPublicKey); err != nil {
-		return "", fmt.Errorf("failed to verify encrypt collection key for recipient: %w", err)
+	if err := s.verifyEncryptedKey(encryptedCollectionKey, recipientPublicKey); err != nil {
+		return nil, fmt.Errorf("failed to verify encrypt collection key for recipient: %w", err)
 	}
 
-	return encryptedForRecipientString, nil
+	return encryptedCollectionKey, nil
 }
 
-func (s *synchronizedCollectionSharingService) verifyEncryptedKey(encryptedKeyBase64 string, recipientPublicKey []byte) error {
-	// Decode the base64
-	encryptedBytes, err := base64.StdEncoding.DecodeString(encryptedKeyBase64)
-	if err != nil {
-		return fmt.Errorf("failed to decode encrypted key: %w", err)
+func (s *synchronizedCollectionSharingService) verifyEncryptedKey(encryptedKey *keys.EncryptedCollectionKey, recipientPublicKey []byte) error {
+	// Get the box_seal bytes
+	encryptedBytes := encryptedKey.ToBoxSealBytes()
+	if encryptedBytes == nil {
+		return fmt.Errorf("encrypted key is nil")
 	}
 
 	// Verify it's the right length for box_seal format

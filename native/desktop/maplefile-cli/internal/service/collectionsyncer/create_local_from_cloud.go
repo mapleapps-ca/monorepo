@@ -106,6 +106,10 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 		zap.Any("cloudCollectionParentID", cloudCollectionDTO.ParentID))
 
 	for i, memberDTO := range cloudCollectionDTO.Members {
+		encryptedKeyLength := 0
+		if memberDTO.EncryptedCollectionKey != nil {
+			encryptedKeyLength = len(memberDTO.EncryptedCollectionKey.ToBoxSealBytes())
+		}
 		uc.logger.Debug("🔍 Cloud collection member DTO",
 			zap.Int("memberIndex", i),
 			zap.String("memberID", memberDTO.ID.Hex()),
@@ -113,7 +117,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 			zap.String("recipientEmail", memberDTO.RecipientEmail),
 			zap.String("permissionLevel", memberDTO.PermissionLevel),
 			zap.Bool("isInherited", memberDTO.IsInherited),
-			zap.Int("encryptedKeyLength", len(memberDTO.EncryptedCollectionKey)))
+			zap.Int("encryptedKeyLength", encryptedKeyLength))
 	}
 
 	// ENHANCED DEBUGGING: Log current user info for comparison
@@ -218,7 +222,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 }
 
 // mapMembersDTOToDomain maps a slice of uc_collectiondto.CollectionMembershipDTO to a slice of dom_collection.CollectionMembership.
-// Assuming dom_collection.CollectionMembership struct matches uc_collectiondto.CollectionMembershipDTO.
+// Updated to handle EncryptedCollectionKey as struct instead of []byte
 func mapMembersDTOToDomain(membersDTO []*dom_collectiondto.CollectionMembershipDTO) []*dom_collection.CollectionMembership {
 	if membersDTO == nil {
 		return nil
@@ -226,14 +230,13 @@ func mapMembersDTOToDomain(membersDTO []*dom_collectiondto.CollectionMembershipD
 	members := make([]*dom_collection.CollectionMembership, len(membersDTO))
 	for i, memberDTO := range membersDTO {
 		if memberDTO != nil {
-			// Assuming dom_collection.CollectionMembership has fields matching uc_collectiondto.CollectionMembershipDTO
 			members[i] = &dom_collection.CollectionMembership{
 				ID:                     memberDTO.ID,
 				CollectionID:           memberDTO.CollectionID,
 				RecipientID:            memberDTO.RecipientID,
 				RecipientEmail:         memberDTO.RecipientEmail,
 				GrantedByID:            memberDTO.GrantedByID,
-				EncryptedCollectionKey: memberDTO.EncryptedCollectionKey,
+				EncryptedCollectionKey: memberDTO.EncryptedCollectionKey, // Now *keys.EncryptedCollectionKey
 				PermissionLevel:        memberDTO.PermissionLevel,
 				CreatedAt:              memberDTO.CreatedAt,
 				IsInherited:            memberDTO.IsInherited,
