@@ -11,7 +11,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
+	uc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/authdto"
 )
 
 // RecoveryService provides high-level functionality for account recovery
@@ -36,19 +36,19 @@ type RecoveryStatus struct {
 // recoveryService implements the RecoveryService interface
 type recoveryService struct {
 	logger        *zap.Logger
-	useCase       authUseCase.RecoveryUseCase
+	useCase       uc_authdto.RecoveryUseCase
 	userRepo      user.Repository
 	configService config.ConfigService
 
 	// In-memory storage for recovery session
 	mu           sync.Mutex
-	recoveryData *authUseCase.RecoveryData
+	recoveryData *uc_authdto.RecoveryData
 }
 
 // NewRecoveryService creates a new recovery service
 func NewRecoveryService(
 	logger *zap.Logger,
-	useCase authUseCase.RecoveryUseCase,
+	useCase uc_authdto.RecoveryUseCase,
 	userRepo user.Repository,
 	configService config.ConfigService,
 ) RecoveryService {

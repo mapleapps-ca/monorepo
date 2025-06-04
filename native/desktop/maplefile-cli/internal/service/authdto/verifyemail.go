@@ -9,7 +9,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
+	uc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/authdto"
 )
 
 // EmailVerificationService provides high-level functionality for email verification
@@ -27,14 +27,14 @@ type VerificationResult struct {
 // emailVerificationService implements the EmailVerificationService interface
 type emailVerificationService struct {
 	logger         *zap.Logger
-	useCase        authUseCase.EmailVerificationUseCase
+	useCase        uc_authdto.EmailVerificationUseCase
 	userRepository user.Repository
 }
 
 // NewEmailVerificationService creates a new email verification service
 func NewEmailVerificationService(
 	logger *zap.Logger,
-	useCase authUseCase.EmailVerificationUseCase,
+	useCase uc_authdto.EmailVerificationUseCase,
 	userRepository user.Repository,
 ) EmailVerificationService {
 	logger = logger.Named("EmailVerificationService")

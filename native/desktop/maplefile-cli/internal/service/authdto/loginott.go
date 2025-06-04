@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
+	uc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/authdto"
 )
 
 // LoginOTTService provides high-level functionality for login OTT operations
@@ -18,11 +18,11 @@ type LoginOTTService interface {
 // loginOTTService implements the LoginOTTService interface
 type loginOTTService struct {
 	logger  *zap.Logger
-	useCase auth.LoginOTTUseCase
+	useCase uc_authdto.LoginOTTUseCase
 }
 
 // NewLoginOTTService creates a new login OTT service
-func NewLoginOTTService(logger *zap.Logger, useCase auth.LoginOTTUseCase) LoginOTTService {
+func NewLoginOTTService(logger *zap.Logger, useCase uc_authdto.LoginOTTUseCase) LoginOTTService {
 	logger = logger.Named("LoginOTTService")
 	return &loginOTTService{
 		logger:  logger,

@@ -8,7 +8,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
+	uc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/authdto"
 )
 
 // LoginOTTVerificationService provides high-level functionality for login OTT verification
@@ -19,14 +19,14 @@ type LoginOTTVerificationService interface {
 // loginOTTVerificationService implements the LoginOTTVerificationService interface
 type loginOTTVerificationService struct {
 	logger   *zap.Logger
-	useCase  authUseCase.LoginOTTVerificationUseCase
+	useCase  uc_authdto.LoginOTTVerificationUseCase
 	userRepo user.Repository
 }
 
 // NewLoginOTTVerificationService creates a new login OTT verification service
 func NewLoginOTTVerificationService(
 	logger *zap.Logger,
-	useCase authUseCase.LoginOTTVerificationUseCase,
+	useCase uc_authdto.LoginOTTVerificationUseCase,
 	userRepo user.Repository,
 ) LoginOTTVerificationService {
 	logger = logger.Named("LoginOTTVerificationService")

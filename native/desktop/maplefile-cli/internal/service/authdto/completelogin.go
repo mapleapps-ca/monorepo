@@ -10,7 +10,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
+	uc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/authdto"
 )
 
 // CompleteLoginService provides high-level functionality for login completion
@@ -21,7 +21,7 @@ type CompleteLoginService interface {
 // completeLoginService implements the CompleteLoginService interface
 type completeLoginService struct {
 	logger        *zap.Logger
-	useCase       authUseCase.CompleteLoginUseCase
+	useCase       uc_authdto.CompleteLoginUseCase
 	userRepo      user.Repository
 	configService config.ConfigService
 }
@@ -29,7 +29,7 @@ type completeLoginService struct {
 // NewCompleteLoginService creates a new login completion service
 func NewCompleteLoginService(
 	logger *zap.Logger,
-	useCase authUseCase.CompleteLoginUseCase,
+	useCase uc_authdto.CompleteLoginUseCase,
 	userRepo user.Repository,
 	configService config.ConfigService,
 ) CompleteLoginService {

@@ -4,7 +4,7 @@ package usecase
 import (
 	"go.uber.org/fx"
 
-	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
+	uc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsharingdto"
@@ -24,12 +24,12 @@ import (
 func UseCaseModule() fx.Option {
 	return fx.Options(
 		// Auth use cases
-		fx.Provide(authUseCase.NewEmailVerificationUseCase),
-		fx.Provide(authUseCase.NewLoginOTTUseCase),
-		fx.Provide(authUseCase.NewLoginOTTVerificationUseCase),
-		fx.Provide(authUseCase.NewCompleteLoginUseCase),
-		fx.Provide(authUseCase.NewLogoutUseCase),
-		fx.Provide(authUseCase.NewRecoveryUseCase),
+		fx.Provide(uc_authdto.NewEmailVerificationUseCase),
+		fx.Provide(uc_authdto.NewLoginOTTUseCase),
+		fx.Provide(uc_authdto.NewLoginOTTVerificationUseCase),
+		fx.Provide(uc_authdto.NewCompleteLoginUseCase),
+		fx.Provide(uc_authdto.NewLogoutUseCase),
+		fx.Provide(uc_authdto.NewRecoveryUseCase),
 
 		// User repository use cases
 		fx.Provide(user.NewGetByEmailUseCase),

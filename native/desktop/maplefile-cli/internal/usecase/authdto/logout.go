@@ -1,5 +1,5 @@
-// internal/usecase/auth/logout.go
-package auth
+// internal/usecase/authdto/logout.go
+package authdto
 
 import (
 	"context"

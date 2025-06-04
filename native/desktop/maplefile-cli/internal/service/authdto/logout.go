@@ -10,7 +10,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
-	authUseCase "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/auth"
+	uc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/authdto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	uc_localfile "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
@@ -27,7 +27,7 @@ type logoutService struct {
 	logger                       *zap.Logger
 	configService                config.ConfigService
 	transactionManager           transaction.Manager
-	logoutUseCase                authUseCase.LogoutUseCase
+	logoutUseCase                uc_authdto.LogoutUseCase
 	listCollectionsUseCase       uc_collection.ListCollectionsUseCase
 	deleteCollectionUseCase      uc_collection.DeleteCollectionUseCase
 	listFilesByCollectionUseCase uc_file.ListFilesByCollectionUseCase
@@ -41,7 +41,7 @@ func NewLogoutService(
 	logger *zap.Logger,
 	configService config.ConfigService,
 	transactionManager transaction.Manager,
-	logoutUseCase authUseCase.LogoutUseCase,
+	logoutUseCase uc_authdto.LogoutUseCase,
 	listCollectionsUseCase uc_collection.ListCollectionsUseCase,
 	deleteCollectionUseCase uc_collection.DeleteCollectionUseCase,
 	listFilesByCollectionUseCase uc_file.ListFilesByCollectionUseCase,
