@@ -17,6 +17,39 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
+type CollectionResponseDTO struct {
+	ID                     primitive.ObjectID           `json:"id"`
+	OwnerID                primitive.ObjectID           `json:"owner_id"`
+	EncryptedName          string                       `json:"encrypted_name"`
+	CollectionType         string                       `json:"collection_type"`
+	ParentID               primitive.ObjectID           `json:"parent_id,omitempty"`
+	AncestorIDs            []primitive.ObjectID         `json:"ancestor_ids,omitempty"`
+	EncryptedCollectionKey *keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
+	Children               []*CollectionResponseDTO     `json:"children,omitempty"`
+	CreatedAt              time.Time                    `json:"created_at"`
+	ModifiedAt             time.Time                    `json:"modified_at"`
+	Members                []MembershipResponseDTO      `json:"members"`
+}
+
+type MembershipResponseDTO struct {
+	ID             primitive.ObjectID `bson:"_id" json:"id"`
+	CollectionID   primitive.ObjectID `bson:"collection_id" json:"collection_id"`     // ID of the collection (redundant but helpful for queries)
+	RecipientID    primitive.ObjectID `bson:"recipient_id" json:"recipient_id"`       // User receiving access
+	RecipientEmail string             `bson:"recipient_email" json:"recipient_email"` // Email for display purposes
+	GrantedByID    primitive.ObjectID `bson:"granted_by_id" json:"granted_by_id"`     // User who shared the collection
+
+	// Collection key encrypted with recipient's public key using box_seal. This matches the box_seal format which doesn't need a separate nonce.
+	EncryptedCollectionKey []byte `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
+
+	// Access details
+	PermissionLevel string    `bson:"permission_level" json:"permission_level"`
+	CreatedAt       time.Time `bson:"created_at" json:"created_at"`
+
+	// Sharing origin tracking
+	IsInherited     bool               `bson:"is_inherited" json:"is_inherited"`                               // Tracks whether access was granted directly or inherited from a parent
+	InheritedFromID primitive.ObjectID `bson:"inherited_from_id,omitempty" json:"inherited_from_id,omitempty"` // InheritedFromID identifies which parent collection granted this access
+}
+
 func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, id primitive.ObjectID) (*collectiondto.CollectionDTO, error) {
 	accessToken, err := r.tokenRepository.GetAccessToken(ctx)
 	if err != nil {
@@ -75,40 +108,7 @@ func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, id primi
 	}
 
 	// Parse response using intermediate struct to handle byte arrays from API
-	var apiResponse struct {
-		ID             primitive.ObjectID `json:"id"`
-		OwnerID        primitive.ObjectID `json:"owner_id"`
-		EncryptedName  string             `json:"encrypted_name"`
-		CollectionType string             `json:"collection_type"`
-		// Handle collection's own encrypted key
-		EncryptedCollectionKey struct {
-			Ciphertext []byte `json:"ciphertext"`
-			Nonce      []byte `json:"nonce"`
-		} `json:"encrypted_collection_key"`
-		Members []struct {
-			ID              primitive.ObjectID `json:"id"`
-			CollectionID    primitive.ObjectID `json:"collection_id"`
-			RecipientID     primitive.ObjectID `json:"recipient_id"`
-			RecipientEmail  string             `json:"recipient_email"`
-			GrantedByID     primitive.ObjectID `json:"granted_by_id"`
-			PermissionLevel string             `json:"permission_level"`
-			CreatedAt       string             `json:"created_at"`
-			IsInherited     bool               `json:"is_inherited"`
-			InheritedFromID primitive.ObjectID `json:"inherited_from_id,omitempty"`
-			// Handle member's encrypted collection key as bytes
-			EncryptedCollectionKey []byte `json:"encrypted_collection_key"`
-		} `json:"members"`
-		ParentID         primitive.ObjectID   `json:"parent_id,omitempty"`
-		AncestorIDs      []primitive.ObjectID `json:"ancestor_ids,omitempty"`
-		CreatedAt        string               `json:"created_at"`
-		CreatedByUserID  primitive.ObjectID   `json:"created_by_user_id"`
-		ModifiedAt       string               `json:"modified_at"`
-		ModifiedByUserID primitive.ObjectID   `json:"modified_by_user_id"`
-		Version          uint64               `json:"version"`
-		State            string               `json:"state"`
-		TombstoneVersion uint64               `json:"tombstone_version"`
-		TombstoneExpiry  string               `json:"tombstone_expiry"`
-	}
+	var apiResponse *CollectionResponseDTO
 
 	if err := json.Unmarshal(body, &apiResponse); err != nil {
 		r.logger.Error("🚨 Failed to parse response body", zap.Error(err))
@@ -116,43 +116,51 @@ func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, id primi
 	}
 
 	// Parse timestamps
-	createdAt, _ := time.Parse(time.RFC3339, apiResponse.CreatedAt)
-	modifiedAt, _ := time.Parse(time.RFC3339, apiResponse.ModifiedAt)
-	tombstoneExpiry, _ := time.Parse(time.RFC3339, apiResponse.TombstoneExpiry)
+	// createdAt, _ := time.Parse(time.RFC3339, apiResponse.CreatedAt)
+	// modifiedAt, _ := time.Parse(time.RFC3339, apiResponse.ModifiedAt)
+	// tombstoneExpiry, _ := time.Parse(time.RFC3339, apiResponse.TombstoneExpiry)
 
 	// Convert API response to domain model
 	response := &collectiondto.CollectionDTO{
-		ID:               apiResponse.ID,
-		OwnerID:          apiResponse.OwnerID,
-		EncryptedName:    apiResponse.EncryptedName,
-		CollectionType:   apiResponse.CollectionType,
-		ParentID:         apiResponse.ParentID,
-		AncestorIDs:      apiResponse.AncestorIDs,
-		CreatedAt:        createdAt,
-		CreatedByUserID:  apiResponse.CreatedByUserID,
-		ModifiedAt:       modifiedAt,
-		ModifiedByUserID: apiResponse.ModifiedByUserID,
-		Version:          apiResponse.Version,
-		State:            apiResponse.State,
-		TombstoneVersion: apiResponse.TombstoneVersion,
-		TombstoneExpiry:  tombstoneExpiry,
-		Members:          make([]*collectiondto.CollectionMembershipDTO, len(apiResponse.Members)),
+		ID:             apiResponse.ID,
+		OwnerID:        apiResponse.OwnerID,
+		EncryptedName:  apiResponse.EncryptedName,
+		CollectionType: apiResponse.CollectionType,
+		ParentID:       apiResponse.ParentID,
+		AncestorIDs:    apiResponse.AncestorIDs,
+		// CreatedAt:        createdAt,
+		// CreatedByUserID:  apiResponse.CreatedByUserID,
+		// ModifiedAt:       modifiedAt,
+		// ModifiedByUserID: apiResponse.ModifiedByUserID,
+		// Version:          apiResponse.Version,
+		// State:            apiResponse.State,
+		// TombstoneVersion: apiResponse.TombstoneVersion,
+		// TombstoneExpiry:  tombstoneExpiry,
+		Members: make([]*collectiondto.CollectionMembershipDTO, len(apiResponse.Members)),
 	}
 
 	// Convert collection's own encrypted key if present
 	if len(apiResponse.EncryptedCollectionKey.Ciphertext) > 0 {
 		response.EncryptedCollectionKey = &keys.EncryptedCollectionKey{
-			Ciphertext:   apiResponse.EncryptedCollectionKey.Ciphertext,
-			Nonce:        apiResponse.EncryptedCollectionKey.Nonce,
-			KeyVersion:   1, // Default version for existing keys
-			RotatedAt:    &createdAt,
+			Ciphertext: apiResponse.EncryptedCollectionKey.Ciphertext,
+			Nonce:      apiResponse.EncryptedCollectionKey.Nonce,
+			KeyVersion: 1, // Default version for existing keys
+			// RotatedAt:    &createdAt,
 			PreviousKeys: []keys.EncryptedHistoricalKey{},
 		}
 	}
 
+	r.logger.Debug("🔎 Looking at API response",
+		zap.Any("apiResponse", apiResponse),
+	)
+
 	// Convert members
 	for i, member := range apiResponse.Members {
-		memberCreatedAt, _ := time.Parse(time.RFC3339, member.CreatedAt)
+		// memberCreatedAt, _ := time.Parse(time.RFC3339, member.CreatedAt)
+
+		r.logger.Debug("🔎 Looking at member",
+			zap.Any("member", member),
+		)
 
 		// Convert bytes to EncryptedCollectionKey struct for member
 		var encryptedCollectionKey *keys.EncryptedCollectionKey
@@ -162,13 +170,13 @@ func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, id primi
 		}
 
 		response.Members[i] = &collectiondto.CollectionMembershipDTO{
-			ID:                     member.ID,
-			CollectionID:           member.CollectionID,
-			RecipientID:            member.RecipientID,
-			RecipientEmail:         member.RecipientEmail,
-			GrantedByID:            member.GrantedByID,
-			PermissionLevel:        member.PermissionLevel,
-			CreatedAt:              memberCreatedAt,
+			ID:              member.ID,
+			CollectionID:    member.CollectionID,
+			RecipientID:     member.RecipientID,
+			RecipientEmail:  member.RecipientEmail,
+			GrantedByID:     member.GrantedByID,
+			PermissionLevel: member.PermissionLevel,
+			// CreatedAt:              memberCreatedAt,
 			IsInherited:            member.IsInherited,
 			InheritedFromID:        member.InheritedFromID,
 			EncryptedCollectionKey: encryptedCollectionKey,

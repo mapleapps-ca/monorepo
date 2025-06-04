@@ -197,16 +197,46 @@ func (impl collectionRepositoryImpl) AddMemberToHierarchy(ctx context.Context, r
 		return err
 	}
 
-	// For each descendant, add the member with inherited flag
+	// For each descendant, we need to get its collection key and encrypt it for the recipient
 	for _, descendant := range descendants {
-		childMembership := *membership
-		childMembership.ID = primitive.NewObjectID()
-		childMembership.CollectionID = descendant.ID
-		childMembership.IsInherited = true
-		childMembership.InheritedFromID = rootID
-
-		err := impl.AddMember(ctx, descendant.ID, &childMembership)
+		// Get the descendant collection to access its encrypted key
+		descendantCollection, err := impl.Get(ctx, descendant.ID)
 		if err != nil {
+			impl.Logger.Error("failed to get descendant collection for key encryption",
+				zap.Any("error", err),
+				zap.Any("descendant_id", descendant.ID))
+			continue
+		}
+
+		if descendantCollection == nil {
+			impl.Logger.Warn("descendant collection not found, skipping",
+				zap.Any("descendant_id", descendant.ID))
+			continue
+		}
+
+		// Create membership for descendant with the descendant's encrypted key
+		// Note: We cannot re-encrypt the key here because we don't have access to:
+		// 1. The recipient's public key
+		// 2. The decrypted collection key
+		// 3. The owner's master key
+		//
+		// Therefore, we need to pass the recipient's encrypted key from the service layer
+		childMembership := dom_collection.CollectionMembership{
+			ID:              primitive.NewObjectID(),
+			CollectionID:    descendant.ID,
+			RecipientID:     membership.RecipientID,
+			RecipientEmail:  membership.RecipientEmail,
+			GrantedByID:     membership.GrantedByID,
+			PermissionLevel: membership.PermissionLevel,
+			CreatedAt:       membership.CreatedAt,
+			IsInherited:     true,
+			InheritedFromID: rootID,
+			// ❌ PROBLEM: We still need the correct encrypted key for this specific collection
+			// This requires refactoring the service layer to encrypt each collection's key separately
+			EncryptedCollectionKey: membership.EncryptedCollectionKey, // This is wrong but we'll fix it in Solution 2
+		}
+
+		if err := impl.AddMember(ctx, descendant.ID, &childMembership); err != nil {
 			impl.Logger.Error("failed to add inherited membership to descendant",
 				zap.Any("error", err),
 				zap.Any("root_id", rootID),

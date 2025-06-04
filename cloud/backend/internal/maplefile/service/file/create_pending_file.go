@@ -255,20 +255,3 @@ func generateStoragePath(ownerID, fileID string) string {
 func generateThumbnailStoragePath(ownerID, fileID string) string {
 	return fmt.Sprintf("users/%s/files/%s_thumb", ownerID, fileID)
 }
-
-// Helper function to map a File domain model to a FileResponseDTO
-func mapFileToDTO(file *dom_file.File) *FileResponseDTO {
-	return &FileResponseDTO{
-		ID:                            file.ID,
-		CollectionID:                  file.CollectionID,
-		OwnerID:                       file.OwnerID,
-		EncryptedMetadata:             file.EncryptedMetadata,
-		EncryptedFileKey:              file.EncryptedFileKey,
-		EncryptionVersion:             file.EncryptionVersion,
-		EncryptedHash:                 file.EncryptedHash,
-		EncryptedFileSizeInBytes:      file.EncryptedFileSizeInBytes,
-		EncryptedThumbnailSizeInBytes: file.EncryptedThumbnailSizeInBytes,
-		CreatedAt:                     file.CreatedAt,
-		ModifiedAt:                    file.ModifiedAt,
-	}
-}

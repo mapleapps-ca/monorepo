@@ -167,6 +167,7 @@ func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user 
 			s.logger.Debug("✅ Matched users membership record!",
 				zap.String("recipientID", member.RecipientID.Hex()),
 				zap.String("user.ID", user.ID.Hex()),
+				zap.Any("recipientEncryptedCollectionKey", member.EncryptedCollectionKey),
 			)
 			break
 		}
@@ -189,7 +190,8 @@ func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user 
 
 	s.logger.Debug("✅ Found user membership record",
 		zap.String("membershipID", userMembership.ID.Hex()),
-		zap.String("permissionLevel", userMembership.PermissionLevel))
+		zap.String("permissionLevel", userMembership.PermissionLevel),
+		zap.Any("encryptedCollectionKey", userMembership.EncryptedCollectionKey))
 
 	// Developer Note: Our member must have been included the `EncryptedCollectionKey` field with the membership. If this is empty then our code won't work!
 	if userMembership.EncryptedCollectionKey == nil {
