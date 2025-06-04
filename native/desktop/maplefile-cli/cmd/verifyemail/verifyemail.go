@@ -8,10 +8,10 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	authService "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
+	svc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
 )
 
-func VerifyEmailCmd(emailVerificationService authService.EmailVerificationService, logger *zap.Logger) *cobra.Command {
+func VerifyEmailCmd(emailVerificationService svc_authdto.EmailVerificationService, logger *zap.Logger) *cobra.Command {
 	var verificationCode string
 
 	var cmd = &cobra.Command{

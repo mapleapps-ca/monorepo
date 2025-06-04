@@ -1,5 +1,5 @@
-// monorepo/native/desktop/maplefile-cli/internal/service/auth/verification_transformer.go
-package auth
+// monorepo/native/desktop/maplefile-cli/internal/service/authdto/verification_transformer.go
+package authdto
 
 import (
 	"encoding/base64"

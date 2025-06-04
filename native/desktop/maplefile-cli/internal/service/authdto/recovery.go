@@ -1,5 +1,5 @@
-// monorepo/native/desktop/maplefile-cli/internal/service/auth/recovery.go
-package auth
+// monorepo/native/desktop/maplefile-cli/internal/service/authdto/recovery.go
+package authdto
 
 import (
 	"context"

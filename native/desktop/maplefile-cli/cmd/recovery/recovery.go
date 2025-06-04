@@ -14,11 +14,11 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
+	svc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
 )
 
 // RecoveryCmd creates the recovery command group
-func RecoveryCmd(recoveryService auth.RecoveryService, logger *zap.Logger) *cobra.Command {
+func RecoveryCmd(recoveryService svc_authdto.RecoveryService, logger *zap.Logger) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "recovery",
 		Short: "Account recovery commands",
@@ -34,7 +34,7 @@ func RecoveryCmd(recoveryService auth.RecoveryService, logger *zap.Logger) *cobr
 }
 
 // startRecoveryCmd creates the command to start recovery
-func startRecoveryCmd(recoveryService auth.RecoveryService, logger *zap.Logger) *cobra.Command {
+func startRecoveryCmd(recoveryService svc_authdto.RecoveryService, logger *zap.Logger) *cobra.Command {
 	var email string
 	var recoveryKeyFile string
 
@@ -125,7 +125,7 @@ Example:
 }
 
 // completeRecoveryCmd creates the command to complete recovery
-func completeRecoveryCmd(recoveryService auth.RecoveryService, logger *zap.Logger) *cobra.Command {
+func completeRecoveryCmd(recoveryService svc_authdto.RecoveryService, logger *zap.Logger) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "complete",
 		Short: "Complete account recovery with new password",
@@ -183,7 +183,7 @@ You will be prompted to enter and confirm your new password.`,
 }
 
 // statusRecoveryCmd creates the command to check recovery status
-func statusRecoveryCmd(recoveryService auth.RecoveryService, logger *zap.Logger) *cobra.Command {
+func statusRecoveryCmd(recoveryService svc_authdto.RecoveryService, logger *zap.Logger) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "status",
 		Short: "Check recovery session status",
@@ -251,7 +251,7 @@ func promptForNewPassword() (string, error) {
 }
 
 // ShowRecoveryKeyCmd creates the command to show the recovery key
-func ShowRecoveryKeyCmd(recoveryKeyService auth.RecoveryKeyService, logger *zap.Logger) *cobra.Command {
+func ShowRecoveryKeyCmd(recoveryKeyService svc_authdto.RecoveryKeyService, logger *zap.Logger) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "show-recovery-key",
 		Short: "Display your recovery key",

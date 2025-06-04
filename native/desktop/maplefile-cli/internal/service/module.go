@@ -4,7 +4,7 @@ package service
 import (
 	"go.uber.org/fx"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
@@ -28,15 +28,15 @@ func ServiceModule() fx.Option {
 		// Registration service
 		fx.Provide(register.NewRegisterService),
 
-		// Auth services
-		fx.Provide(auth.NewUserVerificationDataTransformer),
-		fx.Provide(auth.NewEmailVerificationService),
-		fx.Provide(auth.NewLoginOTTService),
-		fx.Provide(auth.NewLoginOTTVerificationService),
-		fx.Provide(auth.NewCompleteLoginService),
-		fx.Provide(auth.NewLogoutService),
-		fx.Provide(auth.NewRecoveryService),
-		fx.Provide(auth.NewRecoveryKeyService),
+		// Auth DTO services
+		fx.Provide(authdto.NewUserVerificationDataTransformer),
+		fx.Provide(authdto.NewEmailVerificationService),
+		fx.Provide(authdto.NewLoginOTTService),
+		fx.Provide(authdto.NewLoginOTTVerificationService),
+		fx.Provide(authdto.NewCompleteLoginService),
+		fx.Provide(authdto.NewLogoutService),
+		fx.Provide(authdto.NewRecoveryService),
+		fx.Provide(authdto.NewRecoveryKeyService),
 
 		// Collection services
 		fx.Provide(collection.NewCreateService),

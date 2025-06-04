@@ -9,10 +9,10 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
+	svc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
 )
 
-func CompleteLoginCmd(completeLoginService auth.CompleteLoginService, logger *zap.Logger) *cobra.Command {
+func CompleteLoginCmd(completeLoginService svc_authdto.CompleteLoginService, logger *zap.Logger) *cobra.Command {
 	var email, password string
 	var debugMode bool
 

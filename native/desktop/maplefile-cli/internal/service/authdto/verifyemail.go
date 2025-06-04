@@ -1,5 +1,5 @@
-// monorepo/native/desktop/maplefile-cli/internal/service/auth/verifyemail_service.go
-package auth
+// monorepo/native/desktop/maplefile-cli/internal/service/authdto/verifyemail_service.go
+package authdto
 
 import (
 	"context"

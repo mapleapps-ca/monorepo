@@ -25,7 +25,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	svc_auth "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
+	svc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
@@ -47,13 +47,13 @@ func NewRootCmd(
 	tokenRepository authdto.TokenRepository,
 	userRepo user.Repository,
 	regService svc_register.RegisterService,
-	emailVerificationService svc_auth.EmailVerificationService,
-	loginOTTService svc_auth.LoginOTTService,
-	loginOTTVerificationService svc_auth.LoginOTTVerificationService,
-	completeLoginService svc_auth.CompleteLoginService,
-	logoutService svc_auth.LogoutService,
-	recoveryService svc_auth.RecoveryService,
-	recoveryKeyService svc_auth.RecoveryKeyService,
+	emailVerificationService svc_authdto.EmailVerificationService,
+	loginOTTService svc_authdto.LoginOTTService,
+	loginOTTVerificationService svc_authdto.LoginOTTVerificationService,
+	completeLoginService svc_authdto.CompleteLoginService,
+	logoutService svc_authdto.LogoutService,
+	recoveryService svc_authdto.RecoveryService,
+	recoveryKeyService svc_authdto.RecoveryKeyService,
 	createCollectionService collection.CreateService,
 	collectionListService collection.ListService,
 	collectionSoftDeleteService collection.SoftDeleteService,

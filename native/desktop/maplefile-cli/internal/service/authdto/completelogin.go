@@ -1,5 +1,5 @@
-// monorepo/native/desktop/maplefile-cli/internal/service/auth/completelogin_service.go
-package auth
+// monorepo/native/desktop/maplefile-cli/internal/service/authdto/completelogin_service.go
+package authdto
 
 import (
 	"context"

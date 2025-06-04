@@ -8,10 +8,10 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
+	svc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
 )
 
-func LogoutCmd(logoutService auth.LogoutService, logger *zap.Logger) *cobra.Command {
+func LogoutCmd(logoutService svc_authdto.LogoutService, logger *zap.Logger) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "logout",
 		Short: "Log out the current user",

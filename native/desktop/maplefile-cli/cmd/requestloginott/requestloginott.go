@@ -9,10 +9,10 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/auth"
+	svc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
 )
 
-func RequestLoginOneTimeTokenUserCmd(loginOTTService auth.LoginOTTService, logger *zap.Logger) *cobra.Command {
+func RequestLoginOneTimeTokenUserCmd(loginOTTService svc_authdto.LoginOTTService, logger *zap.Logger) *cobra.Command {
 	var email string
 
 	var cmd = &cobra.Command{
