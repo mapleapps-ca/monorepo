@@ -187,44 +187,6 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	return newFile, nil
 }
 
-// mapFileDTOToDomain maps a FileDTO to a File domain object
-func mapFileDTOToDomain(dto *filedto.FileDTO) *dom_file.File {
-	if dto == nil {
-		return nil
-	}
-
-	state := dto.State
-	if state == "" {
-		state = dom_file.FileStateActive // Default to active
-	}
-
-	return &dom_file.File{
-		ID:                     dto.ID,
-		CollectionID:           dto.CollectionID,
-		OwnerID:                dto.OwnerID,
-		EncryptedMetadata:      dto.EncryptedMetadata,
-		EncryptedFileKey:       dto.EncryptedFileKey,
-		EncryptionVersion:      dto.EncryptionVersion,
-		EncryptedHash:          dto.EncryptedHash,
-		EncryptedFileSize:      dto.EncryptedFileSizeInBytes,
-		EncryptedThumbnailSize: dto.EncryptedThumbnailSizeInBytes,
-		Name:                   "[Encrypted]", // Placeholder until decryption
-		EncryptedFilePath:      "TODO",
-		Metadata:               nil,                        //TODO from EncryptedMetadata
-		MimeType:               "application/octet-stream", // Default
-		FilePath:               "TODO",
-		FileSize:               0, //TODO
-		CreatedAt:              dto.CreatedAt,
-		CreatedByUserID:        dto.CreatedByUserID,
-		ModifiedAt:             dto.ModifiedAt,
-		ModifiedByUserID:       dto.ModifiedByUserID,
-		Version:                dto.Version,
-		State:                  state,
-		SyncStatus:             dom_file.SyncStatusCloudOnly,
-		StorageMode:            dom_file.StorageModeEncryptedOnly,
-	}
-}
-
 // DownloadResult represents the result of a file download with decryption (COPIED FROM `internal/service/filedownload/download.go`)
 type DownloadResult struct {
 	FileID            primitive.ObjectID     `json:"file_id"`

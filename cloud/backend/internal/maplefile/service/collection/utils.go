@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/service/collection/mapping.go
+// cloud/backend/internal/maplefile/service/collection/utils.go
 package collection
 
 import (
