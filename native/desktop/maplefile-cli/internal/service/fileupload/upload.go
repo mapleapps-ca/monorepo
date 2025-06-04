@@ -16,7 +16,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	svc_crypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/crypto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	uc_fileupload "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/fileupload"
@@ -39,7 +38,6 @@ type uploadService struct {
 	updateFileUseCase        uc_file.UpdateFileUseCase
 	encryptFileUseCase       uc_fileupload.EncryptFileUseCase
 	prepareUploadUseCase     uc_fileupload.PrepareFileUploadUseCase
-	cryptoService            svc_crypto.CryptoService
 	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase
 	getCollectionUseCase     uc_collection.GetCollectionUseCase
 }
@@ -54,7 +52,6 @@ func NewUploadService(
 	updateFileUseCase uc_file.UpdateFileUseCase,
 	encryptFileUseCase uc_fileupload.EncryptFileUseCase,
 	prepareUploadUseCase uc_fileupload.PrepareFileUploadUseCase,
-	cryptoService svc_crypto.CryptoService,
 	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
 ) UploadService {
@@ -71,7 +68,6 @@ func NewUploadService(
 		getUserByLoggedInUseCase: getUserByLoggedInUseCase,
 		encryptFileUseCase:       encryptFileUseCase,
 		prepareUploadUseCase:     prepareUploadUseCase,
-		cryptoService:            cryptoService,
 	}
 }
 

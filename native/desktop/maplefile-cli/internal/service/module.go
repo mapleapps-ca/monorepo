@@ -8,7 +8,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
@@ -23,9 +22,6 @@ import (
 // ServiceModule provides the service-layer--related dependencies
 func ServiceModule() fx.Option {
 	return fx.Options(
-		// Crypto service
-		fx.Provide(crypto.NewCryptoService),
-
 		// Registration service
 		fx.Provide(register.NewRegisterService),
 
