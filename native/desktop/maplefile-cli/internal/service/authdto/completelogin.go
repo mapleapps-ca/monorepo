@@ -11,6 +11,7 @@ import (
 	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	uc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/authdto"
+	uc_medto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/medto"
 )
 
 // CompleteLoginService provides high-level functionality for login completion
@@ -20,10 +21,11 @@ type CompleteLoginService interface {
 
 // completeLoginService implements the CompleteLoginService interface
 type completeLoginService struct {
-	logger        *zap.Logger
-	useCase       uc_authdto.CompleteLoginUseCase
-	userRepo      user.Repository
-	configService config.ConfigService
+	logger                *zap.Logger
+	useCase               uc_authdto.CompleteLoginUseCase
+	userRepo              user.Repository
+	configService         config.ConfigService
+	getMeFromCloudUseCase uc_medto.GetMeFromCloudUseCase
 }
 
 // NewCompleteLoginService creates a new login completion service
@@ -32,13 +34,15 @@ func NewCompleteLoginService(
 	useCase uc_authdto.CompleteLoginUseCase,
 	userRepo user.Repository,
 	configService config.ConfigService,
+	getMeFromCloudUseCase uc_medto.GetMeFromCloudUseCase,
 ) CompleteLoginService {
 	logger = logger.Named("CompleteLoginService")
 	return &completeLoginService{
-		logger:        logger,
-		useCase:       useCase,
-		userRepo:      userRepo,
-		configService: configService,
+		logger:                logger,
+		useCase:               useCase,
+		userRepo:              userRepo,
+		configService:         configService,
+		getMeFromCloudUseCase: getMeFromCloudUseCase,
 	}
 }
 
@@ -61,12 +65,6 @@ func (s *completeLoginService) CompleteLogin(ctx context.Context, email, passwor
 		return nil, errors.NewAppError("failed to update user data", err)
 	}
 
-	// Commit the transaction
-	if err := s.userRepo.CommitTransaction(); err != nil {
-		s.userRepo.DiscardTransaction()
-		return nil, errors.NewAppError("failed to commit transaction", err)
-	}
-
 	// Save our authenticated credentials to configuration
 	s.configService.SetLoggedInUserCredentials(
 		ctx,
@@ -79,6 +77,57 @@ func (s *completeLoginService) CompleteLogin(ctx context.Context, email, passwor
 
 	// Log success
 	s.logger.Info("✅ Login completed successfully",
+		zap.String("email", email),
+		zap.Time("accessTokenExpiry", tokenResp.AccessTokenExpiryTime),
+		zap.Time("refreshTokenExpiry", tokenResp.RefreshTokenExpiryTime))
+
+	// Fetch the profile.
+	meDTO, err := s.getMeFromCloudUseCase.Execute(ctx)
+	if err != nil {
+		s.userRepo.DiscardTransaction()
+		return nil, errors.NewAppError("failed to get user profile post successfull complete login", err)
+	}
+	if meDTO == nil {
+		s.logger.Error("❌ Failed to get user profile from cloud because backend returned nil")
+
+		s.userRepo.DiscardTransaction()
+		return nil, errors.NewAppError("failed to get user profile from cloud because backend returned nil", nil)
+	}
+
+	// Update the local user profile from the cloud.
+	updatedUser.ID = meDTO.ID
+	updatedUser.FirstName = meDTO.FirstName
+	updatedUser.LastName = meDTO.LastName
+	updatedUser.Name = meDTO.Name
+	updatedUser.LexicalName = meDTO.LexicalName
+	updatedUser.Role = meDTO.Role
+	updatedUser.WasEmailVerified = meDTO.WasEmailVerified
+	updatedUser.Phone = meDTO.Phone
+	updatedUser.Country = meDTO.Country
+	updatedUser.Timezone = meDTO.Timezone
+	updatedUser.Region = meDTO.Region
+	updatedUser.City = meDTO.City
+	updatedUser.PostalCode = meDTO.PostalCode
+	updatedUser.AddressLine1 = meDTO.AddressLine1
+	updatedUser.AddressLine2 = meDTO.AddressLine2
+	updatedUser.AgreePromotions = meDTO.AgreePromotions
+	updatedUser.AgreeToTrackingAcrossThirdPartyAppsAndServices = meDTO.AgreeToTrackingAcrossThirdPartyAppsAndServices
+	updatedUser.CreatedAt = meDTO.CreatedAt
+	updatedUser.Status = meDTO.Status
+
+	if err := s.userRepo.UpsertByEmail(ctx, updatedUser); err != nil {
+		s.userRepo.DiscardTransaction()
+		return nil, errors.NewAppError("failed to update user data", err)
+	}
+
+	// Commit the transaction
+	if err := s.userRepo.CommitTransaction(); err != nil {
+		s.userRepo.DiscardTransaction()
+		return nil, errors.NewAppError("failed to commit transaction", err)
+	}
+
+	// Log success
+	s.logger.Info("✅ Successfully received user profile and saved locally",
 		zap.String("email", email),
 		zap.Time("accessTokenExpiry", tokenResp.AccessTokenExpiryTime),
 		zap.Time("refreshTokenExpiry", tokenResp.RefreshTokenExpiryTime))

@@ -14,6 +14,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/files"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/filesync"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/logout"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/me"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/recovery"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
@@ -32,6 +33,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
+	svc_me "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/me"
 	svc_register "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	svc_sync "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/sync"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
@@ -81,6 +83,8 @@ func NewRootCmd(
 	syncDebugService svc_sync.SyncDebugService,
 	synchronizedSharingService collectionsharing.SynchronizedCollectionSharingService,
 	originalSharingService collectionsharing.CollectionSharingService,
+	getMeService svc_me.GetMeService,
+	updateMeService svc_me.UpdateMeService,
 ) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "maplefile-cli",
@@ -144,6 +148,12 @@ func NewRootCmd(
 		syncFileService, // Pass the file sync service
 		syncFullService, // Pass the full sync service
 		syncDebugService,
+		logger,
+	))
+
+	rootCmd.AddCommand(me.MeCmd(
+		getMeService,
+		updateMeService,
 		logger,
 	))
 

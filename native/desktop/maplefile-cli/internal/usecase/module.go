@@ -12,6 +12,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/filedto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/medto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/publiclookupdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
@@ -114,5 +115,9 @@ func UseCaseModule() fx.Option {
 
 		// Get public lookup DTO
 		fx.Provide(publiclookupdto.NewGetPublicLookupFromCloudUseCase),
+
+		// Cloud-based interaction with user profile DTO
+		fx.Provide(medto.NewGetMeFromCloudUseCase),
+		fx.Provide(medto.NewUpdateMeInCloudUseCase),
 	)
 }
