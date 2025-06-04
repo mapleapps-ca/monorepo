@@ -26,6 +26,13 @@ func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mo
 	// ctx := context.Background()
 	uc := client.Database(appCfg.DB.MapleFileName).Collection("users")
 
+	// Create the repository instance first
+	repo := &userStorerImpl{
+		Logger:     loggerp,
+		DbClient:   client,
+		Collection: uc,
+	}
+
 	// For debugging purposes only or if you are going to recreate new indexes.
 	if err := uc.Indexes().DropAll(context.TODO()); err != nil {
 		loggerp.Warn("failed deleting all indexes",
@@ -66,15 +73,16 @@ func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mo
 	})
 
 	if err != nil {
-		loggerp.Error("failed creating indexes error", zap.Any("err", err))
-		return nil
+		// Instead of returning nil, log the error and continue
+		// The repository can still function without indexes, just with reduced performance
+		loggerp.Error("failed creating indexes, continuing without optimal indexes", zap.Any("err", err))
+		loggerp.Warn("repository will function but may have performance implications")
+	} else {
+		loggerp.Info("successfully created all database indexes")
 	}
 
-	return &userStorerImpl{
-		Logger:     loggerp,
-		DbClient:   client,
-		Collection: uc,
-	}
+	// Always return the valid repository instance
+	return repo
 }
 
 // ListAll retrieves all users from the database

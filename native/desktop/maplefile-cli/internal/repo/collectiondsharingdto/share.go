@@ -4,6 +4,7 @@ package collectiondsharingdto
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,14 +31,23 @@ func (r *collectionSharingDTORepository) ShareCollectionInCloud(ctx context.Cont
 		return nil, errors.NewAppError("failed to get cloud provider address", err)
 	}
 
+	encryptedKeyBytes, err := base64.StdEncoding.DecodeString(request.EncryptedCollectionKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode encrypted collection key: %w", err)
+	}
+
 	// Prepare request body according to API spec
 	requestBody := map[string]interface{}{
 		"recipient_id":             request.RecipientID.Hex(),
 		"recipient_email":          request.RecipientEmail,
 		"permission_level":         request.PermissionLevel,
-		"encrypted_collection_key": request.EncryptedCollectionKey,
+		"encrypted_collection_key": encryptedKeyBytes, // Send as bytes, not base64 string
 		"share_with_descendants":   request.ShareWithDescendants,
 	}
+
+	r.logger.Debug("🔍 HTTP request body for sharing",
+		zap.Any("requestBody", requestBody),
+		zap.Int("encryptedKeyBytesLength", len(encryptedKeyBytes)))
 
 	// Convert request to JSON
 	jsonData, err := json.Marshal(requestBody)

@@ -61,6 +61,9 @@ func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, id primi
 		return nil, errors.NewAppError("failed to read response", err)
 	}
 
+	r.logger.Debug("🔍 Raw collection response from API",
+		zap.ByteString("responseBody", body))
+
 	// Check for error status codes
 	if resp.StatusCode != http.StatusOK {
 		r.logger.Error("🚨 Server returned an error status code",
@@ -74,6 +77,17 @@ func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, id primi
 	if err := json.Unmarshal(body, &response); err != nil {
 		r.logger.Error("🚨 Failed to parse response body", zap.Error(err))
 		return nil, errors.NewAppError("failed to parse response", err)
+	}
+
+	r.logger.Debug("🔍 Parsed collection members",
+		zap.Int("memberCount", len(response.Members)))
+
+	for i, member := range response.Members {
+		r.logger.Debug("🔍 Member details from API",
+			zap.Int("memberIndex", i),
+			zap.String("memberID", member.ID.Hex()),
+			zap.String("recipientEmail", member.RecipientEmail),
+			zap.Int("encryptedKeyLength", len(member.EncryptedCollectionKey)))
 	}
 
 	r.logger.Info("✨ Successfully fetched collection from cloud server",

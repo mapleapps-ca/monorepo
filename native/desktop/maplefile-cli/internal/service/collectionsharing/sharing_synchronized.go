@@ -199,6 +199,12 @@ func (s *synchronizedCollectionSharingService) executeCloudSharing(
 		ShareWithDescendants:   input.ShareWithDescendants,
 	}
 
+	s.logger.Debug("🔍 Sharing request details",
+		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("recipientEmail", input.RecipientEmail),
+		zap.String("encryptedCollectionKeyBase64", encryptedCollectionKey),
+		zap.Int("encryptedKeyLength", len(encryptedCollectionKey)))
+
 	response, err := s.shareCollectionUseCase.Execute(ctx, useCaseInput, userPassword)
 	if err != nil {
 		return nil, err
@@ -348,5 +354,32 @@ func (s *synchronizedCollectionSharingService) encryptCollectionKeyForRecipient(
 		return "", fmt.Errorf("failed to encrypt collection key for recipient: %w", err)
 	}
 
-	return base64.StdEncoding.EncodeToString(encryptedForRecipient), nil
+	encryptedForRecipientString := base64.StdEncoding.EncodeToString(encryptedForRecipient)
+
+	if err := s.verifyEncryptedKey(encryptedForRecipientString, recipientPublicKey); err != nil {
+		return "", fmt.Errorf("failed to verify encrypt collection key for recipient: %w", err)
+	}
+
+	return encryptedForRecipientString, nil
+}
+
+func (s *synchronizedCollectionSharingService) verifyEncryptedKey(encryptedKeyBase64 string, recipientPublicKey []byte) error {
+	// Decode the base64
+	encryptedBytes, err := base64.StdEncoding.DecodeString(encryptedKeyBase64)
+	if err != nil {
+		return fmt.Errorf("failed to decode encrypted key: %w", err)
+	}
+
+	// Verify it's the right length for box_seal format
+	expectedMinLength := crypto.BoxPublicKeySize + crypto.BoxNonceSize + crypto.BoxOverhead
+	if len(encryptedBytes) < expectedMinLength {
+		return fmt.Errorf("encrypted key too short: got %d, expected at least %d",
+			len(encryptedBytes), expectedMinLength)
+	}
+
+	s.logger.Debug("✅ Encrypted key format validation passed",
+		zap.Int("encryptedKeyLength", len(encryptedBytes)),
+		zap.Int("expectedMinLength", expectedMinLength))
+
+	return nil
 }

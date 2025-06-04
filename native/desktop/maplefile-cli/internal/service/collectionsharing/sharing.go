@@ -238,6 +238,12 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 		ShareWithDescendants:   input.ShareWithDescendants,
 	}
 
+	s.logger.Debug("🔍 Sharing request details",
+		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("recipientEmail", input.RecipientEmail),
+		zap.String("encryptedCollectionKeyBase64", encryptedCollectionKey),
+		zap.Int("encryptedKeyLength", len(encryptedCollectionKey)))
+
 	// Execute use case
 	response, err := s.shareCollectionUseCase.Execute(ctx, useCaseInput, userPassword)
 	if err != nil {
@@ -342,8 +348,14 @@ func (s *collectionSharingService) encryptCollectionKeyForRecipient(
 		return "", fmt.Errorf("failed to encrypt collection key for recipient: %w", err)
 	}
 
+	encryptedForRecipientString := base64.StdEncoding.EncodeToString(encryptedForRecipient)
+
+	if err := s.verifyEncryptedKey(encryptedForRecipientString, recipientUserPublicKey); err != nil {
+		return "", fmt.Errorf("failed to verify encrypt collection key for recipient: %w", err)
+	}
+
 	// Step 5: Encode to base64 for transmission
-	return base64.StdEncoding.EncodeToString(encryptedForRecipient), nil
+	return encryptedForRecipientString, nil
 }
 
 // Helper function for min (Go doesn't have a built-in min for integers in older versions)
@@ -352,4 +364,25 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (s *collectionSharingService) verifyEncryptedKey(encryptedKeyBase64 string, recipientPublicKey []byte) error {
+	// Decode the base64
+	encryptedBytes, err := base64.StdEncoding.DecodeString(encryptedKeyBase64)
+	if err != nil {
+		return fmt.Errorf("failed to decode encrypted key: %w", err)
+	}
+
+	// Verify it's the right length for box_seal format
+	expectedMinLength := crypto.BoxPublicKeySize + crypto.BoxNonceSize + crypto.BoxOverhead
+	if len(encryptedBytes) < expectedMinLength {
+		return fmt.Errorf("encrypted key too short: got %d, expected at least %d",
+			len(encryptedBytes), expectedMinLength)
+	}
+
+	s.logger.Debug("✅ Encrypted key format validation passed",
+		zap.Int("encryptedKeyLength", len(encryptedBytes)),
+		zap.Int("expectedMinLength", expectedMinLength))
+
+	return nil
 }
