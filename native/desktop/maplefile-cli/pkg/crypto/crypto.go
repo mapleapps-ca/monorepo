@@ -51,6 +51,7 @@ const (
 
 	// Encryption algorithm identifiers
 	ChaCha20Poly1305Algorithm = "chacha20poly1305"
+	BoxSealAlgorithm          = "box_seal"
 )
 
 // EncryptedData represents encrypted data with its nonce
