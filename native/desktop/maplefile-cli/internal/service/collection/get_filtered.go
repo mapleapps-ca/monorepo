@@ -10,6 +10,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	uc_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
@@ -38,6 +39,7 @@ type getFilteredService struct {
 	logger                                 *zap.Logger
 	getUserByIsLoggedInUseCase             uc_user.GetByIsLoggedInUseCase
 	getFilteredCollectionsFromCloudUseCase uc_collectiondto.GetFilteredCollectionsFromCloudUseCase
+	collectionDecryptionService            svc_collectioncrypto.CollectionDecryptionService
 }
 
 // NewGetFilteredService creates a new service for getting filtered collections
@@ -45,12 +47,14 @@ func NewGetFilteredService(
 	logger *zap.Logger,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getFilteredCollectionsFromCloudUseCase uc_collectiondto.GetFilteredCollectionsFromCloudUseCase,
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
 ) GetFilteredService {
 	logger = logger.Named("GetFilteredService")
 	return &getFilteredService{
 		logger:                                 logger,
 		getUserByIsLoggedInUseCase:             getUserByIsLoggedInUseCase,
 		getFilteredCollectionsFromCloudUseCase: getFilteredCollectionsFromCloudUseCase,
+		collectionDecryptionService:            collectionDecryptionService,
 	}
 }
 
@@ -90,25 +94,7 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 	}
 
 	//
-	// STEP 3: Set up decryption keys
-	//
-
-	// Derive keyEncryptionKey from password (E2EE spec)
-	keyEncryptionKey, err := s.deriveKeyEncryptionKey(userPassword, userData.PasswordSalt)
-	if err != nil {
-		return nil, errors.NewAppError("failed to derive key encryption key", err)
-	}
-	defer crypto.ClearBytes(keyEncryptionKey)
-
-	// Decrypt masterKey with keyEncryptionKey (E2EE spec)
-	masterKey, err := s.decryptMasterKey(userData, keyEncryptionKey)
-	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt master key - incorrect password?", err)
-	}
-	defer crypto.ClearBytes(masterKey)
-
-	//
-	// STEP 4: Get filtered collections from cloud
+	// STEP 3: Get filtered collections from cloud
 	//
 
 	request := &collectiondto.GetFilteredCollectionsRequest{
@@ -127,7 +113,7 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 	}
 
 	//
-	// STEP 5: Decrypt collections and convert to local format
+	// STEP 4: Decrypt collections and convert to local format using crypto service
 	//
 
 	output := &GetFilteredOutput{
@@ -138,7 +124,7 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 
 	// Decrypt owned collections
 	for _, cloudCollection := range cloudResponse.OwnedCollections {
-		localCollection, err := s.convertAndDecryptCollection(cloudCollection, masterKey)
+		localCollection, err := s.convertAndDecryptCollection(ctx, cloudCollection, userData, userPassword)
 		if err != nil {
 			s.logger.Warn("⚠️ failed to decrypt owned collection, skipping",
 				zap.String("collection_id", cloudCollection.ID.Hex()),
@@ -150,7 +136,7 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 
 	// Decrypt shared collections
 	for _, cloudCollection := range cloudResponse.SharedCollections {
-		localCollection, err := s.convertAndDecryptCollection(cloudCollection, masterKey)
+		localCollection, err := s.convertAndDecryptCollection(ctx, cloudCollection, userData, userPassword)
 		if err != nil {
 			s.logger.Warn("⚠️ failed to decrypt shared collection, skipping",
 				zap.String("collection_id", cloudCollection.ID.Hex()),
@@ -160,7 +146,7 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 		output.SharedCollections = append(output.SharedCollections, localCollection)
 	}
 
-	s.logger.Info("✅ Successfully retrieved and decrypted filtered collections",
+	s.logger.Info("✅ Successfully retrieved and decrypted filtered collections using crypto service",
 		zap.Int("owned_count", len(output.OwnedCollections)),
 		zap.Int("shared_count", len(output.SharedCollections)),
 		zap.Int("total_count", output.TotalCount))
@@ -168,30 +154,8 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 	return output, nil
 }
 
-// convertAndDecryptCollection converts a cloud CollectionDTO to local Collection and decrypts it
-func (s *getFilteredService) convertAndDecryptCollection(cloudCollection *collectiondto.CollectionDTO, masterKey []byte) (*collection.Collection, error) {
-	// Decrypt collection key
-	if cloudCollection.EncryptedCollectionKey == nil {
-		return nil, errors.NewAppError("collection has no encrypted key", nil)
-	}
-
-	collectionKey, err := crypto.DecryptWithSecretBox(
-		cloudCollection.EncryptedCollectionKey.Ciphertext,
-		cloudCollection.EncryptedCollectionKey.Nonce,
-		masterKey,
-	)
-	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt collection key", err)
-	}
-	defer crypto.ClearBytes(collectionKey)
-
-	// Decrypt collection name
-	decryptedName, err := s.decryptCollectionName(cloudCollection.EncryptedName, collectionKey)
-	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt collection name", err)
-	}
-
-	// Convert to local collection format
+func (s *getFilteredService) convertAndDecryptCollection(ctx context.Context, cloudCollection *collectiondto.CollectionDTO, userData *dom_user.User, userPassword string) (*collection.Collection, error) {
+	// Convert to local collection format first (for crypto service compatibility)
 	localCollection := &collection.Collection{
 		ID:                     cloudCollection.ID,
 		OwnerID:                cloudCollection.OwnerID,
@@ -206,10 +170,29 @@ func (s *getFilteredService) convertAndDecryptCollection(cloudCollection *collec
 		ModifiedAt:             cloudCollection.ModifiedAt,
 		ModifiedByUserID:       cloudCollection.ModifiedByUserID,
 		Version:                cloudCollection.Version,
-		// Decrypted fields
-		Name:       decryptedName,
-		SyncStatus: collection.SyncStatusSynced, // Assume synced since it came from cloud
+		SyncStatus:             collection.SyncStatusSynced, // Assume synced since it came from cloud
 	}
+
+	// Validate encrypted collection key
+	if cloudCollection.EncryptedCollectionKey == nil {
+		return nil, errors.NewAppError("collection has no encrypted key", nil)
+	}
+
+	// ✅ REPLACED: Use collection decryption service instead of manual key chain decryption
+	collectionKey, err := s.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, userData, localCollection, userPassword)
+	if err != nil {
+		return nil, errors.NewAppError("failed to decrypt collection key chain", err)
+	}
+	defer crypto.ClearBytes(collectionKey)
+
+	// ✅ REPLACED: Use collection decryption service for data decryption instead of manual implementation
+	decryptedName, err := s.collectionDecryptionService.ExecuteDecryptData(ctx, cloudCollection.EncryptedName, collectionKey)
+	if err != nil {
+		return nil, errors.NewAppError("failed to decrypt collection name", err)
+	}
+
+	// Set decrypted data
+	localCollection.Name = decryptedName
 
 	// Convert members if any
 	if cloudCollection.Members != nil {
@@ -235,39 +218,7 @@ func (s *getFilteredService) convertAndDecryptCollection(cloudCollection *collec
 	return localCollection, nil
 }
 
-// Helper: Derive keyEncryptionKey from password (E2EE spec)
-func (s *getFilteredService) deriveKeyEncryptionKey(password string, salt []byte) ([]byte, error) {
-	return crypto.DeriveKeyFromPassword(password, salt)
-}
-
-// Helper: Decrypt masterKey with keyEncryptionKey (E2EE spec)
-func (s *getFilteredService) decryptMasterKey(user *dom_user.User, keyEncryptionKey []byte) ([]byte, error) {
-	return crypto.DecryptWithSecretBox(
-		user.EncryptedMasterKey.Ciphertext,
-		user.EncryptedMasterKey.Nonce,
-		keyEncryptionKey,
-	)
-}
-
-// Helper: Decrypt collection name with collectionKey (E2EE spec)
-func (s *getFilteredService) decryptCollectionName(encryptedName string, collectionKey []byte) (string, error) {
-	// Decode from base64
-	combined, err := crypto.DecodeFromBase64(encryptedName)
-	if err != nil {
-		return "", err
-	}
-
-	// Split nonce and ciphertext
-	nonce, ciphertext, err := crypto.SplitNonceAndCiphertext(combined, crypto.SecretBoxNonceSize)
-	if err != nil {
-		return "", err
-	}
-
-	// Decrypt
-	decryptedBytes, err := crypto.DecryptWithSecretBox(ciphertext, nonce, collectionKey)
-	if err != nil {
-		return "", err
-	}
-
-	return string(decryptedBytes), nil
-}
+// ❌ REMOVED: Manual crypto helper methods - replaced with crypto services
+// - deriveKeyEncryptionKey() -> handled by collectionDecryptionService.ExecuteDecryptCollectionKeyChain()
+// - decryptMasterKey() -> handled by collectionDecryptionService.ExecuteDecryptCollectionKeyChain()
+// - decryptCollectionName() -> collectionDecryptionService.ExecuteDecryptData()

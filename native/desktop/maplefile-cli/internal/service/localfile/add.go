@@ -3,8 +3,6 @@ package localfile
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"mime"
 	"os"
 	"time"
@@ -14,11 +12,10 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
-	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
-	dom_keys "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_tx "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
-	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
+	svc_filecrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filecrypto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
@@ -49,20 +46,22 @@ type LocalFileAddService interface {
 
 // localFileAddService implements the LocalFileAddService interface
 type localFileAddService struct {
-	logger                     *zap.Logger
-	configService              config.ConfigService
-	primitiveIDObjectGenerator sprimitive.SecurePrimitiveObjectIDGenerator
-	readFileUseCase            localfile.ReadFileUseCase
-	checkFileExistsUseCase     localfile.CheckFileExistsUseCase
-	getFileInfoUseCase         localfile.GetFileInfoUseCase
-	computeFileHashUseCase     localfile.ComputeFileHashUseCase
-	pathUtilsUseCase           localfile.PathUtilsUseCase
-	copyFileUseCase            localfile.CopyFileUseCase
-	createDirectoryUseCase     localfile.CreateDirectoryUseCase
-	transactionManager         dom_tx.Manager
-	createFileUseCase          file.CreateFileUseCase
-	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase
-	getCollectionUseCase       uc_collection.GetCollectionUseCase
+	logger                      *zap.Logger
+	configService               config.ConfigService
+	primitiveIDObjectGenerator  sprimitive.SecurePrimitiveObjectIDGenerator
+	readFileUseCase             localfile.ReadFileUseCase
+	checkFileExistsUseCase      localfile.CheckFileExistsUseCase
+	getFileInfoUseCase          localfile.GetFileInfoUseCase
+	computeFileHashUseCase      localfile.ComputeFileHashUseCase
+	pathUtilsUseCase            localfile.PathUtilsUseCase
+	copyFileUseCase             localfile.CopyFileUseCase
+	createDirectoryUseCase      localfile.CreateDirectoryUseCase
+	transactionManager          dom_tx.Manager
+	createFileUseCase           file.CreateFileUseCase
+	getUserByIsLoggedInUseCase  uc_user.GetByIsLoggedInUseCase
+	getCollectionUseCase        uc_collection.GetCollectionUseCase
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService
+	fileEncryptionService       svc_filecrypto.FileEncryptionService
 }
 
 // NewLocalFileAddService creates a new service for adding local files
@@ -81,23 +80,27 @@ func NewLocalFileAddService(
 	createFileUseCase file.CreateFileUseCase,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
+	fileEncryptionService svc_filecrypto.FileEncryptionService,
 ) LocalFileAddService {
 	logger = logger.Named("LocalFileAddService")
 	return &localFileAddService{
-		logger:                     logger,
-		configService:              configService,
-		primitiveIDObjectGenerator: primitiveIDObjectGenerator,
-		readFileUseCase:            readFileUseCase,
-		checkFileExistsUseCase:     checkFileExistsUseCase,
-		getFileInfoUseCase:         getFileInfoUseCase,
-		computeFileHashUseCase:     computeFileHashUseCase,
-		pathUtilsUseCase:           pathUtilsUseCase,
-		copyFileUseCase:            copyFileUseCase,
-		createDirectoryUseCase:     createDirectoryUseCase,
-		transactionManager:         transactionManager,
-		createFileUseCase:          createFileUseCase,
-		getUserByIsLoggedInUseCase: getUserByIsLoggedInUseCase,
-		getCollectionUseCase:       getCollectionUseCase,
+		logger:                      logger,
+		configService:               configService,
+		primitiveIDObjectGenerator:  primitiveIDObjectGenerator,
+		readFileUseCase:             readFileUseCase,
+		checkFileExistsUseCase:      checkFileExistsUseCase,
+		getFileInfoUseCase:          getFileInfoUseCase,
+		computeFileHashUseCase:      computeFileHashUseCase,
+		pathUtilsUseCase:            pathUtilsUseCase,
+		copyFileUseCase:             copyFileUseCase,
+		createDirectoryUseCase:      createDirectoryUseCase,
+		transactionManager:          transactionManager,
+		createFileUseCase:           createFileUseCase,
+		getUserByIsLoggedInUseCase:  getUserByIsLoggedInUseCase,
+		getCollectionUseCase:        getCollectionUseCase,
+		collectionDecryptionService: collectionDecryptionService,
+		fileEncryptionService:       fileEncryptionService,
 	}
 }
 
@@ -255,92 +258,88 @@ func (s *localFileAddService) Add(ctx context.Context, input *LocalFileAddInput,
 	}
 
 	//
-	// STEP 7:
-	// E2EE DECRYPTION CHAIN: password → keyEncryptionKey → masterKey → collectionKey.
-	// Generate encryption keys and encrypt file data
+	// STEP 7: E2EE ENCRYPTION CHAIN using crypto services
 	//
 
-	collectionKey, err := s.decryptCollectionKeyChain(user, collection, userPassword)
+	s.logger.Debug("🔐 Starting E2EE key chain decryption using crypto service")
+	collectionKey, err := s.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, collection, userPassword)
 	if err != nil {
 		return nil, errors.NewAppError("failed to decrypt collection key chain", err)
 	}
 	defer crypto.ClearBytes(collectionKey)
 
-	// STEP 1: Generate random fileKey (E2EE spec)
-	fileKey, err := crypto.GenerateRandomBytes(crypto.FileKeySize)
+	s.logger.Debug("🔐 Generating file key and encrypting with collection key using crypto service")
+	encryptedFileKey, fileKey, err := s.fileEncryptionService.GenerateFileKeyAndEncryptWithCollectionKey(ctx, collectionKey)
 	if err != nil {
-		return nil, errors.NewAppError("failed to generate file key", err)
+		return nil, errors.NewAppError("failed to generate and encrypt file key", err)
 	}
 	defer crypto.ClearBytes(fileKey)
 
-	// STEP 2: Encrypt fileKey with collectionKey (E2EE spec)
-	encryptedFileKeyData, err := crypto.EncryptWithSecretBox(fileKey, collectionKey)
+	s.logger.Debug("🔐 Encrypting file content using crypto service")
+	fileContent, err := os.ReadFile(destFilePath)
 	if err != nil {
-		return nil, errors.NewAppError("failed to encrypt file key", err)
+		return nil, errors.NewAppError("failed to read file for encryption", err)
 	}
 
-	// STEP 3: Encrypt file content with fileKey (E2EE spec)
-	encryptedFileData, err := s.encryptFileContent(destFilePath, fileKey)
+	encryptedFileData, err := s.fileEncryptionService.EncryptFileContent(ctx, fileContent, fileKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to encrypt file content", err)
 	}
 
-	// STEP 4: Encrypt file metadata with fileKey (E2EE spec)
+	// Write encrypted file
+	encryptedPath := destFilePath + ".encrypted"
+	if err := os.WriteFile(encryptedPath, encryptedFileData, 0600); err != nil {
+		return nil, errors.NewAppError("failed to write encrypted file", err)
+	}
+
+	s.logger.Debug("🔐 Encrypting file metadata using crypto service")
 	metadata := &dom_file.FileMetadata{
 		Name:                   fileName,
 		MimeType:               mimeType,
 		Size:                   fileInfo.Size,
 		Created:                fileInfo.ModifiedAt.Unix(),
-		DecryptedFilePath:      destFilePath, // Decrypted file path (what we copied)
+		DecryptedFilePath:      destFilePath,
 		DecryptedFileSize:      fileInfo.Size,
-		EncryptedFilePath:      encryptedFileData.Path,
-		EncryptedFileSize:      encryptedFileData.Size,
+		EncryptedFilePath:      encryptedPath,
+		EncryptedFileSize:      int64(len(encryptedFileData)),
 		EncryptedThumbnailPath: "", // Developer Note: Future feature
 		EncryptedThumbnailSize: 0,  // Developer Note: Future feature
 		DecryptedThumbnailPath: "", // Developer Note: Future feature
 		DecryptedThumbnailSize: 0,  // Developer Note: Future feature
 	}
-	encryptedMetadataString, err := s.encryptFileMetadata(metadata, fileKey)
+
+	encryptedMetadataString, err := s.fileEncryptionService.EncryptFileMetadata(ctx, metadata, fileKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to encrypt file metadata", err)
 	}
 
-	// STEP 5: Encrypt file hash with fileKey (E2EE spec)
-	encryptedHashString, err := s.encryptComputeFileHash(ctx, destFilePath, fileKey)
+	s.logger.Debug("🔐 Computing and encrypting file hash")
+	fileHashBytes, err := s.computeFileHashUseCase.ExecuteForBytes(ctx, destFilePath)
+	if err != nil {
+		return nil, errors.NewAppError("failed to compute file hash", err)
+	}
+
+	// Encrypt the hash using the same pattern as other file encryption service methods
+	encryptedHashData, err := s.fileEncryptionService.EncryptFileContent(ctx, fileHashBytes, fileKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to encrypt file hash", err)
 	}
-
-	// Step 6
-	currentTime := time.Now()
-	historicalKey := dom_keys.EncryptedHistoricalKey{
-		Ciphertext:    encryptedFileKeyData.Ciphertext,
-		Nonce:         encryptedFileKeyData.Nonce,
-		KeyVersion:    1,
-		RotatedAt:     currentTime,
-		RotatedReason: "Initial collection creation",
-		Algorithm:     crypto.ChaCha20Poly1305Algorithm,
-	}
+	encryptedHashString := crypto.EncodeToBase64(encryptedHashData)
 
 	//
 	// STEP 8: Create domain file object
 	//
+	currentTime := time.Now()
 	domainFile := &dom_file.File{
 		ID:                fileID,
 		CollectionID:      input.CollectionID,
 		OwnerID:           input.OwnerID,
 		EncryptedMetadata: encryptedMetadataString,
-		EncryptedFileKey: dom_keys.EncryptedFileKey{
-			Ciphertext:   encryptedFileKeyData.Ciphertext,
-			Nonce:        encryptedFileKeyData.Nonce,
-			KeyVersion:   1,
-			RotatedAt:    &currentTime,
-			PreviousKeys: []dom_keys.EncryptedHistoricalKey{historicalKey},
-		},
+		EncryptedFileKey:  *encryptedFileKey, // Use the struct from crypto service
 		EncryptionVersion: "1.0",
 		EncryptedHash:     encryptedHashString,
-		EncryptedFilePath: encryptedFileData.Path,
-		EncryptedFileSize: encryptedFileData.Size,
+		EncryptedFilePath: encryptedPath,
+		EncryptedFileSize: int64(len(encryptedFileData)),
 		Name:              fileName, // Keep plaintext for local use
 		MimeType:          mimeType,
 		Metadata:          metadata,     // Decrypted metadata.
@@ -363,7 +362,7 @@ func (s *localFileAddService) Add(ctx context.Context, input *LocalFileAddInput,
 		return nil, errors.NewAppError("failed to create file record", err)
 	}
 
-	s.logger.Info("✅ Successfully added E2EE file",
+	s.logger.Info("✅ Successfully added E2EE file using crypto services",
 		zap.String("fileID", fileID.Hex()),
 		zap.String("fileName", fileName),
 		zap.String("copiedPath", destFilePath))
@@ -372,112 +371,4 @@ func (s *localFileAddService) Add(ctx context.Context, input *LocalFileAddInput,
 		File:           domainFile,
 		CopiedFilePath: destFilePath,
 	}, nil
-}
-
-// Complete E2EE decryption chain
-func (s *localFileAddService) decryptCollectionKeyChain(user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
-	// STEP 1: Derive keyEncryptionKey from password
-	keyEncryptionKey, err := crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to derive key encryption key: %w", err)
-	}
-	defer crypto.ClearBytes(keyEncryptionKey)
-
-	// STEP 2: Decrypt masterKey with keyEncryptionKey
-	masterKey, err := crypto.DecryptWithSecretBox(
-		user.EncryptedMasterKey.Ciphertext,
-		user.EncryptedMasterKey.Nonce,
-		keyEncryptionKey,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt master key - incorrect password?: %w", err)
-	}
-	defer crypto.ClearBytes(masterKey)
-
-	// STEP 3: Decrypt collectionKey with masterKey
-	if collection.EncryptedCollectionKey == nil {
-		return nil, errors.NewAppError("collection has no encrypted key", nil)
-	}
-
-	collectionKey, err := crypto.DecryptWithSecretBox(
-		collection.EncryptedCollectionKey.Ciphertext,
-		collection.EncryptedCollectionKey.Nonce,
-		masterKey,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt collection key: %w", err)
-	}
-
-	return collectionKey, nil
-}
-
-// Encrypt file metadata with fileKey
-func (s *localFileAddService) encryptFileMetadata(metadata *dom_file.FileMetadata, fileKey []byte) (string, error) {
-	metadataBytes, err := json.Marshal(metadata)
-	if err != nil {
-		return "", err
-	}
-
-	encryptedData, err := crypto.EncryptWithSecretBox(metadataBytes, fileKey)
-	if err != nil {
-		return "", err
-	}
-
-	combined := crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
-	return crypto.EncodeToBase64(combined), nil
-}
-
-type EncryptedFileData struct {
-	Path string
-	Size int64
-	Hash []byte
-}
-
-// Encrypt file content with fileKey (E2EE: files encrypted with fileKey)
-func (s *localFileAddService) encryptFileContent(filePath string, fileKey []byte) (*EncryptedFileData, error) {
-	// Read original file
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	// Encrypt content with fileKey
-	encryptedData, err := crypto.EncryptWithSecretBox(content, fileKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt file content: %w", err)
-	}
-
-	// Combine nonce and ciphertext
-	combined := crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
-
-	// Write encrypted file
-	encryptedPath := filePath + ".encrypted"
-	if err := os.WriteFile(encryptedPath, combined, 0600); err != nil {
-		return nil, fmt.Errorf("failed to write encrypted file: %w", err)
-	}
-
-	return &EncryptedFileData{
-		Path: encryptedPath,
-		Size: int64(len(combined)),
-	}, nil
-}
-
-// Helper: Compute file hash and return the hash in an encrypted format
-func (s *localFileAddService) encryptComputeFileHash(ctx context.Context, filePath string, fileKey []byte) (string, error) {
-	// Compute file hash - use buffered algorithm in case of large files.
-	fileHashBytes, err := s.computeFileHashUseCase.ExecuteForBytes(ctx, filePath)
-	if err != nil {
-		s.logger.Error("❌ Failed to compute file hash",
-			zap.String("file_path", filePath),
-			zap.Error(err))
-		return "", errors.NewAppError("failed to compute file hash", err)
-	}
-
-	encryptedData, err := crypto.EncryptWithSecretBox(fileHashBytes, fileKey)
-	if err != nil {
-		return "", err
-	}
-
-	combined := crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
-	return crypto.EncodeToBase64(combined), nil
 }

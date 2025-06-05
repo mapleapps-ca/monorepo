@@ -14,7 +14,6 @@ import (
 	dom_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_tx "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
-	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
@@ -151,7 +150,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	// STEP 5: Encrypt collection metadata with collectionKey
 	//
 
-	encryptedName, err := s.encryptCollectionName(input.Name, decryptedCollectionKey)
+	encryptedName, err := s.collectionEncryptionService.ExecuteForEncryptData(ctx, input.Name, decryptedCollectionKey)
 	if err != nil {
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to encrypt collection name", err)
@@ -254,29 +253,4 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	return &CreateOutput{
 		Collection: col,
 	}, nil
-}
-
-// Helper: Derive keyEncryptionKey from password (E2EE spec)
-func (s *createService) deriveKeyEncryptionKey(password string, salt []byte) ([]byte, error) {
-	return crypto.DeriveKeyFromPassword(password, salt)
-}
-
-// Helper: Decrypt masterKey with keyEncryptionKey (E2EE spec)
-func (s *createService) decryptMasterKey(user *dom_user.User, keyEncryptionKey []byte) ([]byte, error) {
-	return crypto.DecryptWithSecretBox(
-		user.EncryptedMasterKey.Ciphertext,
-		user.EncryptedMasterKey.Nonce,
-		keyEncryptionKey,
-	)
-}
-
-// Helper: Encrypt collection name with collectionKey (E2EE spec)
-func (s *createService) encryptCollectionName(name string, collectionKey []byte) (string, error) {
-	encryptedData, err := crypto.EncryptWithSecretBox([]byte(name), collectionKey)
-	if err != nil {
-		return "", err
-	}
-
-	combined := crypto.CombineNonceAndCiphertext(encryptedData.Nonce, encryptedData.Ciphertext)
-	return crypto.EncodeToBase64(combined), nil
 }
