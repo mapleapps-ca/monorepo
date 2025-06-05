@@ -85,7 +85,6 @@ func UseCaseModule() fx.Option {
 		fx.Provide(localfile.NewPathUtilsUseCase),
 
 		// File upload use cases
-		fx.Provide(fileupload.NewEncryptFileUseCase),
 		fx.Provide(fileupload.NewPrepareFileUploadUseCase),
 
 		// File DTO use cases

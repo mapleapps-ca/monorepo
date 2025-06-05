@@ -38,7 +38,6 @@ type fileUploadService struct {
 	getFileUseCase              uc_file.GetFileUseCase
 	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService
 	updateFileUseCase           uc_file.UpdateFileUseCase
-	encryptFileUseCase          uc_fileupload.EncryptFileUseCase
 	prepareUploadUseCase        uc_fileupload.PrepareFileUploadUseCase
 	getUserByLoggedInUseCase    uc_user.GetByIsLoggedInUseCase
 	getCollectionUseCase        uc_collection.GetCollectionUseCase
@@ -53,7 +52,6 @@ func NewFileUploadService(
 	getFileUseCase uc_file.GetFileUseCase,
 	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
 	updateFileUseCase uc_file.UpdateFileUseCase,
-	encryptFileUseCase uc_fileupload.EncryptFileUseCase,
 	prepareUploadUseCase uc_fileupload.PrepareFileUploadUseCase,
 	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
@@ -70,7 +68,6 @@ func NewFileUploadService(
 		updateFileUseCase:           updateFileUseCase,
 		getCollectionUseCase:        getCollectionUseCase,
 		getUserByLoggedInUseCase:    getUserByLoggedInUseCase,
-		encryptFileUseCase:          encryptFileUseCase,
 		prepareUploadUseCase:        prepareUploadUseCase,
 	}
 }
