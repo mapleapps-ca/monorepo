@@ -30,6 +30,7 @@ func ServiceModule() fx.Option {
 
 		// Crypto auditing service
 		fx.Provide(security.NewCryptoAuditService),
+		fx.Provide(security.NewPasswordValidationService),
 
 		// Auth DTO services
 		fx.Provide(authdto.NewUserVerificationDataTransformer),
