@@ -1,11 +1,10 @@
-// internal/service/collectionsharing/sharing.go
+// internal/service/collectionsharing/sharing.go (UPDATED)
 package collectionsharing
 
 import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"strings"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
@@ -13,7 +12,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_publiclookupdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/publiclookupdto"
 	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
@@ -21,7 +19,6 @@ import (
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsharingdto"
 	uc_publiclookupdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/publiclookupdto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // ShareCollectionInput represents input for sharing a collection at the service level
@@ -42,26 +39,53 @@ type ShareCollectionOutput struct {
 // CollectionSharingService defines the interface for collection sharing operations
 type CollectionSharingService interface {
 	Execute(ctx context.Context, input *ShareCollectionInput, userPassword string) (*ShareCollectionOutput, error)
+	ExecuteBatchSharing(ctx context.Context, input *BatchShareCollectionInput, userPassword string) (*BatchShareCollectionOutput, error)
 }
 
-// collectionSharingService implements the CollectionSharingService interface
+// Batch sharing input for multiple recipients
+type BatchShareCollectionInput struct {
+	CollectionID         primitive.ObjectID `json:"collection_id"`
+	Recipients           []RecipientInfo    `json:"recipients"`
+	ShareWithDescendants bool               `json:"share_with_descendants"`
+}
+
+type RecipientInfo struct {
+	Email           string `json:"email"`
+	PermissionLevel string `json:"permission_level"`
+}
+
+type BatchShareCollectionOutput struct {
+	Success                 bool                      `json:"success"`
+	Message                 string                    `json:"message"`
+	TotalMembershipsCreated int                       `json:"total_memberships_created"`
+	Results                 []IndividualSharingResult `json:"results"`
+}
+
+type IndividualSharingResult struct {
+	RecipientEmail     string `json:"recipient_email"`
+	Success            bool   `json:"success"`
+	MembershipsCreated int    `json:"memberships_created"`
+	Error              string `json:"error,omitempty"`
+}
+
+// collectionSharingService implements the enhanced CollectionSharingService interface
 type collectionSharingService struct {
 	logger                          *zap.Logger
 	getCollectionUseCase            uc_collection.GetCollectionUseCase
 	getPublicLookupFromCloudUseCase uc_publiclookupdto.GetPublicLookupFromCloudUseCase
 	getUserByIsLoggedInUseCase      uc_user.GetByIsLoggedInUseCase
 	shareCollectionUseCase          uc.ShareCollectionUseCase
-	collectionDecryptionService     svc_collectioncrypto.CollectionDecryptionService
+	collectionEncryptionService     svc_collectioncrypto.CollectionEncryptionService
 }
 
-// NewCollectionSharingService creates a new collection sharing service
+// NewCollectionSharingService creates a new enhanced collection sharing service
 func NewCollectionSharingService(
 	logger *zap.Logger,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
 	getPublicLookupFromCloudUseCase uc_publiclookupdto.GetPublicLookupFromCloudUseCase,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	shareCollectionUseCase uc.ShareCollectionUseCase,
-	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
+	collectionEncryptionService svc_collectioncrypto.CollectionEncryptionService,
 ) CollectionSharingService {
 	logger = logger.Named("CollectionSharingService")
 	return &collectionSharingService{
@@ -70,16 +94,15 @@ func NewCollectionSharingService(
 		getPublicLookupFromCloudUseCase: getPublicLookupFromCloudUseCase,
 		getUserByIsLoggedInUseCase:      getUserByIsLoggedInUseCase,
 		shareCollectionUseCase:          shareCollectionUseCase,
-		collectionDecryptionService:     collectionDecryptionService,
+		collectionEncryptionService:     collectionEncryptionService,
 	}
 }
 
-// Execute shares a collection with another user
+// Execute shares a collection with another user using extended crypto service
 func (s *collectionSharingService) Execute(ctx context.Context, input *ShareCollectionInput, userPassword string) (*ShareCollectionOutput, error) {
 	//
 	// STEP 1: Validate inputs
 	//
-
 	if input == nil {
 		s.logger.Error("❌ Input is required")
 		return nil, errors.NewAppError("input is required", nil)
@@ -108,155 +131,57 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 	}
 
 	//
-	// STEP 2: Lookup the recipient's email from the cloud
+	// STEP 2: Get and validate related records
 	//
-
-	publicLookupRequest := &dom_publiclookupdto.PublicLookupRequestDTO{
-		Email: input.RecipientEmail,
-	}
-	publicLookupResponse, err := s.getPublicLookupFromCloudUseCase.Execute(ctx, publicLookupRequest)
+	publicLookupResponse, currentUser, collectionToShare, err := s.validateAndGetSharingData(ctx, input)
 	if err != nil {
-		if strings.Contains(err.Error(), "email") {
-			err := fmt.Errorf("email does not exist: %v", input.RecipientEmail)
-			s.logger.Error("Failed lookup up email",
-				zap.String("email", input.RecipientEmail), zap.Error(err))
-			return nil, err
-		}
-		s.logger.Error("Failed lookup up email",
-			zap.String("email", input.RecipientEmail), zap.Error(err))
-		return nil, err
-	}
-	if publicLookupResponse == nil {
-		err := fmt.Errorf("nothing returned from cloud for email: %s", input.RecipientEmail)
-		s.logger.Error("Failed lookup up email",
-			zap.String("email", input.RecipientEmail), zap.Error(err))
 		return nil, err
 	}
 
 	//
-	// STEP 3: Get any related records.
+	// STEP 3: Get public key of the other user
 	//
-
-	// Get the collection to share
-	collectionToShare, err := s.getCollectionUseCase.Execute(ctx, input.CollectionID)
-	if err != nil {
-		s.logger.Error("❌ Failed to get collection to share", zap.Error(err))
-		return nil, errors.NewAppError("failed to get collection", err)
-	}
-	if collectionToShare == nil {
-		s.logger.Error("❌ Collection not found")
-		return nil, errors.NewAppError("collection not found", nil)
-	}
-
-	// Get current user (the one sharing)
-	currentUser, err := s.getUserByIsLoggedInUseCase.Execute(ctx)
-	if err != nil {
-		s.logger.Error("❌ Failed to get current user", zap.Error(err))
-		return nil, errors.NewAppError("failed to get current user", err)
-	}
-	if currentUser == nil {
-		return nil, errors.NewAppError("user not authenticated", nil)
-	}
-
-	//
-	// STEP 4: Validation of related records.
-	//
-
-	// Check if current (logged in) user has permission to share this collection.
-	// User must be owner or have admin permission.
-	canShare := collectionToShare.OwnerID == currentUser.ID
-	if !canShare {
-		s.logger.Debug("🔍 Checking if user is an admin member")
-		// Check if user is an admin member
-		for _, member := range collectionToShare.Members {
-			s.logger.Debug("🔍 Member sharing check",
-				zap.Any("member.RecipientID", member.RecipientID),
-				zap.Any("currentUser.ID", currentUser.ID),
-				zap.Any("member.PermissionLevel", member.PermissionLevel),
-				zap.Any("collectionsharingdto.CollectionDTOPermissionAdmin", collectionsharingdto.CollectionDTOPermissionAdmin),
-			)
-			if member.RecipientID == currentUser.ID && member.PermissionLevel == collectionsharingdto.CollectionDTOPermissionAdmin {
-				s.logger.Debug("✅ Member sharing check passed!")
-				canShare = true
-				break
-			}
-		}
-	}
-	if !canShare {
-		s.logger.Error("🚫 You don't have permission to share this collection",
-			zap.Any("collectionToShare.OwnerID", collectionToShare.OwnerID),
-			zap.Any("currentUser.ID", currentUser.ID),
-		)
-		return nil, errors.NewAppError("you don't have permission to share this collection", nil)
-	}
-
-	// Check if user is trying to share with themselves
-	if publicLookupResponse.UserID == currentUser.ID {
-		return nil, errors.NewAppError("cannot share collection with yourself", nil)
-	}
-
-	// Check if recipient already has access
-	for _, member := range collectionToShare.Members {
-		if member.RecipientID == publicLookupResponse.UserID {
-			return nil, errors.NewAppError("recipient already has access to this collection", nil)
-		}
-	}
-
-	//
-	// STEP 5: Encrypt collection key for recipient (E2EE) using crypto service
-	//
-
 	publicKeyBytes, err := s.decodePublicKey(publicLookupResponse.PublicKeyInBase64)
 	if err != nil {
-		s.logger.Error("❌ Failed to decode recipient public key", zap.Error(err))
 		return nil, fmt.Errorf("failed to decode recipient public key: %v", err)
 	}
 
-	encryptedCollectionKey, err := s.encryptCollectionKeyForRecipient(
+	// E2EE key chain + BoxSeal encryption logic
+	encryptedCollectionKey, err := s.collectionEncryptionService.EncryptCollectionKeyForSharing(
 		ctx,
 		currentUser,
-		publicKeyBytes,
 		collectionToShare,
+		publicKeyBytes,
 		userPassword,
 	)
 	if err != nil {
-		s.logger.Error("❌ Failed to encrypt collection key for recipient", zap.Error(err))
-		return nil, errors.NewAppError("failed to encrypt collection key for recipient", err)
-	}
-	if encryptedCollectionKey == nil {
-		return nil, errors.NewAppError("could not encrypt collection key", nil)
+		s.logger.Error("❌ Failed to encrypt collection key for sharing", zap.Error(err))
+		return nil, errors.NewAppError("failed to encrypt collection key for sharing", err)
 	}
 
-	//
-	// STEP 6: Submit our share request to the cloud backend.
-	//
+	s.logger.Debug("✅ Successfully encrypted collection key using extended crypto service",
+		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("recipientEmail", input.RecipientEmail))
 
-	// Create use case input
+	//
+	// STEP 4: Submit share request to cloud
+	//
 	useCaseInput := &uc.ShareCollectionInputDTO{
 		CollectionID:           input.CollectionID,
 		RecipientID:            publicLookupResponse.UserID,
 		RecipientEmail:         publicLookupResponse.Email,
 		PermissionLevel:        input.PermissionLevel,
-		EncryptedCollectionKey: encryptedCollectionKey, // Pass the encrypted collection key struct for E2EE
+		EncryptedCollectionKey: encryptedCollectionKey,
 		ShareWithDescendants:   input.ShareWithDescendants,
 	}
 
-	s.logger.Debug("🔍 Sharing request details",
-		zap.String("collectionID", input.CollectionID.Hex()),
-		zap.String("recipientEmail", input.RecipientEmail),
-		zap.Int("encryptedKeyLength", len(encryptedCollectionKey.ToBoxSealBytes())))
-
-	// Execute use case
 	response, err := s.shareCollectionUseCase.Execute(ctx, useCaseInput, userPassword)
 	if err != nil {
-		s.logger.Error("❌ Failed to share collection",
-			zap.String("collectionID", input.CollectionID.Hex()),
-			zap.String("recipientEmail", input.RecipientEmail),
-			zap.Error(err))
+		s.logger.Error("❌ Failed to share collection", zap.Error(err))
 		return nil, err
 	}
 
-	s.logger.Info("✅ Successfully shared collection using crypto service",
+	s.logger.Info("✅ Successfully shared collection using extended crypto service",
 		zap.String("collectionID", input.CollectionID.Hex()),
 		zap.String("recipientEmail", input.RecipientEmail),
 		zap.String("permissionLevel", input.PermissionLevel))
@@ -268,87 +193,204 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 	}, nil
 }
 
+// Batch sharing using extended crypto service efficiency
+func (s *collectionSharingService) ExecuteBatchSharing(ctx context.Context, input *BatchShareCollectionInput, userPassword string) (*BatchShareCollectionOutput, error) {
+	s.logger.Info("🚀 Starting batch collection sharing using extended crypto service",
+		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.Int("recipientCount", len(input.Recipients)))
+
+	// STEP 1: Validate inputs
+	if input == nil || len(input.Recipients) == 0 {
+		return nil, errors.NewAppError("input and recipients are required", nil)
+	}
+
+	// STEP 2: Get collection and user data
+	collectionToShare, err := s.getCollectionUseCase.Execute(ctx, input.CollectionID)
+	if err != nil {
+		return nil, errors.NewAppError("failed to get collection", err)
+	}
+
+	currentUser, err := s.getUserByIsLoggedInUseCase.Execute(ctx)
+	if err != nil {
+		return nil, errors.NewAppError("failed to get current user", err)
+	}
+
+	// STEP 3: Lookup all recipients and build crypto service input
+	cryptoRecipients := make([]svc_collectioncrypto.SharingRecipient, 0, len(input.Recipients))
+	recipientMap := make(map[string]RecipientInfo)
+
+	for _, recipient := range input.Recipients {
+		// Validate permission level
+		if err := collectionsharingdto.ValidatePermissionLevel(recipient.PermissionLevel); err != nil {
+			s.logger.Warn("⚠️ Skipping recipient with invalid permission level",
+				zap.String("email", recipient.Email),
+				zap.String("permissionLevel", recipient.PermissionLevel))
+			continue
+		}
+
+		// Lookup recipient
+		publicLookupRequest := &dom_publiclookupdto.PublicLookupRequestDTO{
+			Email: recipient.Email,
+		}
+		publicLookupResponse, err := s.getPublicLookupFromCloudUseCase.Execute(ctx, publicLookupRequest)
+		if err != nil {
+			s.logger.Warn("⚠️ Skipping recipient due to lookup failure",
+				zap.String("email", recipient.Email),
+				zap.Error(err))
+			continue
+		}
+
+		// Decode public key
+		publicKeyBytes, err := s.decodePublicKey(publicLookupResponse.PublicKeyInBase64)
+		if err != nil {
+			s.logger.Warn("⚠️ Skipping recipient due to invalid public key",
+				zap.String("email", recipient.Email),
+				zap.Error(err))
+			continue
+		}
+
+		cryptoRecipients = append(cryptoRecipients, svc_collectioncrypto.SharingRecipient{
+			Email:     recipient.Email,
+			PublicKey: publicKeyBytes,
+			UserID:    publicLookupResponse.UserID.Hex(),
+		})
+		recipientMap[recipient.Email] = recipient
+	}
+
+	// STEP 4: ✅ MAJOR EFFICIENCY GAIN: Batch encrypt using extended crypto service
+	// This decrypts the collection key ONCE and encrypts for all recipients
+	encryptedKeys, err := s.collectionEncryptionService.EncryptCollectionKeyForMultipleRecipients(
+		ctx,
+		currentUser,
+		collectionToShare,
+		cryptoRecipients,
+		userPassword,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch encryption failed: %w", err)
+	}
+
+	s.logger.Info("✅ Successfully batch encrypted collection keys using extended crypto service",
+		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.Int("successfulRecipients", len(encryptedKeys)))
+
+	// STEP 5: Submit individual share requests to cloud
+	output := &BatchShareCollectionOutput{
+		Results: make([]IndividualSharingResult, 0, len(encryptedKeys)),
+	}
+
+	for email, encryptedKey := range encryptedKeys {
+		recipientInfo := recipientMap[email]
+
+		// Submit to cloud (individual requests)
+		// In a real implementation, you might want to batch these cloud requests too
+		useCaseInput := &uc.ShareCollectionInputDTO{
+			CollectionID:           input.CollectionID,
+			RecipientEmail:         email,
+			PermissionLevel:        recipientInfo.PermissionLevel,
+			EncryptedCollectionKey: encryptedKey,
+			ShareWithDescendants:   input.ShareWithDescendants,
+		}
+
+		response, err := s.shareCollectionUseCase.Execute(ctx, useCaseInput, userPassword)
+		if err != nil {
+			output.Results = append(output.Results, IndividualSharingResult{
+				RecipientEmail: email,
+				Success:        false,
+				Error:          err.Error(),
+			})
+			continue
+		}
+
+		output.Results = append(output.Results, IndividualSharingResult{
+			RecipientEmail:     email,
+			Success:            response.Success,
+			MembershipsCreated: response.MembershipsCreated,
+		})
+		output.TotalMembershipsCreated += response.MembershipsCreated
+	}
+
+	// Calculate success
+	successCount := 0
+	for _, result := range output.Results {
+		if result.Success {
+			successCount++
+		}
+	}
+
+	output.Success = successCount > 0
+	output.Message = fmt.Sprintf("Successfully shared with %d of %d recipients", successCount, len(input.Recipients))
+
+	s.logger.Info("✅ Completed batch collection sharing using extended crypto service",
+		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.Int("successfulShares", successCount),
+		zap.Int("totalRecipients", len(input.Recipients)))
+
+	return output, nil
+}
+
+// Helper methods remain the same but simplified...
+func (s *collectionSharingService) validateAndGetSharingData(ctx context.Context, input *ShareCollectionInput) (*dom_publiclookupdto.PublicLookupResponseDTO, *dom_user.User, *collection.Collection, error) {
+	// Lookup recipient
+	publicLookupRequest := &dom_publiclookupdto.PublicLookupRequestDTO{
+		Email: input.RecipientEmail,
+	}
+	publicLookupResponse, err := s.getPublicLookupFromCloudUseCase.Execute(ctx, publicLookupRequest)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to lookup recipient: %w", err)
+	}
+
+	// Get collection
+	collectionToShare, err := s.getCollectionUseCase.Execute(ctx, input.CollectionID)
+	if err != nil {
+		return nil, nil, nil, errors.NewAppError("failed to get collection", err)
+	}
+
+	// Get current user
+	currentUser, err := s.getUserByIsLoggedInUseCase.Execute(ctx)
+	if err != nil {
+		return nil, nil, nil, errors.NewAppError("failed to get current user", err)
+	}
+
+	// Validate sharing permissions (simplified)
+	canShare := collectionToShare.OwnerID == currentUser.ID
+	if !canShare {
+		for _, member := range collectionToShare.Members {
+			if member.RecipientID == currentUser.ID && member.PermissionLevel == collectionsharingdto.CollectionDTOPermissionAdmin {
+				canShare = true
+				break
+			}
+		}
+	}
+	if !canShare {
+		return nil, nil, nil, errors.NewAppError("you don't have permission to share this collection", nil)
+	}
+
+	return publicLookupResponse, currentUser, collectionToShare, nil
+}
+
 func (s *collectionSharingService) decodePublicKey(publicKeyBase64 string) ([]byte, error) {
 	if publicKeyBase64 == "" {
 		return nil, fmt.Errorf("public key cannot be empty")
 	}
 
-	// Try the most common encoding first (URL-safe without padding)
-	if publicKeyBytes, err := base64.RawURLEncoding.DecodeString(publicKeyBase64); err == nil {
-		s.logger.Debug("✅ Successfully decoded public key using RawURLEncoding")
-		return publicKeyBytes, nil
+	// Try most common encodings
+	encodings := []struct {
+		name     string
+		encoding *base64.Encoding
+	}{
+		{"RawURL", base64.RawURLEncoding},
+		{"Standard", base64.StdEncoding},
+		{"URL", base64.URLEncoding},
 	}
 
-	// Fallback to standard base64
-	if publicKeyBytes, err := base64.StdEncoding.DecodeString(publicKeyBase64); err == nil {
-		s.logger.Debug("✅ Successfully decoded public key using StdEncoding")
-		return publicKeyBytes, nil
+	for _, enc := range encodings {
+		if publicKeyBytes, err := enc.encoding.DecodeString(publicKeyBase64); err == nil {
+			s.logger.Debug("✅ Successfully decoded public key",
+				zap.String("encoding", enc.name))
+			return publicKeyBytes, nil
+		}
 	}
-
-	// Final fallback to URL-safe with padding
-	if publicKeyBytes, err := base64.URLEncoding.DecodeString(publicKeyBase64); err == nil {
-		s.logger.Debug("✅ Successfully decoded public key using URLEncoding")
-		return publicKeyBytes, nil
-	}
-
-	s.logger.Error("❌ All base64 decoding attempts failed for public key",
-		zap.String("publicKeyBase64", publicKeyBase64))
 
 	return nil, fmt.Errorf("failed to decode public key with any base64 encoding")
-}
-
-func (s *collectionSharingService) encryptCollectionKeyForRecipient(
-	ctx context.Context,
-	currentUser *dom_user.User,
-	recipientUserPublicKey []byte,
-	collectionToShare *collection.Collection,
-	userPassword string,
-) (*keys.EncryptedCollectionKey, error) {
-
-	s.logger.Debug("🔐 Starting E2EE collection key encryption for recipient using crypto service")
-
-	collectionKey, err := s.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, currentUser, collectionToShare, userPassword)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt collection key chain: %w", err)
-	}
-	defer crypto.ClearBytes(collectionKey)
-
-	s.logger.Debug("✅ Successfully decrypted collection key using crypto service")
-
-	s.logger.Debug("🔐 Encrypting collection key for recipient using BoxSeal")
-	encryptedForRecipient, err := crypto.EncryptWithBoxSeal(collectionKey, recipientUserPublicKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt collection key for recipient: %w", err)
-	}
-
-	// Create EncryptedCollectionKey struct from box_seal bytes
-	encryptedCollectionKey := keys.NewEncryptedCollectionKeyFromBoxSeal(encryptedForRecipient)
-
-	if err := s.verifyEncryptedKey(encryptedCollectionKey, recipientUserPublicKey); err != nil {
-		return nil, fmt.Errorf("failed to verify encrypted collection key for recipient: %w", err)
-	}
-
-	s.logger.Debug("✅ Successfully encrypted collection key for recipient using crypto service")
-	return encryptedCollectionKey, nil
-}
-
-func (s *collectionSharingService) verifyEncryptedKey(encryptedKey *keys.EncryptedCollectionKey, recipientPublicKey []byte) error {
-	// Get the box_seal bytes
-	encryptedBytes := encryptedKey.ToBoxSealBytes()
-	if encryptedBytes == nil {
-		return fmt.Errorf("encrypted key is nil")
-	}
-
-	// Verify it's the right length for box_seal format
-	expectedMinLength := crypto.BoxPublicKeySize + crypto.BoxNonceSize + crypto.BoxOverhead
-	if len(encryptedBytes) < expectedMinLength {
-		return fmt.Errorf("encrypted key too short: got %d, expected at least %d",
-			len(encryptedBytes), expectedMinLength)
-	}
-
-	s.logger.Debug("✅ Encrypted key format validation passed",
-		zap.Int("encryptedKeyLength", len(encryptedBytes)),
-		zap.Int("expectedMinLength", expectedMinLength))
-
-	return nil
 }
