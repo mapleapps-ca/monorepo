@@ -3,14 +3,16 @@ package collection
 
 import (
 	"context"
-	"encoding/base64"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
+	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
+	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // UpdateInput represents the input for updating a local collection
@@ -18,6 +20,7 @@ type UpdateInput struct {
 	ID             string  `json:"id"`
 	Name           *string `json:"name,omitempty"`
 	CollectionType *string `json:"collection_type,omitempty"`
+	UserPassword   string  `json:"user_password,omitempty"`
 }
 
 // UpdateOutput represents the result of updating a local collection
@@ -32,23 +35,35 @@ type UpdateService interface {
 
 // updateService implements the UpdateService interface
 type updateService struct {
-	logger        *zap.Logger
-	updateUseCase uc.UpdateCollectionUseCase
+	logger                      *zap.Logger
+	updateUseCase               uc.UpdateCollectionUseCase
+	getUseCase                  uc.GetCollectionUseCase
+	getUserByIsLoggedInUseCase  uc_user.GetByIsLoggedInUseCase
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService
+	collectionEncryptionService svc_collectioncrypto.CollectionEncryptionService
 }
 
 // NewUpdateService creates a new service for updating local collections
 func NewUpdateService(
 	logger *zap.Logger,
 	updateUseCase uc.UpdateCollectionUseCase,
+	getUseCase uc.GetCollectionUseCase,
+	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
+	collectionEncryptionService svc_collectioncrypto.CollectionEncryptionService,
 ) UpdateService {
 	logger = logger.Named("UpdateService")
 	return &updateService{
-		logger:        logger,
-		updateUseCase: updateUseCase,
+		logger:                      logger,
+		updateUseCase:               updateUseCase,
+		getUseCase:                  getUseCase,
+		getUserByIsLoggedInUseCase:  getUserByIsLoggedInUseCase,
+		collectionDecryptionService: collectionDecryptionService,
+		collectionEncryptionService: collectionEncryptionService,
 	}
 }
 
-// Update updates a local collection
+// Update updates a local collection using proper E2EE
 func (s *updateService) Update(ctx context.Context, input UpdateInput) (*UpdateOutput, error) {
 	// Validate inputs
 	if input.ID == "" {
@@ -76,13 +91,50 @@ func (s *updateService) Update(ctx context.Context, input UpdateInput) (*UpdateO
 		ID: objectID,
 	}
 
-	// Set name if provided
+	// Proper E2EE encryption instead of base64 encoding
 	if input.Name != nil {
-		// Encrypt the name
-		nameBytes := []byte(*input.Name)
-		encryptedName := base64.StdEncoding.EncodeToString(nameBytes)
+		if input.UserPassword == "" {
+			s.logger.Error("❌ user password is required for E2EE name encryption")
+			return nil, errors.NewAppError("user password is required for E2EE name encryption", nil)
+		}
+
+		// Get user for E2EE operations
+		user, err := s.getUserByIsLoggedInUseCase.Execute(ctx)
+		if err != nil {
+			return nil, errors.NewAppError("failed to get logged in user", err)
+		}
+		if user == nil {
+			return nil, errors.NewAppError("user not found", nil)
+		}
+
+		// Get collection for E2EE operations
+		currentCollection, err := s.getUseCase.Execute(ctx, objectID)
+		if err != nil {
+			return nil, errors.NewAppError("failed to get collection for E2EE", err)
+		}
+		if currentCollection == nil {
+			return nil, errors.NewAppError("collection not found", nil)
+		}
+
+		// Decrypt collection key using E2EE chain
+		s.logger.Debug("🔐 Decrypting collection key for name encryption using crypto service")
+		collectionKey, err := s.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, currentCollection, input.UserPassword)
+		if err != nil {
+			return nil, errors.NewAppError("failed to decrypt collection key for name encryption", err)
+		}
+		defer crypto.ClearBytes(collectionKey)
+
+		// Encrypt the name using proper E2EE
+		s.logger.Debug("🔐 Encrypting collection name using crypto service")
+		encryptedName, err := s.collectionEncryptionService.ExecuteForEncryptData(ctx, *input.Name, collectionKey)
+		if err != nil {
+			return nil, errors.NewAppError("failed to encrypt collection name", err)
+		}
+
 		useCaseInput.EncryptedName = &encryptedName
 		useCaseInput.DecryptedName = input.Name
+
+		s.logger.Debug("✅ Successfully encrypted collection name using crypto service")
 	}
 
 	// Set collection type if provided
@@ -96,6 +148,8 @@ func (s *updateService) Update(ctx context.Context, input UpdateInput) (*UpdateO
 		s.logger.Error("❌ failed to update local collection", zap.String("id", input.ID), zap.Error(err))
 		return nil, err
 	}
+
+	s.logger.Info("✅ Successfully updated collection using E2EE crypto service", zap.String("id", input.ID))
 
 	return &UpdateOutput{
 		Collection: collection,
