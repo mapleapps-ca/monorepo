@@ -9,6 +9,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filecrypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
@@ -53,6 +54,10 @@ func ServiceModule() fx.Option {
 		// Collection syncer services
 		fx.Provide(collectionsyncer.NewCreateLocalCollectionFromCloudCollectionService),
 		fx.Provide(collectionsyncer.NewUpdateLocalCollectionFromCloudCollectionService),
+
+		// File crypto services
+		fx.Provide(filecrypto.NewFileDecryptionService),
+		fx.Provide(filecrypto.NewFileEncryptionService),
 
 		// File syncer services
 		fx.Provide(filesyncer.NewCreateLocalFileFromCloudFileService),

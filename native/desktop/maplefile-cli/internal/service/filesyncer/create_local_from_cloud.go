@@ -3,9 +3,6 @@ package filesyncer
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
@@ -14,6 +11,7 @@ import (
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
 	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
+	svc_filecrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filecrypto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
@@ -34,6 +32,7 @@ type createLocalFileFromCloudFileService struct {
 	getCollectionUseCase        uc_collection.GetCollectionUseCase
 	createFileUseCase           uc_file.CreateFileUseCase
 	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService
+	fileDecryptionService       svc_filecrypto.FileDecryptionService
 }
 
 // NewCreateLocalFileFromCloudFileService creates a new use case for creating local files from cloud
@@ -44,6 +43,7 @@ func NewCreateLocalFileFromCloudFileService(
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
 	createFileUseCase uc_file.CreateFileUseCase,
 	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
+	fileDecryptionService svc_filecrypto.FileDecryptionService,
 ) CreateLocalFileFromCloudFileService {
 	logger = logger.Named("CreateLocalFileFromCloudFileService")
 	return &createLocalFileFromCloudFileService{
@@ -53,6 +53,7 @@ func NewCreateLocalFileFromCloudFileService(
 		getCollectionUseCase:        getCollectionUseCase,
 		createFileUseCase:           createFileUseCase,
 		collectionDecryptionService: collectionDecryptionService,
+		fileDecryptionService:       fileDecryptionService,
 	}
 }
 
@@ -127,7 +128,7 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	}
 
 	//
-	// Step 6: Decrypt the E2EE key chain
+	// Step 6: Decrypt the E2EE key chain to get collection key
 	//
 	collectionKey, err := s.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, collection, password)
 	if err != nil {
@@ -136,21 +137,19 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	}
 	defer crypto.ClearBytes(collectionKey)
 
-	// Decrypt the file key using collection key
-	newFileKey, err := crypto.DecryptWithSecretBox(
-		newFile.EncryptedFileKey.Ciphertext,
-		newFile.EncryptedFileKey.Nonce,
-		collectionKey,
-	)
+	//
+	// Step 7: Decrypt the file key using collection key
+	//
+	newFileKey, err := s.fileDecryptionService.DecryptFileKey(ctx, newFile.EncryptedFileKey, collectionKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to decrypt file key", err)
 	}
 	defer crypto.ClearBytes(newFileKey)
 
 	//
-	// Step 7: Decrypt file metadata
+	// Step 8: Decrypt file metadata
 	//
-	decryptedMetadata, err := s.decryptFileMetadata(newFile.EncryptedMetadata, newFileKey)
+	decryptedMetadata, err := s.fileDecryptionService.DecryptFileMetadata(ctx, newFile.EncryptedMetadata, newFileKey)
 	if err != nil {
 		s.logger.Error("failed to decrypt file metadata", zap.Error(err))
 		return nil, errors.NewAppError("failed to decrypt file metadata", err)
@@ -171,7 +170,7 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	newFile.StorageMode = dom_file.StorageModeHybrid
 
 	//
-	// STEP X Create local (metadata-only) file from cloud data
+	// STEP 9: Create local (metadata-only) file from cloud data
 	//
 
 	// Execute the use case to create the local file record
@@ -187,70 +186,4 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 		zap.String("state", newFile.State))
 
 	return newFile, nil
-}
-
-// DownloadResult represents the result of a file download with decryption (COPIED FROM `internal/service/filedownload/download.go`)
-type DownloadResult struct {
-	FileID            primitive.ObjectID     `json:"file_id"`
-	DecryptedData     []byte                 `json:"decrypted_data"`
-	DecryptedMetadata *dom_file.FileMetadata `json:"decrypted_metadata"`
-	ThumbnailData     []byte                 `json:"thumbnail_data,omitempty"`
-	OriginalSize      int64                  `json:"original_size"`
-	ThumbnailSize     int64                  `json:"thumbnail_size"`
-}
-
-// decryptFileMetadata decrypts the encrypted file metadata using ChaCha20-Poly1305 (COPIED FROM `internal/service/filedownload/download.go`)
-func (s *createLocalFileFromCloudFileService) decryptFileMetadata(encryptedMetadata string, fileKey []byte) (*dom_file.FileMetadata, error) {
-	s.logger.Debug("🔑 Decrypting file metadata")
-
-	// The encrypted metadata is stored as base64 encoded (nonce + ciphertext)
-	// Format: base64(12-byte-nonce + ciphertext) for ChaCha20-Poly1305
-	combined, err := base64.StdEncoding.DecodeString(encryptedMetadata)
-	if err != nil {
-		s.logger.Error("❌ Failed to decode encrypted metadata from base64", zap.Error(err))
-		return nil, fmt.Errorf("failed to decode encrypted metadata: %w", err)
-	}
-
-	// Split nonce and ciphertext for ChaCha20-Poly1305 (12-byte nonce)
-	if len(combined) < crypto.ChaCha20Poly1305NonceSize {
-		s.logger.Error("❌ Combined data too short",
-			zap.Int("expectedMinSize", crypto.ChaCha20Poly1305NonceSize),
-			zap.Int("actualSize", len(combined)))
-		return nil, fmt.Errorf("combined data too short: expected at least %d bytes for ChaCha20-Poly1305, got %d", crypto.ChaCha20Poly1305NonceSize, len(combined))
-	}
-
-	nonce := make([]byte, crypto.ChaCha20Poly1305NonceSize)
-	copy(nonce, combined[:crypto.ChaCha20Poly1305NonceSize])
-
-	ciphertext := make([]byte, len(combined)-crypto.ChaCha20Poly1305NonceSize)
-	copy(ciphertext, combined[crypto.ChaCha20Poly1305NonceSize:])
-
-	// Decrypt metadata using ChaCha20-Poly1305
-	decryptedBytes, err := crypto.DecryptWithSecretBox(ciphertext, nonce, fileKey)
-	if err != nil {
-		s.logger.Error("❌ Failed to decrypt metadata", zap.Error(err))
-		return nil, fmt.Errorf("failed to decrypt metadata: %w", err)
-	}
-
-	// Parse JSON metadata
-	var metadata dom_file.FileMetadata
-	if err := json.Unmarshal(decryptedBytes, &metadata); err != nil {
-		s.logger.Error("❌ Failed to parse decrypted metadata JSON", zap.Error(err))
-		return nil, fmt.Errorf("failed to parse decrypted metadata: %w", err)
-	}
-
-	s.logger.Debug("✅ Successfully decrypted file metadata",
-		zap.String("fileName", metadata.Name),
-		zap.String("mimeType", metadata.MimeType),
-		zap.Int64("size", metadata.Size),
-		zap.Int64("created", metadata.Created),
-		zap.String("encryptedFilePath", metadata.EncryptedFilePath),
-		zap.Int64("EncryptedFileSize", metadata.EncryptedFileSize),
-		zap.String("decryptedFilePath", metadata.DecryptedFilePath),
-		zap.Int64("decryptedFileSize", metadata.DecryptedFileSize),
-		zap.String("encryptedThumbnailPath", metadata.EncryptedThumbnailPath),
-		zap.Int64("encryptedThumbnailSize", metadata.EncryptedThumbnailSize),
-		zap.String("decryptedThumbnailPath", metadata.DecryptedThumbnailPath),
-		zap.Int64("decryptedThumbnailSize", metadata.DecryptedThumbnailSize))
-	return &metadata, nil
 }

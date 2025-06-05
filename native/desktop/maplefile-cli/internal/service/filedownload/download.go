@@ -3,17 +3,14 @@ package filedownload
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
-	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
+	svc_filecrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filecrypto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/filedto"
@@ -51,6 +48,8 @@ type downloadService struct {
 	getFileUseCase                 uc_file.GetFileUseCase
 	getUserByIsLoggedInUseCase     uc_user.GetByIsLoggedInUseCase
 	getCollectionUseCase           uc_collection.GetCollectionUseCase
+	collectionDecryptionService    svc_collectioncrypto.CollectionDecryptionService
+	fileDecryptionService          svc_filecrypto.FileDecryptionService
 }
 
 func NewDownloadService(
@@ -60,6 +59,8 @@ func NewDownloadService(
 	getFileUseCase uc_file.GetFileUseCase,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
+	fileDecryptionService svc_filecrypto.FileDecryptionService,
 ) DownloadService {
 	logger = logger.Named("DownloadService")
 	return &downloadService{
@@ -69,6 +70,8 @@ func NewDownloadService(
 		getFileUseCase:                 getFileUseCase,
 		getUserByIsLoggedInUseCase:     getUserByIsLoggedInUseCase,
 		getCollectionUseCase:           getCollectionUseCase,
+		collectionDecryptionService:    collectionDecryptionService,
+		fileDecryptionService:          fileDecryptionService,
 	}
 }
 
@@ -116,35 +119,33 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID pri
 	}
 
 	//
-	// Step 4: Decrypt the E2EE key chain
+	// Step 4: Decrypt the E2EE key chain to get collection key
 	//
-	collectionKey, err := s.decryptCollectionKeyChain(user, collection, userPassword)
+	collectionKey, err := s.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, collection, userPassword)
 	if err != nil {
 		return nil, errors.NewAppError("failed to decrypt collection key chain", err)
 	}
 	defer crypto.ClearBytes(collectionKey)
 
-	// Decrypt the file key using collection key
-	fileKey, err := crypto.DecryptWithSecretBox(
-		file.EncryptedFileKey.Ciphertext,
-		file.EncryptedFileKey.Nonce,
-		collectionKey,
-	)
+	//
+	// Step 5: Decrypt the file key using collection key
+	//
+	fileKey, err := s.fileDecryptionService.DecryptFileKey(ctx, file.EncryptedFileKey, collectionKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to decrypt file key", err)
 	}
 	defer crypto.ClearBytes(fileKey)
 
 	//
-	// Step 5: Decrypt file metadata
+	// Step 6: Decrypt file metadata
 	//
-	decryptedMetadata, err := s.decryptFileMetadata(file.EncryptedMetadata, fileKey)
+	decryptedMetadata, err := s.fileDecryptionService.DecryptFileMetadata(ctx, file.EncryptedMetadata, fileKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to decrypt file metadata", err)
 	}
 
 	//
-	// Step 6: Get presigned download URLs
+	// Step 7: Get presigned download URLs
 	//
 	s.logger.Debug("🌐 Getting presigned download URLs")
 	urlResponse, err := s.getPresignedDownloadURLUseCase.Execute(ctx, fileID, urlDuration)
@@ -158,7 +159,7 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID pri
 	s.logger.Debug("✅ Successfully got presigned download URLs")
 
 	//
-	// Step 7: Download encrypted file content
+	// Step 8: Download encrypted file content
 	//
 	s.logger.Debug("📥 Downloading encrypted file content")
 	downloadRequest := &filedto.DownloadRequest{
@@ -173,22 +174,22 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID pri
 	s.logger.Debug("✅ Successfully downloaded encrypted file content")
 
 	//
-	// Step 8: Decrypt the file content
+	// Step 9: Decrypt the file content
 	//
 	s.logger.Debug("🔑 Decrypting file content")
-	decryptedData, err := s.decryptFileContent(downloadResponse.FileData, fileKey)
+	decryptedData, err := s.fileDecryptionService.DecryptFileContent(ctx, downloadResponse.FileData, fileKey)
 	if err != nil {
 		return nil, errors.NewAppError("failed to decrypt file content", err)
 	}
 	s.logger.Debug("✅ Successfully decrypted file content")
 
 	//
-	// Step 9: Decrypt thumbnail if present
+	// Step 10: Decrypt thumbnail if present
 	//
 	var thumbnailData []byte
 	if downloadResponse.ThumbnailData != nil && len(downloadResponse.ThumbnailData) > 0 {
 		s.logger.Debug("🔑 Decrypting thumbnail data")
-		thumbnailData, err = s.decryptFileContent(downloadResponse.ThumbnailData, fileKey)
+		thumbnailData, err = s.fileDecryptionService.DecryptFileContent(ctx, downloadResponse.ThumbnailData, fileKey)
 		if err != nil {
 			s.logger.Warn("⚠️ Failed to decrypt thumbnail, continuing without it", zap.Error(err))
 			thumbnailData = nil
@@ -197,10 +198,18 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID pri
 		}
 	}
 
+	// Convert file metadata to the expected format
+	resultMetadata := &DecryptedFileMetadata{
+		Name:     decryptedMetadata.Name,
+		MimeType: decryptedMetadata.MimeType,
+		Size:     decryptedMetadata.Size,
+		Created:  decryptedMetadata.Created,
+	}
+
 	result := &DownloadResult{
 		FileID:            fileID,
 		DecryptedData:     decryptedData,
-		DecryptedMetadata: decryptedMetadata,
+		DecryptedMetadata: resultMetadata,
 		ThumbnailData:     thumbnailData,
 		OriginalSize:      int64(len(decryptedData)),
 		ThumbnailSize:     int64(len(thumbnailData)),
@@ -208,152 +217,8 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID pri
 
 	s.logger.Info("✅ Successfully completed E2EE file download and decryption",
 		zap.String("fileID", fileID.Hex()),
-		zap.String("fileName", decryptedMetadata.Name),
+		zap.String("fileName", resultMetadata.Name),
 		zap.Int64("originalSize", result.OriginalSize))
 
 	return result, nil
-}
-
-// decryptCollectionKeyChain decrypts the complete E2EE chain to get the collection key
-func (s *downloadService) decryptCollectionKeyChain(user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
-	s.logger.Debug("🔑 Starting E2EE key chain decryption",
-		zap.String("userID", user.ID.Hex()),
-		zap.String("collectionID", collection.ID.Hex()))
-
-	// STEP 1: Derive keyEncryptionKey from password
-	s.logger.Debug("🧠 Step 1: Deriving key encryption key from password")
-	keyEncryptionKey, err := crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
-	if err != nil {
-		s.logger.Error("❌ Failed to derive key encryption key", zap.Error(err))
-		return nil, fmt.Errorf("failed to derive key encryption key: %w", err)
-	}
-	defer crypto.ClearBytes(keyEncryptionKey)
-	s.logger.Debug("✅ Successfully derived key encryption key")
-
-	// STEP 2: Decrypt masterKey with keyEncryptionKey (ChaCha20-Poly1305)
-	s.logger.Debug("🧠 Step 2: Decrypting master key with key encryption key")
-	if len(user.EncryptedMasterKey.Ciphertext) == 0 || len(user.EncryptedMasterKey.Nonce) == 0 {
-		s.logger.Error("❌ User encrypted master key is empty or invalid",
-			zap.Int("ciphertextLen", len(user.EncryptedMasterKey.Ciphertext)),
-			zap.Int("nonceLen", len(user.EncryptedMasterKey.Nonce)))
-		return nil, fmt.Errorf("user encrypted master key is invalid")
-	}
-
-	masterKey, err := crypto.DecryptWithSecretBox(
-		user.EncryptedMasterKey.Ciphertext,
-		user.EncryptedMasterKey.Nonce,
-		keyEncryptionKey,
-	)
-	if err != nil {
-		s.logger.Error("❌ Failed to decrypt master key - this usually means incorrect password",
-			zap.Error(err),
-			zap.String("userID", user.ID.Hex()))
-		return nil, fmt.Errorf("failed to decrypt master key - incorrect password?: %w", err)
-	}
-	defer crypto.ClearBytes(masterKey)
-	s.logger.Debug("✅ Successfully decrypted master key")
-
-	// STEP 3: Decrypt collectionKey with masterKey (ChaCha20-Poly1305)
-	s.logger.Debug("🧠 Step 3: Decrypting collection key with master key")
-	if collection.EncryptedCollectionKey == nil {
-		s.logger.Error("❌ Collection has no encrypted key", zap.String("collectionID", collection.ID.Hex()))
-		return nil, errors.NewAppError("collection has no encrypted key", nil)
-	}
-
-	if len(collection.EncryptedCollectionKey.Ciphertext) == 0 || len(collection.EncryptedCollectionKey.Nonce) == 0 {
-		s.logger.Error("❌ Collection encrypted key is empty or invalid",
-			zap.Int("ciphertextLen", len(collection.EncryptedCollectionKey.Ciphertext)),
-			zap.Int("nonceLen", len(collection.EncryptedCollectionKey.Nonce)))
-		return nil, fmt.Errorf("collection encrypted key is invalid")
-	}
-
-	collectionKey, err := crypto.DecryptWithSecretBox(
-		collection.EncryptedCollectionKey.Ciphertext,
-		collection.EncryptedCollectionKey.Nonce,
-		masterKey,
-	)
-	if err != nil {
-		s.logger.Error("❌ Failed to decrypt collection key", zap.Error(err))
-		return nil, fmt.Errorf("failed to decrypt collection key: %w", err)
-	}
-	s.logger.Debug("✅ Successfully decrypted collection key")
-
-	return collectionKey, nil
-}
-
-// decryptFileMetadata decrypts the encrypted file metadata using ChaCha20-Poly1305
-func (s *downloadService) decryptFileMetadata(encryptedMetadata string, fileKey []byte) (*DecryptedFileMetadata, error) {
-	s.logger.Debug("🔑 Decrypting file metadata")
-
-	// The encrypted metadata is stored as base64 encoded (nonce + ciphertext)
-	// Format: base64(12-byte-nonce + ciphertext) for ChaCha20-Poly1305
-	combined, err := base64.StdEncoding.DecodeString(encryptedMetadata)
-	if err != nil {
-		s.logger.Error("❌ Failed to decode encrypted metadata from base64", zap.Error(err))
-		return nil, fmt.Errorf("failed to decode encrypted metadata: %w", err)
-	}
-
-	// Split nonce and ciphertext for ChaCha20-Poly1305 (12-byte nonce)
-	if len(combined) < crypto.ChaCha20Poly1305NonceSize {
-		s.logger.Error("❌ Combined data too short",
-			zap.Int("expectedMinSize", crypto.ChaCha20Poly1305NonceSize),
-			zap.Int("actualSize", len(combined)))
-		return nil, fmt.Errorf("combined data too short: expected at least %d bytes for ChaCha20-Poly1305, got %d", crypto.ChaCha20Poly1305NonceSize, len(combined))
-	}
-
-	nonce := make([]byte, crypto.ChaCha20Poly1305NonceSize)
-	copy(nonce, combined[:crypto.ChaCha20Poly1305NonceSize])
-
-	ciphertext := make([]byte, len(combined)-crypto.ChaCha20Poly1305NonceSize)
-	copy(ciphertext, combined[crypto.ChaCha20Poly1305NonceSize:])
-
-	// Decrypt metadata using ChaCha20-Poly1305
-	decryptedBytes, err := crypto.DecryptWithSecretBox(ciphertext, nonce, fileKey)
-	if err != nil {
-		s.logger.Error("❌ Failed to decrypt metadata", zap.Error(err))
-		return nil, fmt.Errorf("failed to decrypt metadata: %w", err)
-	}
-
-	// Parse JSON metadata
-	var metadata DecryptedFileMetadata
-	if err := json.Unmarshal(decryptedBytes, &metadata); err != nil {
-		s.logger.Error("❌ Failed to parse decrypted metadata JSON", zap.Error(err))
-		return nil, fmt.Errorf("failed to parse decrypted metadata: %w", err)
-	}
-
-	s.logger.Debug("✅ Successfully decrypted file metadata", zap.String("fileName", metadata.Name))
-	return &metadata, nil
-}
-
-// decryptFileContent decrypts the encrypted file content using ChaCha20-Poly1305
-func (s *downloadService) decryptFileContent(encryptedData, fileKey []byte) ([]byte, error) {
-	s.logger.Debug("🔑 Decrypting file content", zap.Int("encryptedSize", len(encryptedData)))
-
-	// The encrypted data should be in the format: nonce (12 bytes) + ciphertext for ChaCha20-Poly1305
-	if len(encryptedData) < crypto.ChaCha20Poly1305NonceSize {
-		s.logger.Error("❌ Encrypted data too short",
-			zap.Int("expectedMinSize", crypto.ChaCha20Poly1305NonceSize),
-			zap.Int("actualSize", len(encryptedData)))
-		return nil, fmt.Errorf("encrypted data too short: expected at least %d bytes for ChaCha20-Poly1305, got %d",
-			crypto.ChaCha20Poly1305NonceSize, len(encryptedData))
-	}
-
-	// Extract nonce and ciphertext from combined data
-	nonce := make([]byte, crypto.ChaCha20Poly1305NonceSize)
-	copy(nonce, encryptedData[:crypto.ChaCha20Poly1305NonceSize])
-
-	ciphertext := make([]byte, len(encryptedData)-crypto.ChaCha20Poly1305NonceSize)
-	copy(ciphertext, encryptedData[crypto.ChaCha20Poly1305NonceSize:])
-
-	// Decrypt the content using ChaCha20-Poly1305
-	decryptedData, err := crypto.DecryptWithSecretBox(ciphertext, nonce, fileKey)
-	if err != nil {
-		s.logger.Error("❌ Failed to decrypt file content", zap.Error(err))
-		return nil, fmt.Errorf("failed to decrypt file content: %w", err)
-	}
-
-	s.logger.Debug("✅ Successfully decrypted file content",
-		zap.Int("decryptedSize", len(decryptedData)))
-
-	return decryptedData, nil
 }
