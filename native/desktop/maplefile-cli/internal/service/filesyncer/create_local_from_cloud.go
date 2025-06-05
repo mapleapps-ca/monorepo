@@ -11,10 +11,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
-	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
@@ -29,11 +28,12 @@ type CreateLocalFileFromCloudFileService interface {
 
 // createLocalFileFromCloudFileService implements the CreateLocalFileFromCloudFileService interface
 type createLocalFileFromCloudFileService struct {
-	logger                     *zap.Logger
-	cloudRepository            filedto.FileDTORepository
-	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase
-	getCollectionUseCase       uc_collection.GetCollectionUseCase
-	createFileUseCase          uc_file.CreateFileUseCase
+	logger                      *zap.Logger
+	cloudRepository             filedto.FileDTORepository
+	getUserByIsLoggedInUseCase  uc_user.GetByIsLoggedInUseCase
+	getCollectionUseCase        uc_collection.GetCollectionUseCase
+	createFileUseCase           uc_file.CreateFileUseCase
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService
 }
 
 // NewCreateLocalFileFromCloudFileService creates a new use case for creating local files from cloud
@@ -43,14 +43,16 @@ func NewCreateLocalFileFromCloudFileService(
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
 	createFileUseCase uc_file.CreateFileUseCase,
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
 ) CreateLocalFileFromCloudFileService {
 	logger = logger.Named("CreateLocalFileFromCloudFileService")
 	return &createLocalFileFromCloudFileService{
-		logger:                     logger,
-		cloudRepository:            cloudRepository,
-		getUserByIsLoggedInUseCase: getUserByIsLoggedInUseCase,
-		getCollectionUseCase:       getCollectionUseCase,
-		createFileUseCase:          createFileUseCase,
+		logger:                      logger,
+		cloudRepository:             cloudRepository,
+		getUserByIsLoggedInUseCase:  getUserByIsLoggedInUseCase,
+		getCollectionUseCase:        getCollectionUseCase,
+		createFileUseCase:           createFileUseCase,
+		collectionDecryptionService: collectionDecryptionService,
 	}
 }
 
@@ -127,7 +129,7 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	//
 	// Step 6: Decrypt the E2EE key chain
 	//
-	collectionKey, err := s.decryptCollectionKeyChain(user, collection, password)
+	collectionKey, err := s.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, collection, password)
 	if err != nil {
 		s.logger.Error("failed to decrypt collection key chain", zap.Error(err))
 		return nil, errors.NewAppError("failed to decrypt collection key chain", err)
@@ -195,73 +197,6 @@ type DownloadResult struct {
 	ThumbnailData     []byte                 `json:"thumbnail_data,omitempty"`
 	OriginalSize      int64                  `json:"original_size"`
 	ThumbnailSize     int64                  `json:"thumbnail_size"`
-}
-
-// decryptCollectionKeyChain decrypts the complete E2EE chain to get the collection key (COPIED FROM `internal/service/filedownload/download.go`)
-func (s *createLocalFileFromCloudFileService) decryptCollectionKeyChain(user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
-	s.logger.Debug("🔑 Starting E2EE key chain decryption",
-		zap.String("userID", user.ID.Hex()),
-		zap.String("collectionID", collection.ID.Hex()))
-
-	// STEP 1: Derive keyEncryptionKey from password
-	s.logger.Debug("🧠 Step 1: Deriving key encryption key from password")
-	keyEncryptionKey, err := crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
-	if err != nil {
-		s.logger.Error("❌ Failed to derive key encryption key", zap.Error(err))
-		return nil, fmt.Errorf("failed to derive key encryption key: %w", err)
-	}
-	defer crypto.ClearBytes(keyEncryptionKey)
-	s.logger.Debug("✅ Successfully derived key encryption key")
-
-	// STEP 2: Decrypt masterKey with keyEncryptionKey (ChaCha20-Poly1305)
-	s.logger.Debug("🧠 Step 2: Decrypting master key with key encryption key")
-	if len(user.EncryptedMasterKey.Ciphertext) == 0 || len(user.EncryptedMasterKey.Nonce) == 0 {
-		s.logger.Error("❌ User encrypted master key is empty or invalid",
-			zap.Int("ciphertextLen", len(user.EncryptedMasterKey.Ciphertext)),
-			zap.Int("nonceLen", len(user.EncryptedMasterKey.Nonce)))
-		return nil, fmt.Errorf("user encrypted master key is invalid")
-	}
-
-	masterKey, err := crypto.DecryptWithSecretBox(
-		user.EncryptedMasterKey.Ciphertext,
-		user.EncryptedMasterKey.Nonce,
-		keyEncryptionKey,
-	)
-	if err != nil {
-		s.logger.Error("❌ Failed to decrypt master key - this usually means incorrect password",
-			zap.Error(err),
-			zap.String("userID", user.ID.Hex()))
-		return nil, fmt.Errorf("failed to decrypt master key - incorrect password?: %w", err)
-	}
-	defer crypto.ClearBytes(masterKey)
-	s.logger.Debug("✅ Successfully decrypted master key")
-
-	// STEP 3: Decrypt collectionKey with masterKey (ChaCha20-Poly1305)
-	s.logger.Debug("🧠 Step 3: Decrypting collection key with master key")
-	if collection.EncryptedCollectionKey == nil {
-		s.logger.Error("❌ Collection has no encrypted key", zap.String("collectionID", collection.ID.Hex()))
-		return nil, errors.NewAppError("collection has no encrypted key", nil)
-	}
-
-	if len(collection.EncryptedCollectionKey.Ciphertext) == 0 || len(collection.EncryptedCollectionKey.Nonce) == 0 {
-		s.logger.Error("❌ Collection encrypted key is empty or invalid",
-			zap.Int("ciphertextLen", len(collection.EncryptedCollectionKey.Ciphertext)),
-			zap.Int("nonceLen", len(collection.EncryptedCollectionKey.Nonce)))
-		return nil, fmt.Errorf("collection encrypted key is invalid")
-	}
-
-	collectionKey, err := crypto.DecryptWithSecretBox(
-		collection.EncryptedCollectionKey.Ciphertext,
-		collection.EncryptedCollectionKey.Nonce,
-		masterKey,
-	)
-	if err != nil {
-		s.logger.Error("❌ Failed to decrypt collection key", zap.Error(err))
-		return nil, fmt.Errorf("failed to decrypt collection key: %w", err)
-	}
-	s.logger.Debug("✅ Successfully decrypted collection key")
-
-	return collectionKey, nil
 }
 
 // decryptFileMetadata decrypts the encrypted file metadata using ChaCha20-Poly1305 (COPIED FROM `internal/service/filedownload/download.go`)

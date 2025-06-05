@@ -11,7 +11,7 @@ import (
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	dom_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
+	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/httperror"
@@ -24,11 +24,11 @@ type CreateLocalCollectionFromCloudCollectionService interface {
 
 // createLocalCollectionFromCloudCollectionService implements the CreateLocalCollectionFromCloudCollectionService interface
 type createLocalCollectionFromCloudCollectionService struct {
-	logger                     *zap.Logger
-	cloudRepository            collectiondto.CollectionDTORepository
-	localRepository            dom_collection.CollectionRepository
-	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase
-	decryptionService          collectioncrypto.CollectionDecryptionService
+	logger                      *zap.Logger
+	cloudRepository             collectiondto.CollectionDTORepository
+	localRepository             dom_collection.CollectionRepository
+	getUserByIsLoggedInUseCase  uc_user.GetByIsLoggedInUseCase
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService
 }
 
 // NewCreateLocalCollectionFromCloudCollectionService creates a new use case for creating cloud collections
@@ -37,15 +37,15 @@ func NewCreateLocalCollectionFromCloudCollectionService(
 	cloudRepository collectiondto.CollectionDTORepository,
 	localRepository dom_collection.CollectionRepository,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
-	decryptionService collectioncrypto.CollectionDecryptionService,
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
 ) CreateLocalCollectionFromCloudCollectionService {
 	logger = logger.Named("CreateLocalCollectionFromCloudCollectionService")
 	return &createLocalCollectionFromCloudCollectionService{
-		logger:                     logger,
-		cloudRepository:            cloudRepository,
-		localRepository:            localRepository,
-		getUserByIsLoggedInUseCase: getUserByIsLoggedInUseCase,
-		decryptionService:          decryptionService,
+		logger:                      logger,
+		cloudRepository:             cloudRepository,
+		localRepository:             localRepository,
+		getUserByIsLoggedInUseCase:  getUserByIsLoggedInUseCase,
+		collectionDecryptionService: collectionDecryptionService,
 	}
 }
 
@@ -149,7 +149,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	// STEP 6: Decrypt the collection with provided password
 	//
 
-	collectionKey, err := uc.decryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, newCollection, password)
+	collectionKey, err := uc.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, newCollection, password)
 	if err != nil {
 		// ENHANCED HANDLING: Instead of failing completely, create the collection with encrypted name
 		uc.logger.Warn("⚠️ Failed to decrypt collection key, creating collection with encrypted name only",
@@ -189,7 +189,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	//
 	// Step 7: Decrypt any encrypted collection data
 	//
-	collectionName, err := uc.decryptionService.ExecuteDecryptData(ctx, cloudCollectionDTO.EncryptedName, collectionKey)
+	collectionName, err := uc.collectionDecryptionService.ExecuteDecryptData(ctx, cloudCollectionDTO.EncryptedName, collectionKey)
 	if err != nil {
 		uc.logger.Error("failed to decrypt collection name", zap.Error(err))
 		return nil, errors.NewAppError("failed to decrypt collection name", err)
