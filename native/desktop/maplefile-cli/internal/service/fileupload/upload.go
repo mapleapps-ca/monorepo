@@ -16,6 +16,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	uc_fileupload "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/fileupload"
@@ -23,55 +24,58 @@ import (
 	pkg_crypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
-// UploadService handles three-step file upload to cloud
-type UploadService interface {
-	UploadFile(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*fileupload.FileUploadResult, error)
+// FileUploadService handles three-step file upload to cloud
+type FileUploadService interface {
+	Execute(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*fileupload.FileUploadResult, error)
 }
 
-type uploadService struct {
-	logger                   *zap.Logger
-	fileDTORepo              filedto.FileDTORepository
-	fileRepo                 dom_file.FileRepository
-	collectionRepo           dom_collection.CollectionRepository
-	userRepo                 user.Repository
-	getFileUseCase           uc_file.GetFileUseCase
-	updateFileUseCase        uc_file.UpdateFileUseCase
-	encryptFileUseCase       uc_fileupload.EncryptFileUseCase
-	prepareUploadUseCase     uc_fileupload.PrepareFileUploadUseCase
-	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase
-	getCollectionUseCase     uc_collection.GetCollectionUseCase
+type fileUploadService struct {
+	logger                      *zap.Logger
+	fileDTORepo                 filedto.FileDTORepository
+	fileRepo                    dom_file.FileRepository
+	collectionRepo              dom_collection.CollectionRepository
+	userRepo                    user.Repository
+	getFileUseCase              uc_file.GetFileUseCase
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService
+	updateFileUseCase           uc_file.UpdateFileUseCase
+	encryptFileUseCase          uc_fileupload.EncryptFileUseCase
+	prepareUploadUseCase        uc_fileupload.PrepareFileUploadUseCase
+	getUserByLoggedInUseCase    uc_user.GetByIsLoggedInUseCase
+	getCollectionUseCase        uc_collection.GetCollectionUseCase
 }
 
-func NewUploadService(
+func NewFileUploadService(
 	logger *zap.Logger,
 	fileDTORepo filedto.FileDTORepository,
 	fileRepo dom_file.FileRepository,
 	collectionRepo dom_collection.CollectionRepository,
 	userRepo user.Repository,
 	getFileUseCase uc_file.GetFileUseCase,
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
 	updateFileUseCase uc_file.UpdateFileUseCase,
 	encryptFileUseCase uc_fileupload.EncryptFileUseCase,
 	prepareUploadUseCase uc_fileupload.PrepareFileUploadUseCase,
 	getUserByLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
-) UploadService {
-	logger = logger.Named("UploadService")
-	return &uploadService{
-		logger:                   logger,
-		fileDTORepo:              fileDTORepo,
-		fileRepo:                 fileRepo,
-		collectionRepo:           collectionRepo,
-		userRepo:                 userRepo,
-		getFileUseCase:           getFileUseCase,
-		updateFileUseCase:        updateFileUseCase,
-		getCollectionUseCase:     getCollectionUseCase,
-		getUserByLoggedInUseCase: getUserByLoggedInUseCase,
-		encryptFileUseCase:       encryptFileUseCase,
-		prepareUploadUseCase:     prepareUploadUseCase,
+) FileUploadService {
+	logger = logger.Named("FileUploadService")
+	return &fileUploadService{
+		logger:                      logger,
+		fileDTORepo:                 fileDTORepo,
+		fileRepo:                    fileRepo,
+		collectionRepo:              collectionRepo,
+		userRepo:                    userRepo,
+		getFileUseCase:              getFileUseCase,
+		collectionDecryptionService: collectionDecryptionService,
+		updateFileUseCase:           updateFileUseCase,
+		getCollectionUseCase:        getCollectionUseCase,
+		getUserByLoggedInUseCase:    getUserByLoggedInUseCase,
+		encryptFileUseCase:          encryptFileUseCase,
+		prepareUploadUseCase:        prepareUploadUseCase,
 	}
 }
 
-func (s *uploadService) UploadFile(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*fileupload.FileUploadResult, error) {
+func (s *fileUploadService) Execute(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*fileupload.FileUploadResult, error) {
 	// startTime := time.Now()
 	s.logger.Info("✨ Starting three-step file upload", zap.String("fileID", fileID.Hex()))
 
@@ -83,6 +87,7 @@ func (s *uploadService) UploadFile(ctx context.Context, fileID primitive.ObjectI
 	if err != nil {
 		return s.failedResult(fileID, err)
 	}
+	// Developer Note: This needs to be done since it is purposefully not done in the `collectionEncryptionService`.
 	defer pkg_crypto.ClearBytes(collectionKey)
 
 	//
@@ -136,7 +141,7 @@ func (s *uploadService) UploadFile(ctx context.Context, fileID primitive.ObjectI
 	}, nil
 }
 
-func (s *uploadService) validateAndPrepareE2EE(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*dom_file.File, *dom_collection.Collection, []byte, error) {
+func (s *fileUploadService) validateAndPrepareE2EE(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*dom_file.File, *dom_collection.Collection, []byte, error) {
 	// Confirm user's password is not empty.
 	if userPassword == "" {
 		return nil, nil, nil, errors.NewAppError("user password is required for E2EE operations", nil)
@@ -174,7 +179,7 @@ func (s *uploadService) validateAndPrepareE2EE(ctx context.Context, fileID primi
 	}
 
 	// Decrypt collection key using complete E2EE chain
-	collectionKey, err := s.decryptCollectionKeyChain(user, collection, userPassword)
+	collectionKey, err := s.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, collection, userPassword)
 	if err != nil {
 		return nil, nil, nil, errors.NewAppError("failed to decrypt collection key chain", err)
 	}
@@ -182,7 +187,7 @@ func (s *uploadService) validateAndPrepareE2EE(ctx context.Context, fileID primi
 	return file, collection, collectionKey, nil
 }
 
-func (s *uploadService) createPendingFile(
+func (s *fileUploadService) createPendingFile(
 	ctx context.Context,
 	file *dom_file.File,
 	collection *dom_collection.Collection,
@@ -221,7 +226,7 @@ func (s *uploadService) createPendingFile(
 	return response, nil
 }
 
-func (s *uploadService) completeUpload(ctx context.Context, fileID primitive.ObjectID, fileSize, thumbnailSize int64) error {
+func (s *fileUploadService) completeUpload(ctx context.Context, fileID primitive.ObjectID, fileSize, thumbnailSize int64) error {
 	s.logger.Debug("⚙️ Completing file upload", zap.String("fileID", fileID.Hex()))
 
 	request := &filedto.CompleteFileUploadRequest{
@@ -261,7 +266,7 @@ func (s *uploadService) completeUpload(ctx context.Context, fileID primitive.Obj
 	return nil
 }
 
-func (s *uploadService) updateLocalFile(ctx context.Context, file *dom_file.File) error {
+func (s *fileUploadService) updateLocalFile(ctx context.Context, file *dom_file.File) error {
 	// Only update sync status and remove local paths if needed
 	newStatus := dom_file.SyncStatusSynced
 	updateInput := uc_file.UpdateFileInput{
@@ -281,7 +286,7 @@ func (s *uploadService) updateLocalFile(ctx context.Context, file *dom_file.File
 	return nil // Update was successful
 }
 
-func (s *uploadService) failedResult(fileID primitive.ObjectID, err error) (*fileupload.FileUploadResult, error) {
+func (s *fileUploadService) failedResult(fileID primitive.ObjectID, err error) (*fileupload.FileUploadResult, error) {
 	return &fileupload.FileUploadResult{
 		FileID:  fileID, // This is the unified ID
 		Success: false,
@@ -289,36 +294,8 @@ func (s *uploadService) failedResult(fileID primitive.ObjectID, err error) (*fil
 	}, err
 }
 
-// Same decryption chain as addService
-func (s *uploadService) decryptCollectionKeyChain(user *user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
-	// STEP 1: Derive keyEncryptionKey from password
-	keyEncryptionKey, err := pkg_crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to derive key encryption key: %w", err)
-	}
-	defer pkg_crypto.ClearBytes(keyEncryptionKey)
-
-	// STEP 2: Decrypt masterKey with keyEncryptionKey
-	masterKey, err := pkg_crypto.DecryptWithSecretBox(
-		user.EncryptedMasterKey.Ciphertext,
-		user.EncryptedMasterKey.Nonce,
-		keyEncryptionKey,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt master key - incorrect password?: %w", err)
-	}
-	defer pkg_crypto.ClearBytes(masterKey)
-
-	// STEP 3: Decrypt collectionKey with masterKey
-	return pkg_crypto.DecryptWithSecretBox(
-		collection.EncryptedCollectionKey.Ciphertext,
-		collection.EncryptedCollectionKey.Nonce,
-		masterKey,
-	)
-}
-
 // Upload already encrypted content (no re-encryption needed)
-func (s *uploadService) uploadEncryptedContent(ctx context.Context, file *dom_file.File, pendingResponse *filedto.CreatePendingFileResponse) (int64, int64, error) {
+func (s *fileUploadService) uploadEncryptedContent(ctx context.Context, file *dom_file.File, pendingResponse *filedto.CreatePendingFileResponse) (int64, int64, error) {
 	s.logger.Debug("⚙️ Uploading encrypted file content", zap.String("fileID", file.ID.Hex()))
 
 	// Read already encrypted file

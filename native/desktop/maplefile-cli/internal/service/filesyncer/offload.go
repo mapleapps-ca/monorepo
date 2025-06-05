@@ -42,7 +42,7 @@ type offloadService struct {
 	logger            *zap.Logger
 	getFileUseCase    uc_file.GetFileUseCase
 	updateFileUseCase uc_file.UpdateFileUseCase
-	uploadService     svc_fileupload.UploadService
+	fileUploadService svc_fileupload.FileUploadService
 	deleteFileUseCase localfile.DeleteFileUseCase
 }
 
@@ -51,7 +51,7 @@ func NewOffloadService(
 	logger *zap.Logger,
 	getFileUseCase uc_file.GetFileUseCase,
 	updateFileUseCase uc_file.UpdateFileUseCase,
-	uploadService svc_fileupload.UploadService,
+	fileUploadService svc_fileupload.FileUploadService,
 	deleteFileUseCase localfile.DeleteFileUseCase,
 ) OffloadService {
 	logger = logger.Named("OffloadService")
@@ -59,7 +59,7 @@ func NewOffloadService(
 		logger:            logger,
 		getFileUseCase:    getFileUseCase,
 		updateFileUseCase: updateFileUseCase,
-		uploadService:     uploadService,
+		fileUploadService: fileUploadService,
 		deleteFileUseCase: deleteFileUseCase,
 	}
 }
@@ -155,7 +155,7 @@ func (s *offloadService) handleUploadAndOffload(
 	s.logger.Info("✨ Uploading file before offload", zap.String("fileID", file.ID.Hex()))
 
 	// Upload the file first
-	uploadResult, err := s.uploadService.UploadFile(ctx, file.ID, userPassword)
+	uploadResult, err := s.fileUploadService.Execute(ctx, file.ID, userPassword)
 	if err != nil {
 		s.logger.Error("❌ failed to upload file during offload",
 			zap.String("fileID", file.ID.Hex()),

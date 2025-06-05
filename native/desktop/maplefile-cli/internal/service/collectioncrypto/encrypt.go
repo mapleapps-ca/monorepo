@@ -78,7 +78,7 @@ func (s *collectionEncryptionService) ExecuteForCreateCollectionKeyAndEncryptWit
 	if err != nil {
 		return nil, nil, errors.NewAppError("failed to generate collection key", err)
 	}
-	defer crypto.ClearBytes(collectionKey)
+	// Developer Note: Do not run `	defer crypto.ClearBytes(collectionKey)` b/c it'll clear our return! It's now up to the developer to make sure they call this in the app or else risk exposing this.
 	s.logger.Debug("✅ Successfully generated random collectionKey")
 
 	//

@@ -16,7 +16,7 @@ import (
 // uploadFileCmd creates a command for uploading a file to the cloud
 func uploadFileCmd(
 	logger *zap.Logger,
-	uploadService fileupload.UploadService,
+	fileUploadService fileupload.FileUploadService,
 ) *cobra.Command {
 	var fileID string
 	var password string
@@ -62,7 +62,7 @@ Example:
 			fmt.Printf("🔄 Uploading file: %s\n", fileID)
 			fmt.Println("📡 Step 1/3: Creating pending file record...")
 
-			result, err := uploadService.UploadFile(ctx, fileObjectID, password)
+			result, err := fileUploadService.Execute(ctx, fileObjectID, password)
 			if err != nil {
 				fmt.Printf("❌ Error uploading file: %v\n", err)
 				return

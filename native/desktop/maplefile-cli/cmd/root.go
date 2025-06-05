@@ -65,7 +65,7 @@ func NewRootCmd(
 	addFileService localfile.AddService,
 	listFileService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,
-	uploadFileService fileupload.UploadService,
+	uploadFileService fileupload.FileUploadService,
 	downloadService filedownload.DownloadService,
 	lockService localfile.LockService,
 	unlockService localfile.UnlockService,

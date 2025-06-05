@@ -144,6 +144,8 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to encrypt collection key", err)
 	}
+	// Developer Note: This needs to be done since it is purposefully not done in the `collectionEncryptionService`.
+	defer crypto.ClearBytes(decryptedCollectionKey)
 
 	//
 	// STEP 5: Encrypt collection metadata with collectionKey

@@ -17,7 +17,7 @@ import (
 func FilesCmd(
 	logger *zap.Logger,
 	addService localfile.AddService,
-	uploadService fileupload.UploadService,
+	fileUploadService fileupload.FileUploadService,
 	listService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,
 	downloadService filedownload.DownloadService,
@@ -44,7 +44,7 @@ func FilesCmd(
 	))
 	cmd.AddCommand(uploadFileCmd(
 		logger,
-		uploadService,
+		fileUploadService,
 	))
 	cmd.AddCommand(listFilesCmd(
 		logger,
