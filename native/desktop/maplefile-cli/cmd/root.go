@@ -9,18 +9,16 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/cloud"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/collections"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/completelogin"
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/files"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/filesync"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/login"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/logout"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/recovery"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/requestloginott"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/sync"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyemail"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/verifyloginott"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/version"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
@@ -106,9 +104,18 @@ func NewRootCmd(
 		logger))
 	rootCmd.AddCommand(register.RegisterCmd(regService))
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(emailVerificationService, logger))
-	rootCmd.AddCommand(requestloginott.RequestLoginOneTimeTokenUserCmd(loginOTTService, logger))
-	rootCmd.AddCommand(verifyloginott.VerifyLoginOneTimeTokenUserCmd(loginOTTVerificationService, logger))
-	rootCmd.AddCommand(completelogin.CompleteLoginCmd(completeLoginService, logger))
+
+	// Login
+	rootCmd.AddCommand(login.LoginCmd(
+		loginOTTService,
+		loginOTTVerificationService,
+		completeLoginService,
+		logger,
+	))
+	rootCmd.AddCommand(login.RequestLoginTokenCmd(loginOTTService, logger))
+	rootCmd.AddCommand(login.VerifyLoginTokenCmd(loginOTTVerificationService, logger))
+	rootCmd.AddCommand(login.CompleteLoginCmd(completeLoginService, logger))
+
 	rootCmd.AddCommand(logout.LogoutCmd(logoutService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, tokenRepository))
 	rootCmd.AddCommand(recovery.RecoveryCmd(recoveryService, logger))
