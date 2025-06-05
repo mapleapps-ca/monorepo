@@ -16,6 +16,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/me"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/security"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/sync"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/syncdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/syncstate"
@@ -26,6 +27,9 @@ func ServiceModule() fx.Option {
 	return fx.Options(
 		// Registration service
 		fx.Provide(register.NewRegisterService),
+
+		// Crypto auditing service
+		fx.Provide(security.NewCryptoAuditService),
 
 		// Auth DTO services
 		fx.Provide(authdto.NewUserVerificationDataTransformer),

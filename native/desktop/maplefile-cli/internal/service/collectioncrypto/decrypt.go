@@ -18,6 +18,12 @@ import (
 type CollectionDecryptionService interface {
 	ExecuteDecryptCollectionKeyChain(ctx context.Context, user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error)
 	ExecuteDecryptData(ctx context.Context, encryptedData string, fileKey []byte) (string, error)
+	ExecuteDecryptMultipleCollectionKeys(
+		ctx context.Context,
+		user *dom_user.User,
+		collections []*dom_collection.Collection,
+		password string,
+	) (map[string][]byte, error)
 }
 
 // collectionDecryptionService implements CollectionDecryptionService

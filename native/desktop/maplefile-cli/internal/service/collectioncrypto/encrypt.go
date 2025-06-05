@@ -10,6 +10,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
+	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_keys "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
@@ -17,7 +18,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
-// ✅ EXTENDED: Enhanced CollectionEncryptionService with sharing capabilities
+// Enhanced CollectionEncryptionService with sharing capabilities
 type CollectionEncryptionService interface {
 	// Existing methods
 	ExecuteForCreateCollectionKeyAndEncryptWithMasterKey(ctx context.Context, user *dom_user.User, password string) (*dom_keys.EncryptedCollectionKey, []byte, error)
@@ -25,6 +26,13 @@ type CollectionEncryptionService interface {
 	EncryptCollectionKeyForSharing(ctx context.Context, user *dom_user.User, collection *collection.Collection, recipientPublicKey []byte, userPassword string) (*keys.EncryptedCollectionKey, error)
 	EncryptCollectionKeyForMultipleRecipients(ctx context.Context, user *dom_user.User, collection *collection.Collection, recipients []SharingRecipient, userPassword string) (map[string]*keys.EncryptedCollectionKey, error)
 	ValidateRecipientPublicKey(publicKey []byte) error
+	RotateCollectionKey(
+		ctx context.Context,
+		user *dom_user.User,
+		collection *dom_collection.Collection,
+		password string,
+		rotationReason string,
+	) (*keys.EncryptedCollectionKey, error)
 }
 
 // SharingRecipient represents a recipient for collection sharing
