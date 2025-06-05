@@ -136,42 +136,20 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	}
 
 	//
-	// STEP 4: Create encryption key and encrypt the data with it.
+	// STEP 4: (a) Create collection encryption key (b) encrypt it with master key and (c) encrypt any data with it.
 	//
 
-	// STEP 1: Derive keyEncryptionKey from password (E2EE spec)
-	keyEncryptionKey, err := s.deriveKeyEncryptionKey(userPassword, userData.PasswordSalt)
-	if err != nil {
-		s.transactionManager.Rollback()
-		return nil, errors.NewAppError("failed to derive key encryption key", err)
-	}
-	defer crypto.ClearBytes(keyEncryptionKey)
-
-	// STEP 2: Decrypt masterKey with keyEncryptionKey (E2EE spec)
-	masterKey, err := s.decryptMasterKey(userData, keyEncryptionKey)
-	if err != nil {
-		s.transactionManager.Rollback()
-		return nil, errors.NewAppError("failed to decrypt master key - incorrect password?", err)
-	}
-	defer crypto.ClearBytes(masterKey)
-
-	// STEP 3: Generate random collectionKey (E2EE spec)
-	collectionKey, err := crypto.GenerateRandomBytes(crypto.CollectionKeySize)
-	if err != nil {
-		s.transactionManager.Rollback()
-		return nil, errors.NewAppError("failed to generate collection key", err)
-	}
-	defer crypto.ClearBytes(collectionKey)
-
-	// STEP 4: Encrypt collectionKey with masterKey (E2EE spec)
-	encryptedCollectionKey, err := crypto.EncryptWithSecretBox(collectionKey, masterKey)
+	encryptedCollectionKey, decryptedCollectionKey, err := s.collectionEncryptionService.ExecuteForCreateCollectionKeyAndEncryptWithMasterKey(ctx, userData, userPassword)
 	if err != nil {
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to encrypt collection key", err)
 	}
 
-	// STEP 5: Encrypt collection metadata with collectionKey (E2EE spec)
-	encryptedName, err := s.encryptCollectionName(input.Name, collectionKey)
+	//
+	// STEP 5: Encrypt collection metadata with collectionKey
+	//
+
+	encryptedName, err := s.encryptCollectionName(input.Name, decryptedCollectionKey)
 	if err != nil {
 		s.transactionManager.Rollback()
 		return nil, errors.NewAppError("failed to encrypt collection name", err)
