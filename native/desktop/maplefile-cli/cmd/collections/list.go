@@ -1,23 +1,26 @@
-// cmd/collections/list.go
+// cmd/collections/list.go - Clean unified list command
 package collections
 
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
+	svc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 )
 
-// listCollectionsCmd creates a command for listing collections
-func listCollectionsCmd(
-	listService collection.ListService,
+// listCmd creates a unified command for listing collections with various filters
+func listCmd(
+	listService svc_collection.ListService,
 	logger *zap.Logger,
 ) *cobra.Command {
 	var parentID string
+	var state string
 	var showModified bool
 	var verbose bool
 
@@ -25,94 +28,199 @@ func listCollectionsCmd(
 		Use:   "list",
 		Short: "List collections",
 		Long: `
-List collections stored locally.
+List collections with various filtering options.
 
-By default, this command lists root-level collections. Use the --parent flag
-to list sub-collections of a specific parent collection.
+By default, lists all active root-level collections. Use flags to filter by:
+  • Parent collection (sub-collections)
+  • State (active, deleted, archived)
+  • Modification status (locally modified)
 
 Examples:
-  # List root collections
+  # List all root collections
   maplefile-cli collections list
 
   # List sub-collections of a specific parent
   maplefile-cli collections list --parent 507f1f77bcf86cd799439011
 
+  # List collections by state
+  maplefile-cli collections list --state active
+  maplefile-cli collections list --state deleted
+  maplefile-cli collections list --state archived
+
   # List locally modified collections
   maplefile-cli collections list --modified
 
-  # Show detailed information with verbose mode
+  # Detailed listing with verbose output
   maplefile-cli collections list --verbose
+
+  # Combine filters
+  maplefile-cli collections list --parent 507f1f77bcf86cd799439011 --verbose
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			// Create a context with timeout
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
-			var output *collection.ListOutput
+			var output *svc_collection.ListOutput
 			var err error
+			var filterDescription string
 
+			// Determine which listing method to use
 			if showModified {
-				// List modified collections
-				logger.Debug("Listing locally modified collections")
+				filterDescription = "locally modified collections"
 				output, err = listService.ListModifiedLocally(ctx)
-				if err != nil {
-					fmt.Printf("🐞 Error listing modified collections: %v\n", err)
+			} else if state != "" {
+				if err := collection.ValidateState(state); err != nil {
+					fmt.Printf("🐞 Error: Invalid state '%s'\n", state)
+					fmt.Printf("Valid states: %s, %s, %s\n",
+						collection.CollectionStateActive,
+						collection.CollectionStateDeleted,
+						collection.CollectionStateArchived)
+					return
+				}
+				filterDescription = fmt.Sprintf("%s collections", state)
+
+				// Note: This requires extending ListService for state filtering
+				if state == collection.CollectionStateActive {
+					output, err = listService.ListRoots(ctx)
+				} else {
+					fmt.Printf("⚠️  State filtering for '%s' requires service layer enhancement.\n", state)
 					return
 				}
 			} else if parentID != "" {
-				// List collections under a specific parent
-				logger.Debug("Listing sub-collections", zap.String("parentID", parentID))
+				filterDescription = fmt.Sprintf("sub-collections under parent %s", parentID)
 				output, err = listService.ListByParent(ctx, parentID)
-				if err != nil {
-					fmt.Printf("🐞 Error listing sub-collections: %v\n", err)
-					return
-				}
 			} else {
-				// List root collections
-				logger.Debug("Listing root collections")
+				filterDescription = "root collections"
 				output, err = listService.ListRoots(ctx)
-				if err != nil {
-					fmt.Printf("🐞 Error listing root collections: %v\n", err)
-					return
-				}
 			}
 
-			// Display collections
-			if output.Count == 0 {
-				fmt.Println("No collections found.")
+			if err != nil {
+				fmt.Printf("🐞 Error listing %s: %v\n", filterDescription, err)
 				return
 			}
 
-			fmt.Printf("\nFound %d collections:\n\n", output.Count)
-			for i, collection := range output.Collections {
-				displayName := collection.Name
-				if displayName == "" {
-					displayName = "[Encrypted]"
-				}
+			// Display results
+			if output.Count == 0 {
+				fmt.Printf("📭 No %s found.\n", filterDescription)
 
-				fmt.Printf("%d. %s (ID: %s, Collection Type: %s)\n", i+1, displayName, collection.ID.Hex(), collection.CollectionType)
-
-				if verbose {
-					fmt.Printf("   Created: %s\n", collection.CreatedAt.Format("2006-01-02 15:04:05"))
-					fmt.Printf("   Modified: %s\n", collection.ModifiedAt.Format("2006-01-02 15:04:05"))
-					if !collection.ParentID.IsZero() {
-						fmt.Printf("   Parent ID: %s\n", collection.ParentID.Hex())
-					}
-					// if collection.IsModifiedLocally { //TODO: Figure out how to handle this
-					// 	fmt.Printf("   Status: Modified locally\n")
-					// } else if !collection.LastSyncedAt.IsZero() {
-					// 	fmt.Printf("   Last Synced: %s\n", collection.LastSyncedAt.Format("2006-01-02 15:04:05"))
-					// }
-					fmt.Println()
+				if parentID != "" {
+					fmt.Printf("💡 Create a sub-collection: maplefile-cli collections create 'Name' --parent %s\n", parentID)
+				} else {
+					fmt.Printf("💡 Create your first collection: maplefile-cli collections create 'My Collection'\n")
 				}
+				return
 			}
+
+			fmt.Printf("📋 Found %d %s:\n\n", output.Count, filterDescription)
+
+			if verbose {
+				displayDetailedList(output.Collections)
+			} else {
+				displaySimpleList(output.Collections)
+			}
+
+			// Next steps
+			fmt.Printf("\n💡 Commands you can try:\n")
+			if parentID == "" {
+				fmt.Printf("   • View sub-collections: maplefile-cli collections list --parent COLLECTION_ID\n")
+			}
+			fmt.Printf("   • Create new collection: maplefile-cli collections create 'Collection Name'\n")
+			fmt.Printf("   • Add files: maplefile-cli files add PATH --collection COLLECTION_ID\n")
 		},
 	}
 
-	// Define command flags
-	cmd.Flags().StringVarP(&parentID, "parent", "p", "", "ID of the parent collection")
+	cmd.Flags().StringVarP(&parentID, "parent", "p", "", "List sub-collections of this parent collection")
+	cmd.Flags().StringVarP(&state, "state", "s", "", "Filter by state (active, deleted, archived)")
 	cmd.Flags().BoolVarP(&showModified, "modified", "m", false, "Show only locally modified collections")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed information about each collection")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed information")
 
 	return cmd
+}
+
+// displaySimpleList shows a compact table of collections
+func displaySimpleList(collections []*collection.Collection) {
+	fmt.Printf("%-8s %-30s %-12s %-15s %s\n", "TYPE", "NAME", "STATE", "SYNC", "ID")
+	fmt.Println(strings.Repeat("-", 80))
+
+	for _, coll := range collections {
+		typeIcon := getCollectionTypeIcon(coll.CollectionType)
+		name := coll.Name
+		if name == "" {
+			name = "[Encrypted]"
+		}
+		if len(name) > 28 {
+			name = name[:25] + "..."
+		}
+
+		state := string(coll.State)
+		if len(state) > 10 {
+			state = state[:10]
+		}
+
+		syncStatus := getSyncStatusString(coll.SyncStatus)
+		if len(syncStatus) > 13 {
+			syncStatus = syncStatus[:13]
+		}
+
+		fmt.Printf("%-8s %-30s %-12s %-15s %s\n",
+			typeIcon, name, state, syncStatus, coll.ID.Hex())
+	}
+}
+
+// displayDetailedList shows comprehensive collection information
+func displayDetailedList(collections []*collection.Collection) {
+	for i, coll := range collections {
+		if i > 0 {
+			fmt.Println(strings.Repeat("-", 50))
+		}
+
+		displayName := coll.Name
+		if displayName == "" {
+			displayName = "[Encrypted]"
+		}
+
+		fmt.Printf("🆔 ID: %s\n", coll.ID.Hex())
+		fmt.Printf("📁 Name: %s\n", displayName)
+		fmt.Printf("🏷️  Type: %s %s\n", getCollectionTypeIcon(coll.CollectionType), coll.CollectionType)
+		fmt.Printf("📊 State: %s\n", coll.State)
+		fmt.Printf("🔄 Sync Status: %s\n", getSyncStatusString(coll.SyncStatus))
+
+		if !coll.ParentID.IsZero() {
+			fmt.Printf("📂 Parent ID: %s\n", coll.ParentID.Hex())
+		} else {
+			fmt.Printf("📊 Level: Root collection\n")
+		}
+
+		fmt.Printf("📅 Created: %s\n", coll.CreatedAt.Format("2006-01-02 15:04:05"))
+		fmt.Printf("📝 Modified: %s\n", coll.ModifiedAt.Format("2006-01-02 15:04:05"))
+
+		fmt.Println()
+	}
+}
+
+// Helper functions
+func getCollectionTypeIcon(collectionType string) string {
+	switch collectionType {
+	case "folder":
+		return "📁"
+	case "album":
+		return "🖼️"
+	default:
+		return "📦"
+	}
+}
+
+func getSyncStatusString(status collection.SyncStatus) string {
+	switch status {
+	case collection.SyncStatusLocalOnly:
+		return "📱 Local Only"
+	case collection.SyncStatusCloudOnly:
+		return "☁️ Cloud Only"
+	case collection.SyncStatusSynced:
+		return "✅ Synced"
+	case collection.SyncStatusModifiedLocally:
+		return "📝 Modified"
+	default:
+		return "❓ Unknown"
+	}
 }
