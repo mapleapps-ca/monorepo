@@ -87,39 +87,49 @@ func NewRootCmd(
 	var rootCmd = &cobra.Command{
 		Use:   "maplefile-cli",
 		Short: "MapleFile CLI",
-		Long:  `MapleFile Command Line Interface with End-to-End Encryption`,
+		Long: `MapleFile Command Line Interface with End-to-End Encryption
+
+A secure, end-to-end encrypted file storage and collaboration platform.
+
+Quick start:
+  1. Register: maplefile-cli register --email you@example.com [options]
+  2. Login:    maplefile-cli login --email you@example.com
+  3. Create:   maplefile-cli collections create "My Files" --password PASSWORD
+  4. Add:      maplefile-cli files add FILE_PATH --collection COLLECTION_ID --password PASSWORD
+  5. Sync:     maplefile-cli sync --password PASSWORD
+
+Core commands:
+  login         Log in to your account
+  collections   Manage collections (create, list, delete, restore, share)
+  files         Manage files (add, list, get, delete)
+  sync          Synchronize with cloud (unified sync + debug)
+  me            View and update your profile
+
+Advanced:
+  config        Configure CLI settings
+  health        Check server connectivity
+  recovery      Account recovery options
+
+For detailed help: maplefile-cli COMMAND --help`,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Root command does nothing by default
 			cmd.Help()
 		},
 	}
 
-	//
-	// Attach sub-commands to our main root
-	//
+	// ========================================
+	// AUTHENTICATION & USER MANAGEMENT
+	// ========================================
 
-	// ⚙️ Config & Utilities (Consolidated)
-	rootCmd.AddCommand(healthcheck.HealthCheckCmd(configService))
-	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
-	rootCmd.AddCommand(version.VersionCmd())
-
-	// 👤 User Profile
 	rootCmd.AddCommand(cmd_md.MeCmd(
 		getMeService,
 		updateMeService,
 		logger,
 	))
 
-	// ☁️ Cloud
-	rootCmd.AddCommand(cloud.CloudCmd(
-		configService,
-		getPublicLookupFromCloudUseCase,
-		logger))
-
 	rootCmd.AddCommand(register.RegisterCmd(regService))
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(emailVerificationService, logger))
 
-	// Login
 	rootCmd.AddCommand(login.LoginCmd(
 		loginOTTService,
 		loginOTTVerificationService,
@@ -136,6 +146,10 @@ func NewRootCmd(
 	rootCmd.AddCommand(recovery.RecoveryCmd(recoveryService, logger))
 	rootCmd.AddCommand(recovery.ShowRecoveryKeyCmd(recoveryKeyService, logger))
 
+	// ========================================
+	// COLLECTIONS
+	// ========================================
+
 	rootCmd.AddCommand(collections.CollectionsCmd(
 		createCollectionService,
 		collectionListService,
@@ -148,6 +162,11 @@ func NewRootCmd(
 		originalSharingService,
 		logger,
 	))
+
+	// ========================================
+	// FILES
+	// ========================================
+
 	rootCmd.AddCommand(files.FilesCmd(
 		logger,
 		addFileService,
@@ -160,14 +179,28 @@ func NewRootCmd(
 		cloudOnlyDeleteService,
 	))
 
-	// Add the sync command with both collection and file sync services
+	// ========================================
+	// SYNC
+	// ========================================
+
+	// Clean sync command with unified sync + debug
 	rootCmd.AddCommand(sync.SyncCmd(
 		syncCollectionService,
-		syncFileService, // Pass the file sync service
-		syncFullService, // Pass the full sync service
+		syncFileService,
 		syncDebugService,
 		logger,
 	))
+
+	// ========================================
+	// CONFIGURATION & UTILITIES
+	// ========================================
+	rootCmd.AddCommand(healthcheck.HealthCheckCmd(configService))
+	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
+	rootCmd.AddCommand(version.VersionCmd())
+	rootCmd.AddCommand(cloud.CloudCmd(
+		configService,
+		getPublicLookupFromCloudUseCase,
+		logger))
 
 	return rootCmd
 }

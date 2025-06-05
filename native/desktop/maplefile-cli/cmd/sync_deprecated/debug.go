@@ -1,4 +1,4 @@
-// cmd/sync/debug.go - Clean debug command (unchanged functionality)
+// native/desktop/maplefile-cli/cmd/sync/debug.go
 package sync
 
 import (
@@ -23,40 +23,36 @@ func debugCmd(
 	var cmd = &cobra.Command{
 		Use:   "debug",
 		Short: "Debug sync operations",
-		Long: `
-Diagnose common sync issues and provide recommendations.
+		Long: `Diagnose common sync issues and provide recommendations.
 
-This command checks:
-  • Authentication status and password validation
-  • Network connectivity to cloud backend
-  • Sync state consistency
-  • Common configuration issues
+This command will check:
+- Authentication status and password validation
+- Network connectivity to cloud backend
+- Sync state consistency
+- Common configuration issues
 
 Examples:
   # Run full diagnostic
-  maplefile-cli sync debug --password mypass
+  maplefile-cli sync debug --all
 
-  # Check specific components
-  maplefile-cli sync debug --auth --password mypass
-  maplefile-cli sync debug --network
-  maplefile-cli sync debug --sync-state --password mypass
+  # Check only authentication
+  maplefile-cli sync debug --auth
 
-  # Check all explicitly
-  maplefile-cli sync debug --auth --network --sync-state --password mypass
-`,
+  # Check with password validation
+  maplefile-cli sync debug --auth --password mypassword`,
 		Run: func(cmd *cobra.Command, args []string) {
-			// If no specific checks requested, default to all
-			if !checkAuth && !checkNetwork && !checkSyncState {
+			// If --all flag is used, enable all checks
+			if cmd.Flag("all").Changed {
 				checkAuth = true
 				checkNetwork = true
 				checkSyncState = true
 			}
 
-			// Validate password for auth/sync-state checks
-			if (checkAuth || checkSyncState) && password == "" {
-				fmt.Println("❌ Error: Password is required for authentication and sync state checks.")
-				fmt.Println("Use --password flag to specify your account password.")
-				return
+			// If no specific checks requested, default to all
+			if !checkAuth && !checkNetwork && !checkSyncState {
+				checkAuth = true
+				checkNetwork = true
+				checkSyncState = true
 			}
 
 			fmt.Println("🔍 Running sync diagnostics...")
@@ -76,6 +72,9 @@ Examples:
 				return
 			}
 
+			// Clear password from memory
+			password = ""
+
 			// Display results
 			fmt.Println("\n📊 Diagnostic Results:")
 
@@ -91,7 +90,6 @@ Examples:
 				fmt.Printf("📊 Sync State: %s\n", result.SyncStateStatus)
 			}
 
-			// Show issues if any
 			if len(result.Issues) > 0 {
 				fmt.Printf("\n⚠️  Issues Found (%d):\n", len(result.Issues))
 				for i, issue := range result.Issues {
@@ -99,7 +97,6 @@ Examples:
 				}
 			}
 
-			// Show recommendations if any
 			if len(result.Recommendations) > 0 {
 				fmt.Printf("\n💡 Recommendations (%d):\n", len(result.Recommendations))
 				for i, rec := range result.Recommendations {
@@ -107,28 +104,18 @@ Examples:
 				}
 			}
 
-			// Summary
 			if len(result.Issues) == 0 {
 				fmt.Println("\n✅ No issues detected - sync should work properly!")
-				fmt.Println("💡 Try running: maplefile-cli sync --password PASSWORD")
-			} else {
-				fmt.Printf("\n🔧 Found %d issue(s) that may affect sync performance.\n", len(result.Issues))
-				fmt.Println("💡 Address the recommendations above and try syncing again.")
 			}
-
-			logger.Info("Sync diagnostics completed",
-				zap.Bool("authChecked", checkAuth),
-				zap.Bool("networkChecked", checkNetwork),
-				zap.Bool("syncStateChecked", checkSyncState),
-				zap.Int("issuesFound", len(result.Issues)))
 		},
 	}
 
-	// Define flags
-	cmd.Flags().StringVar(&password, "password", "", "User password for testing decryption")
+	// Add command flags
+	cmd.Flags().StringVarP(&password, "password", "p", "", "User password for testing decryption")
 	cmd.Flags().BoolVar(&checkAuth, "auth", false, "Check authentication status")
 	cmd.Flags().BoolVar(&checkNetwork, "network", false, "Check network connectivity")
-	cmd.Flags().BoolVar(&checkSyncState, "sync-state", false, "Check sync state consistency")
+	cmd.Flags().BoolVar(&checkSyncState, "sync-state", false, "Check sync state")
+	cmd.Flags().Bool("all", false, "Run all diagnostic checks")
 
 	return cmd
 }
