@@ -1,5 +1,5 @@
 // monorepo/native/desktop/maplefile-cli/cmd/healthcheck/healthcheck.go
-package cloud
+package healthcheck
 
 import (
 	"context"

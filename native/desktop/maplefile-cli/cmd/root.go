@@ -12,8 +12,10 @@ import (
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/files"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/filesync"
+	healthcheck "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/healthcheck"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/login"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/logout"
+	cmd_md "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/me"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/recovery"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/register"
@@ -93,15 +95,28 @@ func NewRootCmd(
 		},
 	}
 
+	//
 	// Attach sub-commands to our main root
-	rootCmd.AddCommand(version.VersionCmd())
+	//
+
+	// ⚙️ Config & Utilities (Consolidated)
+	rootCmd.AddCommand(healthcheck.HealthCheckCmd(configService))
 	rootCmd.AddCommand(config_cmd.ConfigCmd(configService))
+	rootCmd.AddCommand(version.VersionCmd())
+
+	// 👤 User Profile
+	rootCmd.AddCommand(cmd_md.MeCmd(
+		getMeService,
+		updateMeService,
+		logger,
+	))
+
+	// ☁️ Cloud
 	rootCmd.AddCommand(cloud.CloudCmd(
 		configService,
 		getPublicLookupFromCloudUseCase,
-		getMeService,
-		updateMeService,
 		logger))
+
 	rootCmd.AddCommand(register.RegisterCmd(regService))
 	rootCmd.AddCommand(verifyemail.VerifyEmailCmd(emailVerificationService, logger))
 
