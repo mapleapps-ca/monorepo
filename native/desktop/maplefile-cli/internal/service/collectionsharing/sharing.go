@@ -16,6 +16,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_publiclookupdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/publiclookupdto"
 	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsharingdto"
 	uc_publiclookupdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/publiclookupdto"
@@ -50,6 +51,7 @@ type collectionSharingService struct {
 	getPublicLookupFromCloudUseCase uc_publiclookupdto.GetPublicLookupFromCloudUseCase
 	getUserByIsLoggedInUseCase      uc_user.GetByIsLoggedInUseCase
 	shareCollectionUseCase          uc.ShareCollectionUseCase
+	collectionDecryptionService     svc_collectioncrypto.CollectionDecryptionService
 }
 
 // NewCollectionSharingService creates a new collection sharing service
@@ -59,6 +61,7 @@ func NewCollectionSharingService(
 	getPublicLookupFromCloudUseCase uc_publiclookupdto.GetPublicLookupFromCloudUseCase,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	shareCollectionUseCase uc.ShareCollectionUseCase,
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
 ) CollectionSharingService {
 	logger = logger.Named("CollectionSharingService")
 	return &collectionSharingService{
@@ -67,6 +70,7 @@ func NewCollectionSharingService(
 		getPublicLookupFromCloudUseCase: getPublicLookupFromCloudUseCase,
 		getUserByIsLoggedInUseCase:      getUserByIsLoggedInUseCase,
 		shareCollectionUseCase:          shareCollectionUseCase,
+		collectionDecryptionService:     collectionDecryptionService,
 	}
 }
 
@@ -104,8 +108,7 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 	}
 
 	//
-	// STEP 2: Lookup the receipients email from the cloud so to
-	// (1) confirm email exists and (2) get the public key.
+	// STEP 2: Lookup the recipient's email from the cloud
 	//
 
 	publicLookupRequest := &dom_publiclookupdto.PublicLookupRequestDTO{
@@ -200,11 +203,10 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 	}
 
 	//
-	// STEP 5: Encrypt collection key for recipient (E2EE)
+	// STEP 5: Encrypt collection key for recipient (E2EE) using crypto service
 	//
 
-	// Decode the public key with fallback to multiple base64 encodings
-	publicKeyBytes, err := s.decodePublicKeyFromBase64(publicLookupResponse.PublicKeyInBase64)
+	publicKeyBytes, err := s.decodePublicKey(publicLookupResponse.PublicKeyInBase64)
 	if err != nil {
 		s.logger.Error("❌ Failed to decode recipient public key", zap.Error(err))
 		return nil, fmt.Errorf("failed to decode recipient public key: %v", err)
@@ -254,7 +256,7 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 		return nil, err
 	}
 
-	s.logger.Info("✅ Successfully shared collection",
+	s.logger.Info("✅ Successfully shared collection using crypto service",
 		zap.String("collectionID", input.CollectionID.Hex()),
 		zap.String("recipientEmail", input.RecipientEmail),
 		zap.String("permissionLevel", input.PermissionLevel))
@@ -266,47 +268,35 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 	}, nil
 }
 
-// decodePublicKeyFromBase64 attempts to decode a public key using multiple base64 encodings
-// This handles different base64 formats that might be returned from the server
-func (s *collectionSharingService) decodePublicKeyFromBase64(publicKeyBase64 string) ([]byte, error) {
+func (s *collectionSharingService) decodePublicKey(publicKeyBase64 string) ([]byte, error) {
 	if publicKeyBase64 == "" {
 		return nil, fmt.Errorf("public key cannot be empty")
 	}
 
-	// Try URL-safe base64 without padding first (most common in our system)
-	publicKeyBytes, err := base64.RawURLEncoding.DecodeString(publicKeyBase64)
-	if err == nil {
+	// Try the most common encoding first (URL-safe without padding)
+	if publicKeyBytes, err := base64.RawURLEncoding.DecodeString(publicKeyBase64); err == nil {
 		s.logger.Debug("✅ Successfully decoded public key using RawURLEncoding")
 		return publicKeyBytes, nil
 	}
 
-	s.logger.Debug("🔄 RawURLEncoding failed, trying StdEncoding", zap.Error(err))
-
-	// Try standard base64 encoding as fallback
-	publicKeyBytes, err = base64.StdEncoding.DecodeString(publicKeyBase64)
-	if err == nil {
+	// Fallback to standard base64
+	if publicKeyBytes, err := base64.StdEncoding.DecodeString(publicKeyBase64); err == nil {
 		s.logger.Debug("✅ Successfully decoded public key using StdEncoding")
 		return publicKeyBytes, nil
 	}
 
-	s.logger.Debug("🔄 StdEncoding failed, trying URLEncoding", zap.Error(err))
-
-	// Try URL-safe base64 with padding as another fallback
-	publicKeyBytes, err = base64.URLEncoding.DecodeString(publicKeyBase64)
-	if err == nil {
+	// Final fallback to URL-safe with padding
+	if publicKeyBytes, err := base64.URLEncoding.DecodeString(publicKeyBase64); err == nil {
 		s.logger.Debug("✅ Successfully decoded public key using URLEncoding")
 		return publicKeyBytes, nil
 	}
 
 	s.logger.Error("❌ All base64 decoding attempts failed for public key",
-		zap.String("publicKeyBase64", publicKeyBase64),
-		zap.Error(err))
+		zap.String("publicKeyBase64", publicKeyBase64))
 
-	return nil, fmt.Errorf("failed to decode public key with any base64 encoding (tried RawURL, Std, URL): %v", err)
+	return nil, fmt.Errorf("failed to decode public key with any base64 encoding")
 }
 
-// encryptCollectionKeyForRecipient encrypts the collection key for the recipient using their public key
-// Returns the EncryptedCollectionKey struct instead of base64 string
 func (s *collectionSharingService) encryptCollectionKeyForRecipient(
 	ctx context.Context,
 	currentUser *dom_user.User,
@@ -314,48 +304,31 @@ func (s *collectionSharingService) encryptCollectionKeyForRecipient(
 	collectionToShare *collection.Collection,
 	userPassword string,
 ) (*keys.EncryptedCollectionKey, error) {
-	// Step 1: Derive keyEncryptionKey from current user's password
-	keyEncryptionKey, err := crypto.DeriveKeyFromPassword(userPassword, currentUser.PasswordSalt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to derive key encryption key: %w", err)
-	}
-	defer crypto.ClearBytes(keyEncryptionKey)
 
-	// Step 2: Decrypt current user's master key
-	masterKey, err := crypto.DecryptWithSecretBox(
-		currentUser.EncryptedMasterKey.Ciphertext,
-		currentUser.EncryptedMasterKey.Nonce,
-		keyEncryptionKey,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt master key: %w", err)
-	}
-	defer crypto.ClearBytes(masterKey)
+	s.logger.Debug("🔐 Starting E2EE collection key encryption for recipient using crypto service")
 
-	// Step 3: Decrypt collection key using master key
-	collectionKey, err := crypto.DecryptWithSecretBox(
-		collectionToShare.EncryptedCollectionKey.Ciphertext,
-		collectionToShare.EncryptedCollectionKey.Nonce,
-		masterKey,
-	)
+	collectionKey, err := s.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, currentUser, collectionToShare, userPassword)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt collection key: %w", err)
+		return nil, fmt.Errorf("failed to decrypt collection key chain: %w", err)
 	}
 	defer crypto.ClearBytes(collectionKey)
 
-	// Step 4: Encrypt collection key with recipient's public key using box_seal
+	s.logger.Debug("✅ Successfully decrypted collection key using crypto service")
+
+	s.logger.Debug("🔐 Encrypting collection key for recipient using BoxSeal")
 	encryptedForRecipient, err := crypto.EncryptWithBoxSeal(collectionKey, recipientUserPublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt collection key for recipient: %w", err)
 	}
 
-	// Step 5: Create EncryptedCollectionKey struct from box_seal bytes
+	// Create EncryptedCollectionKey struct from box_seal bytes
 	encryptedCollectionKey := keys.NewEncryptedCollectionKeyFromBoxSeal(encryptedForRecipient)
 
 	if err := s.verifyEncryptedKey(encryptedCollectionKey, recipientUserPublicKey); err != nil {
-		return nil, fmt.Errorf("failed to verify encrypt collection key for recipient: %w", err)
+		return nil, fmt.Errorf("failed to verify encrypted collection key for recipient: %w", err)
 	}
 
+	s.logger.Debug("✅ Successfully encrypted collection key for recipient using crypto service")
 	return encryptedCollectionKey, nil
 }
 
