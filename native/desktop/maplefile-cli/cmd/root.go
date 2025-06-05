@@ -154,11 +154,8 @@ func NewRootCmd(
 		listFileService,
 		localOnlyDeleteService,
 		downloadService,
-		lockService,
-		unlockService,
-		getFileUseCase,
-		getUserByIsLoggedInUseCase,
-		getCollectionUseCase,
+		onloadService,
+		cloudOnlyDeleteService,
 	))
 	// Add the filesync command
 	rootCmd.AddCommand(filesync.FileSyncCmd(

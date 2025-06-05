@@ -1,4 +1,4 @@
-// native/desktop/maplefile-cli/cmd/files/list.go
+// cmd/files/list.go - Clean unified list command
 package files
 
 import (
@@ -12,79 +12,98 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 )
 
-// listFilesCmd creates a command for listing local files by collection
+// listFilesCmd creates a command for listing files with various filters
 func listFilesCmd(
 	logger *zap.Logger,
 	listService localfile.ListService,
 ) *cobra.Command {
 	var collectionID string
-	var showDetails bool
+	var verbose bool
 
 	var cmd = &cobra.Command{
 		Use:   "list",
-		Short: "List local files in a collection",
+		Short: "List files in collections",
 		Long: `
-List files stored locally in a specific collection.
+List files stored in your collections.
+
+By default, lists all files across all collections. Use --collection to filter
+by a specific collection.
 
 Examples:
-  # List files in a collection
+  # List all files across all collections
+  maplefile-cli files list
+
+  # List files in a specific collection
   maplefile-cli files list --collection 507f1f77bcf86cd799439011
 
   # List with detailed information
-  maplefile-cli files list --collection 507f1f77bcf86cd799439011 --details
+  maplefile-cli files list --collection 507f1f77bcf86cd799439011 --verbose
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			// Validate required collection ID
-			if collectionID == "" {
-				fmt.Println("❌ Error: Collection ID is required.")
-				fmt.Println("Use --collection flag to specify the collection ID.")
-				return
-			}
-
-			// Create service input
-			input := &localfile.ListInput{
-				CollectionID: collectionID,
-			}
-
-			// Execute list service
-			fmt.Printf("📂 Listing files in collection: %s\n\n", collectionID)
-
-			output, err := listService.ListByCollection(cmd.Context(), input)
-			if err != nil {
-				if strings.Contains(err.Error(), "invalid collection ID format") {
-					fmt.Printf("❌ Error: Invalid collection ID format. Please check the ID and try again.\n")
-				} else {
-					fmt.Printf("❌ Error listing files: %v\n", err)
+			if collectionID != "" {
+				// List files in specific collection
+				input := &localfile.ListInput{
+					CollectionID: collectionID,
 				}
-				return
-			}
 
-			// Display results
-			if output.Count == 0 {
-				fmt.Println("📭 No files found in this collection.")
-				return
-			}
+				fmt.Printf("📂 Listing files in collection: %s\n\n", collectionID)
 
-			fmt.Printf("📋 Found %d file(s):\n\n", output.Count)
+				output, err := listService.ListByCollection(cmd.Context(), input)
+				if err != nil {
+					fmt.Printf("❌ Error listing files: %v\n", err)
+					if strings.Contains(err.Error(), "invalid collection ID format") {
+						fmt.Printf("💡 Tip: Check the collection ID format.\n")
+					} else if strings.Contains(err.Error(), "collection not found") {
+						fmt.Printf("💡 Tip: Check collection exists with: maplefile-cli collections list\n")
+					}
+					return
+				}
 
-			if showDetails {
-				displayDetailedList(output.Files)
+				displayFileResults(output.Files, output.Count, verbose, collectionID)
 			} else {
-				displaySimpleList(output.Files)
+				// List all files (would need service enhancement)
+				fmt.Printf("📋 Listing all files across collections...\n\n")
+				fmt.Printf("⚠️  Listing all files requires service enhancement.\n")
+				fmt.Printf("💡 For now, specify a collection: maplefile-cli files list --collection COLLECTION_ID\n")
+				fmt.Printf("💡 View collections: maplefile-cli collections list\n")
+				return
 			}
 		},
 	}
 
-	// Define command flags
-	cmd.Flags().StringVarP(&collectionID, "collection", "c", "", "Collection ID to list files from (required)")
-	cmd.MarkFlagRequired("collection")
-	cmd.Flags().BoolVarP(&showDetails, "details", "d", false, "Show detailed information")
+	// Define flags
+	cmd.Flags().StringVarP(&collectionID, "collection", "c", "", "Collection ID to list files from")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed file information")
 
 	return cmd
 }
 
-// displaySimpleList shows a compact table of files
-func displaySimpleList(files []*dom_file.File) {
+// displayFileResults shows file listing results
+func displayFileResults(files []*dom_file.File, count int, verbose bool, collectionID string) {
+	if count == 0 {
+		fmt.Println("📭 No files found in this collection.")
+		fmt.Printf("\n💡 Add your first file:\n")
+		fmt.Printf("   maplefile-cli files add FILE_PATH --collection %s --password PASSWORD\n", collectionID)
+		return
+	}
+
+	fmt.Printf("📋 Found %d file(s):\n\n", count)
+
+	if verbose {
+		displayDetailedFileList(files)
+	} else {
+		displaySimpleFileList(files)
+	}
+
+	// Show helpful next steps
+	fmt.Printf("\n💡 Commands you can try:\n")
+	fmt.Printf("   • Download file: maplefile-cli files get FILE_ID\n")
+	fmt.Printf("   • Add more files: maplefile-cli files add FILE_PATH --collection %s\n", collectionID)
+	fmt.Printf("   • Delete file: maplefile-cli files delete FILE_ID\n")
+}
+
+// displaySimpleFileList shows a compact table of files
+func displaySimpleFileList(files []*dom_file.File) {
 	fmt.Printf("%-8s %-30s %-12s %-15s %s\n", "STATUS", "NAME", "SIZE", "SYNC", "ID")
 	fmt.Println(strings.Repeat("-", 80))
 
@@ -104,8 +123,8 @@ func displaySimpleList(files []*dom_file.File) {
 	}
 }
 
-// displayDetailedList shows comprehensive file information
-func displayDetailedList(files []*dom_file.File) {
+// displayDetailedFileList shows comprehensive file information
+func displayDetailedFileList(files []*dom_file.File) {
 	for i, file := range files {
 		if i > 0 {
 			fmt.Println(strings.Repeat("-", 50))
@@ -120,11 +139,22 @@ func displayDetailedList(files []*dom_file.File) {
 		fmt.Printf("📅 Created: %s\n", file.CreatedAt.Format("2006-01-02 15:04:05"))
 		fmt.Printf("📝 Modified: %s\n", file.ModifiedAt.Format("2006-01-02 15:04:05"))
 		fmt.Printf("📊 Version: %d\n", file.Version)
+
+		// Show storage details based on storage mode
+		switch file.StorageMode {
+		case dom_file.StorageModeEncryptedOnly:
+			fmt.Printf("🔐 Storage: Encrypted only (most secure)\n")
+		case dom_file.StorageModeHybrid:
+			fmt.Printf("🔐 Storage: Hybrid (encrypted + decrypted)\n")
+		case dom_file.StorageModeDecryptedOnly:
+			fmt.Printf("📄 Storage: Decrypted only (not encrypted)\n")
+		}
+
 		fmt.Println()
 	}
 }
 
-// Helper functions
+// Helper functions for file status display
 func getSyncStatusIcon(status dom_file.SyncStatus) string {
 	switch status {
 	case dom_file.SyncStatusLocalOnly:
@@ -153,17 +183,4 @@ func getSyncStatusString(status dom_file.SyncStatus) string {
 	default:
 		return "Unknown"
 	}
-}
-
-func formatFileSize(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
