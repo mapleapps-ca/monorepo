@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/files/filesync"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
@@ -19,6 +20,7 @@ func FilesCmd(
 	listService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,
 	downloadService filedownload.DownloadService,
+	offloadService filesyncer.OffloadService,
 	onloadService filesyncer.OnloadService,
 	cloudOnlyDeleteService filesyncer.CloudOnlyDeleteService,
 ) *cobra.Command {
@@ -65,6 +67,7 @@ For detailed help: maplefile-cli files COMMAND --help
 	cmd.AddCommand(listFilesCmd(logger, listService))
 	cmd.AddCommand(getFileCmd(logger, downloadService, onloadService))
 	cmd.AddCommand(deleteFileCmd(logger, localOnlyDeleteService, cloudOnlyDeleteService))
+	cmd.AddCommand(filesync.FileSyncCmd(offloadService, onloadService, cloudOnlyDeleteService, logger))
 
 	return cmd
 }

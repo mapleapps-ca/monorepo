@@ -11,7 +11,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/collections"
 	config_cmd "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/config"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/files"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/filesync"
 	healthcheck "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/healthcheck"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/login"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/logout"
@@ -133,8 +132,10 @@ func NewRootCmd(
 
 	rootCmd.AddCommand(logout.LogoutCmd(logoutService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, tokenRepository))
+
 	rootCmd.AddCommand(recovery.RecoveryCmd(recoveryService, logger))
 	rootCmd.AddCommand(recovery.ShowRecoveryKeyCmd(recoveryKeyService, logger))
+
 	rootCmd.AddCommand(collections.CollectionsCmd(
 		createCollectionService,
 		collectionListService,
@@ -154,15 +155,9 @@ func NewRootCmd(
 		listFileService,
 		localOnlyDeleteService,
 		downloadService,
-		onloadService,
-		cloudOnlyDeleteService,
-	))
-	// Add the filesync command
-	rootCmd.AddCommand(filesync.FileSyncCmd(
 		offloadService,
 		onloadService,
 		cloudOnlyDeleteService,
-		logger,
 	))
 
 	// Add the sync command with both collection and file sync services
