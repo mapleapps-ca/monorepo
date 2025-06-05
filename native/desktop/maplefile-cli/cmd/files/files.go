@@ -16,7 +16,7 @@ import (
 // FilesCmd creates a command for local file operations
 func FilesCmd(
 	logger *zap.Logger,
-	addService localfile.AddService,
+	addService localfile.LocalFileAddService,
 	fileUploadService fileupload.FileUploadService,
 	listService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,

@@ -62,7 +62,7 @@ func NewRootCmd(
 	collectionGetMembersService collectionsharing.CollectionSharingGetMembersService,
 	collectionListSharedService collectionsharing.ListSharedCollectionsService,
 	collectionRemoveMemberService collectionsharing.CollectionSharingRemoveMembersService,
-	addFileService localfile.AddService,
+	addFileService localfile.LocalFileAddService,
 	listFileService localfile.ListService,
 	localOnlyDeleteService localfile.LocalOnlyDeleteService,
 	uploadFileService fileupload.FileUploadService,

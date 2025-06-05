@@ -17,7 +17,7 @@ import (
 // addFileCmd creates a command for importing a file into the MapleFile Cloud.
 func addFileCmd(
 	logger *zap.Logger,
-	addService localfile.AddService,
+	addService localfile.LocalFileAddService,
 ) *cobra.Command {
 	var filePath string
 	var collectionID string
@@ -94,7 +94,7 @@ Examples:
 			// For now, using a placeholder ObjectID
 			ownerID := primitive.NewObjectID()
 
-			input := &localfile.AddInput{
+			input := &localfile.LocalFileAddInput{
 				FilePath:     filePath,
 				CollectionID: collectionObjectID,
 				OwnerID:      ownerID,

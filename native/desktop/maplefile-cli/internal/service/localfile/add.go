@@ -27,8 +27,8 @@ import (
 	sprimitive "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/mongodb"
 )
 
-// AddInput represents the input for adding a local file
-type AddInput struct {
+// LocalFileAddInput represents the input for adding a local file
+type LocalFileAddInput struct {
 	FilePath     string             `json:"file_path"`
 	CollectionID primitive.ObjectID `json:"collection_id"`
 	OwnerID      primitive.ObjectID `json:"owner_id"`
@@ -36,19 +36,19 @@ type AddInput struct {
 	StorageMode  string             `json:"storage_mode"`
 }
 
-// AddOutput represents the result of adding a local file
-type AddOutput struct {
+// LocalFileAddOutput represents the result of adding a local file
+type LocalFileAddOutput struct {
 	File           *dom_file.File `json:"file"`
 	CopiedFilePath string         `json:"copied_file_path"`
 }
 
-// AddService defines the interface for adding local files
-type AddService interface {
-	Add(ctx context.Context, input *AddInput, userPassword string) (*AddOutput, error)
+// LocalFileAddService defines the interface for adding local files
+type LocalFileAddService interface {
+	Add(ctx context.Context, input *LocalFileAddInput, userPassword string) (*LocalFileAddOutput, error)
 }
 
-// addService implements the AddService interface
-type addService struct {
+// localFileAddService implements the LocalFileAddService interface
+type localFileAddService struct {
 	logger                     *zap.Logger
 	configService              config.ConfigService
 	primitiveIDObjectGenerator sprimitive.SecurePrimitiveObjectIDGenerator
@@ -65,8 +65,8 @@ type addService struct {
 	getCollectionUseCase       uc_collection.GetCollectionUseCase
 }
 
-// NewAddService creates a new service for adding local files
-func NewAddService(
+// NewLocalFileAddService creates a new service for adding local files
+func NewLocalFileAddService(
 	logger *zap.Logger,
 	configService config.ConfigService,
 	primitiveIDObjectGenerator sprimitive.SecurePrimitiveObjectIDGenerator,
@@ -81,9 +81,9 @@ func NewAddService(
 	createFileUseCase file.CreateFileUseCase,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
-) AddService {
-	logger = logger.Named("AddService")
-	return &addService{
+) LocalFileAddService {
+	logger = logger.Named("LocalFileAddService")
+	return &localFileAddService{
 		logger:                     logger,
 		configService:              configService,
 		primitiveIDObjectGenerator: primitiveIDObjectGenerator,
@@ -102,7 +102,7 @@ func NewAddService(
 }
 
 // Add handles the addition of a local file to the MapleFile system
-func (s *addService) Add(ctx context.Context, input *AddInput, userPassword string) (*AddOutput, error) {
+func (s *localFileAddService) Add(ctx context.Context, input *LocalFileAddInput, userPassword string) (*LocalFileAddOutput, error) {
 	//
 	// STEP 1: Validate inputs
 	//
@@ -368,14 +368,14 @@ func (s *addService) Add(ctx context.Context, input *AddInput, userPassword stri
 		zap.String("fileName", fileName),
 		zap.String("copiedPath", destFilePath))
 
-	return &AddOutput{
+	return &LocalFileAddOutput{
 		File:           domainFile,
 		CopiedFilePath: destFilePath,
 	}, nil
 }
 
 // Complete E2EE decryption chain
-func (s *addService) decryptCollectionKeyChain(user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
+func (s *localFileAddService) decryptCollectionKeyChain(user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
 	// STEP 1: Derive keyEncryptionKey from password
 	keyEncryptionKey, err := crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
 	if err != nil {
@@ -412,7 +412,7 @@ func (s *addService) decryptCollectionKeyChain(user *dom_user.User, collection *
 }
 
 // Encrypt file metadata with fileKey
-func (s *addService) encryptFileMetadata(metadata *dom_file.FileMetadata, fileKey []byte) (string, error) {
+func (s *localFileAddService) encryptFileMetadata(metadata *dom_file.FileMetadata, fileKey []byte) (string, error) {
 	metadataBytes, err := json.Marshal(metadata)
 	if err != nil {
 		return "", err
@@ -434,7 +434,7 @@ type EncryptedFileData struct {
 }
 
 // Encrypt file content with fileKey (E2EE: files encrypted with fileKey)
-func (s *addService) encryptFileContent(filePath string, fileKey []byte) (*EncryptedFileData, error) {
+func (s *localFileAddService) encryptFileContent(filePath string, fileKey []byte) (*EncryptedFileData, error) {
 	// Read original file
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -463,7 +463,7 @@ func (s *addService) encryptFileContent(filePath string, fileKey []byte) (*Encry
 }
 
 // Helper: Compute file hash and return the hash in an encrypted format
-func (s *addService) encryptComputeFileHash(ctx context.Context, filePath string, fileKey []byte) (string, error) {
+func (s *localFileAddService) encryptComputeFileHash(ctx context.Context, filePath string, fileKey []byte) (string, error) {
 	// Compute file hash - use buffered algorithm in case of large files.
 	fileHashBytes, err := s.computeFileHashUseCase.ExecuteForBytes(ctx, filePath)
 	if err != nil {

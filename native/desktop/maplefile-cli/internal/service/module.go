@@ -59,7 +59,7 @@ func ServiceModule() fx.Option {
 		fx.Provide(filesyncer.NewUpdateLocalFileFromCloudFileService),
 
 		// Local file services
-		fx.Provide(localfile.NewAddService),
+		fx.Provide(localfile.NewLocalFileAddService),
 		fx.Provide(localfile.NewListService),
 		fx.Provide(localfile.NewLocalOnlyDeleteService),
 		fx.Provide(localfile.NewLockService),
