@@ -177,6 +177,11 @@ For detailed help: maplefile-cli COMMAND --help`,
 		offloadService,
 		onloadService,
 		cloudOnlyDeleteService,
+		lockService,
+		unlockService,
+		getFileUseCase,
+		getUserByIsLoggedInUseCase,
+		getCollectionUseCase,
 	))
 
 	// ========================================

@@ -6,10 +6,14 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/files/filesync"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/files/misc"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
+	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
+	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
+	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
 // FilesCmd creates the main files command with clean, simplified subcommands
@@ -23,6 +27,11 @@ func FilesCmd(
 	offloadService filesyncer.OffloadService,
 	onloadService filesyncer.OnloadService,
 	cloudOnlyDeleteService filesyncer.CloudOnlyDeleteService,
+	lockService localfile.LockService,
+	unlockService localfile.UnlockService,
+	getFileUseCase uc_file.GetFileUseCase,
+	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
+	getCollectionUseCase uc_collection.GetCollectionUseCase,
 ) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "files",
@@ -68,6 +77,16 @@ For detailed help: maplefile-cli files COMMAND --help
 	cmd.AddCommand(getFileCmd(logger, downloadService, onloadService))
 	cmd.AddCommand(deleteFileCmd(logger, localOnlyDeleteService, cloudOnlyDeleteService))
 	cmd.AddCommand(filesync.FileSyncCmd(offloadService, onloadService, cloudOnlyDeleteService, logger))
+	cmd.AddCommand(misc.MiscFilesCmd(
+		logger,
+		localOnlyDeleteService,
+		downloadService,
+		lockService,
+		unlockService,
+		getFileUseCase,
+		getUserByIsLoggedInUseCase,
+		getCollectionUseCase,
+	))
 
 	return cmd
 }
