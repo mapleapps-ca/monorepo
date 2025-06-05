@@ -230,8 +230,10 @@ func (s *localFileAddService) Add(ctx context.Context, input *LocalFileAddInput,
 		fileName = s.pathUtilsUseCase.GetFileName(ctx, cleanFilePath)
 	}
 
-	// Detect MIME type
+	// Extract file extension
 	fileExtension := s.pathUtilsUseCase.GetFileExtension(ctx, cleanFilePath)
+
+	// Detect MIME type
 	mimeType := mime.TypeByExtension(fileExtension)
 	if mimeType == "" {
 		mimeType = "application/octet-stream"
@@ -298,6 +300,7 @@ func (s *localFileAddService) Add(ctx context.Context, input *LocalFileAddInput,
 		MimeType:               mimeType,
 		Size:                   fileInfo.Size,
 		Created:                fileInfo.ModifiedAt.Unix(),
+		FileExtension:          fileExtension, // Explicitly store file extension
 		DecryptedFilePath:      destFilePath,
 		DecryptedFileSize:      fileInfo.Size,
 		EncryptedFilePath:      encryptedPath,

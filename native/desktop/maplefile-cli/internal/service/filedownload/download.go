@@ -20,10 +20,19 @@ import (
 
 // DecryptedFileMetadata represents decrypted file metadata
 type DecryptedFileMetadata struct {
-	Name     string `json:"name"`
-	MimeType string `json:"mime_type"`
-	Size     int64  `json:"size"`
-	Created  int64  `json:"created"`
+	Name                   string `json:"name"`
+	MimeType               string `json:"mime_type"`
+	Size                   int64  `json:"size"`
+	Created                int64  `json:"created"`
+	FileExtension          string `json:"file_extension"`
+	EncryptedFilePath      string `json:"encrypted_file_path" bson:"encrypted_file_path"`
+	EncryptedFileSize      int64  `json:"encrypted_file_size" bson:"encrypted_file_size"`
+	DecryptedFilePath      string `json:"decrypted_file_path" bson:"decrypted_file_path"`
+	DecryptedFileSize      int64  `json:"decrypted_file_size" bson:"decrypted_file_size"`
+	EncryptedThumbnailPath string `json:"encrypted_thumbnail_path,omitempty" bson:"encrypted_thumbnail_path,omitempty"`
+	EncryptedThumbnailSize int64  `json:"encrypted_thumbnai_size" bson:"encrypted_thumbnai_size"`
+	DecryptedThumbnailPath string `json:"decrypted_thumbnail_path,omitempty" bson:"decrypted_thumbnail_path,omitempty"`
+	DecryptedThumbnailSize int64  `json:"decrypted_thumbnail_size" bson:"decrypted_thumbnail_size"`
 }
 
 // DownloadResult represents the result of a file download with decryption
@@ -200,10 +209,19 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID pri
 
 	// Convert file metadata to the expected format
 	resultMetadata := &DecryptedFileMetadata{
-		Name:     decryptedMetadata.Name,
-		MimeType: decryptedMetadata.MimeType,
-		Size:     decryptedMetadata.Size,
-		Created:  decryptedMetadata.Created,
+		Name:                   decryptedMetadata.Name,
+		MimeType:               decryptedMetadata.MimeType,
+		Size:                   decryptedMetadata.Size,
+		Created:                decryptedMetadata.Created,
+		FileExtension:          decryptedMetadata.FileExtension,
+		EncryptedFilePath:      decryptedMetadata.EncryptedFilePath,
+		EncryptedFileSize:      decryptedMetadata.EncryptedFileSize,
+		DecryptedFilePath:      decryptedMetadata.DecryptedFilePath,
+		DecryptedFileSize:      decryptedMetadata.DecryptedFileSize,
+		EncryptedThumbnailPath: decryptedMetadata.EncryptedThumbnailPath,
+		EncryptedThumbnailSize: decryptedMetadata.EncryptedThumbnailSize,
+		DecryptedThumbnailPath: decryptedMetadata.DecryptedThumbnailPath,
+		DecryptedThumbnailSize: decryptedMetadata.DecryptedThumbnailSize,
 	}
 
 	result := &DownloadResult{

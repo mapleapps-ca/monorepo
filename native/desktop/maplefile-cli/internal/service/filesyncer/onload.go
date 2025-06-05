@@ -156,7 +156,7 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	//
 	// STEP 5: Save decrypted file locally
 	//
-	decryptedPath, err := s.saveDecryptedFile(ctx, file, downloadResult.DecryptedData, downloadResult.DecryptedMetadata.Name)
+	decryptedPath, err := s.saveDecryptedFile(ctx, file, downloadResult.DecryptedData, downloadResult.DecryptedMetadata)
 	if err != nil {
 		s.logger.Error("❌ failed to save decrypted file",
 			zap.String("fileID", input.FileID),
@@ -225,7 +225,7 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 }
 
 // saveDecryptedFile saves the decrypted file content to local storage
-func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.File, decryptedData []byte, originalFileName string) (string, error) {
+func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.File, decryptedData []byte, metadata *svc_filedownload.DecryptedFileMetadata) (string, error) {
 	s.logger.Debug("💾 Saving decrypted file locally", zap.String("fileID", file.ID.Hex()))
 
 	// Get app data directory
@@ -244,12 +244,8 @@ func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.Fi
 		return "", fmt.Errorf("failed to create collection directory: %w", err)
 	}
 
-	// Generate file path with original extension
-	fileExtension := filepath.Ext(originalFileName)
-	if fileExtension == "" {
-		// Try to determine extension from MIME type if available
-		fileExtension = s.getExtensionFromMimeType(file.MimeType)
-	}
+	// Enhanced file extension determination
+	fileExtension := s.determineFileExtension(metadata, file.MimeType)
 
 	destFileName := file.ID.Hex() + fileExtension
 	destFilePath := s.pathUtilsUseCase.Join(ctx, collectionDir, destFileName)
@@ -263,6 +259,7 @@ func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.Fi
 	s.logger.Debug("✅ Successfully saved decrypted file",
 		zap.String("fileID", file.ID.Hex()),
 		zap.String("filePath", destFilePath),
+		zap.String("extension", fileExtension),
 		zap.Int("size", len(decryptedData)))
 
 	return destFilePath, nil
@@ -306,23 +303,163 @@ func (s *onloadService) saveThumbnail(ctx context.Context, file *dom_file.File, 
 	return thumbnailPath, nil
 }
 
-// getExtensionFromMimeType returns a file extension based on MIME type
+// Enhanced file extension determination with multiple fallback strategies
+func (s *onloadService) determineFileExtension(metadata *svc_filedownload.DecryptedFileMetadata, mimeType string) string {
+	// Strategy 1: Use explicit file extension from metadata (preferred)
+	if metadata != nil && metadata.FileExtension != "" {
+		s.logger.Debug("Using file extension from metadata", zap.String("extension", metadata.FileExtension))
+		return metadata.FileExtension
+	}
+
+	// Strategy 2: Extract from metadata filename
+	if metadata != nil && metadata.Name != "" {
+		if ext := filepath.Ext(metadata.Name); ext != "" {
+			s.logger.Debug("Using file extension from metadata name", zap.String("extension", ext))
+			return ext
+		}
+	}
+
+	// Strategy 3: Use enhanced MIME type mapping
+	if mimeType != "" {
+		if ext := s.getExtensionFromMimeType(mimeType); ext != ".dat" {
+			s.logger.Debug("Using file extension from MIME type",
+				zap.String("mimeType", mimeType),
+				zap.String("extension", ext))
+			return ext
+		}
+	}
+
+	// Strategy 4: Final fallback
+	s.logger.Warn("No file extension could be determined, using .dat fallback",
+		zap.String("metadataName", func() string {
+			if metadata != nil {
+				return metadata.Name
+			}
+			return ""
+		}()),
+		zap.String("mimeType", mimeType))
+	return ".dat"
+}
+
+// Enhanced MIME type to extension mapping with more comprehensive coverage
 func (s *onloadService) getExtensionFromMimeType(mimeType string) string {
 	switch mimeType {
+	// Text files
 	case "text/plain":
 		return ".txt"
+	case "text/html":
+		return ".html"
+	case "text/css":
+		return ".css"
+	case "text/javascript":
+		return ".js"
+	case "text/csv":
+		return ".csv"
+	case "text/xml":
+		return ".xml"
+	case "text/markdown":
+		return ".md"
+
+	// Documents
 	case "application/pdf":
 		return ".pdf"
+	case "application/msword":
+		return ".doc"
+	case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+		return ".docx"
+	case "application/vnd.ms-excel":
+		return ".xls"
+	case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+		return ".xlsx"
+	case "application/vnd.ms-powerpoint":
+		return ".ppt"
+	case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+		return ".pptx"
+	case "application/rtf":
+		return ".rtf"
+
+	// Images
 	case "image/jpeg":
 		return ".jpg"
 	case "image/png":
 		return ".png"
-	case "application/json":
-		return ".json"
-	case "text/html":
-		return ".html"
+	case "image/gif":
+		return ".gif"
+	case "image/bmp":
+		return ".bmp"
+	case "image/webp":
+		return ".webp"
+	case "image/svg+xml":
+		return ".svg"
+	case "image/tiff":
+		return ".tiff"
+	case "image/x-icon":
+		return ".ico"
+
+	// Audio
+	case "audio/mpeg":
+		return ".mp3"
+	case "audio/wav":
+		return ".wav"
+	case "audio/ogg":
+		return ".ogg"
+	case "audio/mp4":
+		return ".m4a"
+	case "audio/x-flac":
+		return ".flac"
+
+	// Video
+	case "video/mp4":
+		return ".mp4"
+	case "video/mpeg":
+		return ".mpeg"
+	case "video/quicktime":
+		return ".mov"
+	case "video/x-msvideo":
+		return ".avi"
+	case "video/webm":
+		return ".webm"
+
+	// Archives
 	case "application/zip":
 		return ".zip"
+	case "application/x-rar-compressed":
+		return ".rar"
+	case "application/x-tar":
+		return ".tar"
+	case "application/gzip":
+		return ".gz"
+	case "application/x-7z-compressed":
+		return ".7z"
+
+	// Data formats
+	case "application/json":
+		return ".json"
+	case "application/xml":
+		return ".xml"
+	case "application/yaml":
+		return ".yaml"
+	case "application/x-yaml":
+		return ".yml"
+
+	// Programming languages
+	case "text/x-python":
+		return ".py"
+	case "text/x-java-source":
+		return ".java"
+	case "text/x-c":
+		return ".c"
+	case "text/x-c++src":
+		return ".cpp"
+	case "text/x-csharp":
+		return ".cs"
+	case "text/x-go":
+		return ".go"
+	case "text/x-ruby":
+		return ".rb"
+	case "text/x-php":
+		return ".php"
+
 	default:
 		return ".dat" // Generic data file extension
 	}

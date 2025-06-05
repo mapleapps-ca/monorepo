@@ -87,6 +87,7 @@ type FileMetadata struct {
 	MimeType               string `json:"mime_type"`
 	Size                   int64  `json:"size"`
 	Created                int64  `json:"created"`
+	FileExtension          string `json:"file_extension"`
 	EncryptedFilePath      string `json:"encrypted_file_path" bson:"encrypted_file_path"`
 	EncryptedFileSize      int64  `json:"encrypted_file_size" bson:"encrypted_file_size"`
 	DecryptedFilePath      string `json:"decrypted_file_path" bson:"decrypted_file_path"`
