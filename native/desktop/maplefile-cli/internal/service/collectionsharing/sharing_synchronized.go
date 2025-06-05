@@ -13,15 +13,12 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	dom_publiclookupdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/publiclookupdto"
-	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsharingdto"
 	uc_publiclookupdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/publiclookupdto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // SynchronizedCollectionSharingService ensures local state stays in sync after sharing
@@ -43,8 +40,8 @@ type synchronizedCollectionSharingService struct {
 	updateCollectionUseCase   uc_collection.UpdateCollectionUseCase
 	localCollectionRepository collection.CollectionRepository
 
-	// Crypto service
-	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService
+	// Use collection encryption service
+	collectionEncryptionService svc_collectioncrypto.CollectionEncryptionService
 }
 
 // NewSynchronizedCollectionSharingService creates a new synchronized collection sharing service
@@ -56,7 +53,7 @@ func NewSynchronizedCollectionSharingService(
 	shareCollectionUseCase uc.ShareCollectionUseCase,
 	updateCollectionUseCase uc_collection.UpdateCollectionUseCase,
 	localCollectionRepository collection.CollectionRepository,
-	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
+	collectionEncryptionService svc_collectioncrypto.CollectionEncryptionService,
 ) SynchronizedCollectionSharingService {
 	logger = logger.Named("SynchronizedCollectionSharingService")
 	return &synchronizedCollectionSharingService{
@@ -67,7 +64,7 @@ func NewSynchronizedCollectionSharingService(
 		shareCollectionUseCase:          shareCollectionUseCase,
 		updateCollectionUseCase:         updateCollectionUseCase,
 		localCollectionRepository:       localCollectionRepository,
-		collectionDecryptionService:     collectionDecryptionService,
+		collectionEncryptionService:     collectionEncryptionService,
 	}
 }
 
@@ -188,11 +185,16 @@ func (s *synchronizedCollectionSharingService) executeCloudSharing(
 		return nil, errors.NewAppError("failed to decode recipient public key", err)
 	}
 
-	encryptedCollectionKey, err := s.encryptCollectionKeyForRecipient(
-		ctx, currentUser, publicKeyBytes, collectionToShare, userPassword,
+	// ✅ REPLACED: Use collection encryption service instead of manual encryption
+	encryptedCollectionKey, err := s.collectionEncryptionService.EncryptCollectionKeyForSharing(
+		ctx,
+		currentUser,
+		collectionToShare,
+		publicKeyBytes,
+		userPassword,
 	)
 	if err != nil {
-		return nil, errors.NewAppError("failed to encrypt collection key for recipient", err)
+		return nil, errors.NewAppError("failed to encrypt collection key for recipient using crypto service", err)
 	}
 
 	// Execute cloud sharing
@@ -205,7 +207,7 @@ func (s *synchronizedCollectionSharingService) executeCloudSharing(
 		ShareWithDescendants:   input.ShareWithDescendants,
 	}
 
-	s.logger.Debug("🔍 Sharing request details",
+	s.logger.Debug("🔍 Sharing request details using crypto service",
 		zap.String("collectionID", input.CollectionID.Hex()),
 		zap.String("recipientEmail", input.RecipientEmail),
 		zap.Int("encryptedKeyLength", len(encryptedCollectionKey.ToBoxSealBytes())))
@@ -258,11 +260,16 @@ func (s *synchronizedCollectionSharingService) updateLocalCollectionWithNewMembe
 		return fmt.Errorf("failed to decode public key for local update: %w", err)
 	}
 
-	encryptedKeyForMember, err := s.encryptCollectionKeyForRecipient(
-		ctx, currentUser, publicKeyBytes, localCollection, userPassword,
+	// ✅ REPLACED: Use collection encryption service instead of manual encryption
+	encryptedKeyForMember, err := s.collectionEncryptionService.EncryptCollectionKeyForSharing(
+		ctx,
+		currentUser,
+		localCollection,
+		publicKeyBytes,
+		userPassword,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt key for member: %w", err)
+		return fmt.Errorf("failed to encrypt key for member using crypto service: %w", err)
 	}
 
 	// Create new membership
@@ -305,62 +312,6 @@ func (s *synchronizedCollectionSharingService) updateLocalCollectionWithNewMembe
 		zap.String("newMemberEmail", input.RecipientEmail),
 		zap.String("permissionLevel", input.PermissionLevel),
 		zap.Int("totalMembers", len(localCollection.Members)))
-
-	return nil
-}
-
-func (s *synchronizedCollectionSharingService) encryptCollectionKeyForRecipient(
-	ctx context.Context,
-	currentUser *dom_user.User,
-	recipientPublicKey []byte,
-	collectionToShare *collection.Collection,
-	userPassword string,
-) (*keys.EncryptedCollectionKey, error) {
-
-	s.logger.Debug("🔐 Starting E2EE collection key encryption for recipient using crypto service")
-
-	collectionKey, err := s.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, currentUser, collectionToShare, userPassword)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt collection key chain: %w", err)
-	}
-	defer crypto.ClearBytes(collectionKey)
-
-	s.logger.Debug("✅ Successfully decrypted collection key using crypto service")
-
-	s.logger.Debug("🔐 Encrypting collection key for recipient using BoxSeal")
-	encryptedForRecipient, err := crypto.EncryptWithBoxSeal(collectionKey, recipientPublicKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt collection key for recipient: %w", err)
-	}
-
-	// Create EncryptedCollectionKey struct from box_seal bytes
-	encryptedCollectionKey := keys.NewEncryptedCollectionKeyFromBoxSeal(encryptedForRecipient)
-
-	if err := s.verifyEncryptedKey(encryptedCollectionKey, recipientPublicKey); err != nil {
-		return nil, fmt.Errorf("failed to verify encrypted collection key for recipient: %w", err)
-	}
-
-	s.logger.Debug("✅ Successfully encrypted collection key for recipient using crypto service")
-	return encryptedCollectionKey, nil
-}
-
-func (s *synchronizedCollectionSharingService) verifyEncryptedKey(encryptedKey *keys.EncryptedCollectionKey, recipientPublicKey []byte) error {
-	// Get the box_seal bytes
-	encryptedBytes := encryptedKey.ToBoxSealBytes()
-	if encryptedBytes == nil {
-		return fmt.Errorf("encrypted key is nil")
-	}
-
-	// Verify it's the right length for box_seal format
-	expectedMinLength := crypto.BoxPublicKeySize + crypto.BoxNonceSize + crypto.BoxOverhead
-	if len(encryptedBytes) < expectedMinLength {
-		return fmt.Errorf("encrypted key too short: got %d, expected at least %d",
-			len(encryptedBytes), expectedMinLength)
-	}
-
-	s.logger.Debug("✅ Encrypted key format validation passed",
-		zap.Int("encryptedKeyLength", len(encryptedBytes)),
-		zap.Int("expectedMinLength", expectedMinLength))
 
 	return nil
 }

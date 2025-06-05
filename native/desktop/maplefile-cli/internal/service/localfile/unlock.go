@@ -9,14 +9,14 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
-	dom_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
+	svc_filecrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filecrypto"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
-	pkg_crypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // UnlockInput represents the input for unlocking a file
@@ -44,12 +44,14 @@ type UnlockService interface {
 
 // unlockService implements the UnlockService interface
 type unlockService struct {
-	logger                     *zap.Logger
-	getFileUseCase             uc_file.GetFileUseCase
-	updateFileUseCase          uc_file.UpdateFileUseCase
-	deleteFileUseCase          localfile.DeleteFileUseCase
-	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase
-	getCollectionUseCase       uc_collection.GetCollectionUseCase
+	logger                      *zap.Logger
+	getFileUseCase              uc_file.GetFileUseCase
+	updateFileUseCase           uc_file.UpdateFileUseCase
+	deleteFileUseCase           localfile.DeleteFileUseCase
+	getUserByIsLoggedInUseCase  uc_user.GetByIsLoggedInUseCase
+	getCollectionUseCase        uc_collection.GetCollectionUseCase
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService
+	fileDecryptionService       svc_filecrypto.FileDecryptionService
 }
 
 // NewUnlockService creates a new service for unlocking files
@@ -60,15 +62,19 @@ func NewUnlockService(
 	deleteFileUseCase localfile.DeleteFileUseCase,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	getCollectionUseCase uc_collection.GetCollectionUseCase,
+	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
+	fileDecryptionService svc_filecrypto.FileDecryptionService,
 ) UnlockService {
 	logger = logger.Named("UnlockService")
 	return &unlockService{
-		logger:                     logger,
-		getFileUseCase:             getFileUseCase,
-		updateFileUseCase:          updateFileUseCase,
-		deleteFileUseCase:          deleteFileUseCase,
-		getUserByIsLoggedInUseCase: getUserByIsLoggedInUseCase,
-		getCollectionUseCase:       getCollectionUseCase,
+		logger:                      logger,
+		getFileUseCase:              getFileUseCase,
+		updateFileUseCase:           updateFileUseCase,
+		deleteFileUseCase:           deleteFileUseCase,
+		getUserByIsLoggedInUseCase:  getUserByIsLoggedInUseCase,
+		getCollectionUseCase:        getCollectionUseCase,
+		collectionDecryptionService: collectionDecryptionService,
+		fileDecryptionService:       fileDecryptionService,
 	}
 }
 
@@ -190,36 +196,37 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 	}
 
 	//
-	// STEP 6: E2EE DECRYPTION CHAIN: password → keyEncryptionKey → masterKey → collectionKey → fileKey
+	// STEP 6: Starting E2EE key chain decryption for unlock operation using crypto service
 	//
-	s.logger.Debug("🔐 Starting E2EE key chain decryption for unlock operation")
+	s.logger.Debug("🔐 Starting E2EE key chain decryption for unlock operation using crypto service")
 
-	collectionKey, err := s.decryptCollectionKeyChain(user, collection, input.Password)
+	collectionKey, err := s.collectionDecryptionService.ExecuteDecryptCollectionKeyChain(ctx, user, collection, input.Password)
 	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt collection key chain", err)
+		return nil, errors.NewAppError("failed to decrypt collection key chain using crypto service", err)
 	}
-	defer pkg_crypto.ClearBytes(collectionKey)
+	defer crypto.ClearBytes(collectionKey)
 
-	// Decrypt file key using collection key
-	fileKey, err := pkg_crypto.DecryptWithSecretBox(
-		file.EncryptedFileKey.Ciphertext,
-		file.EncryptedFileKey.Nonce,
-		collectionKey,
-	)
+	fileKey, err := s.fileDecryptionService.DecryptFileKey(ctx, file.EncryptedFileKey, collectionKey)
 	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt file key", err)
+		return nil, errors.NewAppError("failed to decrypt file key using crypto service", err)
 	}
-	defer pkg_crypto.ClearBytes(fileKey)
+	defer crypto.ClearBytes(fileKey)
 
 	//
-	// STEP 7: Decrypt the encrypted file content using the file key
+	// STEP 7: Decrypting file content for unlocking using crypto service
 	//
-	s.logger.Info("🔐 Decrypting file content for unlocking",
+	s.logger.Info("🔐 Decrypting file content for unlocking using crypto service",
 		zap.String("fileID", input.FileID))
 
-	decryptedData, err := s.decryptFileContent(file.EncryptedFilePath, fileKey)
+	// Read encrypted file content
+	encryptedData, err := os.ReadFile(file.EncryptedFilePath)
 	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt file content", err)
+		return nil, errors.NewAppError("failed to read encrypted file", err)
+	}
+
+	decryptedData, err := s.fileDecryptionService.DecryptFileContent(ctx, encryptedData, fileKey)
+	if err != nil {
+		return nil, errors.NewAppError("failed to decrypt file content using crypto service", err)
 	}
 
 	//
@@ -237,7 +244,7 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 		return nil, errors.NewAppError("failed to save decrypted file", err)
 	}
 
-	s.logger.Debug("💾 Successfully saved decrypted file",
+	s.logger.Debug("💾 Successfully saved decrypted file using crypto service",
 		zap.String("fileID", input.FileID),
 		zap.String("decryptedPath", decryptedPath))
 
@@ -289,16 +296,16 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 		return nil, errors.NewAppError("failed to update file storage mode during unlock", err)
 	}
 
-	s.logger.Info("✅ Successfully unlocked file using E2EE",
+	s.logger.Info("✅ Successfully unlocked file using E2EE crypto services",
 		zap.String("fileID", input.FileID),
 		zap.String("previousMode", previousMode),
 		zap.String("newMode", input.StorageMode))
 
-	message := "File successfully unlocked using E2EE"
+	message := "File successfully unlocked using E2EE crypto services"
 	if input.StorageMode == dom_file.StorageModeHybrid {
-		message = "File successfully unlocked to hybrid mode using E2EE (both encrypted and decrypted versions kept)"
+		message = "File successfully unlocked to hybrid mode using E2EE crypto services (both encrypted and decrypted versions kept)"
 	} else {
-		message = "File successfully unlocked to decrypted-only mode using E2EE"
+		message = "File successfully unlocked to decrypted-only mode using E2EE crypto services"
 	}
 
 	return &UnlockOutput{
@@ -310,80 +317,4 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 		RemainingPath:  decryptedPath,
 		Message:        message,
 	}, nil
-}
-
-// decryptCollectionKeyChain decrypts the complete E2EE chain to get the collection key
-func (s *unlockService) decryptCollectionKeyChain(user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
-	s.logger.Debug("🔐 Starting E2EE key chain decryption",
-		zap.String("userID", user.ID.Hex()),
-		zap.String("collectionID", collection.ID.Hex()))
-
-	// STEP 1: Derive keyEncryptionKey from password
-	keyEncryptionKey, err := pkg_crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
-	if err != nil {
-		return nil, errors.NewAppError("failed to derive key encryption key", err)
-	}
-	defer pkg_crypto.ClearBytes(keyEncryptionKey)
-
-	// STEP 2: Decrypt masterKey with keyEncryptionKey
-	masterKey, err := pkg_crypto.DecryptWithSecretBox(
-		user.EncryptedMasterKey.Ciphertext,
-		user.EncryptedMasterKey.Nonce,
-		keyEncryptionKey,
-	)
-	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt master key - incorrect password?", err)
-	}
-	defer pkg_crypto.ClearBytes(masterKey)
-
-	// STEP 3: Decrypt collectionKey with masterKey
-	if collection.EncryptedCollectionKey == nil {
-		return nil, errors.NewAppError("collection has no encrypted key", nil)
-	}
-
-	collectionKey, err := pkg_crypto.DecryptWithSecretBox(
-		collection.EncryptedCollectionKey.Ciphertext,
-		collection.EncryptedCollectionKey.Nonce,
-		masterKey,
-	)
-	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt collection key", err)
-	}
-
-	return collectionKey, nil
-}
-
-// decryptFileContent decrypts encrypted file content using the file key
-func (s *unlockService) decryptFileContent(encryptedFilePath string, fileKey []byte) ([]byte, error) {
-	s.logger.Debug("🔐 Decrypting file content", zap.String("encryptedFilePath", encryptedFilePath))
-
-	// Read encrypted file content
-	encryptedData, err := os.ReadFile(encryptedFilePath)
-	if err != nil {
-		return nil, errors.NewAppError("failed to read encrypted file", err)
-	}
-
-	// The encrypted data should be in the format: nonce (24 bytes) + ciphertext
-	if len(encryptedData) < pkg_crypto.ChaCha20Poly1305NonceSize {
-		return nil, errors.NewAppError("encrypted file too short", nil)
-	}
-
-	// Extract nonce and ciphertext from combined data
-	nonce := make([]byte, pkg_crypto.ChaCha20Poly1305NonceSize)
-	copy(nonce, encryptedData[:pkg_crypto.ChaCha20Poly1305NonceSize])
-
-	ciphertext := make([]byte, len(encryptedData)-pkg_crypto.ChaCha20Poly1305NonceSize)
-	copy(ciphertext, encryptedData[pkg_crypto.ChaCha20Poly1305NonceSize:])
-
-	// Decrypt the content
-	decryptedData, err := pkg_crypto.DecryptWithSecretBox(ciphertext, nonce, fileKey)
-	if err != nil {
-		return nil, errors.NewAppError("failed to decrypt file content", err)
-	}
-
-	s.logger.Debug("🔐 Successfully decrypted file content",
-		zap.Int("encryptedSize", len(encryptedData)),
-		zap.Int("decryptedSize", len(decryptedData)))
-
-	return decryptedData, nil
 }
