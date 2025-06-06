@@ -120,7 +120,7 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 	if err != nil {
 		// If it's a "not found" error, it's a critical issue since the ID came from the context.
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			err := fmt.Errorf("authenticated federateduser does not exist for id: %v", userID.Hex())
+			err := fmt.Errorf("authenticated federateduser does not exist for id: %v", userID.String())
 			svc.logger.Error("Failed getting authenticated federateduser", zap.Any("error", err))
 			return nil, err
 		}
@@ -130,7 +130,7 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 	}
 	// Defensive check, though GetByID should return ErrNoDocuments if not found.
 	if federateduser == nil {
-		err := fmt.Errorf("federateduser is nil after lookup for id: %v", userID.Hex())
+		err := fmt.Errorf("federateduser is nil after lookup for id: %v", userID.String())
 		svc.logger.Error("Failed getting federateduser", zap.Any("error", err))
 		return nil, err
 	}
@@ -149,8 +149,8 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 			// The important check is implicit: if existingFederatedUser is not nil, the email is taken.
 			// We already know req.Email != federateduser.Email, so if existingFederatedUser is found, it *must* be another federateduser.
 			svc.logger.Warn("Attempted to update to an email already in use",
-				zap.String("user_id", userID.Hex()),
-				zap.String("existing_user_id", existingFederatedUser.ID.Hex()),
+				zap.String("user_id", userID.String()),
+				zap.String("existing_user_id", existingFederatedUser.ID.String()),
 				zap.String("email", req.Email))
 			e["email"] = "This email address is already in use."
 			return nil, httperror.NewForBadRequest(&e)
@@ -177,13 +177,13 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 
 	// Persist changes
 	if err := svc.userUpdateUseCase.Execute(sessCtx, federateduser); err != nil {
-		svc.logger.Error("Failed updating federateduser", zap.Any("error", err), zap.String("user_id", federateduser.ID.Hex()))
+		svc.logger.Error("Failed updating federateduser", zap.Any("error", err), zap.String("user_id", federateduser.ID.String()))
 		// Consider mapping specific DB errors (like constraint violations) to HTTP errors if applicable
 		return nil, err
 	}
 
 	svc.logger.Debug("FederatedUser updated successfully",
-		zap.String("user_id", federateduser.ID.Hex()))
+		zap.String("user_id", federateduser.ID.String()))
 
 	// Return updated federateduser details
 	return &MeResponseDTO{
