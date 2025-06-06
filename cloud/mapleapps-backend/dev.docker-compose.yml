@@ -12,85 +12,47 @@
 #
 
 services:
-  db1:
-    container_name: mapleapps_backend_db1
-    image: mongo
-    command:
-      [
-        "--replSet",
-        "rs0",
-        "--bind_ip_all",
-        "--port",
-        "27017",
-        "--quiet",
-        "--logpath",
-        "/dev/null",
-      ]
+  cassandra1:
+    image: cassandra:latest
+    container_name: mapleapps_cassandra_node1
     restart: unless-stopped
+    volumes:
+      - cassandra_node1_data:/var/lib/cassandra
     ports:
-      - 27017:27017
+      - "9042:9042"
+    environment:
+      - CASSANDRA_SEEDS=cassandra1,cassandra2,cassandra3
+    attach: false # Disable logs so we can focus primarily on our web-app.
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'host.docker.internal:27017',priority:1},{_id:1,host:'host.docker.internal:27018',priority:0.5},{_id:2,host:'host.docker.internal:27019',priority:0.5}]}) }" | mongosh --port 27017 --quiet
-      interval: 5s
-      timeout: 30s
-      start_period: 0s
-      start_interval: 1s
-      retries: 30
-    volumes:
-      - "./data/db1/db:/data/db"
-      - "./data/db1/configdb:/data/configdb"
 
-  db2:
-    container_name: mapleapps_backend_db2
-    image: mongo
-    command:
-      [
-        "--replSet",
-        "rs0",
-        "--bind_ip_all",
-        "--port",
-        "27018",
-        "--quiet",
-        "--logpath",
-        "/dev/null",
-      ]
+  cassandra2:
+    image: cassandra:latest
+    container_name: mapleapps_cassandra_node2
     restart: unless-stopped
-    ports:
-      - 27018:27018
+    volumes:
+      - cassandra_node2_data:/var/lib/cassandra
+    environment:
+      - CASSANDRA_SEEDS=cassandra1,cassandra2,cassandra3
+    attach: false # Disable logs so we can focus primarily on our web-app.
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    volumes:
-      - "./data/db2/db:/data/db"
-      - "./data/db2/configdb:/data/configdb"
 
-  db3:
-    container_name: mapleapps_backend_db3
-    image: mongo
-    command:
-      [
-        "--replSet",
-        "rs0",
-        "--bind_ip_all",
-        "--port",
-        "27019",
-        "--quiet",
-        "--logpath",
-        "/dev/null",
-      ]
+  cassandra3:
+    image: cassandra:latest
+    container_name: mapleapps_cassandra_node3
     restart: unless-stopped
-    ports:
-      - 27019:27019
+    volumes:
+      - cassandra_node3_data:/var/lib/cassandra
+    environment:
+      - CASSANDRA_SEEDS=cassandra1,cassandra2,cassandra3
+    attach: false # Disable logs so we can focus primarily on our web-app.
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    volumes:
-      - "./data/db3/db:/data/db"
-      - "./data/db3/configdb:/data/configdb"
 
   cache:
     # https://pimylifeup.com/redis-docker/
-    container_name: mapleapps_backend_cache
+    container_name: mapleapps_cache
     image: redis:alpine
     command: "redis-server --save 60 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81 --protected-mode yes"
     ports:
@@ -115,10 +77,8 @@ services:
       BACKEND_APP_GEOLITE_DB_PATH: ${BACKEND_APP_GEOLITE_DB_PATH}
       BACKEND_APP_BANNED_COUNTRIES: ${BACKEND_APP_BANNED_COUNTRIES}
       BACKEND_APP_BETA_ACCESS_CODE: ${BACKEND_APP_BETA_ACCESS_CODE}
-      BACKEND_DB_URI: mongodb://db1:27017,db2:27018,db3:27019/?replicaSet=rs0 # This is dependent on the configuration in our docker-compose file (see above).
-      BACKEND_DB_IAM_NAME: ${BACKEND_DB_IAM_NAME}
-      BACKEND_DB_MAPLEFILE_NAME: ${BACKEND_DB_MAPLEFILE_NAME}
-      BACKEND_DB_PAPERCLOUD_NAME_NAME: ${BACKEND_DB_PAPERCLOUD_NAME_NAME}
+      BACKEND_DB_HOSTS: "cassandra1, cassandra2, cassandra3" # These server addresses are dependent on what you set above.
+      BACKEND_DB_KEYSPACE_REPLICATION_FACTOR: 1
       BACKEND_CACHE_URI: ${BACKEND_CACHE_URI}
       BACKEND_AWS_ACCESS_KEY: ${BACKEND_AWS_ACCESS_KEY}
       BACKEND_AWS_SECRET_KEY: ${BACKEND_AWS_SECRET_KEY}
@@ -151,14 +111,19 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db1
-      - db2
-      - db3
+      - cassandra1
+      - cassandra2
+      - cassandra3
       - cache
     links:
-      - db1
-      - db2
-      - db3
+      - cassandra1
+      - cassandra2
+      - cassandra3
       - cache
     volumes: # Connect the local filesystem with the docker filesystem. DO NOT REMOVE.
       - ./:/go/src/github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend # IMPORTANT: Required for hotreload via `CompileDaemon`.
+
+volumes:
+  cassandra_node1_data:
+  cassandra_node2_data:
+  cassandra_node3_data:

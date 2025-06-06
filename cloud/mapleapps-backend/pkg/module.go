@@ -10,8 +10,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/ipcountryblocker"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/jwt"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/password"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodb"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodbcache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/cassandradb"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/object/s3"
 )
 
@@ -33,8 +32,7 @@ func Module() fx.Option {
 			ipcountryblocker.NewProvider,
 			jwt.NewProvider,
 			password.NewProvider,
-			mongodb.NewProvider,
-			mongodbcache.NewProvider,
+			cassandradb.NewProvider,
 			s3.NewProvider,
 		),
 	)

@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gocql/gocql"
+
 	sbytes "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/securebytes"
 	sstring "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/securestring"
 )
@@ -13,7 +15,7 @@ import (
 type Configuration struct {
 	App               AppConfig
 	Cache             CacheConf
-	DB                DBConfig
+	DB                CassandraDBConfig
 	AWS               AWSConfig
 	MapleFileMailgun  MailgunConfig
 	PaperCloudMailgun MailgunConfig
@@ -34,11 +36,9 @@ type AppConfig struct {
 	BetaAccessCode           string
 }
 
-type DBConfig struct {
-	URI            string
-	IAMName        string
-	MapleFileName  string
-	PaperCloudName string
+type CassandraDBConfig struct {
+	Hosts                     []string
+	KeyspaceReplicationFactor int64
 }
 
 type MailgunConfig struct {
@@ -77,10 +77,8 @@ func NewProvider() *Configuration {
 	c.App.BetaAccessCode = getEnv("BACKEND_APP_BETA_ACCESS_CODE", false)
 
 	// --- Database section ---
-	c.DB.URI = getEnv("BACKEND_DB_URI", true)
-	c.DB.IAMName = getEnv("BACKEND_DB_IAM_NAME", true)
-	c.DB.MapleFileName = getEnv("BACKEND_DB_MAPLEFILE_NAME", true)
-	c.DB.PaperCloudName = getEnv("BACKEND_DB_PAPERCLOUD_NAME_NAME", true)
+	c.DB.Hosts = getStringsArrEnv("BACKEND_DB_HOSTS", true)
+	c.DB.KeyspaceReplicationFactor = getInt64Env("BACKEND_DB_KEYSPACE_REPLICATION_FACTOR", true)
 
 	// --- Cache ---
 	c.Cache.URI = getEnv("BACKEND_CACHE_URI", true)
@@ -194,4 +192,28 @@ func getUint64Env(key string, required bool) uint64 {
 		log.Fatalf("Invalid uint64 value for environment variable %s", key)
 	}
 	return valueUint64
+}
+
+func getInt64Env(key string, required bool) int64 {
+	value := os.Getenv(key)
+	if required && value == "" {
+		log.Fatalf("Environment variable not found: %s", key)
+	}
+	valueInt64, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		log.Fatalf("Invalid int64 value for environment variable %s", key)
+	}
+	return valueInt64
+}
+
+func getEnvCassandraUUID(key string, required bool) gocql.UUID {
+	value := os.Getenv(key)
+	if required && value == "" {
+		log.Fatalf("Environment variable not found: %s", key)
+	}
+	objectID, err := gocql.ParseUUID(value)
+	if err != nil {
+		log.Fatalf("Invalid cassandra uuid value for environment variable %s", key)
+	}
+	return objectID
 }
