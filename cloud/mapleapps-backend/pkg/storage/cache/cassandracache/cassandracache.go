@@ -3,11 +3,11 @@ package cassandracache
 import (
 	"context"
 	"log"
-	"log/slog"
 	"time"
 
 	"github.com/faabiosr/cachego"
 	"github.com/gocql/gocql"
+	"go.uber.org/zap"
 
 	c "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 )
@@ -22,14 +22,14 @@ type Cacher interface {
 
 type cache struct {
 	Client cachego.Cache
-	Logger *slog.Logger
+	Logger *zap.Logger
 }
 
-func NewCache(cfg *c.Configuration, logger *slog.Logger, session *gocql.Session) Cacher {
+func NewCache(cfg *c.Configuration, logger *zap.Logger, session *gocql.Session) Cacher {
 	logger.Debug("cassandra based cache initializing...")
 
 	query := `
-		CREATE TABLE IF NOT EXISTS mothership.cache_by_date (
+		CREATE TABLE IF NOT EXISTS mapleapps.cache_by_date (
 			session_id TIMEUUID,
 			expires_at TIMESTAMP,
 			value BLOB,
@@ -37,7 +37,7 @@ func NewCache(cfg *c.Configuration, logger *slog.Logger, session *gocql.Session)
 		);
 	`
 	if err := session.Query(query).Exec(); err != nil {
-		logger.Error("Failed creating `cache_by_date` table if DNE", slog.Any("err", err))
+		logger.Error("Failed creating `cache_by_date` table if DNE", zap.Error(err))
 		log.Fatal(err)
 	}
 

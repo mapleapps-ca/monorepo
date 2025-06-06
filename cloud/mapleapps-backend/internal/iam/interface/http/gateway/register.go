@@ -12,8 +12,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
-
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/interface/http/middleware"
 	sv_gateway "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/service/gateway"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
@@ -21,21 +19,18 @@ import (
 
 type GatewayFederatedUserRegisterHTTPHandler struct {
 	logger     *zap.Logger
-	dbClient   *mongo.Client
 	service    sv_gateway.GatewayFederatedUserRegisterService
 	middleware middleware.Middleware
 }
 
 func NewGatewayFederatedUserRegisterHTTPHandler(
 	logger *zap.Logger,
-	dbClient *mongo.Client,
 	service sv_gateway.GatewayFederatedUserRegisterService,
 	middleware middleware.Middleware,
 ) *GatewayFederatedUserRegisterHTTPHandler {
 	logger = logger.Named("GatewayFederatedUserRegisterHTTPHandler")
 	return &GatewayFederatedUserRegisterHTTPHandler{
 		logger:     logger,
-		dbClient:   dbClient,
 		service:    service,
 		middleware: middleware,
 	}
@@ -89,35 +84,13 @@ func (h *GatewayFederatedUserRegisterHTTPHandler) Execute(w http.ResponseWriter,
 		return
 	}
 
-	////
-	//// Start the transaction.
-	////
-
-	session, err := h.dbClient.StartSession()
-	if err != nil {
+	if err := h.service.Execute(ctx, data); err != nil {
 		httperror.ResponseError(w, err)
-		return
-	}
-	defer session.EndSession(ctx)
-
-	// Define a transaction function with a series of operations
-	transactionFunc := func(sessCtx context.Context) (any, error) {
-		err := h.service.Execute(sessCtx, data)
-		if err != nil {
-			return nil, err
-		}
-		return nil, nil
-	}
-
-	// Start a transaction
-	_, txErr := session.WithTransaction(ctx, transactionFunc)
-	if txErr != nil {
-		httperror.ResponseError(w, txErr)
 		return
 	}
 
 	// If transaction succeeds, return success response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"message":           "Registration successful. Please check your email for verification.",
 		"recovery_key_info": "IMPORTANT: Please ensure you have saved your recovery key. It cannot be retrieved later.",
 	}

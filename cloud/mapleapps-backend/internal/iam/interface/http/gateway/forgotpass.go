@@ -8,7 +8,6 @@ import (
 	"net/http"
 	_ "time/tzdata"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/interface/http/middleware"
@@ -18,21 +17,18 @@ import (
 
 type GatewayForgotPasswordHTTPHandler struct {
 	logger     *zap.Logger
-	dbClient   *mongo.Client
 	service    sv_gateway.GatewayForgotPasswordService
 	middleware middleware.Middleware
 }
 
 func NewGatewayForgotPasswordHTTPHandler(
 	logger *zap.Logger,
-	dbClient *mongo.Client,
 	service sv_gateway.GatewayForgotPasswordService,
 	middleware middleware.Middleware,
 ) *GatewayForgotPasswordHTTPHandler {
 	logger = logger.Named("GatewayForgotPasswordHTTPHandler")
 	return &GatewayForgotPasswordHTTPHandler{
 		logger:     logger,
-		dbClient:   dbClient,
 		service:    service,
 		middleware: middleware,
 	}
@@ -86,41 +82,11 @@ func (h *GatewayForgotPasswordHTTPHandler) Execute(w http.ResponseWriter, r *htt
 		return
 	}
 
-	////
-	//// Start the transaction.
-	////
-
-	session, err := h.dbClient.StartSession()
+	resp, err := h.service.Execute(ctx, data)
 	if err != nil {
-		h.logger.Error("start session error",
-			zap.Any("error", err))
 		httperror.ResponseError(w, err)
 		return
 	}
-	defer session.EndSession(ctx)
-
-	// Define a transaction function with a series of operations
-	transactionFunc := func(sessCtx context.Context) (interface{}, error) {
-		resp, err := h.service.Execute(sessCtx, data)
-		if err != nil {
-			h.logger.Error("service error",
-				zap.Any("err", err),
-			)
-			return nil, err
-		}
-		return resp, nil
-	}
-
-	// Start a transaction
-	result, err := session.WithTransaction(ctx, transactionFunc)
-	if err != nil {
-		h.logger.Error("session failed error",
-			zap.Any("error", err))
-		httperror.ResponseError(w, err)
-		return
-	}
-
-	resp := result.(*sv_gateway.GatewayForgotPasswordResponseIDO)
 
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(&resp); err != nil {

@@ -6,8 +6,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
-
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/interface/http/middleware"
 	sv_gateway "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/service/gateway"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
@@ -15,21 +13,18 @@ import (
 
 type GatewayLogoutHTTPHandler struct {
 	logger     *zap.Logger
-	dbClient   *mongo.Client
 	service    sv_gateway.GatewayLogoutService
 	middleware middleware.Middleware
 }
 
 func NewGatewayLogoutHTTPHandler(
 	logger *zap.Logger,
-	dbClient *mongo.Client,
 	service sv_gateway.GatewayLogoutService,
 	middleware middleware.Middleware,
 ) *GatewayLogoutHTTPHandler {
 	logger = logger.Named("GatewayLogoutHTTPHandler")
 	return &GatewayLogoutHTTPHandler{
 		logger:     logger,
-		dbClient:   dbClient,
 		service:    service,
 		middleware: middleware,
 	}

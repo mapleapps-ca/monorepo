@@ -2,13 +2,11 @@
 package gateway
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 	_ "time/tzdata"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/interface/http/middleware"
@@ -18,21 +16,18 @@ import (
 
 type GatewayFederatedUserPublicLookupHTTPHandler struct {
 	logger     *zap.Logger
-	dbClient   *mongo.Client
 	service    sv_gateway.GatewayFederatedUserPublicLookupService
 	middleware middleware.Middleware
 }
 
 func NewGatewayFederatedUserPublicLookupHTTPHandler(
 	logger *zap.Logger,
-	dbClient *mongo.Client,
 	service sv_gateway.GatewayFederatedUserPublicLookupService,
 	middleware middleware.Middleware,
 ) *GatewayFederatedUserPublicLookupHTTPHandler {
 	logger = logger.Named("GatewayFederatedUserPublicLookupHTTPHandler")
 	return &GatewayFederatedUserPublicLookupHTTPHandler{
 		logger:     logger,
-		dbClient:   dbClient,
 		service:    service,
 		middleware: middleware,
 	}
@@ -73,36 +68,11 @@ func (h *GatewayFederatedUserPublicLookupHTTPHandler) Execute(w http.ResponseWri
 	var req sv_gateway.GatewayFederatedUserPublicLookupRequestDTO
 	req.Email = email
 
-	////
-	//// Start the transaction.
-	////
-
-	session, err := h.dbClient.StartSession()
+	response, err := h.service.Execute(ctx, &req)
 	if err != nil {
 		httperror.ResponseError(w, err)
 		return
 	}
-	defer session.EndSession(ctx)
-
-	// Define a transaction function with a series of operations
-	transactionFunc := func(sessCtx context.Context) (any, error) {
-		result, err := h.service.Execute(sessCtx, &req)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	}
-
-	// Start a transaction
-	result, txErr := session.WithTransaction(ctx, transactionFunc)
-	if txErr != nil {
-		httperror.ResponseError(w, txErr)
-		return
-	}
-
-	// If transaction succeeds, return success response
-	response := result.(*sv_gateway.GatewayFederatedUserPublicLookupResponseDTO)
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)

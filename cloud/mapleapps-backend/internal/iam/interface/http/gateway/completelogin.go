@@ -10,7 +10,6 @@ import (
 	"strings"
 	_ "time/tzdata"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/interface/http/middleware"
@@ -20,21 +19,18 @@ import (
 
 type GatewayCompleteLoginHTTPHandler struct {
 	logger     *zap.Logger
-	dbClient   *mongo.Client
 	service    sv_gateway.GatewayCompleteLoginService
 	middleware middleware.Middleware
 }
 
 func NewGatewayCompleteLoginHTTPHandler(
 	logger *zap.Logger,
-	dbClient *mongo.Client,
 	service sv_gateway.GatewayCompleteLoginService,
 	middleware middleware.Middleware,
 ) *GatewayCompleteLoginHTTPHandler {
 	logger = logger.Named("GatewayCompleteLoginHTTPHandler")
 	return &GatewayCompleteLoginHTTPHandler{
 		logger:     logger,
-		dbClient:   dbClient,
 		service:    service,
 		middleware: middleware,
 	}
@@ -92,37 +88,15 @@ func (h *GatewayCompleteLoginHTTPHandler) Execute(w http.ResponseWriter, r *http
 		return
 	}
 
-	// Start the transaction
-	session, err := h.dbClient.StartSession()
+	result, err := h.service.Execute(ctx, data)
 	if err != nil {
-		h.logger.Error("start session error", zap.Any("error", err))
-		httperror.ResponseError(w, err)
+		h.logger.Error("service error", zap.Any("err", err))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer session.EndSession(ctx)
-
-	// Define a transaction function
-	transactionFunc := func(sessCtx context.Context) (interface{}, error) {
-		resp, err := h.service.Execute(sessCtx, data)
-		if err != nil {
-			h.logger.Error("service error", zap.Any("err", err))
-			return nil, err
-		}
-		return resp, nil
-	}
-
-	// Start the transaction
-	result, err := session.WithTransaction(ctx, transactionFunc)
-	if err != nil {
-		h.logger.Error("session failed error", zap.Any("error", err))
-		httperror.ResponseError(w, err)
-		return
-	}
-
-	resp := result.(*sv_gateway.GatewayCompleteLoginResponseIDO)
 
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(&resp); err != nil {
+	if err := json.NewEncoder(w).Encode(&result); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -10,7 +10,6 @@ import (
 	"strings"
 	_ "time/tzdata"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/interface/http/middleware"
@@ -20,21 +19,18 @@ import (
 
 type GatewayVerifyLoginOTTHTTPHandler struct {
 	logger     *zap.Logger
-	dbClient   *mongo.Client
 	service    sv_gateway.GatewayVerifyLoginOTTService
 	middleware middleware.Middleware
 }
 
 func NewGatewayVerifyLoginOTTHTTPHandler(
 	logger *zap.Logger,
-	dbClient *mongo.Client,
 	service sv_gateway.GatewayVerifyLoginOTTService,
 	middleware middleware.Middleware,
 ) *GatewayVerifyLoginOTTHTTPHandler {
 	logger = logger.Named("GatewayVerifyLoginOTTHTTPHandler")
 	return &GatewayVerifyLoginOTTHTTPHandler{
 		logger:     logger,
-		dbClient:   dbClient,
 		service:    service,
 		middleware: middleware,
 	}
@@ -93,34 +89,12 @@ func (h *GatewayVerifyLoginOTTHTTPHandler) Execute(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Start the transaction
-	session, err := h.dbClient.StartSession()
+	resp, err := h.service.Execute(ctx, data)
 	if err != nil {
-		h.logger.Error("start session error", zap.Any("error", err))
+		h.logger.Error("service error", zap.Any("err", err))
 		httperror.ResponseError(w, err)
 		return
 	}
-	defer session.EndSession(ctx)
-
-	// Define a transaction function
-	transactionFunc := func(sessCtx context.Context) (interface{}, error) {
-		resp, err := h.service.Execute(sessCtx, data)
-		if err != nil {
-			h.logger.Error("service error", zap.Any("err", err))
-			return nil, err
-		}
-		return resp, nil
-	}
-
-	// Start the transaction
-	result, err := session.WithTransaction(ctx, transactionFunc)
-	if err != nil {
-		h.logger.Error("session failed error", zap.Any("error", err))
-		httperror.ResponseError(w, err)
-		return
-	}
-
-	resp := result.(*sv_gateway.GatewayVerifyLoginOTTResponseIDO)
 
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(&resp); err != nil {
