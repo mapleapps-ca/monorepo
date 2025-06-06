@@ -23,7 +23,7 @@ func NewProvider(appCfg *c.Configuration, logger *zap.Logger) *mongo.Client {
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 	if err != nil {
-		log.Fatalf("backend.pkg.storage.database.mongodb.NewProvider: Error: %v\n", err)
+		log.Fatalf("mapleapps-backend.pkg.storage.database.mongodb.NewProvider: Error: %v\n", err)
 	}
 
 	// The MongoDB client provides a Ping() method to tell you if a MongoDB database has been found and connected.

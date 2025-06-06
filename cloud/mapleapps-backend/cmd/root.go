@@ -17,7 +17,7 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "backend",
+	Use:   "mapleapps-backend",
 	Short: "Maple Apps Backend",
 	Long:  `Maple Apps Cloud Backend Services`,
 	Run: func(cmd *cobra.Command, args []string) {
