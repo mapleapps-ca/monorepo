@@ -1,0 +1,116 @@
+version: "3"
+
+tasks:
+  dev:
+    desc: Start the backend in developer mode
+    cmds:
+      - docker-compose -p mapleapps_backend -f dev.docker-compose.yml up --watch
+
+  end:
+    desc: Stop the backend in developer mode
+    cmds:
+      - docker-compose -p mapleapps_backend -f dev.docker-compose.yml down
+
+  console:
+    desc: Open console in (developer mode) running backend
+    cmds:
+      - docker exec -it mapleapps_backend bash
+
+  login:
+    desc: (DevOps only) Command will log in your developer's machine with the private docker container registry.
+    cmds:
+      - docker login registry.digitalocean.com
+
+  logout:
+    desc: (DevOps only) Command will log out of the private docker container registry. (Important step if you are using other private docker registries)
+    cmds:
+      - docker logout registry.digitalocean.com
+
+  deploy:
+    desc: (DevOps only) Command will build the production container of this project and deploy to the private docker container registry.
+    cmds:
+      - docker build -f Dockerfile --rm -t registry.digitalocean.com/ssp/mapleapps_backend:prod --platform linux/amd64 .
+      - docker tag registry.digitalocean.com/ssp/mapleapps_backend:prod registry.digitalocean.com/ssp/mapleapps_backend:prod
+      - docker push registry.digitalocean.com/ssp/mapleapps_backend:prod
+
+  deployqa:
+    desc: (DevOps only) Command will build the quality assurance (QA) container of this project and deploy to the private docker container registry.
+    cmds:
+      - docker build -f Dockerfile --rm -t registry.digitalocean.com/ssp/mapleapps_backend:qa --platform linux/amd64 .
+      - docker tag registry.digitalocean.com/ssp/mapleapps_backend:qa registry.digitalocean.com/ssp/mapleapps_backend:qa
+      - docker push registry.digitalocean.com/ssp/mapleapps_backend:qa
+
+  clean:
+    cmds:
+      - go clean -cache
+      - go clean -modcache
+
+  vendor:
+    desc: Save all the libraries into our code repository
+    cmds:
+      - go mod tidy
+      - go mod download
+      - go mod vendor
+
+  upgradelib:
+    desc: Update all the golang libraries (https://stackoverflow.com/a/67202539)
+    cmds:
+      - go get -u ./...
+
+  undelast:
+    desc: Undue last commit which was not pushed. Special thanks to https://www.nobledesktop.com/learn/git/undo-changes.
+    cmds:
+      - git reset --soft HEAD~
+
+  genkey:
+    desc: Generate a unique key.
+    cmds:
+      - openssl rand -hex 64.
+
+  osxlisten:
+    desc: "See what apps apps are running and listing to what ports. Aftwords use for example: kill -9 4097"
+    cmds:
+      - sudo lsof -nPi -sTCP:LISTEN
+
+  llmcat:
+    desc: "Concatinate our project into LLM friendly single text (dependent on third-party app called `crev`)"
+    cmds:
+      - crev bundle
+
+  vet:
+    desc: "Run Go's static code analysis tool to find potential issues"
+    cmds:
+      - echo "============================================================"
+      - echo "RUNNING GO VET CODE ANALYSIS"
+      - echo "============================================================"
+      - go vet ./...
+      - echo "Go vet completed successfully!"
+    silent: false
+
+  lint:
+    desc: "Run golint to check for style mistakes"
+    cmds:
+      - echo "============================================================"
+      - echo "CHECKING CODE STYLE WITH GOLINT"
+      - echo "============================================================"
+      - golint ./...
+      - echo "Golint completed!"
+    silent: false
+
+  format:
+    desc: "Format code and manage imports automatically"
+    cmds:
+      - echo "============================================================"
+      - echo "FORMATTING CODE AND UPDATING IMPORTS"
+      - echo "============================================================"
+      - goimports -w .
+      - echo "Code formatting completed!"
+    silent: false
+
+  check:
+    desc: "Run all code quality checks (format, lint, vet)"
+    cmds:
+      - task: format
+      - task: lint
+      - task: vet
+    silent: false
