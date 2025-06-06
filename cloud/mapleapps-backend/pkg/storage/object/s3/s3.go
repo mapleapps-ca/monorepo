@@ -81,7 +81,7 @@ func NewObjectStorage(s3Config S3ObjectStorageConfigurationProvider, logger *zap
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s3Config.GetAccessKey(), s3Config.GetSecretKey(), "")),
 	)
 	if err != nil {
-		log.Fatal(err) // We need to crash the program at start to satisfy google wire requirement of having no errors.
+		log.Fatalf("S3ObjectStorage failed loading default config with error: %v", err) // We need to crash the program at start to satisfy google wire requirement of having no errors.
 	}
 
 	// STEP 3\: Load up s3 instance.
@@ -101,10 +101,10 @@ func NewObjectStorage(s3Config S3ObjectStorageConfigurationProvider, logger *zap
 	// STEP 4: Connect to the s3 bucket instance and confirm that bucket exists.
 	doesExist, err := s3Storage.BucketExists(context.TODO(), s3Config.GetBucketName())
 	if err != nil {
-		log.Fatal(err) // We need to crash the program at start to satisfy google wire requirement of having no errors.
+		log.Fatalf("S3ObjectStorage failed checking if bucket `%v` exists: %v\n", s3Config.GetBucketName(), err) // We need to crash the program at start to satisfy google wire requirement of having no errors.
 	}
 	if !doesExist {
-		log.Fatal("bucket name does not exist") // We need to crash the program at start to satisfy google wire requirement of having no errors.
+		log.Fatalf("S3ObjectStorage failed with bucket name does not exist: %v\n", s3Config.GetBucketName()) // We need to crash the program at start to satisfy google wire requirement of having no errors.
 	}
 
 	logger.Debug("s3 initialized")
