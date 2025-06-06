@@ -4,8 +4,6 @@ package filemetadata
 import (
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
-
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 )
@@ -15,7 +13,7 @@ type fileMetadataRepositoryImpl struct {
 	//TODO
 }
 
-func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mongo.Client) dom_file.FileMetadataRepository {
+func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger) dom_file.FileMetadataRepository {
 	loggerp = loggerp.Named("FileMetadataRepository")
 
 	//TODO

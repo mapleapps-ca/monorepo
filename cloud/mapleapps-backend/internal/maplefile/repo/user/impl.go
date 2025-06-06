@@ -6,8 +6,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
-
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/user"
 )
@@ -17,7 +15,7 @@ type userStorerImpl struct {
 	//TODO
 }
 
-func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger, client *mongo.Client) dom_user.Repository {
+func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger) dom_user.Repository {
 	loggerp = loggerp.Named("UserRepository")
 
 	// Create the repository instance first
