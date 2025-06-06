@@ -8,18 +8,18 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
+	"github.com/gocql/gocql"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
 func (impl collectionRepositoryImpl) MoveCollection(
 	ctx context.Context,
 	collectionID,
-	newParentID primitive.ObjectID,
-	updatedAncestors []primitive.ObjectID,
+	newParentID gocql.UUID,
+	updatedAncestors []gocql.UUID,
 	updatedPathSegments []string,
 ) error {
 	// Verify the new parent exists
@@ -78,7 +78,7 @@ func (impl collectionRepositoryImpl) MoveCollection(
 	for _, descendant := range descendants {
 		// Calculate new ancestors for this descendant based on its existing relationship to the moved collection
 		// We need to find which ancestors to keep (those after collectionID in the chain)
-		var relativeAncestors []primitive.ObjectID
+		var relativeAncestors []gocql.UUID
 		foundMovedCollection := false
 		for _, ancestor := range descendant.AncestorIDs {
 			if ancestor == collectionID {
@@ -93,7 +93,7 @@ func (impl collectionRepositoryImpl) MoveCollection(
 		}
 
 		// New ancestors = updated ancestors of moved collection + relative ancestors
-		newAncestors := append(updatedAncestors, append([]primitive.ObjectID{collectionID}, relativeAncestors...)...)
+		newAncestors := append(updatedAncestors, append([]gocql.UUID{collectionID}, relativeAncestors...)...)
 
 		// Update this descendant
 		descUpdate := bson.M{

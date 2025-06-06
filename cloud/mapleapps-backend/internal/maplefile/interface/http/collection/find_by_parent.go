@@ -7,7 +7,6 @@ import (
 	"errors"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
@@ -65,7 +64,7 @@ func (h *FindCollectionsByParentHTTPHandler) Execute(w http.ResponseWriter, r *h
 	}
 
 	// Convert string ID to ObjectID
-	parentID, err := primitive.ObjectIDFromHex(parentIDStr)
+	parentID, err := gocql.UUIDFromHex(parentIDStr)
 	if err != nil {
 		h.logger.Error("invalid parent ID format",
 			zap.String("parent_id", parentIDStr),

@@ -6,14 +6,14 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 
+	"github.com/gocql/gocql"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 )
 
 // GetByCreatedByUserID gets all files created by a specific user
-func (impl fileMetadataRepositoryImpl) GetByCreatedByUserID(createdByUserID primitive.ObjectID) ([]*dom_file.File, error) {
+func (impl fileMetadataRepositoryImpl) GetByCreatedByUserID(createdByUserID gocql.UUID) ([]*dom_file.File, error) {
 	ctx := context.Background()
 	filter := bson.M{"created_by_user_id": createdByUserID}
 

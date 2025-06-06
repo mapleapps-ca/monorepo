@@ -6,8 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
@@ -46,7 +45,7 @@ func (svc *getFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom_
 	//
 	// STEP 1: Get user ID from context
 	//
-	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
@@ -77,7 +76,7 @@ func (svc *getFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom_
 	}
 
 	// Combine owned and shared collections
-	var accessibleCollectionIDs []primitive.ObjectID
+	var accessibleCollectionIDs []gocql.UUID
 	for _, coll := range ownedCollections {
 		if coll.State == "active" { // Only include active collections
 			accessibleCollectionIDs = append(accessibleCollectionIDs, coll.ID)

@@ -4,16 +4,16 @@ package user
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 )
 
 // Repository Interface for federatediam.
 type Repository interface {
 	Create(ctx context.Context, m *User) error
-	GetByID(ctx context.Context, id primitive.ObjectID) (*User, error)
+	GetByID(ctx context.Context, id gocql.UUID) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	GetByVerificationCode(ctx context.Context, verificationCode string) (*User, error)
-	DeleteByID(ctx context.Context, id primitive.ObjectID) error
+	DeleteByID(ctx context.Context, id gocql.UUID) error
 	DeleteByEmail(ctx context.Context, email string) error
 	CheckIfExistsByEmail(ctx context.Context, email string) (bool, error)
 	UpdateByID(ctx context.Context, m *User) error

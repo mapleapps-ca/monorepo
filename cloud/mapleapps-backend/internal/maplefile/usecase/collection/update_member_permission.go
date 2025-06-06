@@ -4,16 +4,16 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type UpdateMemberPermissionUseCase interface {
-	Execute(ctx context.Context, collectionID, recipientID primitive.ObjectID, newPermission string) error
+	Execute(ctx context.Context, collectionID, recipientID gocql.UUID, newPermission string) error
 }
 
 type updateMemberPermissionUseCaseImpl struct {
@@ -31,7 +31,7 @@ func NewUpdateMemberPermissionUseCase(
 	return &updateMemberPermissionUseCaseImpl{config, logger, repo}
 }
 
-func (uc *updateMemberPermissionUseCaseImpl) Execute(ctx context.Context, collectionID, recipientID primitive.ObjectID, newPermission string) error {
+func (uc *updateMemberPermissionUseCaseImpl) Execute(ctx context.Context, collectionID, recipientID gocql.UUID, newPermission string) error {
 	//
 	// STEP 1: Validation.
 	//

@@ -10,6 +10,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/keys"
@@ -26,41 +27,41 @@ import (
 // On the local device, this data is decrypted for use and storage (not stored in this encrypted DTO format locally).
 // It can represent both root collections and embedded subcollections.
 type CreateCollectionRequestDTO struct {
-	ID                     primitive.ObjectID            `bson:"_id" json:"id"`
-	OwnerID                primitive.ObjectID            `bson:"owner_id" json:"owner_id"`
+	ID                     gocql.UUID                    `bson:"_id" json:"id"`
+	OwnerID                gocql.UUID                    `bson:"owner_id" json:"owner_id"`
 	EncryptedName          string                        `bson:"encrypted_name" json:"encrypted_name"`
 	CollectionType         string                        `bson:"collection_type" json:"collection_type"`
 	EncryptedCollectionKey *keys.EncryptedCollectionKey  `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
 	Members                []*CollectionMembershipDTO    `bson:"members" json:"members"`
-	ParentID               primitive.ObjectID            `bson:"parent_id,omitempty" json:"parent_id,omitempty"`
-	AncestorIDs            []primitive.ObjectID          `bson:"ancestor_ids,omitempty" json:"ancestor_ids,omitempty"`
+	ParentID               gocql.UUID                    `bson:"parent_id,omitempty" json:"parent_id,omitempty"`
+	AncestorIDs            []gocql.UUID                  `bson:"ancestor_ids,omitempty" json:"ancestor_ids,omitempty"`
 	Children               []*CreateCollectionRequestDTO `bson:"children,omitempty" json:"children,omitempty"`
 	CreatedAt              time.Time                     `bson:"created_at" json:"created_at"`
-	CreatedByUserID        primitive.ObjectID            `json:"created_by_user_id"`
+	CreatedByUserID        gocql.UUID                    `json:"created_by_user_id"`
 	ModifiedAt             time.Time                     `bson:"modified_at" json:"modified_at"`
-	ModifiedByUserID       primitive.ObjectID            `json:"modified_by_user_id"`
+	ModifiedByUserID       gocql.UUID                    `json:"modified_by_user_id"`
 }
 
 type CollectionMembershipDTO struct {
-	ID                     primitive.ObjectID `bson:"_id" json:"id"`
-	CollectionID           primitive.ObjectID `bson:"collection_id" json:"collection_id"`
-	RecipientID            primitive.ObjectID `bson:"recipient_id" json:"recipient_id"`
-	RecipientEmail         string             `bson:"recipient_email" json:"recipient_email"`
-	GrantedByID            primitive.ObjectID `bson:"granted_by_id" json:"granted_by_id"`
-	EncryptedCollectionKey []byte             `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
-	PermissionLevel        string             `bson:"permission_level" json:"permission_level"`
-	CreatedAt              time.Time          `bson:"created_at" json:"created_at"`
-	IsInherited            bool               `bson:"is_inherited" json:"is_inherited"`
-	InheritedFromID        primitive.ObjectID `bson:"inherited_from_id,omitempty" json:"inherited_from_id,omitempty"`
+	ID                     gocql.UUID `bson:"_id" json:"id"`
+	CollectionID           gocql.UUID `bson:"collection_id" json:"collection_id"`
+	RecipientID            gocql.UUID `bson:"recipient_id" json:"recipient_id"`
+	RecipientEmail         string     `bson:"recipient_email" json:"recipient_email"`
+	GrantedByID            gocql.UUID `bson:"granted_by_id" json:"granted_by_id"`
+	EncryptedCollectionKey []byte     `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
+	PermissionLevel        string     `bson:"permission_level" json:"permission_level"`
+	CreatedAt              time.Time  `bson:"created_at" json:"created_at"`
+	IsInherited            bool       `bson:"is_inherited" json:"is_inherited"`
+	InheritedFromID        gocql.UUID `bson:"inherited_from_id,omitempty" json:"inherited_from_id,omitempty"`
 }
 
 type CollectionResponseDTO struct {
-	ID                     primitive.ObjectID           `json:"id"`
-	OwnerID                primitive.ObjectID           `json:"owner_id"`
+	ID                     gocql.UUID                   `json:"id"`
+	OwnerID                gocql.UUID                   `json:"owner_id"`
 	EncryptedName          string                       `json:"encrypted_name"`
 	CollectionType         string                       `json:"collection_type"`
-	ParentID               primitive.ObjectID           `json:"parent_id,omitempty"`
-	AncestorIDs            []primitive.ObjectID         `json:"ancestor_ids,omitempty"`
+	ParentID               gocql.UUID                   `json:"parent_id,omitempty"`
+	AncestorIDs            []gocql.UUID                 `json:"ancestor_ids,omitempty"`
 	EncryptedCollectionKey *keys.EncryptedCollectionKey `json:"encrypted_collection_key,omitempty"`
 	Children               []*CollectionResponseDTO     `json:"children,omitempty"`
 	CreatedAt              time.Time                    `json:"created_at"`
@@ -69,11 +70,11 @@ type CollectionResponseDTO struct {
 }
 
 type MembershipResponseDTO struct {
-	ID             primitive.ObjectID `bson:"_id" json:"id"`
-	CollectionID   primitive.ObjectID `bson:"collection_id" json:"collection_id"`     // ID of the collection (redundant but helpful for queries)
-	RecipientID    primitive.ObjectID `bson:"recipient_id" json:"recipient_id"`       // User receiving access
-	RecipientEmail string             `bson:"recipient_email" json:"recipient_email"` // Email for display purposes
-	GrantedByID    primitive.ObjectID `bson:"granted_by_id" json:"granted_by_id"`     // User who shared the collection
+	ID             gocql.UUID `bson:"_id" json:"id"`
+	CollectionID   gocql.UUID `bson:"collection_id" json:"collection_id"`     // ID of the collection (redundant but helpful for queries)
+	RecipientID    gocql.UUID `bson:"recipient_id" json:"recipient_id"`       // User receiving access
+	RecipientEmail string     `bson:"recipient_email" json:"recipient_email"` // Email for display purposes
+	GrantedByID    gocql.UUID `bson:"granted_by_id" json:"granted_by_id"`     // User who shared the collection
 
 	// Collection key encrypted with recipient's public key using box_seal. This matches the box_seal format which doesn't need a separate nonce.
 	EncryptedCollectionKey []byte `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
@@ -83,8 +84,8 @@ type MembershipResponseDTO struct {
 	CreatedAt       time.Time `bson:"created_at" json:"created_at"`
 
 	// Sharing origin tracking
-	IsInherited     bool               `bson:"is_inherited" json:"is_inherited"`                               // Tracks whether access was granted directly or inherited from a parent
-	InheritedFromID primitive.ObjectID `bson:"inherited_from_id,omitempty" json:"inherited_from_id,omitempty"` // InheritedFromID identifies which parent collection granted this access
+	IsInherited     bool       `bson:"is_inherited" json:"is_inherited"`                               // Tracks whether access was granted directly or inherited from a parent
+	InheritedFromID gocql.UUID `bson:"inherited_from_id,omitempty" json:"inherited_from_id,omitempty"` // InheritedFromID identifies which parent collection granted this access
 }
 
 type CreateCollectionService interface {
@@ -154,7 +155,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")

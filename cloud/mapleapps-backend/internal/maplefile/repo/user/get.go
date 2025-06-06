@@ -6,14 +6,14 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
+	"github.com/gocql/gocql"
 	dom_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/user"
 )
 
-func (impl userStorerImpl) GetByID(ctx context.Context, id primitive.ObjectID) (*dom_user.User, error) {
+func (impl userStorerImpl) GetByID(ctx context.Context, id gocql.UUID) (*dom_user.User, error) {
 	filter := bson.M{"_id": id}
 
 	var result dom_user.User

@@ -6,9 +6,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 
+	"github.com/gocql/gocql"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
@@ -72,7 +72,7 @@ func (impl collectionRepositoryImpl) GetCollectionsWithFilter(ctx context.Contex
 }
 
 // getOwnedCollections retrieves collections owned by the specified user
-func (impl collectionRepositoryImpl) getOwnedCollections(ctx context.Context, userID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+func (impl collectionRepositoryImpl) getOwnedCollections(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
 	filter := bson.M{"owner_id": userID}
 
 	cursor, err := impl.Collection.Find(ctx, filter)
@@ -92,7 +92,7 @@ func (impl collectionRepositoryImpl) getOwnedCollections(ctx context.Context, us
 }
 
 // getSharedCollections retrieves collections shared with the specified user
-func (impl collectionRepositoryImpl) getSharedCollections(ctx context.Context, userID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+func (impl collectionRepositoryImpl) getSharedCollections(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
 	// Find collections where user is in members array as recipient
 	// Exclude collections owned by the user to avoid duplicates
 	filter := bson.M{

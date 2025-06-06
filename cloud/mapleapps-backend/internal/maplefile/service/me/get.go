@@ -19,7 +19,7 @@ import (
 )
 
 type MeResponseDTO struct {
-	ID               primitive.ObjectID `bson:"_id" json:"id"`
+	ID               gocql.UUID `bson:"_id" json:"id"`
 	Email            string             `bson:"email" json:"email"`
 	FirstName        string             `bson:"first_name" json:"first_name"`
 	LastName         string             `bson:"last_name" json:"last_name"`
@@ -50,11 +50,11 @@ type MeResponseDTO struct {
 	AgreePromotions                                bool `bson:"agree_promotions" json:"agree_promotions,omitempty"`
 	AgreeToTrackingAcrossThirdPartyAppsAndServices bool `bson:"agree_to_tracking_across_third_party_apps_and_services" json:"agree_to_tracking_across_third_party_apps_and_services,omitempty"`
 	// CreatedFromIPAddress                            string             `bson:"created_from_ip_address" json:"created_from_ip_address"`
-	// CreatedByFederatedIdentityID                    primitive.ObjectID `bson:"created_by_federatedidentity_id" json:"created_by_federatedidentity_id"`
+	// CreatedByFederatedIdentityID                    gocql.UUID `bson:"created_by_federatedidentity_id" json:"created_by_federatedidentity_id"`
 	CreatedAt time.Time `bson:"created_at" json:"created_at,omitempty"`
 	// CreatedByName                                   string             `bson:"created_by_name" json:"created_by_name"`
 	// ModifiedFromIPAddress                           string             `bson:"modified_from_ip_address" json:"modified_from_ip_address"`
-	// ModifiedByFederatedIdentityID                   primitive.ObjectID `bson:"modified_by_federatedidentity_id" json:"modified_by_federatedidentity_id"`
+	// ModifiedByFederatedIdentityID                   gocql.UUID `bson:"modified_by_federatedidentity_id" json:"modified_by_federatedidentity_id"`
 	// ModifiedAt                                      time.Time          `bson:"modified_at" json:"modified_at,omitempty"`
 	// ModifiedByName                                  string             `bson:"modified_by_name" json:"modified_by_name"`
 	Status int8 `bson:"status" json:"status"`
@@ -106,7 +106,7 @@ func (svc *getMeServiceImpl) Execute(sessCtx context.Context) (*MeResponseDTO, e
 	// Get required from context.
 	//
 
-	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		return nil, errors.New("user id not found in context")
 	}

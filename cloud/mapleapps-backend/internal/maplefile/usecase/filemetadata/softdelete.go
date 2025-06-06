@@ -2,16 +2,16 @@
 package filemetadata
 
 import (
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type SoftDeleteFileMetadataUseCase interface {
-	Execute(id primitive.ObjectID) error
+	Execute(id gocql.UUID) error
 }
 
 type softDeleteFileMetadataUseCaseImpl struct {
@@ -29,7 +29,7 @@ func NewSoftDeleteFileMetadataUseCase(
 	return &softDeleteFileMetadataUseCaseImpl{config, logger, repo}
 }
 
-func (uc *softDeleteFileMetadataUseCaseImpl) Execute(id primitive.ObjectID) error {
+func (uc *softDeleteFileMetadataUseCaseImpl) Execute(id gocql.UUID) error {
 	//
 	// STEP 1: Validation.
 	//

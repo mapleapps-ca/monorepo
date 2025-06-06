@@ -6,15 +6,15 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
+	"github.com/gocql/gocql"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 )
 
 // Get file by ID
-func (impl fileMetadataRepositoryImpl) Get(id primitive.ObjectID) (*dom_file.File, error) {
+func (impl fileMetadataRepositoryImpl) Get(id gocql.UUID) (*dom_file.File, error) {
 	ctx := context.Background()
 	filter := bson.M{
 		"_id":   id,
@@ -33,7 +33,7 @@ func (impl fileMetadataRepositoryImpl) Get(id primitive.ObjectID) (*dom_file.Fil
 	return &result, nil
 }
 
-func (impl fileMetadataRepositoryImpl) GetWithAnyState(id primitive.ObjectID) (*dom_file.File, error) {
+func (impl fileMetadataRepositoryImpl) GetWithAnyState(id gocql.UUID) (*dom_file.File, error) {
 	ctx := context.Background()
 	filter := bson.M{"_id": id}
 
@@ -50,7 +50,7 @@ func (impl fileMetadataRepositoryImpl) GetWithAnyState(id primitive.ObjectID) (*
 }
 
 // GetByIDs gets files by their IDs
-func (impl fileMetadataRepositoryImpl) GetByIDs(ids []primitive.ObjectID) ([]*dom_file.File, error) {
+func (impl fileMetadataRepositoryImpl) GetByIDs(ids []gocql.UUID) ([]*dom_file.File, error) {
 	if len(ids) == 0 {
 		return []*dom_file.File{}, nil
 	}
@@ -92,7 +92,7 @@ func (impl fileMetadataRepositoryImpl) GetByEncryptedFileID(encryptedFileID stri
 }
 
 // GetByCollection gets all files in a collection
-func (impl fileMetadataRepositoryImpl) GetByCollection(collectionID primitive.ObjectID) ([]*dom_file.File, error) {
+func (impl fileMetadataRepositoryImpl) GetByCollection(collectionID gocql.UUID) ([]*dom_file.File, error) {
 	ctx := context.Background()
 	filter := bson.M{
 		"collection_id": collectionID,

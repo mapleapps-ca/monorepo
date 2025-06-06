@@ -7,8 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/keys"
@@ -18,7 +17,7 @@ import (
 )
 
 type UpdateFileRequestDTO struct {
-	ID                primitive.ObjectID    `json:"id"`
+	ID                gocql.UUID            `json:"id"`
 	EncryptedMetadata string                `json:"encrypted_metadata,omitempty"`
 	EncryptedFileKey  keys.EncryptedFileKey `json:"encrypted_file_key,omitempty"`
 	EncryptionVersion string                `json:"encryption_version,omitempty"`
@@ -72,7 +71,7 @@ func (svc *updateFileServiceImpl) Execute(ctx context.Context, req *UpdateFileRe
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")

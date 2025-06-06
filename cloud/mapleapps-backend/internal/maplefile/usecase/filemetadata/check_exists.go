@@ -2,16 +2,16 @@
 package filemetadata
 
 import (
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type CheckFileExistsUseCase interface {
-	Execute(id primitive.ObjectID) (bool, error)
+	Execute(id gocql.UUID) (bool, error)
 }
 
 type checkFileExistsUseCaseImpl struct {
@@ -29,7 +29,7 @@ func NewCheckFileExistsUseCase(
 	return &checkFileExistsUseCaseImpl{config, logger, repo}
 }
 
-func (uc *checkFileExistsUseCaseImpl) Execute(id primitive.ObjectID) (bool, error) {
+func (uc *checkFileExistsUseCaseImpl) Execute(id gocql.UUID) (bool, error) {
 	//
 	// STEP 1: Validation.
 	//

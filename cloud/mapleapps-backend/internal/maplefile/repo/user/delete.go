@@ -4,13 +4,13 @@ package user
 import (
 	"context"
 
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-func (impl userStorerImpl) DeleteByID(ctx context.Context, id primitive.ObjectID) error {
+func (impl userStorerImpl) DeleteByID(ctx context.Context, id gocql.UUID) error {
 	_, err := impl.Collection.DeleteOne(ctx, bson.M{"_id": id})
 	if err != nil {
 		impl.Logger.Error("database failed deletion error",

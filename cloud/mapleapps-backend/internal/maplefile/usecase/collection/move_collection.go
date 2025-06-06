@@ -4,9 +4,9 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
@@ -14,10 +14,10 @@ import (
 
 // MoveCollectionRequest contains data needed to move a collection
 type MoveCollectionRequest struct {
-	CollectionID        primitive.ObjectID   `json:"collection_id"`
-	NewParentID         primitive.ObjectID   `json:"new_parent_id"`
-	UpdatedAncestors    []primitive.ObjectID `json:"updated_ancestors"`
-	UpdatedPathSegments []string             `json:"updated_path_segments"`
+	CollectionID        gocql.UUID   `json:"collection_id"`
+	NewParentID         gocql.UUID   `json:"new_parent_id"`
+	UpdatedAncestors    []gocql.UUID `json:"updated_ancestors"`
+	UpdatedPathSegments []string     `json:"updated_path_segments"`
 }
 
 type MoveCollectionUseCase interface {

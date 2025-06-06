@@ -62,7 +62,7 @@ func (h *GetPresignedDownloadURLHTTPHandler) ServeHTTP(w http.ResponseWriter, re
 func (h *GetPresignedDownloadURLHTTPHandler) unmarshalRequest(
 	ctx context.Context,
 	r *http.Request,
-	fileID primitive.ObjectID,
+	fileID gocql.UUID,
 ) (*svc_file.GetPresignedDownloadURLRequestDTO, error) {
 	// Initialize our structure which will store the parsed request data
 	var httpRequestData GetPresignedDownloadURLHTTPRequestDTO
@@ -118,7 +118,7 @@ func (h *GetPresignedDownloadURLHTTPHandler) Execute(w http.ResponseWriter, r *h
 	}
 
 	// Convert string ID to ObjectID
-	fileID, err := primitive.ObjectIDFromHex(fileIDStr)
+	fileID, err := gocql.UUIDFromHex(fileIDStr)
 	if err != nil {
 		h.logger.Error("invalid file ID format",
 			zap.String("file_id", fileIDStr),

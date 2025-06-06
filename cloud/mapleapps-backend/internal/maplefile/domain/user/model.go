@@ -4,7 +4,7 @@ package user
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 )
 
 const (
@@ -43,49 +43,49 @@ const (
 )
 
 type User struct {
-	ID                                             primitive.ObjectID `bson:"_id" json:"id"`
-	Email                                          string             `bson:"email" json:"email"`
-	FirstName                                      string             `bson:"first_name" json:"first_name"`
-	LastName                                       string             `bson:"last_name" json:"last_name"`
-	Name                                           string             `bson:"name" json:"name"`
-	LexicalName                                    string             `bson:"lexical_name" json:"lexical_name"`
-	PasswordHashAlgorithm                          string             `bson:"password_hash_algorithm" json:"-"`
-	PasswordHash                                   string             `bson:"password_hash" json:"-"`
-	Role                                           int8               `bson:"role" json:"role"`
-	WasEmailVerified                               bool               `bson:"was_email_verified,omitempty" json:"was_email_verified,omitempty"`
-	EmailVerificationCode                          string             `bson:"email_verification_code,omitempty" json:"email_verification_code,omitempty"`
-	EmailVerificationExpiry                        time.Time          `bson:"email_verification_expiry,omitempty" json:"email_verification_expiry,omitempty"`
-	PasswordResetVerificationCode                  string             `bson:"password_reset_verification_code,omitempty" json:"password_reset_verification_code,omitempty"`
-	PasswordResetVerificationExpiry                time.Time          `bson:"password_reset_verification_expiry,omitempty" json:"password_reset_verification_expiry,omitempty"`
-	Phone                                          string             `bson:"phone,omitempty" json:"phone,omitempty"`
-	Country                                        string             `bson:"country,omitempty" json:"country,omitempty"`
-	Timezone                                       string             `bson:"timezone" json:"timezone"`
-	Region                                         string             `bson:"region,omitempty" json:"region,omitempty"`
-	City                                           string             `bson:"city,omitempty" json:"city,omitempty"`
-	PostalCode                                     string             `bson:"postal_code,omitempty" json:"postal_code,omitempty"`
-	AddressLine1                                   string             `bson:"address_line1,omitempty" json:"address_line1,omitempty"`
-	AddressLine2                                   string             `bson:"address_line2,omitempty" json:"address_line2,omitempty"`
-	HasShippingAddress                             bool               `bson:"has_shipping_address,omitempty" json:"has_shipping_address,omitempty"`
-	ShippingName                                   string             `bson:"shipping_name,omitempty" json:"shipping_name,omitempty"`
-	ShippingPhone                                  string             `bson:"shipping_phone,omitempty" json:"shipping_phone,omitempty"`
-	ShippingCountry                                string             `bson:"shipping_country,omitempty" json:"shipping_country,omitempty"`
-	ShippingRegion                                 string             `bson:"shipping_region,omitempty" json:"shipping_region,omitempty"`
-	ShippingCity                                   string             `bson:"shipping_city,omitempty" json:"shipping_city,omitempty"`
-	ShippingPostalCode                             string             `bson:"shipping_postal_code,omitempty" json:"shipping_postal_code,omitempty"`
-	ShippingAddressLine1                           string             `bson:"shipping_address_line1,omitempty" json:"shipping_address_line1,omitempty"`
-	ShippingAddressLine2                           string             `bson:"shipping_address_line2,omitempty" json:"shipping_address_line2,omitempty"`
-	AgreeTermsOfService                            bool               `bson:"agree_terms_of_service,omitempty" json:"agree_terms_of_service,omitempty"`
-	AgreePromotions                                bool               `bson:"agree_promotions,omitempty" json:"agree_promotions,omitempty"`
-	AgreeToTrackingAcrossThirdPartyAppsAndServices bool               `bson:"agree_to_tracking_across_third_party_apps_and_services,omitempty" json:"agree_to_tracking_across_third_party_apps_and_services,omitempty"`
-	CreatedFromIPAddress                           string             `bson:"created_from_ip_address" json:"created_from_ip_address"`
-	CreatedByUserID                                primitive.ObjectID `bson:"created_by_user_id" json:"created_by_user_id"`
-	CreatedAt                                      time.Time          `bson:"created_at,omitempty" json:"created_at,omitempty"`
-	CreatedByName                                  string             `bson:"created_by_name" json:"created_by_name"`
-	ModifiedFromIPAddress                          string             `bson:"modified_from_ip_address" json:"modified_from_ip_address"`
-	ModifiedByUserID                               primitive.ObjectID `bson:"modified_by_user_id" json:"modified_by_user_id"`
-	ModifiedAt                                     time.Time          `bson:"modified_at,omitempty" json:"modified_at,omitempty"`
-	ModifiedByName                                 string             `bson:"modified_by_name" json:"modified_by_name"`
-	Status                                         int8               `bson:"status" json:"status"`
+	ID                                             gocql.UUID `bson:"_id" json:"id"`
+	Email                                          string     `bson:"email" json:"email"`
+	FirstName                                      string     `bson:"first_name" json:"first_name"`
+	LastName                                       string     `bson:"last_name" json:"last_name"`
+	Name                                           string     `bson:"name" json:"name"`
+	LexicalName                                    string     `bson:"lexical_name" json:"lexical_name"`
+	PasswordHashAlgorithm                          string     `bson:"password_hash_algorithm" json:"-"`
+	PasswordHash                                   string     `bson:"password_hash" json:"-"`
+	Role                                           int8       `bson:"role" json:"role"`
+	WasEmailVerified                               bool       `bson:"was_email_verified,omitempty" json:"was_email_verified,omitempty"`
+	EmailVerificationCode                          string     `bson:"email_verification_code,omitempty" json:"email_verification_code,omitempty"`
+	EmailVerificationExpiry                        time.Time  `bson:"email_verification_expiry,omitempty" json:"email_verification_expiry,omitempty"`
+	PasswordResetVerificationCode                  string     `bson:"password_reset_verification_code,omitempty" json:"password_reset_verification_code,omitempty"`
+	PasswordResetVerificationExpiry                time.Time  `bson:"password_reset_verification_expiry,omitempty" json:"password_reset_verification_expiry,omitempty"`
+	Phone                                          string     `bson:"phone,omitempty" json:"phone,omitempty"`
+	Country                                        string     `bson:"country,omitempty" json:"country,omitempty"`
+	Timezone                                       string     `bson:"timezone" json:"timezone"`
+	Region                                         string     `bson:"region,omitempty" json:"region,omitempty"`
+	City                                           string     `bson:"city,omitempty" json:"city,omitempty"`
+	PostalCode                                     string     `bson:"postal_code,omitempty" json:"postal_code,omitempty"`
+	AddressLine1                                   string     `bson:"address_line1,omitempty" json:"address_line1,omitempty"`
+	AddressLine2                                   string     `bson:"address_line2,omitempty" json:"address_line2,omitempty"`
+	HasShippingAddress                             bool       `bson:"has_shipping_address,omitempty" json:"has_shipping_address,omitempty"`
+	ShippingName                                   string     `bson:"shipping_name,omitempty" json:"shipping_name,omitempty"`
+	ShippingPhone                                  string     `bson:"shipping_phone,omitempty" json:"shipping_phone,omitempty"`
+	ShippingCountry                                string     `bson:"shipping_country,omitempty" json:"shipping_country,omitempty"`
+	ShippingRegion                                 string     `bson:"shipping_region,omitempty" json:"shipping_region,omitempty"`
+	ShippingCity                                   string     `bson:"shipping_city,omitempty" json:"shipping_city,omitempty"`
+	ShippingPostalCode                             string     `bson:"shipping_postal_code,omitempty" json:"shipping_postal_code,omitempty"`
+	ShippingAddressLine1                           string     `bson:"shipping_address_line1,omitempty" json:"shipping_address_line1,omitempty"`
+	ShippingAddressLine2                           string     `bson:"shipping_address_line2,omitempty" json:"shipping_address_line2,omitempty"`
+	AgreeTermsOfService                            bool       `bson:"agree_terms_of_service,omitempty" json:"agree_terms_of_service,omitempty"`
+	AgreePromotions                                bool       `bson:"agree_promotions,omitempty" json:"agree_promotions,omitempty"`
+	AgreeToTrackingAcrossThirdPartyAppsAndServices bool       `bson:"agree_to_tracking_across_third_party_apps_and_services,omitempty" json:"agree_to_tracking_across_third_party_apps_and_services,omitempty"`
+	CreatedFromIPAddress                           string     `bson:"created_from_ip_address" json:"created_from_ip_address"`
+	CreatedByUserID                                gocql.UUID `bson:"created_by_user_id" json:"created_by_user_id"`
+	CreatedAt                                      time.Time  `bson:"created_at,omitempty" json:"created_at,omitempty"`
+	CreatedByName                                  string     `bson:"created_by_name" json:"created_by_name"`
+	ModifiedFromIPAddress                          string     `bson:"modified_from_ip_address" json:"modified_from_ip_address"`
+	ModifiedByUserID                               gocql.UUID `bson:"modified_by_user_id" json:"modified_by_user_id"`
+	ModifiedAt                                     time.Time  `bson:"modified_at,omitempty" json:"modified_at,omitempty"`
+	ModifiedByName                                 string     `bson:"modified_by_name" json:"modified_by_name"`
+	Status                                         int8       `bson:"status" json:"status"`
 
 	// The name of the payment processor we are using to handle payments with
 	// this particular member.
@@ -153,9 +153,9 @@ type User struct {
 }
 
 type UserClaimedCoinTransaction struct {
-	ID        primitive.ObjectID `bson:"_id" json:"id"`
-	Timestamp time.Time          `bson:"timestamp,omitempty" json:"timestamp,omitempty"`
-	Amount    uint64             `bson:"amount,omitempty" json:"amount,omitempty"`
+	ID        gocql.UUID `bson:"_id" json:"id"`
+	Timestamp time.Time  `bson:"timestamp,omitempty" json:"timestamp,omitempty"`
+	Amount    uint64     `bson:"amount,omitempty" json:"amount,omitempty"`
 }
 
 // UserFilter represents the filter criteria for listing users
@@ -171,9 +171,9 @@ type UserFilter struct {
 	CreatedAtEnd   *time.Time `bson:"created_at_end,omitempty" json:"created_at_end,omitempty"`
 
 	// Pagination - cursor based
-	LastID        *primitive.ObjectID `bson:"last_id,omitempty" json:"last_id,omitempty"`
-	LastCreatedAt *time.Time          `bson:"last_created_at,omitempty" json:"last_created_at,omitempty"`
-	Limit         int64               `bson:"limit,omitempty" json:"limit,omitempty"`
+	LastID        *gocql.UUID `bson:"last_id,omitempty" json:"last_id,omitempty"`
+	LastCreatedAt *time.Time  `bson:"last_created_at,omitempty" json:"last_created_at,omitempty"`
+	Limit         int64       `bson:"limit,omitempty" json:"limit,omitempty"`
 
 	// Profile verification status filter
 	ProfileVerificationStatus int8 `bson:"profile_verification_status,omitempty" json:"profile_verification_status,omitempty"`
@@ -184,9 +184,9 @@ type UserFilter struct {
 
 // UserFilterResult represents the result of a filtered list operation
 type UserFilterResult struct {
-	Users         []*User            `bson:"users" json:"users"`
-	HasMore       bool               `bson:"has_more" json:"has_more"`
-	LastID        primitive.ObjectID `bson:"last_id,omitempty" json:"last_id,omitempty"`
-	LastCreatedAt time.Time          `bson:"last_created_at,omitempty" json:"last_created_at,omitempty"`
-	TotalCount    uint64             `bson:"total_count,omitempty" json:"total_count,omitempty"`
+	Users         []*User    `bson:"users" json:"users"`
+	HasMore       bool       `bson:"has_more" json:"has_more"`
+	LastID        gocql.UUID `bson:"last_id,omitempty" json:"last_id,omitempty"`
+	LastCreatedAt time.Time  `bson:"last_created_at,omitempty" json:"last_created_at,omitempty"`
+	TotalCount    uint64     `bson:"total_count,omitempty" json:"total_count,omitempty"`
 }

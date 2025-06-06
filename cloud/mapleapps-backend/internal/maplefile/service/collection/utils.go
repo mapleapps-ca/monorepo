@@ -4,8 +4,7 @@ package collection
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
@@ -33,7 +32,7 @@ func mapMembershipDTOToDomain(dto *CollectionMembershipDTO) dom_collection.Colle
 // ID, OwnerID, timestamps, and version are applied *after* this mapping in the Execute method.
 // userID and now are passed for potential use in recursive calls if needed for consistency,
 // though the primary goal here is to copy DTO values.
-func mapCollectionDTOToDomain(dto *CreateCollectionRequestDTO, userID primitive.ObjectID, now time.Time) *dom_collection.Collection {
+func mapCollectionDTOToDomain(dto *CreateCollectionRequestDTO, userID gocql.UUID, now time.Time) *dom_collection.Collection {
 	if dto == nil {
 		return nil
 	}

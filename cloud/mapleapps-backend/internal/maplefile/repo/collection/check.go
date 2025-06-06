@@ -7,14 +7,14 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
+	"github.com/gocql/gocql"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
-func (impl collectionRepositoryImpl) CheckIfExistsByID(ctx context.Context, id primitive.ObjectID) (bool, error) {
+func (impl collectionRepositoryImpl) CheckIfExistsByID(ctx context.Context, id gocql.UUID) (bool, error) {
 	filter := bson.M{"_id": id}
 
 	count, err := impl.Collection.CountDocuments(ctx, filter)
@@ -25,7 +25,7 @@ func (impl collectionRepositoryImpl) CheckIfExistsByID(ctx context.Context, id p
 	return count >= 1, nil
 }
 
-func (impl collectionRepositoryImpl) IsCollectionOwner(ctx context.Context, collectionID, userID primitive.ObjectID) (bool, error) {
+func (impl collectionRepositoryImpl) IsCollectionOwner(ctx context.Context, collectionID, userID gocql.UUID) (bool, error) {
 	filter := bson.M{
 		"_id":      collectionID,
 		"owner_id": userID,
@@ -40,7 +40,7 @@ func (impl collectionRepositoryImpl) IsCollectionOwner(ctx context.Context, coll
 	return count >= 1, nil
 }
 
-func (impl collectionRepositoryImpl) CheckAccess(ctx context.Context, collectionID, userID primitive.ObjectID, requiredPermission string) (bool, error) {
+func (impl collectionRepositoryImpl) CheckAccess(ctx context.Context, collectionID, userID gocql.UUID, requiredPermission string) (bool, error) {
 	// First, check if the user is the owner
 	isOwner, err := impl.IsCollectionOwner(ctx, collectionID, userID)
 	if err != nil {
@@ -97,7 +97,7 @@ func (impl collectionRepositoryImpl) CheckAccess(ctx context.Context, collection
 }
 
 // Helper function to get a user's permission level for a collection
-func (impl collectionRepositoryImpl) GetUserPermissionLevel(ctx context.Context, collectionID, userID primitive.ObjectID) (string, error) {
+func (impl collectionRepositoryImpl) GetUserPermissionLevel(ctx context.Context, collectionID, userID gocql.UUID) (string, error) {
 	// First check if user is the owner
 	isOwner, err := impl.IsCollectionOwner(ctx, collectionID, userID)
 	if err != nil {

@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
@@ -56,7 +55,7 @@ func (h *CompleteFileUploadHTTPHandler) ServeHTTP(w http.ResponseWriter, req *ht
 func (h *CompleteFileUploadHTTPHandler) unmarshalRequest(
 	ctx context.Context,
 	r *http.Request,
-	fileID primitive.ObjectID,
+	fileID gocql.UUID,
 ) (*svc_file.CompleteFileUploadRequestDTO, error) {
 	// Initialize our structure which will store the parsed request data
 	var requestData svc_file.CompleteFileUploadRequestDTO
@@ -96,7 +95,7 @@ func (h *CompleteFileUploadHTTPHandler) Execute(w http.ResponseWriter, r *http.R
 	}
 
 	// Convert string ID to ObjectID
-	fileID, err := primitive.ObjectIDFromHex(fileIDStr)
+	fileID, err := gocql.UUIDFromHex(fileIDStr)
 	if err != nil {
 		h.logger.Error("invalid file ID format",
 			zap.String("file_id", fileIDStr),

@@ -12,11 +12,12 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
+	"github.com/gocql/gocql"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
 // AddMember adds a new member to a collection, giving them access
-func (impl collectionRepositoryImpl) AddMember(ctx context.Context, collectionID primitive.ObjectID, membership *dom_collection.CollectionMembership) error {
+func (impl collectionRepositoryImpl) AddMember(ctx context.Context, collectionID gocql.UUID, membership *dom_collection.CollectionMembership) error {
 	// Ensure the collection exists
 	exists, err := impl.CheckIfExistsByID(ctx, collectionID)
 	if err != nil {
@@ -82,7 +83,7 @@ func (impl collectionRepositoryImpl) AddMember(ctx context.Context, collectionID
 }
 
 // RemoveMember removes a member from a collection, revoking their access
-func (impl collectionRepositoryImpl) RemoveMember(ctx context.Context, collectionID, recipientID primitive.ObjectID) error {
+func (impl collectionRepositoryImpl) RemoveMember(ctx context.Context, collectionID, recipientID gocql.UUID) error {
 	filter := bson.M{"_id": collectionID}
 
 	// Pull the member from the members array
@@ -114,7 +115,7 @@ func (impl collectionRepositoryImpl) RemoveMember(ctx context.Context, collectio
 }
 
 // UpdateMemberPermission updates a member's permission level
-func (impl collectionRepositoryImpl) UpdateMemberPermission(ctx context.Context, collectionID, recipientID primitive.ObjectID, newPermission string) error {
+func (impl collectionRepositoryImpl) UpdateMemberPermission(ctx context.Context, collectionID, recipientID gocql.UUID, newPermission string) error {
 	// Ensure the permission level is valid
 	if newPermission == "" {
 		newPermission = dom_collection.CollectionPermissionReadOnly
@@ -155,7 +156,7 @@ func (impl collectionRepositoryImpl) UpdateMemberPermission(ctx context.Context,
 }
 
 // GetCollectionMembership retrieves a specific membership from a collection
-func (impl collectionRepositoryImpl) GetCollectionMembership(ctx context.Context, collectionID, recipientID primitive.ObjectID) (*dom_collection.CollectionMembership, error) {
+func (impl collectionRepositoryImpl) GetCollectionMembership(ctx context.Context, collectionID, recipientID gocql.UUID) (*dom_collection.CollectionMembership, error) {
 	// Find the collection
 	filter := bson.M{"_id": collectionID}
 
@@ -180,7 +181,7 @@ func (impl collectionRepositoryImpl) GetCollectionMembership(ctx context.Context
 }
 
 // AddMemberToHierarchy adds a user to a collection and all of its descendants
-func (impl collectionRepositoryImpl) AddMemberToHierarchy(ctx context.Context, rootID primitive.ObjectID, membership *dom_collection.CollectionMembership) error {
+func (impl collectionRepositoryImpl) AddMemberToHierarchy(ctx context.Context, rootID gocql.UUID, membership *dom_collection.CollectionMembership) error {
 	// First add the member to the root collection
 	rootMembership := *membership
 	rootMembership.IsInherited = false
@@ -250,7 +251,7 @@ func (impl collectionRepositoryImpl) AddMemberToHierarchy(ctx context.Context, r
 }
 
 // RemoveMemberFromHierarchy removes a user from a collection and all of its descendants
-func (impl collectionRepositoryImpl) RemoveMemberFromHierarchy(ctx context.Context, rootID, recipientID primitive.ObjectID) error {
+func (impl collectionRepositoryImpl) RemoveMemberFromHierarchy(ctx context.Context, rootID, recipientID gocql.UUID) error {
 	// First remove the member from the root collection
 	err := impl.RemoveMember(ctx, rootID, recipientID)
 	if err != nil {

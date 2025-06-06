@@ -8,13 +8,13 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 
+	"github.com/gocql/gocql"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
-func (impl collectionRepositoryImpl) SoftDelete(ctx context.Context, id primitive.ObjectID) error {
+func (impl collectionRepositoryImpl) SoftDelete(ctx context.Context, id gocql.UUID) error {
 	filter := bson.M{"_id": id}
 
 	// Soft delete: Update state to deleted and nullify most fields, but keep key auditing and hierarchical fields.
@@ -92,7 +92,7 @@ func (impl collectionRepositoryImpl) SoftDelete(ctx context.Context, id primitiv
 	return nil
 }
 
-func (impl collectionRepositoryImpl) HardDelete(ctx context.Context, id primitive.ObjectID) error {
+func (impl collectionRepositoryImpl) HardDelete(ctx context.Context, id gocql.UUID) error {
 	filter := bson.M{"_id": id}
 
 	// First check if this collection has children

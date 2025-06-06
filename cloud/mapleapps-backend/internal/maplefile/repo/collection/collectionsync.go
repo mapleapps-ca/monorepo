@@ -6,14 +6,14 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
+	"github.com/gocql/gocql"
 	dom_sync "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
-func (impl collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, userID primitive.ObjectID, cursor *dom_sync.CollectionSyncCursor, limit int64) (*dom_sync.CollectionSyncResponse, error) {
+func (impl collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, userID gocql.UUID, cursor *dom_sync.CollectionSyncCursor, limit int64) (*dom_sync.CollectionSyncResponse, error) {
 	impl.Logger.Debug("Getting collection sync data",
 		zap.Any("user_id", userID),
 		zap.Any("cursor", cursor),

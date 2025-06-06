@@ -8,13 +8,13 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 
+	"github.com/gocql/gocql"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 )
 
-func (impl fileMetadataRepositoryImpl) Archive(id primitive.ObjectID) error {
+func (impl fileMetadataRepositoryImpl) Archive(id gocql.UUID) error {
 	ctx := context.Background()
 	filter := bson.M{"_id": id}
 

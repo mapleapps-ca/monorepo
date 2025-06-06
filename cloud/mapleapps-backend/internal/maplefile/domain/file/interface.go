@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 )
 
 // FileMetadataRepository defines the interface for interacting with file metadata storage.
@@ -16,36 +16,36 @@ type FileMetadataRepository interface {
 	// CreateMany saves multiple File metadata records to the storage.
 	CreateMany(files []*File) error
 	// Get retrieves a single File metadata record by its unique identifier (ID).
-	Get(id primitive.ObjectID) (*File, error)
+	Get(id gocql.UUID) (*File, error)
 	// GetWithAnyState retrieves a file regardless of its state (for admin operations)
-	GetWithAnyState(id primitive.ObjectID) (*File, error)
+	GetWithAnyState(id gocql.UUID) (*File, error)
 	// GetByIDs retrieves multiple File metadata records by their unique identifiers (IDs).
-	GetByIDs(ids []primitive.ObjectID) ([]*File, error)
+	GetByIDs(ids []gocql.UUID) ([]*File, error)
 	// GetByCollection retrieves all File metadata records associated with a specific collection ID.
-	GetByCollection(collectionID primitive.ObjectID) ([]*File, error)
+	GetByCollection(collectionID gocql.UUID) ([]*File, error)
 	// Update modifies an existing File metadata record in the storage.
 	Update(file *File) error
 	// SoftDelete removes a single File metadata record by its unique identifier (ID) by setting its state to deleted.
-	SoftDelete(id primitive.ObjectID) error
+	SoftDelete(id gocql.UUID) error
 	// HardDelete permanently removes a file metadata record
-	HardDelete(id primitive.ObjectID) error
+	HardDelete(id gocql.UUID) error
 	// SoftDeleteMany removes multiple File metadata records by their unique identifiers (IDs) by setting its state to deleted.
-	SoftDeleteMany(ids []primitive.ObjectID) error
+	SoftDeleteMany(ids []gocql.UUID) error
 	// HardDeleteMany permanently removes multiple file metadata records
-	HardDeleteMany(ids []primitive.ObjectID) error
+	HardDeleteMany(ids []gocql.UUID) error
 	// CheckIfExistsByID verifies if a File metadata record with the given ID exists in the storage.
-	CheckIfExistsByID(id primitive.ObjectID) (bool, error)
+	CheckIfExistsByID(id gocql.UUID) (bool, error)
 	// CheckIfUserHasAccess determines if a specific user (userID) has access permissions for a given file (fileID).
-	CheckIfUserHasAccess(fileID primitive.ObjectID, userID primitive.ObjectID) (bool, error)
-	GetByCreatedByUserID(createdByUserID primitive.ObjectID) ([]*File, error)
-	GetByOwnerID(ownerID primitive.ObjectID) ([]*File, error)
+	CheckIfUserHasAccess(fileID gocql.UUID, userID gocql.UUID) (bool, error)
+	GetByCreatedByUserID(createdByUserID gocql.UUID) ([]*File, error)
+	GetByOwnerID(ownerID gocql.UUID) ([]*File, error)
 
 	// State management operations
-	Archive(id primitive.ObjectID) error
-	Restore(id primitive.ObjectID) error
+	Archive(id gocql.UUID) error
+	Restore(id gocql.UUID) error
 
 	// GetSyncData retrieves file sync data with pagination for the specified user and accessible collections
-	GetSyncData(ctx context.Context, userID primitive.ObjectID, cursor *FileSyncCursor, limit int64, accessibleCollectionIDs []primitive.ObjectID) (*FileSyncResponse, error)
+	GetSyncData(ctx context.Context, userID gocql.UUID, cursor *FileSyncCursor, limit int64, accessibleCollectionIDs []gocql.UUID) (*FileSyncResponse, error)
 }
 
 // FileObjectStorageRepository defines the interface for interacting with the actual encrypted file data storage.

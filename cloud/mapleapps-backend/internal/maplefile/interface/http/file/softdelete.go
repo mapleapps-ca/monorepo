@@ -7,7 +7,6 @@ import (
 	"errors"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
@@ -65,7 +64,7 @@ func (h *SoftDeleteFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Convert string ID to ObjectID
-	fileID, err := primitive.ObjectIDFromHex(fileIDStr)
+	fileID, err := gocql.UUIDFromHex(fileIDStr)
 	if err != nil {
 		h.logger.Error("invalid file ID format",
 			zap.String("file_id", fileIDStr),

@@ -6,8 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
@@ -15,7 +14,7 @@ import (
 )
 
 type GetCollectionHierarchyService interface {
-	Execute(ctx context.Context, rootID primitive.ObjectID) (*CollectionResponseDTO, error)
+	Execute(ctx context.Context, rootID gocql.UUID) (*CollectionResponseDTO, error)
 }
 
 type getCollectionHierarchyServiceImpl struct {
@@ -37,7 +36,7 @@ func NewGetCollectionHierarchyService(
 	}
 }
 
-func (svc *getCollectionHierarchyServiceImpl) Execute(ctx context.Context, rootID primitive.ObjectID) (*CollectionResponseDTO, error) {
+func (svc *getCollectionHierarchyServiceImpl) Execute(ctx context.Context, rootID gocql.UUID) (*CollectionResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
@@ -49,7 +48,7 @@ func (svc *getCollectionHierarchyServiceImpl) Execute(ctx context.Context, rootI
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")

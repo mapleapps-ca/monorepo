@@ -15,7 +15,7 @@ import (
 )
 
 type FindByParentRequestDTO struct {
-	ParentID primitive.ObjectID `json:"parent_id"`
+	ParentID gocql.UUID `json:"parent_id"`
 }
 
 type FindCollectionsByParentService interface {
@@ -58,7 +58,7 @@ func (svc *findCollectionsByParentServiceImpl) Execute(ctx context.Context, req 
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")

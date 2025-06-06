@@ -4,16 +4,16 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type RemoveCollectionMemberUseCase interface {
-	Execute(ctx context.Context, collectionID, recipientID primitive.ObjectID) error
+	Execute(ctx context.Context, collectionID, recipientID gocql.UUID) error
 }
 
 type removeCollectionMemberUseCaseImpl struct {
@@ -31,7 +31,7 @@ func NewRemoveCollectionMemberUseCase(
 	return &removeCollectionMemberUseCaseImpl{config, logger, repo}
 }
 
-func (uc *removeCollectionMemberUseCaseImpl) Execute(ctx context.Context, collectionID, recipientID primitive.ObjectID) error {
+func (uc *removeCollectionMemberUseCaseImpl) Execute(ctx context.Context, collectionID, recipientID gocql.UUID) error {
 	//
 	// STEP 1: Validation.
 	//

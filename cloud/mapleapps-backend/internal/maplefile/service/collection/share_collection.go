@@ -16,8 +16,8 @@ import (
 )
 
 type ShareCollectionRequestDTO struct {
-	CollectionID           primitive.ObjectID `json:"collection_id"`
-	RecipientID            primitive.ObjectID `json:"recipient_id"`
+	CollectionID           gocql.UUID `json:"collection_id"`
+	RecipientID            gocql.UUID `json:"recipient_id"`
 	RecipientEmail         string             `json:"recipient_email"`
 	PermissionLevel        string             `json:"permission_level"`
 	EncryptedCollectionKey []byte             `json:"encrypted_collection_key"`
@@ -92,7 +92,7 @@ func (svc *shareCollectionServiceImpl) Execute(ctx context.Context, req *ShareCo
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")

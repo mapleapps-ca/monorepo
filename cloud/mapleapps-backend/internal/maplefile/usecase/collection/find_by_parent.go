@@ -4,16 +4,16 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type FindCollectionsByParentUseCase interface {
-	Execute(ctx context.Context, parentID primitive.ObjectID) ([]*dom_collection.Collection, error)
+	Execute(ctx context.Context, parentID gocql.UUID) ([]*dom_collection.Collection, error)
 }
 
 type findCollectionsByParentUseCaseImpl struct {
@@ -31,7 +31,7 @@ func NewFindCollectionsByParentUseCase(
 	return &findCollectionsByParentUseCaseImpl{config, logger, repo}
 }
 
-func (uc *findCollectionsByParentUseCaseImpl) Execute(ctx context.Context, parentID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+func (uc *findCollectionsByParentUseCaseImpl) Execute(ctx context.Context, parentID gocql.UUID) ([]*dom_collection.Collection, error) {
 	//
 	// STEP 1: Validation.
 	//

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
@@ -65,7 +64,7 @@ func (h *GetCollectionHierarchyHTTPHandler) Execute(w http.ResponseWriter, r *ht
 	}
 
 	// Convert string ID to ObjectID
-	rootID, err := primitive.ObjectIDFromHex(collectionIDStr)
+	rootID, err := gocql.UUIDFromHex(collectionIDStr)
 	if err != nil {
 		h.logger.Error("invalid collection ID format",
 			zap.String("collection_id", collectionIDStr),

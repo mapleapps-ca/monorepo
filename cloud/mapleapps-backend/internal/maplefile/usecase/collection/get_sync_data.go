@@ -4,15 +4,15 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
 type GetCollectionSyncDataUseCase interface {
-	Execute(ctx context.Context, userID primitive.ObjectID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error)
+	Execute(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error)
 }
 
 type getCollectionSyncDataUseCaseImpl struct {
@@ -30,7 +30,7 @@ func NewGetCollectionSyncDataUseCase(
 	return &getCollectionSyncDataUseCaseImpl{config, logger, repo}
 }
 
-func (uc *getCollectionSyncDataUseCaseImpl) Execute(ctx context.Context, userID primitive.ObjectID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error) {
+func (uc *getCollectionSyncDataUseCaseImpl) Execute(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error) {
 	//
 	// STEP 1: Validation.
 	//

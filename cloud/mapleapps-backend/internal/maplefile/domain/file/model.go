@@ -4,8 +4,8 @@ package file
 import (
 	"time"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/keys"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // File represents an encrypted file entity stored in the backend database (MongoDB).
@@ -16,11 +16,11 @@ import (
 type File struct {
 	// Identifiers
 	// Unique identifier for this specific file entity.
-	ID primitive.ObjectID `bson:"_id" json:"id"`
+	ID gocql.UUID `bson:"_id" json:"id"`
 	// Identifier of the collection this file belongs to. Used for grouping and key management.
-	CollectionID primitive.ObjectID `bson:"collection_id" json:"collection_id"`
+	CollectionID gocql.UUID `bson:"collection_id" json:"collection_id"`
 	// Identifier of the user who owns this file.
-	OwnerID primitive.ObjectID `bson:"owner_id" json:"owner_id"`
+	OwnerID gocql.UUID `bson:"owner_id" json:"owner_id"`
 
 	// Encryption and Content Details
 	// Client-side encrypted JSON blob containing file-specific metadata like the original file name,
@@ -57,11 +57,11 @@ type File struct {
 	// Timestamp when this file entity was created/uploaded.
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	// CreatedByUserID is the ID of the user who created this file.
-	CreatedByUserID primitive.ObjectID `bson:"created_by_user_id" json:"created_by_user_id"`
+	CreatedByUserID gocql.UUID `bson:"created_by_user_id" json:"created_by_user_id"`
 	// Timestamp when this file entity's metadata or content was last modified.
 	ModifiedAt time.Time `bson:"modified_at" json:"modified_at"`
 	// ModifiedByUserID is the ID of the user whom has last modified this file.
-	ModifiedByUserID primitive.ObjectID `bson:"modified_by_user_id" json:"modified_by_user_id"`
+	ModifiedByUserID gocql.UUID `bson:"modified_by_user_id" json:"modified_by_user_id"`
 	// The current version of the file.
 	Version uint64 `bson:"version" json:"version"` // Every mutation (create, update, delete) is a versioned operation, keep track of the version number with this variable
 
@@ -73,19 +73,19 @@ type File struct {
 
 // FileSyncCursor represents cursor-based pagination for sync operations
 type FileSyncCursor struct {
-	LastModified time.Time          `json:"last_modified" bson:"last_modified"`
-	LastID       primitive.ObjectID `json:"last_id" bson:"last_id"`
+	LastModified time.Time  `json:"last_modified" bson:"last_modified"`
+	LastID       gocql.UUID `json:"last_id" bson:"last_id"`
 }
 
 // FileSyncItem represents minimal file data for sync operations
 type FileSyncItem struct {
-	ID               primitive.ObjectID `json:"id" bson:"_id"`
-	CollectionID     primitive.ObjectID `json:"collection_id" bson:"collection_id"`
-	Version          uint64             `json:"version" bson:"version"`
-	ModifiedAt       time.Time          `json:"modified_at" bson:"modified_at"`
-	State            string             `json:"state" bson:"state"`
-	TombstoneVersion uint64             `bson:"tombstone_version" json:"tombstone_version"`
-	TombstoneExpiry  time.Time          `bson:"tombstone_expiry" json:"tombstone_expiry"`
+	ID               gocql.UUID `json:"id" bson:"_id"`
+	CollectionID     gocql.UUID `json:"collection_id" bson:"collection_id"`
+	Version          uint64     `json:"version" bson:"version"`
+	ModifiedAt       time.Time  `json:"modified_at" bson:"modified_at"`
+	State            string     `json:"state" bson:"state"`
+	TombstoneVersion uint64     `bson:"tombstone_version" json:"tombstone_version"`
+	TombstoneExpiry  time.Time  `bson:"tombstone_expiry" json:"tombstone_expiry"`
 }
 
 // FileSyncResponse represents the response for file sync data

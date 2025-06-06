@@ -7,8 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
@@ -17,7 +16,7 @@ import (
 )
 
 type SoftDeleteCollectionRequestDTO struct {
-	ID primitive.ObjectID `json:"id"`
+	ID gocql.UUID `json:"id"`
 }
 
 type SoftDeleteCollectionResponseDTO struct {
@@ -71,7 +70,7 @@ func (svc *softDeleteCollectionServiceImpl) Execute(ctx context.Context, req *So
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")

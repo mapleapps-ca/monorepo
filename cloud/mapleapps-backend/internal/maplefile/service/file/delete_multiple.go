@@ -7,8 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
@@ -19,7 +18,7 @@ import (
 )
 
 type DeleteMultipleFilesRequestDTO struct {
-	FileIDs []primitive.ObjectID `json:"file_ids"`
+	FileIDs []gocql.UUID `json:"file_ids"`
 }
 
 type DeleteMultipleFilesResponseDTO struct {
@@ -92,7 +91,7 @@ func (svc *deleteMultipleFilesServiceImpl) Execute(ctx context.Context, req *Del
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")
@@ -184,7 +183,7 @@ func (svc *deleteMultipleFilesServiceImpl) Execute(ctx context.Context, req *Del
 	//
 	// STEP 6: Delete file metadata
 	//
-	deletableFileIDs := make([]primitive.ObjectID, len(deletableFiles))
+	deletableFileIDs := make([]gocql.UUID, len(deletableFiles))
 	for i, file := range deletableFiles {
 		deletableFileIDs[i] = file.ID
 	}

@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
+	"github.com/gocql/gocql"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
@@ -60,7 +61,7 @@ func (impl collectionRepositoryImpl) Create(ctx context.Context, collection *dom
 		}
 
 		// Build ancestors array (parent + parent's ancestors)
-		collection.AncestorIDs = append([]primitive.ObjectID{parent.ID}, parent.AncestorIDs...)
+		collection.AncestorIDs = append([]gocql.UUID{parent.ID}, parent.AncestorIDs...)
 	}
 
 	// Insert collection document

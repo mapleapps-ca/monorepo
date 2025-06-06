@@ -8,13 +8,13 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 
+	"github.com/gocql/gocql"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 )
 
-func (impl fileMetadataRepositoryImpl) SoftDelete(id primitive.ObjectID) error {
+func (impl fileMetadataRepositoryImpl) SoftDelete(id gocql.UUID) error {
 	ctx := context.Background()
 	filter := bson.M{"_id": id}
 
@@ -60,7 +60,7 @@ func (impl fileMetadataRepositoryImpl) SoftDelete(id primitive.ObjectID) error {
 	return nil
 }
 
-func (impl fileMetadataRepositoryImpl) SoftDeleteMany(ids []primitive.ObjectID) error {
+func (impl fileMetadataRepositoryImpl) SoftDeleteMany(ids []gocql.UUID) error {
 	if len(ids) == 0 {
 		return nil
 	}
@@ -108,7 +108,7 @@ func (impl fileMetadataRepositoryImpl) SoftDeleteMany(ids []primitive.ObjectID) 
 }
 
 // Add hard delete method for permanent removal
-func (impl fileMetadataRepositoryImpl) HardDelete(id primitive.ObjectID) error {
+func (impl fileMetadataRepositoryImpl) HardDelete(id gocql.UUID) error {
 	ctx := context.Background()
 	filter := bson.M{"_id": id}
 
@@ -123,7 +123,7 @@ func (impl fileMetadataRepositoryImpl) HardDelete(id primitive.ObjectID) error {
 	return nil
 }
 
-func (impl fileMetadataRepositoryImpl) HardDeleteMany(ids []primitive.ObjectID) error {
+func (impl fileMetadataRepositoryImpl) HardDeleteMany(ids []gocql.UUID) error {
 	if len(ids) == 0 {
 		return nil
 	}

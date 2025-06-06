@@ -11,7 +11,7 @@ import (
 	dom_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/user"
 )
 
-// func (impl userStorerImpl) DeleteByID(ctx context.Context, id primitive.ObjectID) error {
+// func (impl userStorerImpl) DeleteByID(ctx context.Context, id gocql.UUID) error {
 // 	_, err := impl.Collection.DeleteOne(ctx, bson.M{"_id": id})
 // 	if err != nil {
 // 		impl.Logger.Error("database failed deletion error",
@@ -21,7 +21,7 @@ import (
 // 	return nil
 // }
 //
-// func (impl userStorerImpl) CheckIfExistsByID(ctx context.Context, id primitive.ObjectID) (bool, error) {
+// func (impl userStorerImpl) CheckIfExistsByID(ctx context.Context, id gocql.UUID) (bool, error) {
 // 	filter := bson.M{"_id": id}
 // 	count, err := impl.Collection.CountDocuments(ctx, filter)
 // 	if err != nil {

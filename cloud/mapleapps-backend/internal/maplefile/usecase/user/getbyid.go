@@ -7,15 +7,14 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/user"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type UserGetByIDUseCase interface {
-	Execute(ctx context.Context, id primitive.ObjectID) (*dom_user.User, error)
+	Execute(ctx context.Context, id gocql.UUID) (*dom_user.User, error)
 }
 
 type userGetByIDUseCaseImpl struct {
@@ -45,7 +44,7 @@ func NewUserGetByIDUseCase(config *config.Configuration, logger *zap.Logger, rep
 	}
 }
 
-func (uc *userGetByIDUseCaseImpl) Execute(ctx context.Context, id primitive.ObjectID) (*dom_user.User, error) {
+func (uc *userGetByIDUseCaseImpl) Execute(ctx context.Context, id gocql.UUID) (*dom_user.User, error) {
 	// Defensive check: ensure use case was properly initialized
 	if uc.repo == nil {
 		uc.logger.Error("repository is nil - use case was not properly initialized")

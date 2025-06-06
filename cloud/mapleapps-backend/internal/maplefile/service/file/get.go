@@ -6,8 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
@@ -16,7 +15,7 @@ import (
 )
 
 type GetFileService interface {
-	Execute(ctx context.Context, fileID primitive.ObjectID) (*FileResponseDTO, error)
+	Execute(ctx context.Context, fileID gocql.UUID) (*FileResponseDTO, error)
 }
 
 type getFileServiceImpl struct {
@@ -41,7 +40,7 @@ func NewGetFileService(
 	}
 }
 
-func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID primitive.ObjectID) (*FileResponseDTO, error) {
+func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID gocql.UUID) (*FileResponseDTO, error) {
 	//
 	// STEP 1: Validation
 	//
@@ -53,7 +52,7 @@ func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID primitive.Obj
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")

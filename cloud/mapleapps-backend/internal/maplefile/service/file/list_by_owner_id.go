@@ -6,8 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	uc_filemetadata "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata"
@@ -15,7 +14,7 @@ import (
 )
 
 type ListFilesByOwnerIDRequestDTO struct {
-	OwnerID primitive.ObjectID `json:"owner_id"`
+	OwnerID gocql.UUID `json:"owner_id"`
 }
 
 type ListFilesByOwnerIDService interface {
@@ -58,7 +57,7 @@ func (svc *listFilesByOwnerIDServiceImpl) Execute(ctx context.Context, req *List
 	//
 	// STEP 2: Get user ID from context (for authorization)
 	//
-	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		svc.logger.Error("Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")

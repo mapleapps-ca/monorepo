@@ -4,16 +4,16 @@ package filemetadata
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type GetFileMetadataSyncDataUseCase interface {
-	Execute(ctx context.Context, userID primitive.ObjectID, cursor *dom_file.FileSyncCursor, limit int64, accessibleCollectionIDs []primitive.ObjectID) (*dom_file.FileSyncResponse, error)
+	Execute(ctx context.Context, userID gocql.UUID, cursor *dom_file.FileSyncCursor, limit int64, accessibleCollectionIDs []gocql.UUID) (*dom_file.FileSyncResponse, error)
 }
 
 type getFileMetadataSyncDataUseCaseImpl struct {
@@ -31,7 +31,7 @@ func NewGetFileMetadataSyncDataUseCase(
 	return &getFileMetadataSyncDataUseCaseImpl{config, logger, repo}
 }
 
-func (uc *getFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, userID primitive.ObjectID, cursor *dom_file.FileSyncCursor, limit int64, accessibleCollectionIDs []primitive.ObjectID) (*dom_file.FileSyncResponse, error) {
+func (uc *getFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, userID gocql.UUID, cursor *dom_file.FileSyncCursor, limit int64, accessibleCollectionIDs []gocql.UUID) (*dom_file.FileSyncResponse, error) {
 	//
 	// STEP 1: Validation.
 	//

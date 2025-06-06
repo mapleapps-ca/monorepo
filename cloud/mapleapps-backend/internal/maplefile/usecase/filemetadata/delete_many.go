@@ -4,16 +4,16 @@ package filemetadata
 import (
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type DeleteManyFileMetadataUseCase interface {
-	Execute(ids []primitive.ObjectID) error
+	Execute(ids []gocql.UUID) error
 }
 
 type deleteManyFileMetadataUseCaseImpl struct {
@@ -31,7 +31,7 @@ func NewDeleteManyFileMetadataUseCase(
 	return &deleteManyFileMetadataUseCaseImpl{config, logger, repo}
 }
 
-func (uc *deleteManyFileMetadataUseCaseImpl) Execute(ids []primitive.ObjectID) error {
+func (uc *deleteManyFileMetadataUseCaseImpl) Execute(ids []gocql.UUID) error {
 	//
 	// STEP 1: Validation.
 	//

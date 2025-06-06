@@ -4,13 +4,13 @@ package user
 import (
 	"context"
 
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-func (impl userStorerImpl) CheckIfExistsByID(ctx context.Context, id primitive.ObjectID) (bool, error) {
+func (impl userStorerImpl) CheckIfExistsByID(ctx context.Context, id gocql.UUID) (bool, error) {
 	filter := bson.M{"_id": id}
 	count, err := impl.Collection.CountDocuments(ctx, filter)
 	if err != nil {

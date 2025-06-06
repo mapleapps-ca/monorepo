@@ -8,8 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
@@ -20,7 +19,7 @@ import (
 )
 
 type CompleteFileUploadRequestDTO struct {
-	FileID primitive.ObjectID `json:"file_id"`
+	FileID gocql.UUID `json:"file_id"`
 	// Optional: Client can provide actual file size for validation
 	ActualFileSizeInBytes int64 `json:"actual_file_size_in_bytes,omitempty"`
 	// Optional: Client can provide actual thumbnail size for validation
@@ -95,7 +94,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	//
 	// STEP 2: Get user ID from context
 	//
-	userID, ok := ctx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	userID, ok := ctx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
 		svc.logger.Error("🔴 Failed getting user ID from context")
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Authentication context error")

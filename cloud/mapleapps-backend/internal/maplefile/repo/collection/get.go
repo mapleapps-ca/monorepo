@@ -7,15 +7,15 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
+	"github.com/gocql/gocql"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
-func (impl collectionRepositoryImpl) Get(ctx context.Context, id primitive.ObjectID) (*dom_collection.Collection, error) {
+func (impl collectionRepositoryImpl) Get(ctx context.Context, id gocql.UUID) (*dom_collection.Collection, error) {
 	filter := bson.M{
 		"_id":   id,
 		"state": dom_collection.CollectionStateActive, // Only return active collections
@@ -34,7 +34,7 @@ func (impl collectionRepositoryImpl) Get(ctx context.Context, id primitive.Objec
 }
 
 // Add method to get collection regardless of state
-func (impl collectionRepositoryImpl) GetWithAnyState(ctx context.Context, id primitive.ObjectID) (*dom_collection.Collection, error) {
+func (impl collectionRepositoryImpl) GetWithAnyState(ctx context.Context, id gocql.UUID) (*dom_collection.Collection, error) {
 	filter := bson.M{"_id": id}
 
 	var result dom_collection.Collection
@@ -49,7 +49,7 @@ func (impl collectionRepositoryImpl) GetWithAnyState(ctx context.Context, id pri
 	return &result, nil
 }
 
-func (impl collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+func (impl collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerID gocql.UUID) ([]*dom_collection.Collection, error) {
 	// Find active collections owned by this user
 	filter := bson.M{
 		"owner_id": ownerID,
@@ -72,7 +72,7 @@ func (impl collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerID
 	return collections, nil
 }
 
-func (impl collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.Context, userID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+func (impl collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
 	// Find active collections where user is in members array as recipient
 	filter := bson.M{
 		"members.recipient_id": userID,
@@ -96,7 +96,7 @@ func (impl collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.Co
 	return collections, nil
 }
 
-func (impl collectionRepositoryImpl) FindByParent(ctx context.Context, parentID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+func (impl collectionRepositoryImpl) FindByParent(ctx context.Context, parentID gocql.UUID) ([]*dom_collection.Collection, error) {
 	filter := bson.M{
 		"parent_id": parentID,
 		"state":     dom_collection.CollectionStateActive, // Only return active collections
@@ -118,7 +118,7 @@ func (impl collectionRepositoryImpl) FindByParent(ctx context.Context, parentID 
 	return collections, nil
 }
 
-func (impl collectionRepositoryImpl) FindRootCollections(ctx context.Context, ownerID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+func (impl collectionRepositoryImpl) FindRootCollections(ctx context.Context, ownerID gocql.UUID) ([]*dom_collection.Collection, error) {
 	// Root collections are those without a parent
 	filter := bson.M{
 		"owner_id":  ownerID,
@@ -142,7 +142,7 @@ func (impl collectionRepositoryImpl) FindRootCollections(ctx context.Context, ow
 	return collections, nil
 }
 
-func (impl collectionRepositoryImpl) FindDescendants(ctx context.Context, collectionID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+func (impl collectionRepositoryImpl) FindDescendants(ctx context.Context, collectionID gocql.UUID) ([]*dom_collection.Collection, error) {
 	// Find all collections that have this ID in their ancestors array
 	filter := bson.M{"ancestor_ids": collectionID}
 
@@ -165,7 +165,7 @@ func (impl collectionRepositoryImpl) FindDescendants(ctx context.Context, collec
 	return collections, nil
 }
 
-func (impl collectionRepositoryImpl) GetFullHierarchy(ctx context.Context, rootID primitive.ObjectID) (*dom_collection.Collection, error) {
+func (impl collectionRepositoryImpl) GetFullHierarchy(ctx context.Context, rootID gocql.UUID) (*dom_collection.Collection, error) {
 	// First get the root collection
 	rootCollection, err := impl.Get(ctx, rootID)
 	if err != nil {
@@ -187,7 +187,7 @@ func (impl collectionRepositoryImpl) GetFullHierarchy(ctx context.Context, rootI
 	}
 
 	// Build a map of parent ID to children collections
-	childrenMap := make(map[primitive.ObjectID][]*dom_collection.Collection)
+	childrenMap := make(map[gocql.UUID][]*dom_collection.Collection)
 	for _, desc := range descendants {
 		parentID := desc.ParentID
 		childrenMap[parentID] = append(childrenMap[parentID], desc)

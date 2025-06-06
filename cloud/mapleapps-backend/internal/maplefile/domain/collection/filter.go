@@ -1,9 +1,7 @@
 // cloud/backend/internal/maplefile/domain/collection/filter.go
 package collection
 
-import (
-	"go.mongodb.org/mongo-driver/bson/primitive"
-)
+import "github.com/gocql/gocql"
 
 // CollectionFilterOptions defines the filtering options for retrieving collections
 type CollectionFilterOptions struct {
@@ -12,7 +10,7 @@ type CollectionFilterOptions struct {
 	// IncludeShared includes collections where the user is a member (shared with them)
 	IncludeShared bool `json:"include_shared"`
 	// UserID is the user for whom we're filtering collections
-	UserID primitive.ObjectID `json:"user_id"`
+	UserID gocql.UUID `json:"user_id"`
 }
 
 // CollectionFilterResult represents the result of a filtered collection query

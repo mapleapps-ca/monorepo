@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
@@ -62,7 +61,7 @@ func (h *GetPresignedUploadURLHTTPHandler) ServeHTTP(w http.ResponseWriter, req 
 func (h *GetPresignedUploadURLHTTPHandler) unmarshalRequest(
 	ctx context.Context,
 	r *http.Request,
-	fileID primitive.ObjectID,
+	fileID gocql.UUID,
 ) (*svc_file.GetPresignedUploadURLRequestDTO, error) {
 	// Initialize our structure which will store the parsed request data
 	var httpRequestData GetPresignedUploadURLHTTPRequestDTO
@@ -118,7 +117,7 @@ func (h *GetPresignedUploadURLHTTPHandler) Execute(w http.ResponseWriter, r *htt
 	}
 
 	// Convert string ID to ObjectID
-	fileID, err := primitive.ObjectIDFromHex(fileIDStr)
+	fileID, err := gocql.UUIDFromHex(fileIDStr)
 	if err != nil {
 		h.logger.Error("invalid file ID format",
 			zap.String("file_id", fileIDStr),

@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
@@ -56,7 +55,7 @@ func (h *UpdateCollectionHTTPHandler) ServeHTTP(w http.ResponseWriter, req *http
 func (h *UpdateCollectionHTTPHandler) unmarshalRequest(
 	ctx context.Context,
 	r *http.Request,
-	collectionID primitive.ObjectID,
+	collectionID gocql.UUID,
 ) (*svc_collection.UpdateCollectionRequestDTO, error) {
 	// Initialize our structure which will store the parsed request data
 	var requestData svc_collection.UpdateCollectionRequestDTO
@@ -101,7 +100,7 @@ func (h *UpdateCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Req
 	}
 
 	// Convert string ID to ObjectID
-	collectionID, err := primitive.ObjectIDFromHex(collectionIDStr)
+	collectionID, err := gocql.UUIDFromHex(collectionIDStr)
 	if err != nil {
 		h.logger.Error("invalid collection ID format",
 			zap.String("collection_id", collectionIDStr),

@@ -4,16 +4,16 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type GetCollectionUseCase interface {
-	Execute(ctx context.Context, id primitive.ObjectID) (*dom_collection.Collection, error)
+	Execute(ctx context.Context, id gocql.UUID) (*dom_collection.Collection, error)
 }
 
 type getCollectionUseCaseImpl struct {
@@ -31,7 +31,7 @@ func NewGetCollectionUseCase(
 	return &getCollectionUseCaseImpl{config, logger, repo}
 }
 
-func (uc *getCollectionUseCaseImpl) Execute(ctx context.Context, id primitive.ObjectID) (*dom_collection.Collection, error) {
+func (uc *getCollectionUseCaseImpl) Execute(ctx context.Context, id gocql.UUID) (*dom_collection.Collection, error) {
 	//
 	// STEP 1: Validation.
 	//

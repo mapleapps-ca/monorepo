@@ -4,16 +4,16 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type ListCollectionsSharedWithUserUseCase interface {
-	Execute(ctx context.Context, userID primitive.ObjectID) ([]*dom_collection.Collection, error)
+	Execute(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error)
 }
 
 type listCollectionsSharedWithUserUseCaseImpl struct {
@@ -31,7 +31,7 @@ func NewListCollectionsSharedWithUserUseCase(
 	return &listCollectionsSharedWithUserUseCaseImpl{config, logger, repo}
 }
 
-func (uc *listCollectionsSharedWithUserUseCaseImpl) Execute(ctx context.Context, userID primitive.ObjectID) ([]*dom_collection.Collection, error) {
+func (uc *listCollectionsSharedWithUserUseCaseImpl) Execute(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
 	//
 	// STEP 1: Validation.
 	//

@@ -2,16 +2,16 @@
 package filemetadata
 
 import (
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type GetFileMetadataByCollectionUseCase interface {
-	Execute(collectionID primitive.ObjectID) ([]*dom_file.File, error)
+	Execute(collectionID gocql.UUID) ([]*dom_file.File, error)
 }
 
 type getFileMetadataByCollectionUseCaseImpl struct {
@@ -29,7 +29,7 @@ func NewGetFileMetadataByCollectionUseCase(
 	return &getFileMetadataByCollectionUseCaseImpl{config, logger, repo}
 }
 
-func (uc *getFileMetadataByCollectionUseCaseImpl) Execute(collectionID primitive.ObjectID) ([]*dom_file.File, error) {
+func (uc *getFileMetadataByCollectionUseCaseImpl) Execute(collectionID gocql.UUID) ([]*dom_file.File, error) {
 	//
 	// STEP 1: Validation.
 	//

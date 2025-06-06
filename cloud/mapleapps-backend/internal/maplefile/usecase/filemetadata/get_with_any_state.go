@@ -2,16 +2,16 @@
 package filemetadata
 
 import (
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type GetFileMetadataWithAnyStateUseCase interface {
-	Execute(id primitive.ObjectID) (*dom_file.File, error)
+	Execute(id gocql.UUID) (*dom_file.File, error)
 }
 
 type getFileMetadataWithAnyStateUseCaseImpl struct {
@@ -29,7 +29,7 @@ func NewGetFileMetadataWithAnyStateUseCase(
 	return &getFileMetadataWithAnyStateUseCaseImpl{config, logger, repo}
 }
 
-func (uc *getFileMetadataWithAnyStateUseCaseImpl) Execute(id primitive.ObjectID) (*dom_file.File, error) {
+func (uc *getFileMetadataWithAnyStateUseCaseImpl) Execute(id gocql.UUID) (*dom_file.File, error) {
 	//
 	// STEP 1: Validation.
 	//
@@ -66,7 +66,7 @@ func (uc *getFileMetadataWithAnyStateUseCaseImpl) Execute(id primitive.ObjectID)
 // Update to cloud/backend/internal/maplefile/usecase/filemetadata/get.go
 
 // Add this method to the existing getFileMetadataUseCaseImpl:
-func (uc *getFileMetadataUseCaseImpl) ExecuteWithAnyState(id primitive.ObjectID) (*dom_file.File, error) {
+func (uc *getFileMetadataUseCaseImpl) ExecuteWithAnyState(id gocql.UUID) (*dom_file.File, error) {
 	//
 	// STEP 1: Validation.
 	//

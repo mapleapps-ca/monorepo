@@ -2,16 +2,16 @@
 package filemetadata
 
 import (
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type CheckFileAccessUseCase interface {
-	Execute(fileID, userID primitive.ObjectID) (bool, error)
+	Execute(fileID, userID gocql.UUID) (bool, error)
 }
 
 type checkFileAccessUseCaseImpl struct {
@@ -29,7 +29,7 @@ func NewCheckFileAccessUseCase(
 	return &checkFileAccessUseCaseImpl{config, logger, repo}
 }
 
-func (uc *checkFileAccessUseCaseImpl) Execute(fileID, userID primitive.ObjectID) (bool, error) {
+func (uc *checkFileAccessUseCaseImpl) Execute(fileID, userID gocql.UUID) (bool, error) {
 	//
 	// STEP 1: Validation.
 	//
