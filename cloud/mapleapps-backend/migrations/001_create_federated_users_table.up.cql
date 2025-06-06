@@ -37,12 +37,12 @@ CREATE TABLE IF NOT EXISTS mapleapps.federated_users (
 
     -- End-to-End Encryption fields
     password_salt BLOB,
-    kdf_params TEXT, -- JSON representation of KDF parameters
-    encrypted_master_key TEXT, -- JSON representation of encrypted master key
+    kdf_params TEXT,
+    encrypted_master_key TEXT,
     public_key BLOB,
-    encrypted_private_key TEXT, -- JSON representation
-    encrypted_recovery_key TEXT, -- JSON representation
-    master_key_encrypted_with_recovery_key TEXT, -- JSON representation
+    encrypted_private_key TEXT,
+    encrypted_recovery_key TEXT,
+    master_key_encrypted_with_recovery_key TEXT,
     encrypted_challenge BLOB,
     verification_id TEXT,
 
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS mapleapps.federated_users (
     kdf_params_need_upgrade BOOLEAN,
     current_key_version INT,
     last_key_rotation TIMESTAMP,
-    key_rotation_policy TEXT, -- JSON representation
+    key_rotation_policy TEXT,
 
     -- Metadata
     created_from_ip_address TEXT,
@@ -73,10 +73,3 @@ CREATE TABLE IF NOT EXISTS mapleapps.federated_users (
     otp_backup_code_hash TEXT,
     otp_backup_code_hash_algorithm TEXT
 );
-
--- Create secondary indexes for efficient queries
-CREATE INDEX IF NOT EXISTS federated_users_email_idx ON mapleapps.federated_users (email);
-CREATE INDEX IF NOT EXISTS federated_users_verification_code_idx ON mapleapps.federated_users (email_verification_code);
-CREATE INDEX IF NOT EXISTS federated_users_status_idx ON mapleapps.federated_users (status);
-CREATE INDEX IF NOT EXISTS federated_users_role_idx ON mapleapps.federated_users (role);
-CREATE INDEX IF NOT EXISTS federated_users_created_at_idx ON mapleapps.federated_users (created_at);

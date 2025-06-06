@@ -487,13 +487,11 @@ func (s *s3ObjectStorage) GetObjectSize(ctx context.Context, key string) (int64,
 		return 0, err
 	}
 
-	// Based on the compiler errors, ContentLength is likely int64, not *int64
-	// We rely on the HeadObject call successfully returning without NotFound/NoSuchKey
-	// errors to assume the object exists and ContentLength is populated.
+	// result.ContentLength is int64 directly in this AWS SDK version
 	size := result.ContentLength
 	s.Logger.Debug("Retrieved object size",
 		zap.String("key", key),
-		zap.Int64("size", *size)) // Added size to log message
+		zap.Int64("size", size))
 
-	return *size, nil // Changed from *size to size
+	return size, nil
 }

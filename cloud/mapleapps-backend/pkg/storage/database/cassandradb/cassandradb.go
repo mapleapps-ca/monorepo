@@ -51,8 +51,9 @@ func NewCassandraConnection(cfg *config.Configuration) (*gocql.Session, error) {
 		}
 		cluster.Consistency = consistency
 
-		// Set up token-aware host policy for optimal performance
-		cluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
+		// FIXED: Use simple round robin policy instead of token-aware to avoid sharing issues
+		// For development, round robin is sufficient. Token-aware is mainly for production optimization.
+		cluster.PoolConfig.HostSelectionPolicy = gocql.RoundRobinHostPolicy()
 
 		// Configure connection pooling
 		cluster.NumConns = 2
