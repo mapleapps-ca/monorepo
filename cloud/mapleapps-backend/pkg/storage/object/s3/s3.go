@@ -487,8 +487,9 @@ func (s *s3ObjectStorage) GetObjectSize(ctx context.Context, key string) (int64,
 		return 0, err
 	}
 
-	// result.ContentLength is int64 directly in this AWS SDK version
-	size := result.ContentLength
+	// Let's use aws.ToInt64 which handles both pointer and non-pointer cases
+	size := aws.ToInt64(result.ContentLength)
+
 	s.Logger.Debug("Retrieved object size",
 		zap.String("key", key),
 		zap.Int64("size", size))
