@@ -37,10 +37,10 @@ func (uc *checkCollectionAccessUseCaseImpl) Execute(ctx context.Context, collect
 	//
 
 	e := make(map[string]string)
-	if collectionID.IsZero() {
+	if collectionID.String() == "" {
 		e["collection_id"] = "Collection ID is required"
 	}
-	if userID.IsZero() {
+	if userID.String() == "" {
 		e["user_id"] = "User ID is required"
 	}
 	if requiredPermission == "" {

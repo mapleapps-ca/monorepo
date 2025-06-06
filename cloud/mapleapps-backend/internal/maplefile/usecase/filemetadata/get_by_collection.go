@@ -35,7 +35,7 @@ func (uc *getFileMetadataByCollectionUseCaseImpl) Execute(collectionID gocql.UUI
 	//
 
 	e := make(map[string]string)
-	if collectionID.IsZero() {
+	if collectionID.String() == "" {
 		e["collection_id"] = "Collection ID is required"
 	}
 	if len(e) != 0 {

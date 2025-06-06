@@ -10,7 +10,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/user"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodbcache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/cassandracache"
 )
 
 type UserGetBySessionIDUseCase interface {
@@ -20,10 +20,10 @@ type UserGetBySessionIDUseCase interface {
 type userGetBySessionIDUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
-	cache  mongodbcache.Cacher
+	cache  cassandracache.Cacher
 }
 
-func NewUserGetBySessionIDUseCase(config *config.Configuration, logger *zap.Logger, ca mongodbcache.Cacher) UserGetBySessionIDUseCase {
+func NewUserGetBySessionIDUseCase(config *config.Configuration, logger *zap.Logger, ca cassandracache.Cacher) UserGetBySessionIDUseCase {
 	logger = logger.Named("UserGetBySessionIDUseCase")
 	return &userGetBySessionIDUseCaseImpl{config, logger, ca}
 }

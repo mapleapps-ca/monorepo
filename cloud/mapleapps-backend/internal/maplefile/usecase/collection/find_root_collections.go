@@ -37,7 +37,7 @@ func (uc *findRootCollectionsUseCaseImpl) Execute(ctx context.Context, ownerID g
 	//
 
 	e := make(map[string]string)
-	if ownerID.IsZero() {
+	if ownerID.String() == "" {
 		e["owner_id"] = "Owner ID is required"
 	}
 	if len(e) != 0 {

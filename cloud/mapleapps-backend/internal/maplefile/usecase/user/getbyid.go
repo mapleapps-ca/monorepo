@@ -56,13 +56,13 @@ func (uc *userGetByIDUseCaseImpl) Execute(ctx context.Context, id gocql.UUID) (*
 	//
 
 	e := make(map[string]string)
-	if id.IsZero() {
+	if id.String() == "" {
 		e["id"] = "missing value"
 	}
 	if len(e) != 0 {
 		uc.logger.Warn("Validation failed for get by ID",
 			zap.Any("error", e),
-			zap.String("id", id.Hex()))
+			zap.String("id", id.String()))
 		return nil, httperror.NewForBadRequest(&e)
 	}
 
@@ -71,23 +71,23 @@ func (uc *userGetByIDUseCaseImpl) Execute(ctx context.Context, id gocql.UUID) (*
 	//
 
 	uc.logger.Debug("Getting user by ID",
-		zap.String("user_id", id.Hex()))
+		zap.String("user_id", id.String()))
 
 	user, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		uc.logger.Error("Failed to get user from repository",
-			zap.String("user_id", id.Hex()),
+			zap.String("user_id", id.String()),
 			zap.Any("error", err))
 		return nil, err
 	}
 
 	if user != nil {
 		uc.logger.Debug("Successfully retrieved user",
-			zap.String("user_id", id.Hex()),
+			zap.String("user_id", id.String()),
 			zap.String("email", user.Email))
 	} else {
 		uc.logger.Debug("User not found",
-			zap.String("user_id", id.Hex()))
+			zap.String("user_id", id.String()))
 	}
 
 	return user, nil

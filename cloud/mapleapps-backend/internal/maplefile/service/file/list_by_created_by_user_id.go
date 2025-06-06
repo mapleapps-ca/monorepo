@@ -49,7 +49,7 @@ func (svc *listFilesByCreatedByUserIDServiceImpl) Execute(ctx context.Context, r
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "Created by user ID is required")
 	}
 
-	if req.CreatedByUserID.IsZero() {
+	if req.CreatedByUserID.String() == "" {
 		svc.logger.Warn("Empty created by user ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("created_by_user_id", "Created by user ID is required")
 	}

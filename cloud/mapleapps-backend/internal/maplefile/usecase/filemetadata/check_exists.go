@@ -35,7 +35,7 @@ func (uc *checkFileExistsUseCaseImpl) Execute(id gocql.UUID) (bool, error) {
 	//
 
 	e := make(map[string]string)
-	if id.IsZero() {
+	if id.String() == "" {
 		e["id"] = "File ID is required"
 	}
 	if len(e) != 0 {

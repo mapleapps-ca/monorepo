@@ -37,10 +37,10 @@ func (uc *updateMemberPermissionUseCaseImpl) Execute(ctx context.Context, collec
 	//
 
 	e := make(map[string]string)
-	if collectionID.IsZero() {
+	if collectionID.String() == "" {
 		e["collection_id"] = "Collection ID is required"
 	}
-	if recipientID.IsZero() {
+	if recipientID.String() == "" {
 		e["recipient_id"] = "Recipient ID is required"
 	}
 	if newPermission == "" {

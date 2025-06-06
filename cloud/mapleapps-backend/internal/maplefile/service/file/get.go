@@ -44,7 +44,7 @@ func (svc *getFileServiceImpl) Execute(ctx context.Context, fileID gocql.UUID) (
 	//
 	// STEP 1: Validation
 	//
-	if fileID.IsZero() {
+	if fileID.String() == "" {
 		svc.logger.Warn("Empty file ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("file_id", "File ID is required")
 	}

@@ -37,7 +37,7 @@ func (uc *getCollectionHierarchyUseCaseImpl) Execute(ctx context.Context, rootID
 	//
 
 	e := make(map[string]string)
-	if rootID.IsZero() {
+	if rootID.String() == "" {
 		e["root_id"] = "Root collection ID is required"
 	}
 	if len(e) != 0 {

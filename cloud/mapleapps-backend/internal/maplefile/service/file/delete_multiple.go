@@ -78,7 +78,7 @@ func (svc *deleteMultipleFilesServiceImpl) Execute(ctx context.Context, req *Del
 	// Validate individual file IDs
 	e := make(map[string]string)
 	for i, fileID := range req.FileIDs {
-		if fileID.IsZero() {
+		if fileID.String() == "" {
 			e[fmt.Sprintf("file_ids[%d]", i)] = "File ID is required"
 		}
 	}

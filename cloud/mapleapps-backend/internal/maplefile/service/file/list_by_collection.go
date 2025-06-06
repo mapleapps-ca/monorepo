@@ -57,7 +57,7 @@ func (svc *listFilesByCollectionServiceImpl) Execute(ctx context.Context, req *L
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "Collection ID is required")
 	}
 
-	if req.CollectionID.IsZero() {
+	if req.CollectionID.String() == "" {
 		svc.logger.Warn("Empty collection ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("collection_id", "Collection ID is required")
 	}

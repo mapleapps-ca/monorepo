@@ -35,7 +35,7 @@ func (uc *getFileMetadataByOwnerIDUseCaseImpl) Execute(ownerID gocql.UUID) ([]*d
 	//
 
 	e := make(map[string]string)
-	if ownerID.IsZero() {
+	if ownerID.String() == "" {
 		e["owner_id"] = "Created by user ID is required"
 	}
 	if len(e) != 0 {

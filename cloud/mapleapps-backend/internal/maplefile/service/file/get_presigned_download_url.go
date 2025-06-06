@@ -68,7 +68,7 @@ func (svc *getPresignedDownloadURLServiceImpl) Execute(ctx context.Context, req 
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "Request details are required")
 	}
 
-	if req.FileID.IsZero() {
+	if req.FileID.String() == "" {
 		svc.logger.Warn("⚠️ Empty file ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("file_id", "File ID is required")
 	}

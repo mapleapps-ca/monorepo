@@ -56,7 +56,7 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 	}
 
 	e := make(map[string]string)
-	if req.ID.IsZero() {
+	if req.ID.String() == "" {
 		e["id"] = "Collection ID is required"
 	}
 	if req.EncryptedName == "" {

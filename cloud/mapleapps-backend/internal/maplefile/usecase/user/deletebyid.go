@@ -33,7 +33,7 @@ func (uc *userDeleteByIDImpl) Execute(ctx context.Context, id gocql.UUID) error 
 	//
 
 	e := make(map[string]string)
-	if id.IsZero() {
+	if id.String() == "" {
 		e["id"] = "missing value"
 	}
 	if len(e) != 0 {

@@ -63,7 +63,7 @@ func (svc *updateFileServiceImpl) Execute(ctx context.Context, req *UpdateFileRe
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "File update details are required")
 	}
 
-	if req.ID.IsZero() {
+	if req.ID.String() == "" {
 		svc.logger.Warn("Empty file ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("id", "File ID is required")
 	}

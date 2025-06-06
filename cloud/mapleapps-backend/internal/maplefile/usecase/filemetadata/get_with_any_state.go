@@ -35,7 +35,7 @@ func (uc *getFileMetadataWithAnyStateUseCaseImpl) Execute(id gocql.UUID) (*dom_f
 	//
 
 	e := make(map[string]string)
-	if id.IsZero() {
+	if id.String() == "" {
 		e["id"] = "File ID is required"
 	}
 	if len(e) != 0 {
@@ -72,7 +72,7 @@ func (uc *getFileMetadataUseCaseImpl) ExecuteWithAnyState(id gocql.UUID) (*dom_f
 	//
 
 	e := make(map[string]string)
-	if id.IsZero() {
+	if id.String() == "" {
 		e["id"] = "File ID is required"
 	}
 	if len(e) != 0 {

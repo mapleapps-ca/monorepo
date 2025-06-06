@@ -57,10 +57,10 @@ func (svc *removeMemberServiceImpl) Execute(ctx context.Context, req *RemoveMemb
 	}
 
 	e := make(map[string]string)
-	if req.CollectionID.IsZero() {
+	if req.CollectionID.String() == "" {
 		e["collection_id"] = "Collection ID is required"
 	}
-	if req.RecipientID.IsZero() {
+	if req.RecipientID.String() == "" {
 		e["recipient_id"] = "Recipient ID is required"
 	}
 

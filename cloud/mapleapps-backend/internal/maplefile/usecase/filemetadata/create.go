@@ -37,10 +37,10 @@ func (uc *createFileMetadataUseCaseImpl) Execute(file *dom_file.File) error {
 	if file == nil {
 		e["file"] = "File is required"
 	} else {
-		if file.CollectionID.IsZero() {
+		if file.CollectionID.String() == "" {
 			e["collection_id"] = "Collection ID is required"
 		}
-		if file.OwnerID.IsZero() {
+		if file.OwnerID.String() == "" {
 			e["owner_id"] = "Owner ID is required"
 		}
 		if file.EncryptedMetadata == "" {

@@ -36,7 +36,7 @@ func (uc *getFilteredCollectionsUseCaseImpl) Execute(ctx context.Context, option
 	//
 
 	e := make(map[string]string)
-	if options.UserID.IsZero() {
+	if options.UserID.String() == "" {
 		e["user_id"] = "User ID is required"
 	}
 	if !options.IsValid() {

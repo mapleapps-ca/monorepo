@@ -49,7 +49,7 @@ func (svc *listFilesByOwnerIDServiceImpl) Execute(ctx context.Context, req *List
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "Owner ID is required")
 	}
 
-	if req.OwnerID.IsZero() {
+	if req.OwnerID.String() == "" {
 		svc.logger.Warn("Empty owner ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("owner_id", "Owner ID is required")
 	}

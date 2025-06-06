@@ -40,7 +40,7 @@ func (svc *getCollectionHierarchyServiceImpl) Execute(ctx context.Context, rootI
 	//
 	// STEP 1: Validation
 	//
-	if rootID.IsZero() {
+	if rootID.String() == "" {
 		svc.logger.Warn("Empty collection ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("root_id", "Collection ID is required")
 	}

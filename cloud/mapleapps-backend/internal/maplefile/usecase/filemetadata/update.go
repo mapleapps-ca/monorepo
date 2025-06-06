@@ -39,13 +39,13 @@ func (uc *updateFileMetadataUseCaseImpl) Execute(ctx context.Context, file *dom_
 	if file == nil {
 		e["file"] = "File is required"
 	} else {
-		if file.ID.IsZero() {
+		if file.ID.String() == "" {
 			e["id"] = "File ID is required"
 		}
-		if file.CollectionID.IsZero() {
+		if file.CollectionID.String() == "" {
 			e["collection_id"] = "Collection ID is required"
 		}
-		if file.OwnerID.IsZero() {
+		if file.OwnerID.String() == "" {
 			e["owner_id"] = "Owner ID is required"
 		}
 		if file.EncryptedMetadata == "" {

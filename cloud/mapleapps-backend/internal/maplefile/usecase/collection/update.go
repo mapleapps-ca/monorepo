@@ -39,7 +39,7 @@ func (uc *updateCollectionUseCaseImpl) Execute(ctx context.Context, collection *
 	if collection == nil {
 		e["collection"] = "Collection is required"
 	} else {
-		if collection.ID.IsZero() {
+		if collection.ID.String() == "" {
 			e["id"] = "Collection ID is required"
 		}
 	}

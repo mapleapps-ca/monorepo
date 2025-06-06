@@ -58,10 +58,10 @@ func (svc *moveCollectionServiceImpl) Execute(ctx context.Context, req *MoveColl
 	}
 
 	e := make(map[string]string)
-	if req.CollectionID.IsZero() {
+	if req.CollectionID.String() == "" {
 		e["collection_id"] = "Collection ID is required"
 	}
-	if req.NewParentID.IsZero() {
+	if req.NewParentID.String() == "" {
 		e["new_parent_id"] = "New parent ID is required"
 	}
 	if len(req.UpdatedAncestors) == 0 {

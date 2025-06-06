@@ -98,7 +98,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	}
 
 	e := make(map[string]string)
-	if req.ID.IsZero() {
+	if req.ID.String() == "" {
 		e["id"] = "Client-side generated ID is required"
 	}
 	doesExist, err := svc.checkFileExistsUseCase.Execute(req.ID)
@@ -108,7 +108,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	if doesExist {
 		e["id"] = "Client-side generated ID already exists"
 	}
-	if req.CollectionID.IsZero() {
+	if req.CollectionID.String() == "" {
 		e["collection_id"] = "Collection ID is required"
 	}
 	if req.EncryptedMetadata == "" {
@@ -161,8 +161,8 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	//
 	// STEP 4: Generate storage paths.
 	//
-	storagePath := generateStoragePath(userID.Hex(), req.ID.Hex())
-	thumbnailStoragePath := generateThumbnailStoragePath(userID.Hex(), req.ID.Hex())
+	storagePath := generateStoragePath(userID.String(), req.ID.String())
+	thumbnailStoragePath := generateThumbnailStoragePath(userID.String(), req.ID.String())
 
 	//
 	// STEP 5: Generate presigned upload URLs

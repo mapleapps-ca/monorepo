@@ -55,13 +55,13 @@ func (svc *getFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom_
 	// STEP 2: Get accessible collections for the user
 	//
 	svc.logger.Debug("Getting accessible collections for file sync",
-		zap.String("user_id", userID.Hex()))
+		zap.String("user_id", userID.String()))
 
 	// Get collections where user is owner
 	ownedCollections, err := svc.collectionRepository.GetAllByUserID(ctx, userID)
 	if err != nil {
 		svc.logger.Error("Failed to get owned collections",
-			zap.String("user_id", userID.Hex()),
+			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Failed to get accessible collections")
 	}
@@ -70,7 +70,7 @@ func (svc *getFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom_
 	sharedCollections, err := svc.collectionRepository.GetCollectionsSharedWithUser(ctx, userID)
 	if err != nil {
 		svc.logger.Error("Failed to get shared collections",
-			zap.String("user_id", userID.Hex()),
+			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Failed to get accessible collections")
 	}
@@ -89,7 +89,7 @@ func (svc *getFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom_
 	}
 
 	svc.logger.Debug("Found accessible collections for file sync",
-		zap.String("user_id", userID.Hex()),
+		zap.String("user_id", userID.String()),
 		zap.Int("owned_count", len(ownedCollections)),
 		zap.Int("shared_count", len(sharedCollections)),
 		zap.Int("total_accessible", len(accessibleCollectionIDs)))
@@ -97,7 +97,7 @@ func (svc *getFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom_
 	// If no accessible collections, return empty response
 	if len(accessibleCollectionIDs) == 0 {
 		svc.logger.Info("User has no accessible collections for file sync",
-			zap.String("user_id", userID.Hex()))
+			zap.String("user_id", userID.String()))
 		return &dom_file.FileSyncResponse{
 			Files:      []dom_file.FileSyncItem{},
 			NextCursor: nil,
@@ -112,18 +112,18 @@ func (svc *getFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom_
 	if err != nil {
 		svc.logger.Error("Failed to get file sync data",
 			zap.Any("error", err),
-			zap.String("user_id", userID.Hex()))
+			zap.String("user_id", userID.String()))
 		return nil, err
 	}
 
 	if syncData == nil {
 		svc.logger.Debug("File sync data not found",
-			zap.String("user_id", userID.Hex()))
+			zap.String("user_id", userID.String()))
 		return nil, httperror.NewForNotFoundWithSingleField("message", "File sync results not found")
 	}
 
 	svc.logger.Debug("File sync data successfully retrieved",
-		zap.String("user_id", userID.Hex()),
+		zap.String("user_id", userID.String()),
 		zap.Any("next_cursor.", syncData.NextCursor),
 		zap.Int("files_count", len(syncData.Files)))
 

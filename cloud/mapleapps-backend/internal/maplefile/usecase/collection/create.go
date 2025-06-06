@@ -39,7 +39,7 @@ func (uc *createCollectionUseCaseImpl) Execute(ctx context.Context, collection *
 	if collection == nil {
 		e["collection"] = "Collection is required"
 	} else {
-		if collection.OwnerID.IsZero() {
+		if collection.OwnerID.String() == "" {
 			e["owner_id"] = "Owner ID is required"
 		}
 		if collection.EncryptedName == "" {

@@ -8,8 +8,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
 	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
@@ -127,7 +125,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	}
 
 	e := make(map[string]string)
-	if req.ID.IsZero() {
+	if req.ID.String() == "" {
 		e["encrypted_name"] = "Client-side generated ID is required"
 	}
 	if req.EncryptedName == "" {
@@ -166,7 +164,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 		return nil, fmt.Errorf("Failed getting federated user from database: %v", err)
 	}
 	if federateduser == nil {
-		return nil, fmt.Errorf("User does not exist for federated iam id: %v", userID.Hex())
+		return nil, fmt.Errorf("User does not exist for federated iam id: %v", userID.String())
 	}
 
 	//
@@ -181,7 +179,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	// Apply server-side mandatory fields/overrides for the top-level collection.
 	// These values are managed by the backend regardless of what the client provides in the DTO.
 	// This ensures data integrity and reflects the server's perspective of the creation event.
-	collection.ID = primitive.NewObjectID()                 // Always generate a new ID on the server for a new creation
+	collection.ID = gocql.TimeUUID()                        // Always generate a new ID on the server for a new creation
 	collection.OwnerID = userID                             // The authenticated user is the authoritative owner
 	collection.CreatedAt = now                              // Server timestamp for creation
 	collection.ModifiedAt = now                             // Server timestamp for modification
@@ -212,7 +210,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	if !ownerAlreadyMember {
 		svc.logger.Debug("☑️ Owner is not in the members list, add their mandatory membership now")
 		ownerMembership := dom_collection.CollectionMembership{
-			ID:              primitive.NewObjectID(), // Unique ID for this specific membership record
+			ID:              gocql.TimeUUID(), // Unique ID for this specific membership record
 			RecipientID:     userID,
 			RecipientEmail:  federateduser.Email,
 			CollectionID:    collection.ID,                            // Link to the newly created collection ID
@@ -229,17 +227,17 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 	}
 
 	svc.logger.Debug("🔍 Collection debugging info",
-		zap.String("collectionID", collection.ID.Hex()),
-		zap.String("collectionOwnerID", collection.OwnerID.Hex()),
-		zap.String("currentUserID", userID.Hex()),
+		zap.String("collectionID", collection.ID.String()),
+		zap.String("collectionOwnerID", collection.OwnerID.String()),
+		zap.String("currentUserID", userID.String()),
 		zap.Int("totalMembers", len(collection.Members)),
 		zap.String("encryptedName", collection.EncryptedName))
 
 	for i, memberDTO := range collection.Members {
 		svc.logger.Debug("🔍 Cloud collection member DTO",
 			zap.Int("memberIndex", i),
-			zap.String("memberID", memberDTO.ID.Hex()),
-			zap.String("recipientID", memberDTO.RecipientID.Hex()),
+			zap.String("memberID", memberDTO.ID.String()),
+			zap.String("recipientID", memberDTO.RecipientID.String()),
 			zap.String("recipientEmail", memberDTO.RecipientEmail),
 			zap.String("permissionLevel", memberDTO.PermissionLevel),
 			zap.Bool("isInherited", memberDTO.IsInherited),
@@ -248,7 +246,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 
 	// ENHANCED DEBUGGING: Log current user info for comparison
 	svc.logger.Debug("🔍 Current user info for comparison",
-		zap.String("currentUserID", federateduser.ID.Hex()),
+		zap.String("currentUserID", federateduser.ID.String()),
 		zap.String("currentUserEmail", federateduser.Email),
 		zap.String("currentUserName", federateduser.Name))
 

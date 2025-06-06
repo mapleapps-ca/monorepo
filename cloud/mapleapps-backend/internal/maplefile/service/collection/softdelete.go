@@ -62,7 +62,7 @@ func (svc *softDeleteCollectionServiceImpl) Execute(ctx context.Context, req *So
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "Collection ID is required")
 	}
 
-	if req.ID.IsZero() {
+	if req.ID.String() == "" {
 		svc.logger.Warn("Empty collection ID")
 		return nil, httperror.NewForBadRequestWithSingleField("id", "Collection ID is required")
 	}

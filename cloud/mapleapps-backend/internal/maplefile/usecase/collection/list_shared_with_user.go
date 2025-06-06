@@ -37,7 +37,7 @@ func (uc *listCollectionsSharedWithUserUseCaseImpl) Execute(ctx context.Context,
 	//
 
 	e := make(map[string]string)
-	if userID.IsZero() {
+	if userID.String() == "" {
 		e["user_id"] = "User ID is required"
 	}
 	if len(e) != 0 {

@@ -37,7 +37,7 @@ func (uc *findDescendantsUseCaseImpl) Execute(ctx context.Context, collectionID 
 	//
 
 	e := make(map[string]string)
-	if collectionID.IsZero() {
+	if collectionID.String() == "" {
 		e["collection_id"] = "Collection ID is required"
 	}
 	if len(e) != 0 {

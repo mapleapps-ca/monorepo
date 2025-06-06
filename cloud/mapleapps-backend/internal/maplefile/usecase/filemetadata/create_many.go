@@ -44,10 +44,10 @@ func (uc *createManyFileMetadataUseCaseImpl) Execute(files []*dom_file.File) err
 				e[fmt.Sprintf("files[%d]", i)] = "File is required"
 				continue
 			}
-			if file.CollectionID.IsZero() {
+			if file.CollectionID.String() == "" {
 				e[fmt.Sprintf("files[%d].collection_id", i)] = "Collection ID is required"
 			}
-			if file.OwnerID.IsZero() {
+			if file.OwnerID.String() == "" {
 				e[fmt.Sprintf("files[%d].owner_id", i)] = "Owner ID is required"
 			}
 			if file.EncryptedMetadata == "" {

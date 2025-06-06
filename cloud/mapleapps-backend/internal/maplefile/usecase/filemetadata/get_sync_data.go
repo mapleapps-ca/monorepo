@@ -37,7 +37,7 @@ func (uc *getFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, userI
 	//
 
 	e := make(map[string]string)
-	if userID.IsZero() {
+	if userID.String() == "" {
 		e["user_id"] = "User ID is required"
 	}
 	if len(accessibleCollectionIDs) == 0 {
@@ -50,7 +50,7 @@ func (uc *getFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, userI
 	}
 
 	uc.logger.Debug("Getting file sync data",
-		zap.String("user_id", userID.Hex()),
+		zap.String("user_id", userID.String()),
 		zap.Int("accessible_collections_count", len(accessibleCollectionIDs)),
 		zap.Any("cursor", cursor),
 		zap.Int64("limit", limit))
@@ -63,7 +63,7 @@ func (uc *getFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, userI
 	if err != nil {
 		uc.logger.Error("Failed to get file sync data from repository",
 			zap.Any("error", err),
-			zap.String("user_id", userID.Hex()))
+			zap.String("user_id", userID.String()))
 		return nil, err
 	}
 

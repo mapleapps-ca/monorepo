@@ -41,7 +41,7 @@ func (uc *deleteManyFileMetadataUseCaseImpl) Execute(ids []gocql.UUID) error {
 		e["ids"] = "File IDs are required"
 	} else {
 		for i, id := range ids {
-			if id.IsZero() {
+			if id.String() == "" {
 				e[fmt.Sprintf("ids[%d]", i)] = "File ID is required"
 			}
 		}

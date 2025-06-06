@@ -40,7 +40,7 @@ func (svc *getCollectionServiceImpl) Execute(ctx context.Context, collectionID g
 	//
 	// STEP 1: Validation
 	//
-	if collectionID.IsZero() {
+	if collectionID.String() == "" {
 		svc.logger.Warn("Empty collection ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("collection_id", "Collection ID is required")
 	}

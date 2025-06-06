@@ -49,7 +49,7 @@ func (svc *findCollectionsByParentServiceImpl) Execute(ctx context.Context, req 
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "Parent ID is required")
 	}
 
-	if req.ParentID.IsZero() {
+	if req.ParentID.String() == "" {
 		svc.logger.Warn("Empty parent ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("parent_id", "Parent ID is required")
 	}

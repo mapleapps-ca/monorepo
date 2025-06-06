@@ -45,10 +45,10 @@ func (uc *moveCollectionUseCaseImpl) Execute(ctx context.Context, request MoveCo
 	//
 
 	e := make(map[string]string)
-	if request.CollectionID.IsZero() {
+	if request.CollectionID.String() == "" {
 		e["collection_id"] = "Collection ID is required"
 	}
-	if request.NewParentID.IsZero() {
+	if request.NewParentID.String() == "" {
 		e["new_parent_id"] = "New parent ID is required"
 	}
 	if len(request.UpdatedAncestors) == 0 {

@@ -41,7 +41,7 @@ func (svc *getCollectionSyncDataServiceImpl) Execute(ctx context.Context, userID
 	//
 	// STEP 1: Validation
 	//
-	// if options.UserID.IsZero() {
+	// if options.UserID.String()==""{
 	// 	svc.logger.Warn("Empty user ID provided")
 	// 	return nil, httperror.NewForBadRequestWithSingleField("user_id", "User ID is required")
 	// }

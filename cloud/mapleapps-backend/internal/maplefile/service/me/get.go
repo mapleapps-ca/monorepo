@@ -122,7 +122,7 @@ func (svc *getMeServiceImpl) Execute(sessCtx context.Context) (*MeResponseDTO, e
 			return nil, fmt.Errorf("Failed getting federated user from database: %v", err)
 		}
 		if federateduser == nil {
-			return nil, fmt.Errorf("User does not exist for federated iam id: %v", userID.Hex())
+			return nil, fmt.Errorf("User does not exist for federated iam id: %v", userID.String())
 		}
 
 		user = &dom_user.User{

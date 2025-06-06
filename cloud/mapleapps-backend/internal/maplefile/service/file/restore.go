@@ -63,7 +63,7 @@ func (svc *restoreFileServiceImpl) Execute(ctx context.Context, req *RestoreFile
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "File ID is required")
 	}
 
-	if req.FileID.IsZero() {
+	if req.FileID.String() == "" {
 		svc.logger.Warn("Empty file ID provided")
 		return nil, httperror.NewForBadRequestWithSingleField("file_id", "File ID is required")
 	}

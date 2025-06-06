@@ -35,7 +35,7 @@ func (uc *getFileMetadataByCreatedByUserIDUseCaseImpl) Execute(createdByUserID g
 	//
 
 	e := make(map[string]string)
-	if createdByUserID.IsZero() {
+	if createdByUserID.String() == "" {
 		e["created_by_user_id"] = "Created by user ID is required"
 	}
 	if len(e) != 0 {

@@ -37,7 +37,7 @@ func (uc *softDeleteCollectionUseCaseImpl) Execute(ctx context.Context, id gocql
 	//
 
 	e := make(map[string]string)
-	if id.IsZero() {
+	if id.String() == "" {
 		e["id"] = "Collection ID is required"
 	}
 	if len(e) != 0 {

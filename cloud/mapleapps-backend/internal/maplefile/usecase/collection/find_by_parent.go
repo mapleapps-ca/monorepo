@@ -37,7 +37,7 @@ func (uc *findCollectionsByParentUseCaseImpl) Execute(ctx context.Context, paren
 	//
 
 	e := make(map[string]string)
-	if parentID.IsZero() {
+	if parentID.String() == "" {
 		e["parent_id"] = "Parent ID is required"
 	}
 	if len(e) != 0 {

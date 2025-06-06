@@ -37,19 +37,19 @@ func (uc *addCollectionMemberUseCaseImpl) Execute(ctx context.Context, collectio
 	//
 
 	e := make(map[string]string)
-	if collectionID.IsZero() {
+	if collectionID.String() == "" {
 		e["collection_id"] = "Collection ID is required"
 	}
 	if membership == nil {
 		e["membership"] = "Membership details are required"
 	} else {
-		if membership.RecipientID.IsZero() {
+		if membership.RecipientID.String() == "" {
 			e["recipient_id"] = "Recipient ID is required"
 		}
 		if membership.RecipientEmail == "" {
 			e["recipient_email"] = "Recipient email is required"
 		}
-		if membership.GrantedByID.IsZero() {
+		if membership.GrantedByID.String() == "" {
 			e["granted_by_id"] = "Granted by ID is required"
 		}
 		if len(membership.EncryptedCollectionKey) == 0 {

@@ -37,10 +37,10 @@ func (uc *removeMemberFromHierarchyUseCaseImpl) Execute(ctx context.Context, roo
 	//
 
 	e := make(map[string]string)
-	if rootID.IsZero() {
+	if rootID.String() == "" {
 		e["root_id"] = "Root collection ID is required"
 	}
-	if recipientID.IsZero() {
+	if recipientID.String() == "" {
 		e["recipient_id"] = "Recipient ID is required"
 	}
 	if len(e) != 0 {

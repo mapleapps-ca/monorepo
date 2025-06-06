@@ -7,8 +7,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
 	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
@@ -64,10 +62,10 @@ func (svc *shareCollectionServiceImpl) Execute(ctx context.Context, req *ShareCo
 	}
 
 	e := make(map[string]string)
-	if req.CollectionID.IsZero() {
+	if req.CollectionID.String() == "" {
 		e["collection_id"] = "Collection ID is required"
 	}
-	if req.RecipientID.IsZero() {
+	if req.RecipientID.String() == "" {
 		e["recipient_id"] = "Recipient ID is required"
 	}
 	if req.RecipientEmail == "" {
@@ -145,7 +143,7 @@ func (svc *shareCollectionServiceImpl) Execute(ctx context.Context, req *ShareCo
 	// STEP 5: Create membership
 	//
 	membership := &dom_collection.CollectionMembership{
-		ID:                     primitive.NewObjectID(),
+		ID:                     gocql.TimeUUID(),
 		CollectionID:           req.CollectionID,
 		RecipientID:            req.RecipientID,
 		RecipientEmail:         req.RecipientEmail,

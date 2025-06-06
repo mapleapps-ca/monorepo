@@ -35,10 +35,10 @@ func (uc *checkFileAccessUseCaseImpl) Execute(fileID, userID gocql.UUID) (bool, 
 	//
 
 	e := make(map[string]string)
-	if fileID.IsZero() {
+	if fileID.String() == "" {
 		e["file_id"] = "File ID is required"
 	}
-	if userID.IsZero() {
+	if userID.String() == "" {
 		e["user_id"] = "User ID is required"
 	}
 	if len(e) != 0 {

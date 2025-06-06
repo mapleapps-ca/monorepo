@@ -121,7 +121,7 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 	if err != nil {
 		// If it's a "not found" error, it's a critical issue since the ID came from the context.
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			err := fmt.Errorf("authenticated user does not exist for id: %v", userID.Hex())
+			err := fmt.Errorf("authenticated user does not exist for id: %v", userID.String())
 			svc.logger.Error("Failed getting authenticated user", zap.Any("error", err))
 			return nil, err
 		}
@@ -131,7 +131,7 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 	}
 	// Defensive check, though GetByID should return ErrNoDocuments if not found.
 	if user == nil {
-		err := fmt.Errorf("user is nil after lookup for id: %v", userID.Hex())
+		err := fmt.Errorf("user is nil after lookup for id: %v", userID.String())
 		svc.logger.Error("Failed getting user", zap.Any("error", err))
 		return nil, err
 	}
@@ -150,8 +150,8 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 			// The important check is implicit: if existingUser is not nil, the email is taken.
 			// We already know req.Email != user.Email, so if existingUser is found, it *must* be another user.
 			svc.logger.Warn("Attempted to update to an email already in use",
-				zap.String("user_id", userID.Hex()),
-				zap.String("existing_user_id", existingUser.ID.Hex()),
+				zap.String("user_id", userID.String()),
+				zap.String("existing_user_id", existingUser.ID.String()),
 				zap.String("email", req.Email))
 			e["email"] = "This email address is already in use."
 			return nil, httperror.NewForBadRequest(&e)
@@ -178,13 +178,13 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 
 	// Persist changes
 	if err := svc.userUpdateUseCase.Execute(sessCtx, user); err != nil {
-		svc.logger.Error("Failed updating user", zap.Any("error", err), zap.String("user_id", user.ID.Hex()))
+		svc.logger.Error("Failed updating user", zap.Any("error", err), zap.String("user_id", user.ID.String()))
 		// Consider mapping specific DB errors (like constraint violations) to HTTP errors if applicable
 		return nil, err
 	}
 
 	svc.logger.Debug("User updated successfully",
-		zap.String("user_id", user.ID.Hex()))
+		zap.String("user_id", user.ID.String()))
 
 	// Return updated user details
 	return &MeResponseDTO{
