@@ -10,7 +10,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodbcache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/cassandracache"
 )
 
 type FederatedUserGetBySessionIDUseCase interface {
@@ -20,10 +20,10 @@ type FederatedUserGetBySessionIDUseCase interface {
 type userGetBySessionIDUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
-	cache  mongodbcache.Cacher
+	cache  cassandracache.Cacher
 }
 
-func NewFederatedUserGetBySessionIDUseCase(config *config.Configuration, logger *zap.Logger, ca mongodbcache.Cacher) FederatedUserGetBySessionIDUseCase {
+func NewFederatedUserGetBySessionIDUseCase(config *config.Configuration, logger *zap.Logger, ca cassandracache.Cacher) FederatedUserGetBySessionIDUseCase {
 	return &userGetBySessionIDUseCaseImpl{config, logger, ca}
 }
 

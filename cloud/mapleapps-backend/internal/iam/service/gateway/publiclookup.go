@@ -13,7 +13,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/jwt"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/password"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodbcache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/cassandracache"
 )
 
 type GatewayFederatedUserPublicLookupRequestDTO struct {
@@ -36,7 +36,7 @@ type gatewayFederatedUserPublicLookupServiceImpl struct {
 	config                *config.Configuration
 	logger                *zap.Logger
 	passwordProvider      password.Provider
-	cache                 mongodbcache.Cacher
+	cache                 cassandracache.Cacher
 	jwtProvider           jwt.Provider
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
 }
@@ -45,7 +45,7 @@ func NewGatewayFederatedUserPublicLookupService(
 	cfg *config.Configuration,
 	logger *zap.Logger,
 	pp password.Provider,
-	cach mongodbcache.Cacher,
+	cach cassandracache.Cacher,
 	jwtp jwt.Provider,
 	uc1 uc_user.FederatedUserGetByEmailUseCase,
 ) GatewayFederatedUserPublicLookupService {

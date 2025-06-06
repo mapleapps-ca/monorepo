@@ -11,7 +11,7 @@ import (
 	domain "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/federateduser"
 	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/jwt"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodbcache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/cassandracache"
 )
 
 type GatewayRefreshTokenService interface {
@@ -22,13 +22,13 @@ type GatewayRefreshTokenService interface {
 }
 
 type gatewayRefreshTokenServiceImpl struct {
-	cache                 mongodbcache.Cacher
+	cache                 cassandracache.Cacher
 	jwtProvider           jwt.Provider
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
 }
 
 func NewGatewayRefreshTokenService(
-	cach mongodbcache.Cacher,
+	cach cassandracache.Cacher,
 	jwtp jwt.Provider,
 	uc1 uc_user.FederatedUserGetByEmailUseCase,
 ) GatewayRefreshTokenService {

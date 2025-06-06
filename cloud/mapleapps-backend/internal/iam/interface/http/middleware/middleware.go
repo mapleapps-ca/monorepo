@@ -5,7 +5,6 @@ import (
 	"context"
 	"net/http"
 
-	uc_bannedipaddress "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/bannedipaddress"
 	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/jwt"
 	"go.uber.org/zap"
@@ -17,25 +16,22 @@ type Middleware interface {
 }
 
 type middleware struct {
-	logger                              *zap.Logger
-	jwt                                 jwt.Provider
-	userGetBySessionIDUseCase           uc_user.FederatedUserGetBySessionIDUseCase
-	bannedIPAddressListAllValuesUseCase uc_bannedipaddress.BannedIPAddressListAllValuesUseCase
+	logger                    *zap.Logger
+	jwt                       jwt.Provider
+	userGetBySessionIDUseCase uc_user.FederatedUserGetBySessionIDUseCase
 }
 
 func NewMiddleware(
 	logger *zap.Logger,
 	jwtp jwt.Provider,
 	uc1 uc_user.FederatedUserGetBySessionIDUseCase,
-	uc2 uc_bannedipaddress.BannedIPAddressListAllValuesUseCase,
 ) Middleware {
 	logger = logger.With(zap.String("module", "iam"))
 	logger = logger.Named("IAM Middleware")
 	return &middleware{
-		logger:                              logger,
-		jwt:                                 jwtp,
-		userGetBySessionIDUseCase:           uc1,
-		bannedIPAddressListAllValuesUseCase: uc2,
+		logger:                    logger,
+		jwt:                       jwtp,
+		userGetBySessionIDUseCase: uc1,
 	}
 }
 

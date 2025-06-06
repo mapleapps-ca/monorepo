@@ -12,7 +12,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/jwt"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/password"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodbcache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/cassandracache"
 )
 
 type TokenGetSessionService interface {
@@ -22,7 +22,7 @@ type TokenGetSessionService interface {
 type tokenGetSessionServiceImpl struct {
 	logger                    *zap.Logger
 	passwordProvider          password.Provider
-	cache                     mongodbcache.Cacher
+	cache                     cassandracache.Cacher
 	jwtProvider               jwt.Provider
 	userGetBySessionIDUseCase uc_user.FederatedUserGetBySessionIDUseCase
 }
@@ -30,7 +30,7 @@ type tokenGetSessionServiceImpl struct {
 func NewTokenGetSessionService(
 	logger *zap.Logger,
 	pp password.Provider,
-	cach mongodbcache.Cacher,
+	cach cassandracache.Cacher,
 	jwtp jwt.Provider,
 	userGetBySessionIDUseCase uc_user.FederatedUserGetBySessionIDUseCase,
 ) TokenGetSessionService {

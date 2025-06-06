@@ -21,7 +21,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/crypto"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/jwt"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodbcache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/cassandracache"
 )
 
 // Data structures for OTT verification
@@ -67,7 +67,7 @@ type GatewayVerifyLoginOTTService interface {
 type gatewayVerifyLoginOTTServiceImpl struct {
 	config                *config.Configuration
 	logger                *zap.Logger
-	cache                 mongodbcache.Cacher
+	cache                 cassandracache.Cacher
 	jwtProvider           jwt.Provider
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
 }
@@ -75,7 +75,7 @@ type gatewayVerifyLoginOTTServiceImpl struct {
 func NewGatewayVerifyLoginOTTService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	cache mongodbcache.Cacher,
+	cache cassandracache.Cacher,
 	jwtProvider jwt.Provider,
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase,
 ) GatewayVerifyLoginOTTService {

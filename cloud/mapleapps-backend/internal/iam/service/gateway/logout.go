@@ -5,7 +5,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodbcache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/cassandracache"
 )
 
 type GatewayLogoutService interface {
@@ -13,11 +13,11 @@ type GatewayLogoutService interface {
 }
 
 type gatewayLogoutServiceImpl struct {
-	cache mongodbcache.Cacher
+	cache cassandracache.Cacher
 }
 
 func NewGatewayLogoutService(
-	cach mongodbcache.Cacher,
+	cach cassandracache.Cacher,
 ) GatewayLogoutService {
 	return &gatewayLogoutServiceImpl{cach}
 }

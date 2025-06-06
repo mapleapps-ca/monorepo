@@ -6,15 +6,14 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type FederatedUserDeleteByIDUseCase interface {
-	Execute(ctx context.Context, id primitive.ObjectID) error
+	Execute(ctx context.Context, id gocql.UUID) error
 }
 
 type userDeleteByIDImpl struct {
@@ -27,7 +26,7 @@ func NewFederatedUserDeleteByIDUseCase(config *config.Configuration, logger *zap
 	return &userDeleteByIDImpl{config, logger, repo}
 }
 
-func (uc *userDeleteByIDImpl) Execute(ctx context.Context, id primitive.ObjectID) error {
+func (uc *userDeleteByIDImpl) Execute(ctx context.Context, id gocql.UUID) error {
 	//
 	// STEP 1: Validation.
 	//

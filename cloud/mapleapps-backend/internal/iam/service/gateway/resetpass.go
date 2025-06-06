@@ -6,7 +6,7 @@ import (
 	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/jwt"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/password"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodbcache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/cassandracache"
 )
 
 type GatewayResetPasswordService interface {
@@ -15,7 +15,7 @@ type GatewayResetPasswordService interface {
 
 type gatewayResetPasswordServiceImpl struct {
 	passwordProvider      password.Provider
-	cache                 mongodbcache.Cacher
+	cache                 cassandracache.Cacher
 	jwtProvider           jwt.Provider
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
 	userUpdateUseCase     uc_user.FederatedUserUpdateUseCase
@@ -23,7 +23,7 @@ type gatewayResetPasswordServiceImpl struct {
 
 func NewGatewayResetPasswordService(
 	pp password.Provider,
-	cach mongodbcache.Cacher,
+	cach cassandracache.Cacher,
 	jwtp jwt.Provider,
 	uc1 uc_user.FederatedUserGetByEmailUseCase,
 	uc2 uc_user.FederatedUserUpdateUseCase,

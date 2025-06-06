@@ -6,15 +6,14 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	dom_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type FederatedUserGetByIDUseCase interface {
-	Execute(ctx context.Context, id primitive.ObjectID) (*dom_user.FederatedUser, error)
+	Execute(ctx context.Context, id gocql.UUID) (*dom_user.FederatedUser, error)
 }
 
 type userGetByIDUseCaseImpl struct {
@@ -27,7 +26,7 @@ func NewFederatedUserGetByIDUseCase(config *config.Configuration, logger *zap.Lo
 	return &userGetByIDUseCaseImpl{config, logger, repo}
 }
 
-func (uc *userGetByIDUseCaseImpl) Execute(ctx context.Context, id primitive.ObjectID) (*dom_user.FederatedUser, error) {
+func (uc *userGetByIDUseCaseImpl) Execute(ctx context.Context, id gocql.UUID) (*dom_user.FederatedUser, error) {
 	//
 	// STEP 1: Validation.
 	//

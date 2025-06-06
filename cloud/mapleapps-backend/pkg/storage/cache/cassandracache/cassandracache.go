@@ -1,7 +1,5 @@
 package cassandracache
 
-
-
 import (
 	"context"
 	"log"
@@ -27,7 +25,7 @@ type cache struct {
 	Logger *slog.Logger
 }
 
-func NewCache(cfg *c.Conf, logger *slog.Logger, session *gocql.Session) Cacher {
+func NewCache(cfg *c.Configuration, logger *slog.Logger, session *gocql.Session) Cacher {
 	logger.Debug("cassandra based cache initializing...")
 
 	query := `

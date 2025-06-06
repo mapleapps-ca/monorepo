@@ -53,7 +53,7 @@ func (s *gatewayVerifyEmailServiceImpl) Execute(sessCtx context.Context, req *Ga
 	//TODO: Handle expiry dates.
 
 	// Extract from our session the following data.
-	// userID := sessCtx.Value(constants.SessionFederatedUserID).(primitive.ObjectID)
+	// userID := sessCtx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	ipAddress, _ := sessCtx.Value(constants.SessionIPAddress).(string)
 
 	// Verify the user.

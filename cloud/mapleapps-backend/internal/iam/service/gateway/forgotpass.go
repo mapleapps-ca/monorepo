@@ -12,7 +12,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/random"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/jwt"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/password"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodbcache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/cassandracache"
 )
 
 type GatewayForgotPasswordService interface {
@@ -21,7 +21,7 @@ type GatewayForgotPasswordService interface {
 
 type gatewayForgotPasswordServiceImpl struct {
 	passwordProvider                           password.Provider
-	cache                                      mongodbcache.Cacher
+	cache                                      cassandracache.Cacher
 	jwtProvider                                jwt.Provider
 	userGetByEmailUseCase                      uc_user.FederatedUserGetByEmailUseCase
 	userUpdateUseCase                          uc_user.FederatedUserUpdateUseCase
@@ -30,7 +30,7 @@ type gatewayForgotPasswordServiceImpl struct {
 
 func NewGatewayForgotPasswordService(
 	pp password.Provider,
-	cach mongodbcache.Cacher,
+	cach cassandracache.Cacher,
 	jwtp jwt.Provider,
 	uc1 uc_user.FederatedUserGetByEmailUseCase,
 	uc2 uc_user.FederatedUserUpdateUseCase,

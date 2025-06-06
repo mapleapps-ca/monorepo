@@ -10,7 +10,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/jwt"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/password"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/database/mongodbcache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/cassandracache"
 )
 
 type TokenVerifyService interface {
@@ -20,14 +20,14 @@ type TokenVerifyService interface {
 type tokenVerifyServiceImpl struct {
 	logger           *zap.Logger
 	passwordProvider password.Provider
-	cache            mongodbcache.Cacher
+	cache            cassandracache.Cacher
 	jwtProvider      jwt.Provider
 }
 
 func NewTokenVerifyService(
 	logger *zap.Logger,
 	pp password.Provider,
-	cach mongodbcache.Cacher,
+	cach cassandracache.Cacher,
 	jwtp jwt.Provider,
 	userGetBySessionIDUseCase uc_user.FederatedUserGetBySessionIDUseCase) TokenVerifyService {
 	return &tokenVerifyServiceImpl{logger, pp, cach, jwtp}

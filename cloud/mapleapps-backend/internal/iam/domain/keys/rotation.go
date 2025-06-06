@@ -4,7 +4,7 @@ package keys
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 )
 
 // EncryptedHistoricalKey represents a previous version of a key
@@ -27,13 +27,13 @@ type KeyRotationPolicy struct {
 
 // KeyRotationRecord tracks rotation events
 type KeyRotationRecord struct {
-	ID            primitive.ObjectID `bson:"_id" json:"id"`
-	EntityType    string             `bson:"entity_type" json:"entity_type"` // "user", "collection", "file"
-	EntityID      primitive.ObjectID `bson:"entity_id" json:"entity_id"`
-	FromVersion   int                `bson:"from_version" json:"from_version"`
-	ToVersion     int                `bson:"to_version" json:"to_version"`
-	RotatedAt     time.Time          `bson:"rotated_at" json:"rotated_at"`
-	RotatedBy     primitive.ObjectID `bson:"rotated_by" json:"rotated_by"`
-	Reason        string             `bson:"reason" json:"reason"`
-	AffectedItems int64              `bson:"affected_items" json:"affected_items"`
+	ID            gocql.UUID `bson:"_id" json:"id"`
+	EntityType    string     `bson:"entity_type" json:"entity_type"` // "user", "collection", "file"
+	EntityID      gocql.UUID `bson:"entity_id" json:"entity_id"`
+	FromVersion   int        `bson:"from_version" json:"from_version"`
+	ToVersion     int        `bson:"to_version" json:"to_version"`
+	RotatedAt     time.Time  `bson:"rotated_at" json:"rotated_at"`
+	RotatedBy     gocql.UUID `bson:"rotated_by" json:"rotated_by"`
+	Reason        string     `bson:"reason" json:"reason"`
+	AffectedItems int64      `bson:"affected_items" json:"affected_items"`
 }
