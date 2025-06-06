@@ -96,9 +96,9 @@ func NewProvider() *Configuration {
 		MigrationsPath:    getEnv("BACKEND_MIGRATIONS_PATH", true),
 		ConnectTimeout:    getEnvDuration("BACKEND_DB_CONNECT_TIMEOUT", true),
 		RequestTimeout:    getEnvDuration("BACKEND_DB_REQUEST_TIMEOUT", true),
-		ReplicationFactor: int(getInt64Env("CASSANDRA_REPLICATION_FACTOR", true)),
-		MaxRetryAttempts:  int(getInt64Env("CASSANDRA_MAX_RETRY_ATTEMPTS", true)),
-		RetryDelay:        getEnvDuration("CASSANDRA_RETRY_DELAY", true),
+		ReplicationFactor: int(getInt64Env("BACKEND_DB_REPLICATION_FACTOR", true)),
+		MaxRetryAttempts:  int(getInt64Env("BACKEND_DB_MAX_RETRY_ATTEMPTS", true)),
+		RetryDelay:        getEnvDuration("BACKEND_DB_RETRY_DELAY", true),
 	}
 
 	// --- Cache ---
