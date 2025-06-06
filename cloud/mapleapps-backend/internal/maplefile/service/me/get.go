@@ -9,8 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	uc_federateduser "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
@@ -20,21 +19,21 @@ import (
 
 type MeResponseDTO struct {
 	ID               gocql.UUID `bson:"_id" json:"id"`
-	Email            string             `bson:"email" json:"email"`
-	FirstName        string             `bson:"first_name" json:"first_name"`
-	LastName         string             `bson:"last_name" json:"last_name"`
-	Name             string             `bson:"name" json:"name"`
-	LexicalName      string             `bson:"lexical_name" json:"lexical_name"`
-	Role             int8               `bson:"role" json:"role"`
-	WasEmailVerified bool               `bson:"was_email_verified" json:"was_email_verified,omitempty"`
-	Phone            string             `bson:"phone" json:"phone,omitempty"`
-	Country          string             `bson:"country" json:"country,omitempty"`
-	Timezone         string             `bson:"timezone" json:"timezone"`
-	Region           string             `bson:"region" json:"region,omitempty"`
-	City             string             `bson:"city" json:"city,omitempty"`
-	PostalCode       string             `bson:"postal_code" json:"postal_code,omitempty"`
-	AddressLine1     string             `bson:"address_line1" json:"address_line1,omitempty"`
-	AddressLine2     string             `bson:"address_line2" json:"address_line2,omitempty"`
+	Email            string     `bson:"email" json:"email"`
+	FirstName        string     `bson:"first_name" json:"first_name"`
+	LastName         string     `bson:"last_name" json:"last_name"`
+	Name             string     `bson:"name" json:"name"`
+	LexicalName      string     `bson:"lexical_name" json:"lexical_name"`
+	Role             int8       `bson:"role" json:"role"`
+	WasEmailVerified bool       `bson:"was_email_verified" json:"was_email_verified,omitempty"`
+	Phone            string     `bson:"phone" json:"phone,omitempty"`
+	Country          string     `bson:"country" json:"country,omitempty"`
+	Timezone         string     `bson:"timezone" json:"timezone"`
+	Region           string     `bson:"region" json:"region,omitempty"`
+	City             string     `bson:"city" json:"city,omitempty"`
+	PostalCode       string     `bson:"postal_code" json:"postal_code,omitempty"`
+	AddressLine1     string     `bson:"address_line1" json:"address_line1,omitempty"`
+	AddressLine2     string     `bson:"address_line2" json:"address_line2,omitempty"`
 	// HasShippingAddress                              bool               `bson:"has_shipping_address" json:"has_shipping_address,omitempty"`
 	// ShippingName                                    string             `bson:"shipping_name" json:"shipping_name,omitempty"`
 	// ShippingPhone                                   string             `bson:"shipping_phone" json:"shipping_phone,omitempty"`

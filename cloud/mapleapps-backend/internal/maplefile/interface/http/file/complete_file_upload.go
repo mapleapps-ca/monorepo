@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/middleware"
 	svc_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/file"
@@ -95,7 +96,7 @@ func (h *CompleteFileUploadHTTPHandler) Execute(w http.ResponseWriter, r *http.R
 	}
 
 	// Convert string ID to ObjectID
-	fileID, err := gocql.UUIDFromHex(fileIDStr)
+	fileID, err := gocql.ParseUUID(fileIDStr)
 	if err != nil {
 		h.logger.Error("invalid file ID format",
 			zap.String("file_id", fileIDStr),

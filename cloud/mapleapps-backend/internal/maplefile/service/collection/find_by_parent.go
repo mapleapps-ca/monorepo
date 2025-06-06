@@ -6,8 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"

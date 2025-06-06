@@ -2,12 +2,10 @@
 package collection
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
@@ -19,7 +17,6 @@ import (
 type ListSharedCollectionsHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
-	dbClient   *mongo.Client
 	service    svc_collection.ListSharedCollectionsService
 	middleware middleware.Middleware
 }
@@ -27,7 +24,6 @@ type ListSharedCollectionsHTTPHandler struct {
 func NewListSharedCollectionsHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
-	dbClient *mongo.Client,
 	service svc_collection.ListSharedCollectionsService,
 	middleware middleware.Middleware,
 ) *ListSharedCollectionsHTTPHandler {
@@ -35,7 +31,6 @@ func NewListSharedCollectionsHTTPHandler(
 	return &ListSharedCollectionsHTTPHandler{
 		config:     config,
 		logger:     logger,
-		dbClient:   dbClient,
 		service:    service,
 		middleware: middleware,
 	}
@@ -55,41 +50,15 @@ func (h *ListSharedCollectionsHTTPHandler) Execute(w http.ResponseWriter, r *htt
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx := r.Context()
-
-	// Start the transaction
-	session, err := h.dbClient.StartSession()
+	// Call service
+	resp, err := h.service.Execute(ctx)
 	if err != nil {
-		h.logger.Error("start session error",
-			zap.Any("error", err))
 		httperror.ResponseError(w, err)
-		return
-	}
-	defer session.EndSession(ctx)
-
-	// Define a transaction function with a series of operations
-	transactionFunc := func(sessCtx context.Context) (interface{}, error) {
-		// Call service
-		response, err := h.service.Execute(sessCtx)
-		if err != nil {
-			h.logger.Error("failed to list shared collections",
-				zap.Any("error", err))
-			return nil, err
-		}
-		return response, nil
-	}
-
-	// Start a transaction
-	result, txErr := session.WithTransaction(ctx, transactionFunc)
-	if txErr != nil {
-		h.logger.Error("session failed error",
-			zap.Any("error", txErr))
-		httperror.ResponseError(w, txErr)
 		return
 	}
 
 	// Encode response
-	if result != nil {
-		resp := result.(*svc_collection.CollectionsResponseDTO)
+	if resp != nil {
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			h.logger.Error("failed to encode response",
 				zap.Any("error", err))

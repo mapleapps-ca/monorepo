@@ -9,6 +9,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
@@ -18,10 +19,10 @@ import (
 type ShareCollectionRequestDTO struct {
 	CollectionID           gocql.UUID `json:"collection_id"`
 	RecipientID            gocql.UUID `json:"recipient_id"`
-	RecipientEmail         string             `json:"recipient_email"`
-	PermissionLevel        string             `json:"permission_level"`
-	EncryptedCollectionKey []byte             `json:"encrypted_collection_key"`
-	ShareWithDescendants   bool               `json:"share_with_descendants"`
+	RecipientEmail         string     `json:"recipient_email"`
+	PermissionLevel        string     `json:"permission_level"`
+	EncryptedCollectionKey []byte     `json:"encrypted_collection_key"`
+	ShareWithDescendants   bool       `json:"share_with_descendants"`
 }
 
 type ShareCollectionResponseDTO struct {

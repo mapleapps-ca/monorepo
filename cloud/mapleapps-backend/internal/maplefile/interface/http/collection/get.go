@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/middleware"
 	svc_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/collection"
@@ -65,7 +66,7 @@ func (h *GetCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Convert string ID to ObjectID
-	collectionID, err := gocql.UUIDFromHex(collectionIDStr)
+	collectionID, err := gocql.ParseUUID(collectionIDStr)
 	if err != nil {
 		h.logger.Error("invalid collection ID format",
 			zap.String("collection_id", collectionIDStr),

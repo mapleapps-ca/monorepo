@@ -2,14 +2,13 @@
 package collection
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/middleware"
 	svc_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/collection"
@@ -19,7 +18,6 @@ import (
 type FindCollectionsByParentHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
-	dbClient   *mongo.Client
 	service    svc_collection.FindCollectionsByParentService
 	middleware middleware.Middleware
 }
@@ -27,7 +25,6 @@ type FindCollectionsByParentHTTPHandler struct {
 func NewFindCollectionsByParentHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
-	dbClient *mongo.Client,
 	service svc_collection.FindCollectionsByParentService,
 	middleware middleware.Middleware,
 ) *FindCollectionsByParentHTTPHandler {
@@ -35,7 +32,6 @@ func NewFindCollectionsByParentHTTPHandler(
 	return &FindCollectionsByParentHTTPHandler{
 		config:     config,
 		logger:     logger,
-		dbClient:   dbClient,
 		service:    service,
 		middleware: middleware,
 	}
@@ -64,7 +60,7 @@ func (h *FindCollectionsByParentHTTPHandler) Execute(w http.ResponseWriter, r *h
 	}
 
 	// Convert string ID to ObjectID
-	parentID, err := gocql.UUIDFromHex(parentIDStr)
+	parentID, err := gocql.ParseUUID(parentIDStr)
 	if err != nil {
 		h.logger.Error("invalid parent ID format",
 			zap.String("parent_id", parentIDStr),
@@ -78,40 +74,15 @@ func (h *FindCollectionsByParentHTTPHandler) Execute(w http.ResponseWriter, r *h
 		ParentID: parentID,
 	}
 
-	// Start the transaction
-	session, err := h.dbClient.StartSession()
+	// Call service
+	resp, err := h.service.Execute(ctx, req)
 	if err != nil {
-		h.logger.Error("start session error",
-			zap.Any("error", err))
 		httperror.ResponseError(w, err)
-		return
-	}
-	defer session.EndSession(ctx)
-
-	// Define a transaction function with a series of operations
-	transactionFunc := func(sessCtx context.Context) (interface{}, error) {
-		// Call service
-		response, err := h.service.Execute(sessCtx, req)
-		if err != nil {
-			h.logger.Error("failed to find collections by parent",
-				zap.Any("error", err))
-			return nil, err
-		}
-		return response, nil
-	}
-
-	// Start a transaction
-	result, txErr := session.WithTransaction(ctx, transactionFunc)
-	if txErr != nil {
-		h.logger.Error("session failed error",
-			zap.Any("error", txErr))
-		httperror.ResponseError(w, txErr)
 		return
 	}
 
 	// Encode response
-	if result != nil {
-		resp := result.(*svc_collection.CollectionsResponseDTO)
+	if resp != nil {
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			h.logger.Error("failed to encode response",
 				zap.Any("error", err))

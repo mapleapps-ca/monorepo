@@ -2,14 +2,13 @@
 package collection
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/middleware"
 	svc_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/collection"
@@ -19,7 +18,6 @@ import (
 type GetCollectionHierarchyHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
-	dbClient   *mongo.Client
 	service    svc_collection.GetCollectionHierarchyService
 	middleware middleware.Middleware
 }
@@ -27,7 +25,6 @@ type GetCollectionHierarchyHTTPHandler struct {
 func NewGetCollectionHierarchyHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
-	dbClient *mongo.Client,
 	service svc_collection.GetCollectionHierarchyService,
 	middleware middleware.Middleware,
 ) *GetCollectionHierarchyHTTPHandler {
@@ -35,7 +32,6 @@ func NewGetCollectionHierarchyHTTPHandler(
 	return &GetCollectionHierarchyHTTPHandler{
 		config:     config,
 		logger:     logger,
-		dbClient:   dbClient,
 		service:    service,
 		middleware: middleware,
 	}
@@ -64,7 +60,7 @@ func (h *GetCollectionHierarchyHTTPHandler) Execute(w http.ResponseWriter, r *ht
 	}
 
 	// Convert string ID to ObjectID
-	rootID, err := gocql.UUIDFromHex(collectionIDStr)
+	rootID, err := gocql.ParseUUID(collectionIDStr)
 	if err != nil {
 		h.logger.Error("invalid collection ID format",
 			zap.String("collection_id", collectionIDStr),
@@ -73,40 +69,14 @@ func (h *GetCollectionHierarchyHTTPHandler) Execute(w http.ResponseWriter, r *ht
 		return
 	}
 
-	// Start the transaction
-	session, err := h.dbClient.StartSession()
+	resp, err := h.service.Execute(ctx, rootID)
 	if err != nil {
-		h.logger.Error("start session error",
-			zap.Any("error", err))
 		httperror.ResponseError(w, err)
-		return
-	}
-	defer session.EndSession(ctx)
-
-	// Define a transaction function with a series of operations
-	transactionFunc := func(sessCtx context.Context) (interface{}, error) {
-		// Call service
-		response, err := h.service.Execute(sessCtx, rootID)
-		if err != nil {
-			h.logger.Error("failed to get collection hierarchy",
-				zap.Any("error", err))
-			return nil, err
-		}
-		return response, nil
-	}
-
-	// Start a transaction
-	result, txErr := session.WithTransaction(ctx, transactionFunc)
-	if txErr != nil {
-		h.logger.Error("session failed error",
-			zap.Any("error", txErr))
-		httperror.ResponseError(w, txErr)
 		return
 	}
 
 	// Encode response
-	if result != nil {
-		resp := result.(*svc_collection.CollectionResponseDTO)
+	if resp != nil {
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			h.logger.Error("failed to encode response",
 				zap.Any("error", err))
