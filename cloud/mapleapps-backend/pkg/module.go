@@ -32,8 +32,10 @@ func Module() fx.Option {
 			ipcountryblocker.NewProvider,
 			jwt.NewProvider,
 			password.NewProvider,
-			cassandradb.NewProvider,
+			cassandradb.NewCassandraConnection,
+			cassandradb.NewMigrator,
 			s3.NewProvider,
 		),
+		fx.Invoke(func(*cassandradb.Migrator) {}),
 	)
 }

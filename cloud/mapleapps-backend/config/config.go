@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gocql/gocql"
 
@@ -15,7 +16,7 @@ import (
 type Configuration struct {
 	App               AppConfig
 	Cache             CacheConf
-	DB                CassandraDBConfig
+	DB                DatabaseConfig
 	AWS               AWSConfig
 	MapleFileMailgun  MailgunConfig
 	PaperCloudMailgun MailgunConfig
@@ -36,9 +37,18 @@ type AppConfig struct {
 	BetaAccessCode           string
 }
 
-type CassandraDBConfig struct {
-	Hosts                     []string
-	KeyspaceReplicationFactor int64
+type DatabaseConfig struct {
+	Hosts             []string
+	Keyspace          string
+	Consistency       string
+	Username          string
+	Password          string
+	MigrationsPath    string
+	ConnectTimeout    time.Duration
+	RequestTimeout    time.Duration
+	ReplicationFactor int
+	MaxRetryAttempts  int
+	RetryDelay        time.Duration
 }
 
 type MailgunConfig struct {
@@ -77,8 +87,19 @@ func NewProvider() *Configuration {
 	c.App.BetaAccessCode = getEnv("BACKEND_APP_BETA_ACCESS_CODE", false)
 
 	// --- Database section ---
-	c.DB.Hosts = getStringsArrEnv("BACKEND_DB_HOSTS", true)
-	c.DB.KeyspaceReplicationFactor = getInt64Env("BACKEND_DB_KEYSPACE_REPLICATION_FACTOR", true)
+	c.DB = DatabaseConfig{
+		Hosts:             getStringsArrEnv("BACKEND_DB_HOSTS", true),
+		Keyspace:          getEnv("BACKEND_DB_KEYSPACE", true),
+		Consistency:       getEnv("BACKEND_DB_CONSISTENCY", true),
+		Username:          getEnv("BACKEND_DB_USERNAME", false),
+		Password:          getEnv("BACKEND_DB_PASSWORD", false),
+		MigrationsPath:    getEnv("BACKEND_MIGRATIONS_PATH", true),
+		ConnectTimeout:    getEnvDuration("BACKEND_DB_CONNECT_TIMEOUT", true),
+		RequestTimeout:    getEnvDuration("BACKEND_DB_REQUEST_TIMEOUT", true),
+		ReplicationFactor: int(getInt64Env("CASSANDRA_REPLICATION_FACTOR", true)),
+		MaxRetryAttempts:  int(getInt64Env("CASSANDRA_MAX_RETRY_ATTEMPTS", true)),
+		RetryDelay:        getEnvDuration("CASSANDRA_RETRY_DELAY", true),
+	}
 
 	// --- Cache ---
 	c.Cache.URI = getEnv("BACKEND_CACHE_URI", true)
@@ -148,6 +169,27 @@ func getBytesEnv(key string, required bool) []byte {
 		log.Fatalf("Environment variable not found: %s", key)
 	}
 	return []byte(value)
+}
+
+func getEnvDuration(key string, required bool) time.Duration {
+	value := os.Getenv(key)
+	if value == "" {
+		if required {
+			log.Fatalf("Environment variable not found: %s", key)
+		}
+		// If not required and value is empty, return zero duration (0)
+		return 0
+	}
+
+	// If value is not empty, try to parse it
+	duration, err := time.ParseDuration(value)
+	if err != nil {
+		// Log error about invalid value for the key
+		log.Fatalf("Invalid time.Duration value '%s' for environment variable %s: %v", value, key, err)
+	}
+
+	// If parsing succeeds, return the parsed duration
+	return duration
 }
 
 func getSecureBytesEnv(key string, required bool) *sbytes.SecureBytes {
