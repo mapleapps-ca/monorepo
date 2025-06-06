@@ -2,12 +2,10 @@
 package file
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
 	"github.com/gocql/gocql"
@@ -20,7 +18,6 @@ import (
 type ListFilesByCollectionHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
-	dbClient   *mongo.Client
 	service    svc_file.ListFilesByCollectionService
 	middleware middleware.Middleware
 }
@@ -28,7 +25,6 @@ type ListFilesByCollectionHTTPHandler struct {
 func NewListFilesByCollectionHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
-	dbClient *mongo.Client,
 	service svc_file.ListFilesByCollectionService,
 	middleware middleware.Middleware,
 ) *ListFilesByCollectionHTTPHandler {
@@ -36,7 +32,6 @@ func NewListFilesByCollectionHTTPHandler(
 	return &ListFilesByCollectionHTTPHandler{
 		config:     config,
 		logger:     logger,
-		dbClient:   dbClient,
 		service:    service,
 		middleware: middleware,
 	}
@@ -79,40 +74,14 @@ func (h *ListFilesByCollectionHTTPHandler) Execute(w http.ResponseWriter, r *htt
 		CollectionID: collectionID,
 	}
 
-	// Start the transaction
-	session, err := h.dbClient.StartSession()
+	resp, err := h.service.Execute(ctx, req)
 	if err != nil {
-		h.logger.Error("start session error",
-			zap.Any("error", err))
 		httperror.ResponseError(w, err)
-		return
-	}
-	defer session.EndSession(ctx)
-
-	// Define a transaction function with a series of operations
-	transactionFunc := func(sessCtx context.Context) (interface{}, error) {
-		// Call service
-		response, err := h.service.Execute(sessCtx, req)
-		if err != nil {
-			h.logger.Error("failed to list files by collection",
-				zap.Any("error", err))
-			return nil, err
-		}
-		return response, nil
-	}
-
-	// Start a transaction
-	result, txErr := session.WithTransaction(ctx, transactionFunc)
-	if txErr != nil {
-		h.logger.Error("session failed error",
-			zap.Any("error", txErr))
-		httperror.ResponseError(w, txErr)
 		return
 	}
 
 	// Encode response
-	if result != nil {
-		resp := result.(*svc_file.FilesResponseDTO)
+	if resp != nil {
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			h.logger.Error("failed to encode response",
 				zap.Any("error", err))

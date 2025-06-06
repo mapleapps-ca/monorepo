@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
@@ -21,7 +20,6 @@ import (
 type CreatePendingFileHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
-	dbClient   *mongo.Client
 	service    svc_file.CreatePendingFileService
 	middleware middleware.Middleware
 }
@@ -29,7 +27,6 @@ type CreatePendingFileHTTPHandler struct {
 func NewCreatePendingFileHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
-	dbClient *mongo.Client,
 	service svc_file.CreatePendingFileService,
 	middleware middleware.Middleware,
 ) *CreatePendingFileHTTPHandler {
@@ -37,7 +34,6 @@ func NewCreatePendingFileHTTPHandler(
 	return &CreatePendingFileHTTPHandler{
 		config:     config,
 		logger:     logger,
-		dbClient:   dbClient,
 		service:    service,
 		middleware: middleware,
 	}
@@ -89,40 +85,14 @@ func (h *CreatePendingFileHTTPHandler) Execute(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Start the transaction
-	session, err := h.dbClient.StartSession()
+	resp, err := h.service.Execute(ctx, req)
 	if err != nil {
-		h.logger.Error("start session error",
-			zap.Any("error", err))
 		httperror.ResponseError(w, err)
-		return
-	}
-	defer session.EndSession(ctx)
-
-	// Define a transaction function with a series of operations
-	transactionFunc := func(sessCtx context.Context) (interface{}, error) {
-		// Call service
-		response, err := h.service.Execute(sessCtx, req)
-		if err != nil {
-			h.logger.Error("failed to create pending file",
-				zap.Any("error", err))
-			return nil, err
-		}
-		return response, nil
-	}
-
-	// Start a transaction
-	result, txErr := session.WithTransaction(ctx, transactionFunc)
-	if txErr != nil {
-		h.logger.Error("session failed error",
-			zap.Any("error", txErr))
-		httperror.ResponseError(w, txErr)
 		return
 	}
 
 	// Encode response
-	if result != nil {
-		resp := result.(*svc_file.CreatePendingFileResponseDTO)
+	if resp != nil {
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			h.logger.Error("failed to encode response",
 				zap.Any("error", err))
