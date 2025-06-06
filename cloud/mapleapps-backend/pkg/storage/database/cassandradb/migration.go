@@ -16,9 +16,9 @@ type Migrator struct {
 	config config.DatabaseConfig
 }
 
-// NewMigrator creates a new migration manager
-func NewMigrator(cfg config.DatabaseConfig) *Migrator {
-	return &Migrator{config: cfg}
+// NewMigrator creates a new migration manager that works with fx dependency injection
+func NewMigrator(cfg *config.Configuration) *Migrator {
+	return &Migrator{config: cfg.DB}
 }
 
 // Up runs all pending migrations

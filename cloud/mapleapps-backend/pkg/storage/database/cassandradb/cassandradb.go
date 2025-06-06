@@ -7,6 +7,7 @@ import (
 
 	"github.com/gocql/gocql"
 
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	c "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 )
 
@@ -18,91 +19,83 @@ type CassandraDB struct {
 }
 
 // NewCassandraConnection establishes a connection to Cassandra cluster with advanced configuration
-// This function incorporates production-ready patterns like retry logic, token-aware routing, and dynamic keyspace creation
-func NewCassandraConnection(cfg c.DatabaseConfig) (*CassandraDB, error) {
+func NewCassandraConnection(cfg *config.Configuration) (*gocql.Session, error) {
+	dbConfig := cfg.DB // Extract the database config from the main config
+
 	var session *gocql.Session
 	var err error
 
 	// Attempt connection with retry logic - essential for production deployments
-	// Cassandra clusters can take time to become available, especially during startup
-	for attempt := 1; attempt <= cfg.MaxRetryAttempts; attempt++ {
-		log.Printf("Attempting to connect to Cassandra (attempt %d/%d)", attempt, cfg.MaxRetryAttempts)
+	for attempt := 1; attempt <= dbConfig.MaxRetryAttempts; attempt++ {
+		log.Printf("Attempting to connect to Cassandra (attempt %d/%d)", attempt, dbConfig.MaxRetryAttempts)
 
 		// Create cluster configuration for this attempt
-		cluster := gocql.NewCluster(cfg.Hosts...)
+		cluster := gocql.NewCluster(dbConfig.Hosts...)
 
 		// Configure authentication if credentials are provided
-		if cfg.Username != "" && cfg.Password != "" {
+		if dbConfig.Username != "" && dbConfig.Password != "" {
 			cluster.Authenticator = gocql.PasswordAuthenticator{
-				Username: cfg.Username,
-				Password: cfg.Password,
+				Username: dbConfig.Username,
+				Password: dbConfig.Password,
 			}
 		}
 
 		// Set timeouts for better reliability in production environments
-		cluster.ConnectTimeout = cfg.ConnectTimeout
-		cluster.Timeout = cfg.RequestTimeout
+		cluster.ConnectTimeout = dbConfig.ConnectTimeout
+		cluster.Timeout = dbConfig.RequestTimeout
 
-		// Configure consistency level - this affects read/write guarantees
-		consistency, parseErr := parseConsistency(cfg.Consistency)
+		// Configure consistency level
+		consistency, parseErr := parseConsistency(dbConfig.Consistency)
 		if parseErr != nil {
 			return nil, fmt.Errorf("invalid consistency level: %w", parseErr)
 		}
 		cluster.Consistency = consistency
 
-		// CRITICAL: Set up token-aware host policy for optimal performance
-		// This ensures queries are routed directly to nodes that own the data,
-		// reducing network hops and dramatically improving response times
+		// Set up token-aware host policy for optimal performance
 		cluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
 
-		// Configure connection pooling for better throughput
+		// Configure connection pooling
 		cluster.NumConns = 2
 		cluster.MaxPreparedStmts = 1000
 		cluster.MaxRoutingKeyInfo = 1000
 
-		// First, try to connect without specifying a keyspace
-		// This allows us to create the keyspace if it doesn't exist
+		// First, connect without specifying a keyspace to create it if needed
 		session, err = cluster.CreateSession()
 		if err == nil {
-			// Connection successful! Now create keyspace with configurable replication
-			if createErr := createKeyspaceIfNotExists(session, cfg.Keyspace, cfg.ReplicationFactor); createErr != nil {
+			// Create keyspace with configurable replication
+			if createErr := createKeyspaceIfNotExists(session, dbConfig.Keyspace, dbConfig.ReplicationFactor); createErr != nil {
 				session.Close()
 				return nil, fmt.Errorf("failed to create keyspace: %w", createErr)
 			}
 
-			// Close the session and reconnect with the keyspace specified
+			// Close and reconnect with the keyspace specified
 			session.Close()
-			cluster.Keyspace = cfg.Keyspace
+			cluster.Keyspace = dbConfig.Keyspace
 			session, err = cluster.CreateSession()
 			if err == nil {
-				// Final verification - ping the database to ensure everything works
+				// Final verification - ping the database
 				if pingErr := pingDatabase(session); pingErr != nil {
 					session.Close()
 					err = fmt.Errorf("database ping failed: %w", pingErr)
 				} else {
-					// Success! Break out of retry loop
 					log.Printf("Successfully connected to Cassandra cluster")
 					break
 				}
 			}
 		}
 
-		// Connection failed, wait before retrying (unless this was the last attempt)
-		if attempt < cfg.MaxRetryAttempts {
-			log.Printf("Connection attempt %d failed: %v. Retrying in %v...", attempt, err, cfg.RetryDelay)
-			time.Sleep(cfg.RetryDelay)
+		// Connection failed, wait before retrying
+		if attempt < dbConfig.MaxRetryAttempts {
+			log.Printf("Connection attempt %d failed: %v. Retrying in %v...", attempt, err, dbConfig.RetryDelay)
+			time.Sleep(dbConfig.RetryDelay)
 		}
 	}
 
-	// If we've exhausted all retry attempts, return the error
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Cassandra after %d attempts: %w", cfg.MaxRetryAttempts, err)
+		return nil, fmt.Errorf("failed to connect to Cassandra after %d attempts: %w", dbConfig.MaxRetryAttempts, err)
 	}
 
-	return &CassandraDB{
-		Session: session,
-		config:  cfg,
-	}, nil
+	return session, nil
 }
 
 // createKeyspaceIfNotExists creates the application keyspace with specified replication factor

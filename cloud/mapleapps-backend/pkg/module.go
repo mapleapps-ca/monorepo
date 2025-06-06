@@ -2,8 +2,12 @@
 package pkg
 
 import (
-	"go.uber.org/fx"
+	"context"
 
+	"go.uber.org/fx"
+	"go.uber.org/zap"
+
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/distributedmutex"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/emailer/mailgun"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/blacklist"
@@ -19,11 +23,11 @@ func Module() fx.Option {
 		fx.Provide(
 			fx.Annotate(
 				mailgun.NewMapleFileModuleEmailer,
-				fx.ResultTags(`name:"maplefile-module-emailer"`), // Create name for better dependency management handling.
+				fx.ResultTags(`name:"maplefile-module-emailer"`),
 			),
 			fx.Annotate(
 				mailgun.NewPaperCloudModuleEmailer,
-				fx.ResultTags(`name:"papercloud-module-emailer"`), // Create name for better dependency management handling.
+				fx.ResultTags(`name:"papercloud-module-emailer"`),
 			),
 		),
 		fx.Provide(
@@ -32,10 +36,39 @@ func Module() fx.Option {
 			ipcountryblocker.NewProvider,
 			jwt.NewProvider,
 			password.NewProvider,
-			cassandradb.NewCassandraConnection,
+			cassandradb.NewCassandraConnection, // Now properly wired
 			cassandradb.NewMigrator,
 			s3.NewProvider,
 		),
-		fx.Invoke(func(*cassandradb.Migrator) {}),
+		// Add lifecycle management for Cassandra
+		fx.Invoke(runMigrationsAndSetupLifecycle),
 	)
+}
+
+// runMigrationsAndSetupLifecycle handles both migration execution and proper shutdown
+func runMigrationsAndSetupLifecycle(
+	lc fx.Lifecycle,
+	session *gocql.Session,
+	migrator *cassandradb.Migrator,
+	logger *zap.Logger,
+) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			logger.Info("Running database migrations...")
+			if err := migrator.Up(); err != nil {
+				logger.Error("Failed to run migrations", zap.Error(err))
+				return err
+			}
+			logger.Info("Database migrations completed successfully")
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			logger.Info("Shutting down Cassandra connection...")
+			if session != nil {
+				session.Close()
+			}
+			logger.Info("Cassandra connection closed")
+			return nil
+		},
+	})
 }
