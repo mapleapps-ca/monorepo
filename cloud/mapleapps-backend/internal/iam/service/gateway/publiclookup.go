@@ -112,8 +112,8 @@ func (svc *gatewayFederatedUserPublicLookupServiceImpl) Execute(sessCtx context.
 		UserID:            u.ID.String(),
 		Email:             u.Email,
 		Name:              u.Name,
-		PublicKeyInBase64: base64.StdEncoding.EncodeToString(u.PublicKey.Key),
-		VerificationID:    u.VerificationID,
+		PublicKeyInBase64: base64.StdEncoding.EncodeToString(u.SecurityData.PublicKey.Key),
+		VerificationID:    u.SecurityData.VerificationID,
 	}
 
 	return dto, nil

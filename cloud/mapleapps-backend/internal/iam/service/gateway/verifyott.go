@@ -222,44 +222,44 @@ func (s *gatewayVerifyLoginOTTServiceImpl) Execute(sessCtx context.Context, req 
 	}
 
 	// Convert structured keys to string representations for the response
-	saltBase64 := base64.StdEncoding.EncodeToString(user.PasswordSalt)
-	publicKeyBase64 := base64.StdEncoding.EncodeToString(user.PublicKey.Key)
+	saltBase64 := base64.StdEncoding.EncodeToString(user.SecurityData.PasswordSalt)
+	publicKeyBase64 := base64.StdEncoding.EncodeToString(user.SecurityData.PublicKey.Key)
 
 	// Combine nonce and ciphertext for encryptedMasterKey
-	encryptedMasterKeyBytes := make([]byte, len(user.EncryptedMasterKey.Nonce)+len(user.EncryptedMasterKey.Ciphertext))
-	copy(encryptedMasterKeyBytes, user.EncryptedMasterKey.Nonce)
-	copy(encryptedMasterKeyBytes[len(user.EncryptedMasterKey.Nonce):], user.EncryptedMasterKey.Ciphertext)
+	encryptedMasterKeyBytes := make([]byte, len(user.SecurityData.EncryptedMasterKey.Nonce)+len(user.SecurityData.EncryptedMasterKey.Ciphertext))
+	copy(encryptedMasterKeyBytes, user.SecurityData.EncryptedMasterKey.Nonce)
+	copy(encryptedMasterKeyBytes[len(user.SecurityData.EncryptedMasterKey.Nonce):], user.SecurityData.EncryptedMasterKey.Ciphertext)
 	encryptedMasterKeyBase64 := base64.StdEncoding.EncodeToString(encryptedMasterKeyBytes)
 
 	// Combine nonce and ciphertext for encryptedPrivateKey
-	encryptedPrivateKeyBytes := make([]byte, len(user.EncryptedPrivateKey.Nonce)+len(user.EncryptedPrivateKey.Ciphertext))
-	copy(encryptedPrivateKeyBytes, user.EncryptedPrivateKey.Nonce)
-	copy(encryptedPrivateKeyBytes[len(user.EncryptedPrivateKey.Nonce):], user.EncryptedPrivateKey.Ciphertext)
+	encryptedPrivateKeyBytes := make([]byte, len(user.SecurityData.EncryptedPrivateKey.Nonce)+len(user.SecurityData.EncryptedPrivateKey.Ciphertext))
+	copy(encryptedPrivateKeyBytes, user.SecurityData.EncryptedPrivateKey.Nonce)
+	copy(encryptedPrivateKeyBytes[len(user.SecurityData.EncryptedPrivateKey.Nonce):], user.SecurityData.EncryptedPrivateKey.Ciphertext)
 	encryptedPrivateKeyBase64 := base64.StdEncoding.EncodeToString(encryptedPrivateKeyBytes)
 
 	// Return encrypted keys and challenge for client-side password verification
 	return &GatewayVerifyLoginOTTResponseIDO{
 		// Base64 encoded encrypted keys and challenge
 		Salt:                saltBase64,
-		KDFParams:           user.KDFParams,
+		KDFParams:           user.SecurityData.KDFParams,
 		PublicKey:           publicKeyBase64,
 		EncryptedMasterKey:  encryptedMasterKeyBase64,
 		EncryptedPrivateKey: encryptedPrivateKeyBase64,
 		EncryptedChallenge:  encryptedChallenge,
 		ChallengeID:         challengeID,
 		// KDF upgrade and key rotation fields.
-		LastPasswordChange:   user.LastPasswordChange,
-		KDFParamsNeedUpgrade: user.KDFParamsNeedUpgrade,
-		CurrentKeyVersion:    user.CurrentKeyVersion,
-		LastKeyRotation:      user.LastKeyRotation,
-		KeyRotationPolicy:    user.KeyRotationPolicy,
+		LastPasswordChange:   user.SecurityData.LastPasswordChange,
+		KDFParamsNeedUpgrade: user.SecurityData.KDFParamsNeedUpgrade,
+		CurrentKeyVersion:    user.SecurityData.CurrentKeyVersion,
+		LastKeyRotation:      user.SecurityData.LastKeyRotation,
+		KeyRotationPolicy:    user.SecurityData.KeyRotationPolicy,
 	}, nil
 }
 
 // getEncryptedChallenge encrypts the challenge using the user's public key
 // in a way that is compatible with libsodium's crypto_box_seal_open.
 func getEncryptedChallenge(challengeBytes []byte, user *domain.FederatedUser) (string, error) {
-	publicKeyBytes := user.PublicKey.Key
+	publicKeyBytes := user.SecurityData.PublicKey.Key
 	if len(publicKeyBytes) != crypto.PublicKeySize { // crypto.PublicKeySize is 32
 		return "", fmt.Errorf("invalid public key length: got %d, want %d", len(publicKeyBytes), crypto.PublicKeySize)
 	}

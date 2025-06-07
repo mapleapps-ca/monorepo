@@ -168,12 +168,12 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 	federateduser.LastName = req.LastName
 	federateduser.Name = fmt.Sprintf("%s %s", req.FirstName, req.LastName)
 	federateduser.LexicalName = fmt.Sprintf("%s, %s", req.LastName, req.FirstName)
-	federateduser.Phone = req.Phone
-	federateduser.Country = req.Country
-	federateduser.Region = req.Region
+	federateduser.ProfileData.Phone = req.Phone
+	federateduser.ProfileData.Country = req.Country
+	federateduser.ProfileData.Region = req.Region
 	federateduser.Timezone = req.Timezone
-	federateduser.AgreePromotions = req.AgreePromotions
-	federateduser.AgreeToTrackingAcrossThirdPartyAppsAndServices = req.AgreeToTrackingAcrossThirdPartyAppsAndServices
+	federateduser.ProfileData.AgreePromotions = req.AgreePromotions
+	federateduser.ProfileData.AgreeToTrackingAcrossThirdPartyAppsAndServices = req.AgreeToTrackingAcrossThirdPartyAppsAndServices
 
 	// Persist changes
 	if err := svc.userUpdateUseCase.Execute(sessCtx, federateduser); err != nil {
@@ -193,11 +193,11 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 		LastName:        federateduser.LastName,
 		Name:            federateduser.Name,
 		LexicalName:     federateduser.LexicalName,
-		Phone:           federateduser.Phone,
-		Country:         federateduser.Country,
-		Region:          federateduser.Region, // Added Region
+		Phone:           federateduser.ProfileData.Phone,
+		Country:         federateduser.ProfileData.Country,
+		Region:          federateduser.ProfileData.Region, // Added Region
 		Timezone:        federateduser.Timezone,
-		AgreePromotions: federateduser.AgreePromotions,
-		AgreeToTrackingAcrossThirdPartyAppsAndServices: federateduser.AgreeToTrackingAcrossThirdPartyAppsAndServices,
+		AgreePromotions: federateduser.ProfileData.AgreePromotions,
+		AgreeToTrackingAcrossThirdPartyAppsAndServices: federateduser.ProfileData.AgreeToTrackingAcrossThirdPartyAppsAndServices,
 	}, nil
 }

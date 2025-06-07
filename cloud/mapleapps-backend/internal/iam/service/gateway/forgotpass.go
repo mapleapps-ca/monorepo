@@ -99,10 +99,10 @@ func (s *gatewayForgotPasswordServiceImpl) Execute(sessCtx context.Context, req 
 		return nil, err
 	}
 
-	u.PasswordResetVerificationCode = fmt.Sprintf("%s", passwordResetVerificationCode)
-	u.PasswordResetVerificationExpiry = time.Now().Add(5 * time.Minute)
-	u.ModifiedAt = time.Now()
-	u.ModifiedByName = u.Name
+	u.SecurityData.Code = fmt.Sprintf("%s", passwordResetVerificationCode)
+	u.SecurityData.CodeExpiry = time.Now().Add(5 * time.Minute)
+	u.Metadata.ModifiedAt = time.Now()
+	u.Metadata.ModifiedByName = u.Name
 	err = s.userUpdateUseCase.Execute(sessCtx, u)
 	if err != nil {
 		return nil, err

@@ -296,19 +296,19 @@ func (s *verifyProfileServiceImpl) validateRetailerFields(req *VerifyProfileRequ
 
 // updateCommonFields updates common fields for all federateduser types
 func (s *verifyProfileServiceImpl) updateCommonFields(federateduser *domain.FederatedUser, req *VerifyProfileRequestDTO) {
-	federateduser.Country = req.Country
-	federateduser.Region = req.Region
-	federateduser.City = req.City
-	federateduser.PostalCode = req.PostalCode
-	federateduser.AddressLine1 = req.AddressLine1
-	federateduser.AddressLine2 = req.AddressLine2
-	federateduser.HasShippingAddress = req.HasShippingAddress
-	federateduser.ShippingName = req.ShippingName
-	federateduser.ShippingPhone = req.ShippingPhone
-	federateduser.ShippingCountry = req.ShippingCountry
-	federateduser.ShippingRegion = req.ShippingRegion
-	federateduser.ShippingCity = req.ShippingCity
-	federateduser.ShippingPostalCode = req.ShippingPostalCode
-	federateduser.ShippingAddressLine1 = req.ShippingAddressLine1
-	federateduser.ShippingAddressLine2 = req.ShippingAddressLine2
+	federateduser.ProfileData.Country = req.Country
+	federateduser.ProfileData.Region = req.Region
+	federateduser.ProfileData.City = req.City
+	federateduser.ProfileData.PostalCode = req.PostalCode
+	federateduser.ProfileData.AddressLine1 = req.AddressLine1
+	federateduser.ProfileData.AddressLine2 = req.AddressLine2
+	federateduser.ProfileData.HasShippingAddress = req.HasShippingAddress
+	federateduser.ProfileData.ShippingName = req.ShippingName
+	federateduser.ProfileData.ShippingPhone = req.ShippingPhone
+	federateduser.ProfileData.ShippingCountry = req.ShippingCountry
+	federateduser.ProfileData.ShippingRegion = req.ShippingRegion
+	federateduser.ProfileData.ShippingCity = req.ShippingCity
+	federateduser.ProfileData.ShippingPostalCode = req.ShippingPostalCode
+	federateduser.ProfileData.ShippingAddressLine1 = req.ShippingAddressLine1
+	federateduser.ProfileData.ShippingAddressLine2 = req.ShippingAddressLine2
 }

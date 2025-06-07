@@ -65,7 +65,6 @@ type RegisterCustomerRequestIDO struct {
 	Email                                          string `json:"email"`
 	Phone                                          string `json:"phone,omitempty"`
 	Country                                        string `json:"country,omitempty"`
-	CountryOther                                   string `json:"country_other,omitempty"`
 	Timezone                                       string `bson:"timezone" json:"timezone"`
 	AgreeTermsOfService                            bool   `json:"agree_terms_of_service,omitempty"`
 	AgreePromotions                                bool   `json:"agree_promotions,omitempty"`
@@ -320,7 +319,29 @@ func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserFor
 
 	userID := gocql.TimeUUID()
 
-	u := &dom_user.FederatedUser{
+	profiledata := &dom_user.FederatedUserProfileData{
+		Phone:                req.Phone,
+		Country:              req.Country,
+		Timezone:             req.Timezone,
+		Region:               "",
+		City:                 "",
+		PostalCode:           "",
+		AddressLine1:         "",
+		AddressLine2:         "",
+		HasShippingAddress:   false,
+		ShippingName:         "",
+		ShippingPhone:        "",
+		ShippingCountry:      "",
+		ShippingRegion:       "",
+		ShippingCity:         "",
+		ShippingPostalCode:   "",
+		ShippingAddressLine1: "",
+		ShippingAddressLine2: "",
+		AgreeTermsOfService:  req.AgreeTermsOfService,
+		AgreePromotions:      req.AgreePromotions,
+		AgreeToTrackingAcrossThirdPartyAppsAndServices: req.AgreeToTrackingAcrossThirdPartyAppsAndServices,
+	}
+	securitydata := &dom_user.FederatedUserSecurityData{
 		// --- E2EE ---
 		PasswordSalt:                      saltBytes,
 		KDFParams:                         keys.DefaultKDFParams(),
@@ -336,49 +357,38 @@ func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserFor
 		LastKeyRotation:                   &currentTime,
 		KeyRotationPolicy:                 nil,
 
-		// --- The rest of the stuff... ---
-		ID:                  userID,
-		FirstName:           req.FirstName,
-		LastName:            req.LastName,
-		Name:                fmt.Sprintf("%s %s", req.FirstName, req.LastName),
-		LexicalName:         fmt.Sprintf("%s, %s", req.LastName, req.FirstName),
-		Email:               req.Email,
-		Role:                dom_user.FederatedUserRoleIndividual,
-		Phone:               req.Phone,
-		Country:             req.Country,
-		Timezone:            req.Timezone,
-		Region:              "",
-		City:                "",
-		PostalCode:          "",
-		AddressLine1:        "",
-		AddressLine2:        "",
-		AgreeTermsOfService: req.AgreeTermsOfService,
-		AgreePromotions:     req.AgreePromotions,
-		AgreeToTrackingAcrossThirdPartyAppsAndServices: req.AgreeToTrackingAcrossThirdPartyAppsAndServices,
-		CreatedByUserID:         userID,
-		CreatedAt:               time.Now(),
-		CreatedByName:           fmt.Sprintf("%s %s", req.FirstName, req.LastName),
-		CreatedFromIPAddress:    ipAddress,
-		ModifiedByUserID:        userID,
-		ModifiedAt:              time.Now(),
-		ModifiedByName:          fmt.Sprintf("%s %s", req.FirstName, req.LastName),
-		ModifiedFromIPAddress:   ipAddress,
-		WasEmailVerified:        false,
-		EmailVerificationCode:   fmt.Sprintf("%s", emailVerificationCode),
-		EmailVerificationExpiry: time.Now().Add(72 * time.Hour),
-		Status:                  dom_user.FederatedUserStatusActive,
-		HasShippingAddress:      false,
-		ShippingName:            "",
-		ShippingPhone:           "",
-		ShippingCountry:         "",
-		ShippingRegion:          "",
-		ShippingCity:            "",
-		ShippingPostalCode:      "",
-		ShippingAddressLine1:    "",
-		ShippingAddressLine2:    "",
+		// --- Quality of Assurance on Email intake
+		WasEmailVerified: false,
+		Code:             fmt.Sprintf("%s", emailVerificationCode),
+		CodeType:         dom_user.FederatedUserCodeTypeEmailVerification,
+		CodeExpiry:       time.Now().Add(72 * time.Hour),
 	}
-	if req.CountryOther != "" {
-		u.Country = req.CountryOther
+	metadata := &dom_user.FederatedUserMetadata{
+		CreatedByUserID:       userID,
+		CreatedAt:             time.Now(),
+		CreatedByName:         fmt.Sprintf("%s %s", req.FirstName, req.LastName),
+		CreatedFromIPAddress:  ipAddress,
+		ModifiedByUserID:      userID,
+		ModifiedAt:            time.Now(),
+		ModifiedByName:        fmt.Sprintf("%s %s", req.FirstName, req.LastName),
+		ModifiedFromIPAddress: ipAddress,
+	}
+
+	u := &dom_user.FederatedUser{
+		ID:           userID,
+		Email:        req.Email,
+		FirstName:    req.FirstName,
+		LastName:     req.LastName,
+		Name:         fmt.Sprintf("%s %s", req.FirstName, req.LastName),
+		LexicalName:  fmt.Sprintf("%s, %s", req.LastName, req.FirstName),
+		Role:         dom_user.FederatedUserRoleIndividual,
+		Status:       dom_user.FederatedUserStatusActive,
+		Timezone:     req.Timezone,
+		ProfileData:  profiledata,
+		SecurityData: securitydata,
+		Metadata:     metadata,
+		CreatedAt:    metadata.CreatedAt,
+		ModifiedAt:   metadata.ModifiedAt,
 	}
 	err = s.userCreateUseCase.Execute(sessCtx, u)
 	if err != nil {

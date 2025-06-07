@@ -57,11 +57,12 @@ func (s *gatewayVerifyEmailServiceImpl) Execute(sessCtx context.Context, req *Ga
 	ipAddress, _ := sessCtx.Value(constants.SessionIPAddress).(string)
 
 	// Verify the user.
-	u.WasEmailVerified = true
+	u.SecurityData.WasEmailVerified = true
 	// ou.ModifiedByFederatedUserID = userID
 	u.ModifiedAt = time.Now()
 	// ou.ModifiedByName = fmt.Sprintf("%s %s", ou.FirstName, ou.LastName)
-	u.ModifiedFromIPAddress = ipAddress
+	u.Metadata.ModifiedAt = u.ModifiedAt
+	u.Metadata.ModifiedFromIPAddress = ipAddress
 	if err := s.userUpdateUseCase.Execute(sessCtx, u); err != nil {
 		return nil, err
 	}
