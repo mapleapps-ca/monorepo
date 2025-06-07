@@ -228,6 +228,7 @@ static/blacklist/ips.json
 static/blacklist/urls.json
 internal/static/blacklist/ips.json
 internal/static/blacklist/urls.json
+static/cassandra-jdbc-wrapper-*
 
 # Do not save our temporary files.
 tmp

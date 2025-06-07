@@ -16,6 +16,7 @@ services:
     environment:
       - CASSANDRA_SEEDS=cassandra1,cassandra2,cassandra3
       - CASSANDRA_CLUSTER_NAME=mapleapps_cluster
+      - CASSANDRA_DC=datacenter1
     networks:
       - cassandra_network
 
@@ -30,6 +31,7 @@ services:
     environment:
       - CASSANDRA_SEEDS=cassandra1,cassandra2,cassandra3
       - CASSANDRA_CLUSTER_NAME=mapleapps_cluster
+      - CASSANDRA_DC=datacenter1
     depends_on:
       - cassandra1
     networks:
@@ -46,6 +48,7 @@ services:
     environment:
       - CASSANDRA_SEEDS=cassandra1,cassandra2,cassandra3
       - CASSANDRA_CLUSTER_NAME=mapleapps_cluster
+      - CASSANDRA_DC=datacenter1
     depends_on:
       - cassandra1
       - cassandra2
