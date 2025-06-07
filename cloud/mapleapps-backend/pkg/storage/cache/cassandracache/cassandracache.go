@@ -2,14 +2,10 @@ package cassandracache
 
 import (
 	"context"
-	"log"
 	"time"
 
-	"github.com/faabiosr/cachego"
 	"github.com/gocql/gocql"
 	"go.uber.org/zap"
-
-	c "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 )
 
 type Cacher interface {
@@ -18,76 +14,53 @@ type Cacher interface {
 	Set(ctx context.Context, key string, val []byte) error
 	SetWithExpiry(ctx context.Context, key string, val []byte, expiry time.Duration) error
 	Delete(ctx context.Context, key string) error
+	PurgeExpired(ctx context.Context) error
 }
 
 type cache struct {
-	Client cachego.Cache
-	Logger *zap.Logger
+	Session *gocql.Session
+	Logger  *zap.Logger
 }
 
-func NewCache(cfg *c.Configuration, logger *zap.Logger, session *gocql.Session) Cacher {
-	logger.Debug("cassandra based cache initializing...")
-
-	query := `
-		CREATE TABLE IF NOT EXISTS mapleapps.cache_by_date (
-			session_id TIMEUUID,
-			expires_at TIMESTAMP,
-			value BLOB,
-			PRIMARY KEY ((expires_at), session_id)
-		);
-	`
-	if err := session.Query(query).Exec(); err != nil {
-		logger.Error("Failed creating `cache_by_date` table if DNE", zap.Error(err))
-		log.Fatal(err)
-	}
-
-	logger.Debug("cassandra based cache initialized")
+func NewCache(session *gocql.Session, logger *zap.Logger) Cacher {
+	logger.Info("cassandra cache initialized")
 	return &cache{
-		Logger: logger,
+		Session: session,
+		Logger:  logger,
 	}
 }
 
 func (s *cache) Shutdown() {
-	// Do nothing...
+	s.Logger.Info("cassandra cache shutting down...")
+	s.Session.Close()
 }
 
 func (s *cache) Get(ctx context.Context, key string) ([]byte, error) {
-	// val, err := s.Client.Fetch(key)
-	// if err != nil {
-	// 	s.Logger.Error("cache get failed", slog.Any("error", err))
-	// 	return nil, err
-	// }
-	// return []byte(val), nil
-	return nil, nil
+	var value []byte
+	query := `SELECT value FROM cache_by_key_with_asc_expire_at WHERE key=? AND expires_at > toTimestamp(now()) LIMIT 1`
+	err := s.Session.Query(query, key).WithContext(ctx).Consistency(gocql.LocalQuorum).Scan(&value)
+	if err == gocql.ErrNotFound {
+		return nil, nil
+	}
+	return value, err
 }
 
 func (s *cache) Set(ctx context.Context, key string, val []byte) error {
-	// err := s.Client.Save(key, string(val), 0)
-	// if err != nil {
-	// 	s.Logger.Error("cache set failed", slog.Any("error", err))
-	// 	return err
-	// }
-	// return nil
-
-	return nil
+	return s.Session.Query(`INSERT INTO cache_by_key_with_asc_expire_at (key, expires_at, value) VALUES (?, toTimestamp(now()) + 86400000, ?)`,
+		key, val).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
 }
 
 func (s *cache) SetWithExpiry(ctx context.Context, key string, val []byte, expiry time.Duration) error {
-	// err := s.Client.Save(key, string(val), expiry)
-	// if err != nil {
-	// 	s.Logger.Error("cache set with expiry failed", slog.Any("error", err))
-	// 	return err
-	// }
-	// return nil
-	return nil
+	return s.Session.Query(`INSERT INTO cache_by_key_with_asc_expire_at (key, expires_at, value) VALUES (?, toTimestamp(now()) + ?, ?)`,
+		key, int64(expiry/time.Millisecond), val).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
 }
 
 func (s *cache) Delete(ctx context.Context, key string) error {
-	// err := s.Client.Delete(key)
-	// if err != nil {
-	// 	s.Logger.Error("cache delete failed", slog.Any("error", err))
-	// 	return err
-	// }
-	// return nil
-	return nil
+	return s.Session.Query(`DELETE FROM cache_by_key_with_asc_expire_at WHERE key=?`, key).
+		WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
+}
+
+func (s *cache) PurgeExpired(ctx context.Context) error {
+	return s.Session.Query(`DELETE FROM cache_by_key_with_asc_expire_at WHERE expires_at < toTimestamp(now())`).
+		WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
 }
