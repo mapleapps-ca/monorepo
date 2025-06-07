@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS mapleapps.federated_users_by_email (
 
 -- Table 3: Lookup by verification codes with TTL support
 CREATE TABLE IF NOT EXISTS mapleapps.users_by_verification_code (
-   code TEXT,
+    code TEXT,
     code_type TEXT, -- 'email_verification' or 'password_reset'
     user_id UUID,
     email TEXT,
