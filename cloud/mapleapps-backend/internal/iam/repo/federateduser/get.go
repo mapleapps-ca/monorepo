@@ -25,7 +25,7 @@ func (r *federatedUserRepository) GetByID(ctx context.Context, id gocql.UUID) (*
         SELECT email, first_name, last_name, name, lexical_name,
                role, status, timezone, created_at, modified_at,
                profile_data, security_data, metadata
-        FROM federated_users_by_id
+        FROM iam_federated_users_by_id
         WHERE id = ?`
 
 	err := r.session.Query(query, id).WithContext(ctx).Scan(
@@ -85,7 +85,7 @@ func (r *federatedUserRepository) GetByEmail(ctx context.Context, email string) 
         SELECT id, email, first_name, last_name, name, lexical_name,
                role, status, timezone, created_at, modified_at,
                profile_data, security_data, metadata
-        FROM federated_users_by_email
+        FROM iam_federated_users_by_email
         WHERE email = ?`
 
 	err := r.session.Query(query, email).WithContext(ctx).Scan(
@@ -140,7 +140,7 @@ func (r *federatedUserRepository) GetByVerificationCode(ctx context.Context, ver
 
 		query := `
             SELECT user_id, expires_at
-            FROM federated_users_by_verification_code
+            FROM iam_federated_users_by_verification_code
             WHERE code = ? AND code_type = ?`
 
 		err := r.session.Query(query, verificationCode, codeType).

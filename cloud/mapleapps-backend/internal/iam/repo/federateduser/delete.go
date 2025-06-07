@@ -24,7 +24,7 @@ func (r *federatedUserRepository) DeleteByID(ctx context.Context, id gocql.UUID)
 	batch := r.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
 
 	// Delete from all tables
-	batch.Query(`DELETE FROM federated_users_by_id WHERE id = ?`, id)
+	batch.Query(`DELETE FROM iam_federated_users_by_id WHERE id = ?`, id)
 	batch.Query(`DELETE FROM federatedusers_by_email WHERE email = ?`, user.Email)
 
 	// Delete from status table
@@ -38,7 +38,7 @@ func (r *federatedUserRepository) DeleteByID(ctx context.Context, id gocql.UUID)
 	// Delete verification codes if any
 	if user.SecurityData != nil && user.SecurityData.Code != "" {
 		batch.Query(`
-            DELETE FROM federated_users_by_verification_code
+            DELETE FROM iam_federated_users_by_verification_code
             WHERE code = ? AND code_type = ?`,
 			user.SecurityData.Code, user.SecurityData.CodeType,
 		)

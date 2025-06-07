@@ -45,7 +45,7 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 
 	// 1. Update main table
 	batch.Query(`
-        UPDATE federated_users_by_id
+        UPDATE iam_federated_users_by_id
         SET email = ?, first_name = ?, last_name = ?, name = ?, lexical_name = ?,
             role = ?, status = ?, modified_at = ?,
             profile_data = ?, security_data = ?, metadata = ?
@@ -59,11 +59,11 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 	// 2. Handle email change
 	if existingUser.Email != user.Email {
 		// Delete old email entry
-		batch.Query(`DELETE FROM federated_users_by_email WHERE email = ?`, existingUser.Email)
+		batch.Query(`DELETE FROM iam_federated_users_by_email WHERE email = ?`, existingUser.Email)
 
 		// Insert new email entry
 		batch.Query(`
-            INSERT INTO federated_users_by_email (
+            INSERT INTO iam_federated_users_by_email (
                 email, id, first_name, last_name, status, created_at
             ) VALUES (?, ?, ?, ?, ?, ?)`,
 			user.Email, user.ID, user.FirstName, user.LastName,
@@ -72,7 +72,7 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 	} else {
 		// Just update the existing email entry
 		batch.Query(`
-            UPDATE federated_users_by_email
+            UPDATE iam_federated_users_by_email
             SET first_name = ?, last_name = ?, status = ?
             WHERE email = ?`,
 			user.FirstName, user.LastName, user.Status, user.Email,
@@ -107,7 +107,7 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 	if existingUser.SecurityData != nil && existingUser.SecurityData.Code != "" {
 		// Remove old code
 		batch.Query(`
-            DELETE FROM federated_users_by_verification_code
+            DELETE FROM iam_federated_users_by_verification_code
             WHERE code = ? AND code_type = ?`,
 			existingUser.SecurityData.Code, existingUser.SecurityData.CodeType,
 		)
@@ -118,7 +118,7 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 		ttl := int(time.Until(user.SecurityData.CodeExpiry).Seconds())
 		if ttl > 0 {
 			batch.Query(`
-                INSERT INTO federated_users_by_verification_code (
+                INSERT INTO iam_federated_users_by_verification_code (
                     code, code_type, user_id, email, created_at, expires_at
                 ) VALUES (?, ?, ?, ?, ?, ?) USING TTL ?`,
 				user.SecurityData.Code, user.SecurityData.CodeType,

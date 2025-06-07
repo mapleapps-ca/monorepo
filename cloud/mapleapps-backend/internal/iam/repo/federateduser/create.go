@@ -48,7 +48,7 @@ func (r *federatedUserRepository) Create(ctx context.Context, user *dom.Federate
 
 	// 1. Insert into users_by_id (primary table)
 	batch.Query(`
-        INSERT INTO federated_users_by_id (
+        INSERT INTO iam_federated_users_by_id (
             id, email, first_name, last_name, name, lexical_name,
             role, status, timezone, created_at, modified_at,
             profile_data, security_data, metadata
@@ -60,7 +60,7 @@ func (r *federatedUserRepository) Create(ctx context.Context, user *dom.Federate
 
 	// 2. Insert into users_by_email
 	batch.Query(`
-    INSERT INTO federated_users_by_email (
+    INSERT INTO iam_federated_users_by_email (
         email, id,  first_name, last_name, name, lexical_name,
         role, status, timezone, created_at, modified_at,
         profile_data, security_data, metadata
@@ -83,7 +83,7 @@ func (r *federatedUserRepository) Create(ctx context.Context, user *dom.Federate
 		ttl := int(time.Until(user.SecurityData.CodeExpiry).Seconds())
 		if ttl > 0 {
 			batch.Query(`
-                INSERT INTO federated_users_by_verification_code (
+                INSERT INTO iam_federated_users_by_verification_code (
                     code, code_type, user_id, email, created_at, expires_at
                 ) VALUES (?, ?, ?, ?, ?, ?) USING TTL ?`,
 				user.SecurityData.Code, user.SecurityData.CodeType,
