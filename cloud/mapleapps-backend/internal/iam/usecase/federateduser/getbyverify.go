@@ -17,10 +17,10 @@ type FederatedUserGetByVerificationCodeUseCase interface {
 type userGetByVerificationCodeUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
-	repo   dom_user.Repository
+	repo   dom_user.FederatedUserRepository
 }
 
-func NewFederatedUserGetByVerificationCodeUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) FederatedUserGetByVerificationCodeUseCase {
+func NewFederatedUserGetByVerificationCodeUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserGetByVerificationCodeUseCase {
 	return &userGetByVerificationCodeUseCaseImpl{config, logger, repo}
 }
 

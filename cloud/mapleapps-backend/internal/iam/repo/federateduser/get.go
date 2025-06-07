@@ -132,7 +132,10 @@ func (r *federatedUserRepository) GetByEmail(ctx context.Context, email string) 
 
 func (r *federatedUserRepository) GetByVerificationCode(ctx context.Context, verificationCode string) (*dom.FederatedUser, error) {
 	// We need to check both code types (email_verification and password_reset)
-	codeTypes := []string{"email_verification", "password_reset"}
+	codeTypes := []string{
+		dom.FederatedUserCodeTypeEmailVerification,
+		dom.FederatedUserCodeTypePasswordReset,
+	}
 
 	for _, codeType := range codeTypes {
 		var userID gocql.UUID

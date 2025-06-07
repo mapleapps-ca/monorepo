@@ -16,6 +16,9 @@ const (
 	FederatedUserRoleRoot       = 1 // Root user, has all permissions
 	FederatedUserRoleCompany    = 2 // Company user, has permissions for company-related operations
 	FederatedUserRoleIndividual = 3 // Individual user, has permissions for individual-related operations
+
+	FederatedUserCodeTypeEmailVerification = "email_verification"
+	FederatedUserCodeTypePasswordReset     = "password_reset"
 )
 
 type FederatedUserProfileData struct {

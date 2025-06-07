@@ -18,10 +18,10 @@ type FederatedUserCreateUseCase interface {
 type userCreateUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
-	repo   dom_user.Repository
+	repo   dom_user.FederatedUserRepository
 }
 
-func NewFederatedUserCreateUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) FederatedUserCreateUseCase {
+func NewFederatedUserCreateUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserCreateUseCase {
 	return &userCreateUseCaseImpl{config, logger, repo}
 }
 

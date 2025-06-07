@@ -19,10 +19,10 @@ type FederatedUserDeleteByIDUseCase interface {
 type userDeleteByIDImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
-	repo   dom_user.Repository
+	repo   dom_user.FederatedUserRepository
 }
 
-func NewFederatedUserDeleteByIDUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) FederatedUserDeleteByIDUseCase {
+func NewFederatedUserDeleteByIDUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserDeleteByIDUseCase {
 	return &userDeleteByIDImpl{config, logger, repo}
 }
 

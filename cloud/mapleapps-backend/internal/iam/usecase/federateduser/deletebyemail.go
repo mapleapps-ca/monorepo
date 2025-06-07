@@ -18,10 +18,10 @@ type FederatedUserDeleteFederatedUserByEmailUseCase interface {
 type userDeleteFederatedUserByEmailImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
-	repo   dom_user.Repository
+	repo   dom_user.FederatedUserRepository
 }
 
-func NewFederatedUserDeleteFederatedUserByEmailUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) FederatedUserDeleteFederatedUserByEmailUseCase {
+func NewFederatedUserDeleteFederatedUserByEmailUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserDeleteFederatedUserByEmailUseCase {
 	return &userDeleteFederatedUserByEmailImpl{config, logger, repo}
 }
 

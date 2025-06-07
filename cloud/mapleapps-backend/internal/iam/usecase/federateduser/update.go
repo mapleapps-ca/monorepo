@@ -17,10 +17,10 @@ type FederatedUserUpdateUseCase interface {
 type userUpdateUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
-	repo   dom_user.Repository
+	repo   dom_user.FederatedUserRepository
 }
 
-func NewFederatedUserUpdateUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) FederatedUserUpdateUseCase {
+func NewFederatedUserUpdateUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserUpdateUseCase {
 	return &userUpdateUseCaseImpl{config, logger, repo}
 }
 

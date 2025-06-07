@@ -39,7 +39,7 @@ func (uc *sendFederatedUserVerificationEmailUseCaseImpl) Execute(ctx context.Con
 		if user.Email == "" {
 			e["email"] = "Email is required"
 		}
-		if user.EmailVerificationCode == "" {
+		if user.SecurityData.CodeType == domain.FederatedUserCodeTypeEmailVerification {
 			e["email_verification_code"] = "Email verification code is required"
 		}
 	}
@@ -53,5 +53,5 @@ func (uc *sendFederatedUserVerificationEmailUseCaseImpl) Execute(ctx context.Con
 	// STEP 2: Send email
 	//
 
-	return uc.emailer.SendUserVerificationEmail(ctx, monolithModule, user.Email, user.EmailVerificationCode, user.FirstName)
+	return uc.emailer.SendUserVerificationEmail(ctx, monolithModule, user.Email, user.SecurityData.Code, user.FirstName)
 }

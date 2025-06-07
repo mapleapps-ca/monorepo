@@ -18,10 +18,10 @@ type FederatedUserGetByEmailUseCase interface {
 type userGetByEmailUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
-	repo   dom_user.Repository
+	repo   dom_user.FederatedUserRepository
 }
 
-func NewFederatedUserGetByEmailUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) FederatedUserGetByEmailUseCase {
+func NewFederatedUserGetByEmailUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserGetByEmailUseCase {
 	return &userGetByEmailUseCaseImpl{config, logger, repo}
 }
 

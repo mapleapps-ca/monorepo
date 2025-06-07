@@ -39,7 +39,7 @@ func (uc *sendFederatedUserPasswordResetEmailUseCaseImpl) Execute(ctx context.Co
 		if user.Email == "" {
 			e["email"] = "Email is required"
 		}
-		if user.PasswordResetVerificationCode == "" {
+		if user.SecurityData.CodeType == domain.FederatedUserCodeTypePasswordReset {
 			e["password_reset_verification_code"] = "Password reset verification code is required"
 		}
 	}
@@ -53,5 +53,5 @@ func (uc *sendFederatedUserPasswordResetEmailUseCaseImpl) Execute(ctx context.Co
 	// STEP 2: Send email
 	//
 
-	return uc.emailer.SendUserPasswordResetEmail(ctx, monolithModule, user.Email, user.PasswordResetVerificationCode, user.FirstName)
+	return uc.emailer.SendUserPasswordResetEmail(ctx, monolithModule, user.Email, user.SecurityData.Code, user.FirstName)
 }

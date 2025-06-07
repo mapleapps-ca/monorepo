@@ -19,10 +19,10 @@ type FederatedUserGetByIDUseCase interface {
 type userGetByIDUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
-	repo   dom_user.Repository
+	repo   dom_user.FederatedUserRepository
 }
 
-func NewFederatedUserGetByIDUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.Repository) FederatedUserGetByIDUseCase {
+func NewFederatedUserGetByIDUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserGetByIDUseCase {
 	return &userGetByIDUseCaseImpl{config, logger, repo}
 }
 
