@@ -45,7 +45,7 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 
 	// 1. Update main table
 	batch.Query(`
-        UPDATE users_by_id
+        UPDATE federated_users_by_id
         SET email = ?, first_name = ?, last_name = ?, name = ?, lexical_name = ?,
             role = ?, status = ?, modified_at = ?,
             profile_data = ?, security_data = ?, metadata = ?
@@ -59,11 +59,11 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 	// 2. Handle email change
 	if existingUser.Email != user.Email {
 		// Delete old email entry
-		batch.Query(`DELETE FROM users_by_email WHERE email = ?`, existingUser.Email)
+		batch.Query(`DELETE FROM federated_users_by_email WHERE email = ?`, existingUser.Email)
 
 		// Insert new email entry
 		batch.Query(`
-            INSERT INTO users_by_email (
+            INSERT INTO federated_users_by_email (
                 email, id, first_name, last_name, status, created_at
             ) VALUES (?, ?, ?, ?, ?, ?)`,
 			user.Email, user.ID, user.FirstName, user.LastName,
@@ -72,7 +72,7 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 	} else {
 		// Just update the existing email entry
 		batch.Query(`
-            UPDATE users_by_email
+            UPDATE federated_users_by_email
             SET first_name = ?, last_name = ?, status = ?
             WHERE email = ?`,
 			user.FirstName, user.LastName, user.Status, user.Email,
@@ -82,61 +82,24 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 	// 3. Handle status change
 	if existingUser.Status != user.Status {
 		// Remove from old status table
-		oldCreatedDate := existingUser.CreatedAt.Format("2006-01-02")
-		batch.Query(`
-            DELETE FROM users_by_status_and_date
-            WHERE status = ? AND created_date = ? AND created_at = ? AND id = ?`,
-			existingUser.Status, oldCreatedDate, existingUser.CreatedAt, user.ID,
-		)
+		// kip
 
 		// Add to new status table
-		newCreatedDate := user.CreatedAt.Format("2006-01-02")
-		batch.Query(`
-            INSERT INTO users_by_status_and_date (
-                status, created_date, created_at, id, email, name, lexical_name, role
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			user.Status, newCreatedDate, user.CreatedAt, user.ID,
-			user.Email, user.Name, user.LexicalName, user.Role,
-		)
+		// Skip
 
 		// Handle active users table
 		if existingUser.Status == dom.FederatedUserStatusActive {
-			// Remove from active users
-			batch.Query(`
-                DELETE FROM active_users_by_date
-                WHERE created_date = ? AND created_at = ? AND id = ?`,
-				oldCreatedDate, existingUser.CreatedAt, user.ID,
-			)
+			// Skip
 		}
 		if user.Status == dom.FederatedUserStatusActive {
-			// Add to active users
-			batch.Query(`
-                INSERT INTO active_users_by_date (
-                    created_date, created_at, id, email, name, role
-                ) VALUES (?, ?, ?, ?, ?, ?)`,
-				newCreatedDate, user.CreatedAt, user.ID,
-				user.Email, user.Name, user.Role,
-			)
-		}
-	} else {
-		// Just update the existing status entry
-		createdDate := user.CreatedAt.Format("2006-01-02")
-		batch.Query(`
-            UPDATE users_by_status_and_date
-            SET email = ?, name = ?, lexical_name = ?, role = ?
-            WHERE status = ? AND created_date = ? AND created_at = ? AND id = ?`,
-			user.Email, user.Name, user.LexicalName, user.Role,
-			user.Status, createdDate, user.CreatedAt, user.ID,
-		)
+			// Skip
+		} else {
+			// Just update the existing status entry
+			// Skip
 
-		if user.Status == dom.FederatedUserStatusActive {
-			batch.Query(`
-                UPDATE active_users_by_date
-                SET email = ?, name = ?, role = ?
-                WHERE created_date = ? AND created_at = ? AND id = ?`,
-				user.Email, user.Name, user.Role,
-				createdDate, user.CreatedAt, user.ID,
-			)
+			if user.Status == dom.FederatedUserStatusActive {
+				// Skip
+			}
 		}
 	}
 
@@ -144,7 +107,7 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 	if existingUser.SecurityData != nil && existingUser.SecurityData.Code != "" {
 		// Remove old code
 		batch.Query(`
-            DELETE FROM users_by_verification_code
+            DELETE FROM federated_users_by_verification_code
             WHERE code = ? AND code_type = ?`,
 			existingUser.SecurityData.Code, existingUser.SecurityData.CodeType,
 		)
@@ -155,7 +118,7 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 		ttl := int(time.Until(user.SecurityData.CodeExpiry).Seconds())
 		if ttl > 0 {
 			batch.Query(`
-                INSERT INTO users_by_verification_code (
+                INSERT INTO federated_users_by_verification_code (
                     code, code_type, user_id, email, created_at, expires_at
                 ) VALUES (?, ?, ?, ?, ?, ?) USING TTL ?`,
 				user.SecurityData.Code, user.SecurityData.CodeType,

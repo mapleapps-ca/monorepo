@@ -60,11 +60,11 @@ func (r *federatedUserRepository) Create(ctx context.Context, user *dom.Federate
 
 	// 2. Insert into users_by_email
 	batch.Query(`
-        INSERT INTO federated_users_by_email (
-            email, id,  first_name, last_name, name, lexical_name,
-            role, status, timezone, created_at, modified_at,
-            profile_data, security_data, metadata
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    INSERT INTO federated_users_by_email (
+        email, id,  first_name, last_name, name, lexical_name,
+        role, status, timezone, created_at, modified_at,
+        profile_data, security_data, metadata
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		user.ID, user.Email, user.FirstName, user.LastName, user.Name, user.LexicalName,
 		user.Role, user.Status, user.Timezone, user.CreatedAt, user.ModifiedAt,
 		profileDataJSON, securityDataJSON, metadataJSON,

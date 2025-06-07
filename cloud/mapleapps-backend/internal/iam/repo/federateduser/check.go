@@ -11,7 +11,7 @@ import (
 func (r *federatedUserRepository) CheckIfExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var id gocql.UUID
 
-	query := `SELECT id FROM users_by_email WHERE email = ? LIMIT 1`
+	query := `SELECT id FROM federated_users_by_email WHERE email = ? LIMIT 1`
 	err := r.session.Query(query, email).WithContext(ctx).Scan(&id)
 
 	if err == gocql.ErrNotFound {

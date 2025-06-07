@@ -24,45 +24,28 @@ func (r *federatedUserRepository) DeleteByID(ctx context.Context, id gocql.UUID)
 	batch := r.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
 
 	// Delete from all tables
-	batch.Query(`DELETE FROM users_by_id WHERE id = ?`, id)
-	batch.Query(`DELETE FROM users_by_email WHERE email = ?`, user.Email)
+	batch.Query(`DELETE FROM federated_users_by_id WHERE id = ?`, id)
+	batch.Query(`DELETE FROM federatedusers_by_email WHERE email = ?`, user.Email)
 
 	// Delete from status table
-	createdDate := user.CreatedAt.Format("2006-01-02")
-	batch.Query(`
-        DELETE FROM users_by_status_and_date
-        WHERE status = ? AND created_date = ? AND created_at = ? AND id = ?`,
-		user.Status, createdDate, user.CreatedAt, id,
-	)
+	// Skip
 
 	// Delete from active users if applicable
 	if user.Status == dom.FederatedUserStatusActive {
-		batch.Query(`
-            DELETE FROM active_users_by_date
-            WHERE created_date = ? AND created_at = ? AND id = ?`,
-			createdDate, user.CreatedAt, id,
-		)
+		// Skip
 	}
 
 	// Delete verification codes if any
 	if user.SecurityData != nil && user.SecurityData.Code != "" {
 		batch.Query(`
-            DELETE FROM users_by_verification_code
+            DELETE FROM federated_users_by_verification_code
             WHERE code = ? AND code_type = ?`,
 			user.SecurityData.Code, user.SecurityData.CodeType,
 		)
 	}
 
 	// Delete from search index
-	searchTerms := r.generateSearchTerms(user)
-	for _, term := range searchTerms {
-		searchBucket := r.calculateSearchBucket(term)
-		batch.Query(`
-            DELETE FROM users_search_index
-            WHERE search_bucket = ? AND search_term = ? AND created_at = ? AND id = ?`,
-			searchBucket, term, user.CreatedAt, id,
-		)
-	}
+	// Skip
 
 	// Execute the batch
 	if err := r.session.ExecuteBatch(batch); err != nil {

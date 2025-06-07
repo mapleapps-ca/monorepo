@@ -1,4 +1,4 @@
-// repo/federateduser/get.go
+// repo/federateduser/get.go - FIXED VERSION
 package federateduser
 
 import (
@@ -25,7 +25,7 @@ func (r *federatedUserRepository) GetByID(ctx context.Context, id gocql.UUID) (*
         SELECT email, first_name, last_name, name, lexical_name,
                role, status, timezone, created_at, modified_at,
                profile_data, security_data, metadata
-        FROM users_by_id
+        FROM federated_users_by_id
         WHERE id = ?`
 
 	err := r.session.Query(query, id).WithContext(ctx).Scan(
@@ -73,6 +73,7 @@ func (r *federatedUserRepository) GetByID(ctx context.Context, id gocql.UUID) (*
 func (r *federatedUserRepository) GetByEmail(ctx context.Context, email string) (*dom.FederatedUser, error) {
 	var (
 		id                                     gocql.UUID
+		emailResult                            string // 🔧 FIXED: Added missing variable for email column
 		firstName, lastName, name, lexicalName string
 		role, status                           int8
 		timezone                               string
@@ -84,11 +85,11 @@ func (r *federatedUserRepository) GetByEmail(ctx context.Context, email string) 
         SELECT id, email, first_name, last_name, name, lexical_name,
                role, status, timezone, created_at, modified_at,
                profile_data, security_data, metadata
-        FROM users_by_email
+        FROM federated_users_by_email
         WHERE email = ?`
 
 	err := r.session.Query(query, email).WithContext(ctx).Scan(
-		&id, &email, &firstName, &lastName, &name, &lexicalName,
+		&id, &emailResult, &firstName, &lastName, &name, &lexicalName, // 🔧 FIXED: Use emailResult variable
 		&role, &status, &timezone, &createdAt, &modifiedAt,
 		&profileData, &securityData, &metadata,
 	)
@@ -100,13 +101,13 @@ func (r *federatedUserRepository) GetByEmail(ctx context.Context, email string) 
 		r.logger.Error("Failed to get user by Email",
 			zap.String("user_email", email),
 			zap.Error(err))
-		return nil, fmt.Errorf("failed to get user by ID: %w", err)
+		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
 
 	// Construct the user object
 	user := &dom.FederatedUser{
 		ID:          id,
-		Email:       email,
+		Email:       emailResult,
 		FirstName:   firstName,
 		LastName:    lastName,
 		Name:        name,
@@ -139,7 +140,7 @@ func (r *federatedUserRepository) GetByVerificationCode(ctx context.Context, ver
 
 		query := `
             SELECT user_id, expires_at
-            FROM users_by_verification_code
+            FROM federated_users_by_verification_code
             WHERE code = ? AND code_type = ?`
 
 		err := r.session.Query(query, verificationCode, codeType).
