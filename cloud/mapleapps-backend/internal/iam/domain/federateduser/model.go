@@ -21,7 +21,6 @@ const (
 type FederatedUserProfileData struct {
 	Phone                                          string `bson:"phone" json:"phone,omitempty"`
 	Country                                        string `bson:"country" json:"country,omitempty"`
-	Timezone                                       string `bson:"timezone" json:"timezone"`
 	Region                                         string `bson:"region" json:"region,omitempty"`
 	City                                           string `bson:"city" json:"city,omitempty"`
 	PostalCode                                     string `bson:"postal_code" json:"postal_code,omitempty"`
@@ -36,6 +35,7 @@ type FederatedUserProfileData struct {
 	ShippingPostalCode                             string `bson:"shipping_postal_code" json:"shipping_postal_code,omitempty"`
 	ShippingAddressLine1                           string `bson:"shipping_address_line1" json:"shipping_address_line1,omitempty"`
 	ShippingAddressLine2                           string `bson:"shipping_address_line2" json:"shipping_address_line2,omitempty"`
+	Timezone                                       string `bson:"timezone" json:"timezone"`
 	AgreeTermsOfService                            bool   `bson:"agree_terms_of_service" json:"agree_terms_of_service,omitempty"`
 	AgreePromotions                                bool   `bson:"agree_promotions" json:"agree_promotions,omitempty"`
 	AgreeToTrackingAcrossThirdPartyAppsAndServices bool   `bson:"agree_to_tracking_across_third_party_apps_and_services" json:"agree_to_tracking_across_third_party_apps_and_services,omitempty"`
@@ -113,39 +113,10 @@ type FederatedUser struct {
 	LexicalName  string                     `bson:"lexical_name" json:"lexical_name"`
 	Role         int8                       `bson:"role" json:"role"`
 	Status       int8                       `bson:"status" json:"status"`
-	CreatedAt    time.Time                  `bson:"created_at" json:"created_at"`
-	ModifiedAt   time.Time                  `bson:"modified_at" json:"modified_at"`
+	Timezone     string                     `bson:"timezone" json:"timezone"`
 	ProfileData  *FederatedUserProfileData  `bson:"profile_data" json:"profile_data"`
 	SecurityData *FederatedUserSecurityData `bson:"security_data" json:"security_data"`
 	Metadata     *FederatedUserMetadata     `bson:"metadata" json:"metadata"`
-}
-
-// FederatedUserFilter represents the filter criteria for listing users
-type FederatedUserFilter struct {
-	// Basic filters
-	Name   *string `json:"name,omitempty" bson:"name,omitempty"`
-	Email  *string `json:"email,omitempty" bson:"email,omitempty"`
-	Role   int8    `json:"role,omitempty" bson:"role,omitempty"`
-	Status int8    `json:"status,omitempty" bson:"status,omitempty"`
-
-	// Date range filters
-	CreatedAtStart *time.Time `json:"created_at_start,omitempty" bson:"created_at_start,omitempty"`
-	CreatedAtEnd   *time.Time `json:"created_at_end,omitempty" bson:"created_at_end,omitempty"`
-
-	// Pagination - cursor based
-	LastID        *gocql.UUID `json:"last_id,omitempty" bson:"_id,omitempty"`
-	LastCreatedAt *time.Time  `json:"last_created_at,omitempty" bson:"created_at,omitempty"`
-	Limit         int64       `json:"limit,omitempty" bson:"limit,omitempty"`
-
-	// Search term for text search across multiple fields
-	SearchTerm *string `json:"search_term,omitempty" bson:"search_term,omitempty"`
-}
-
-// FederatedUserFilterResult represents the result of a filtered list operation
-type FederatedUserFilterResult struct {
-	Users         []*FederatedUser `json:"users" bson:"users"`
-	HasMore       bool             `json:"has_more" bson:"has_more"`
-	LastID        gocql.UUID       `json:"last_id,omitempty" bson:"_id,omitempty"`
-	LastCreatedAt time.Time        `json:"last_created_at" bson:"created_at"`
-	TotalCount    uint64           `json:"total_count,omitempty" bson:"total_count,omitempty"`
+	CreatedAt    time.Time                  `bson:"created_at" json:"created_at"`
+	ModifiedAt   time.Time                  `bson:"modified_at" json:"modified_at"`
 }

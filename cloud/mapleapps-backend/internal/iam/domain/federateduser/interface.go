@@ -7,8 +7,8 @@ import (
 	"github.com/gocql/gocql"
 )
 
-// Repository Interface for federatediam.
-type Repository interface {
+// FederatedUserRepository Interface for federatediam.
+type FederatedUserRepository interface {
 	Create(ctx context.Context, m *FederatedUser) error
 	GetByID(ctx context.Context, id gocql.UUID) (*FederatedUser, error)
 	GetByEmail(ctx context.Context, email string) (*FederatedUser, error)
@@ -17,7 +17,4 @@ type Repository interface {
 	DeleteByEmail(ctx context.Context, email string) error
 	CheckIfExistsByEmail(ctx context.Context, email string) (bool, error)
 	UpdateByID(ctx context.Context, m *FederatedUser) error
-	ListAll(ctx context.Context) ([]*FederatedUser, error)
-	CountByFilter(ctx context.Context, filter *FederatedUserFilter) (uint64, error)
-	ListByFilter(ctx context.Context, filter *FederatedUserFilter) (*FederatedUserFilterResult, error)
 }

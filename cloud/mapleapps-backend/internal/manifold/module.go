@@ -8,9 +8,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam"
 	commonhttp "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/manifold/interface/http"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg"
-
 	// "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/papercloud"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile"
+	// "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile" //TODO
 )
 
 func Module() fx.Option {
@@ -18,8 +17,8 @@ func Module() fx.Option {
 		pkg.Module(), // Shared utilities, types, and helpers used across layers
 		commonhttp.Module(),
 		iam.Module(),
-		maplefile.Module(),
-		// papercloud.Module(),
+		// maplefile.Module(), //TODO
+		// papercloud.Module(),// Coming soon
 		fx.Invoke(func(*http.Server) {}),
 	)
 }

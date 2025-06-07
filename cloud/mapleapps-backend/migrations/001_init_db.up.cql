@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS mapleapps.federated_users_by_id (
     lexical_name TEXT,
     role TINYINT,
     status TINYINT,
+    timezone TEXT,
     created_at TIMESTAMP,
     modified_at TIMESTAMP,
     -- Store less frequently accessed data as JSON
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS mapleapps.federated_users_by_email (
     lexical_name TEXT,
     role TINYINT,
     status TINYINT,
+    timezone TEXT,
     created_at TIMESTAMP,
     modified_at TIMESTAMP,
     -- Store less frequently accessed data as JSON
@@ -38,11 +40,11 @@ CREATE TABLE IF NOT EXISTS mapleapps.federated_users_by_email (
 
 -- Table 3: Lookup by verification codes with TTL support
 CREATE TABLE IF NOT EXISTS mapleapps.users_by_verification_code (
-    code TEXT,
+   code TEXT,
     code_type TEXT, -- 'email_verification' or 'password_reset'
-    code_expiry TIMESTAMP,
     user_id UUID,
     email TEXT,
     created_at TIMESTAMP,
+    expires_at TIMESTAMP,
     PRIMARY KEY (code, code_type)
 );
