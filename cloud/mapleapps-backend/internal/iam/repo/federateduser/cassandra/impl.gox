@@ -1,0 +1,23 @@
+// repo/federateduser/cassandra/impl.go
+package cassandra
+
+import (
+	"github.com/gocql/gocql"
+	"go.uber.org/zap"
+
+	dom "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/federateduser"
+)
+
+type federatedUserRepository struct {
+	session *gocql.Session
+	logger  *zap.Logger
+}
+
+func NewRepository(session *gocql.Session, logger *zap.Logger) dom.Repository {
+	repo := &federatedUserRepository{
+		session: session,
+		logger:  logger,
+	}
+
+	return repo
+}
