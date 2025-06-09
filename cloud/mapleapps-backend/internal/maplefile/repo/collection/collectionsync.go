@@ -3,11 +3,118 @@ package collection
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/gocql/gocql"
-	dom_sync "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
+	"go.uber.org/zap"
+
+	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
-func (impl collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, userID gocql.UUID, cursor *dom_sync.CollectionSyncCursor, limit int64) (*dom_sync.CollectionSyncResponse, error) {
-	return nil, nil //TODO
+// cloud/mapleapps-backend/internal/maplefile/repo/collection/collectionsync.go
+func (impl *collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error) {
+	// Build query based on cursor
+	var query string
+	var args []interface{}
+
+	if cursor == nil {
+		// Initial sync - get all collections for user
+		query = `SELECT collection_id, modified_at FROM
+			maplefile_collections_by_owner_id_with_desc_modified_at_and_asc_id
+			WHERE owner_id = ? LIMIT ?`
+		args = []interface{}{userID, limit}
+	} else {
+		// Incremental sync - get collections modified after cursor
+		query = `SELECT collection_id, modified_at FROM
+			maplefile_collections_by_owner_id_with_desc_modified_at_and_asc_id
+			WHERE owner_id = ? AND (modified_at, collection_id) > (?, ?) LIMIT ?`
+		args = []interface{}{userID, cursor.LastModified, cursor.LastID, limit}
+	}
+
+	iter := impl.Session.Query(query, args...).Iter()
+
+	var syncItems []dom_collection.CollectionSyncItem
+	var lastModified time.Time
+	var lastID gocql.UUID
+
+	var collectionID gocql.UUID
+	var modifiedAt time.Time
+
+	for iter.Scan(&collectionID, &modifiedAt) {
+		// Get minimal sync data for this collection
+		syncItem, err := impl.getCollectionSyncItem(ctx, collectionID)
+		if err != nil {
+			impl.Logger.Warn("failed to get sync item for collection",
+				zap.String("collection_id", collectionID.String()),
+				zap.Error(err))
+			continue
+		}
+
+		if syncItem != nil {
+			syncItems = append(syncItems, *syncItem)
+			lastModified = modifiedAt
+			lastID = collectionID
+		}
+	}
+
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to get collection sync data: %w", err)
+	}
+
+	// Prepare response
+	response := &dom_collection.CollectionSyncResponse{
+		Collections: syncItems,
+		HasMore:     len(syncItems) == int(limit),
+	}
+
+	// Set next cursor if there are more results
+	if response.HasMore {
+		response.NextCursor = &dom_collection.CollectionSyncCursor{
+			LastModified: lastModified,
+			LastID:       lastID,
+		}
+	}
+
+	return response, nil
+}
+
+// Helper method to get minimal sync data for a collection
+func (impl *collectionRepositoryImpl) getCollectionSyncItem(ctx context.Context, collectionID gocql.UUID) (*dom_collection.CollectionSyncItem, error) {
+	var (
+		id                          gocql.UUID
+		version, tombstoneVersion   uint64
+		modifiedAt, tombstoneExpiry time.Time
+		state                       string
+		parentID                    gocql.UUID
+	)
+
+	query := `SELECT id, version, modified_at, state, parent_id, tombstone_version, tombstone_expiry
+		FROM maplefile_collections_by_id WHERE id = ?`
+
+	err := impl.Session.Query(query, collectionID).Scan(
+		&id, &version, &modifiedAt, &state, &parentID, &tombstoneVersion, &tombstoneExpiry)
+
+	if err != nil {
+		if err == gocql.ErrNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get collection sync item: %w", err)
+	}
+
+	syncItem := &dom_collection.CollectionSyncItem{
+		ID:               id,
+		Version:          version,
+		ModifiedAt:       modifiedAt,
+		State:            state,
+		TombstoneVersion: tombstoneVersion,
+		TombstoneExpiry:  tombstoneExpiry,
+	}
+
+	// Only include ParentID if it's valid
+	if impl.isValidUUID(parentID) {
+		syncItem.ParentID = &parentID
+	}
+
+	return syncItem, nil
 }
