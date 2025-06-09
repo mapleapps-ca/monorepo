@@ -21,6 +21,7 @@ type userGetByVerificationCodeUseCaseImpl struct {
 }
 
 func NewFederatedUserGetByVerificationCodeUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserGetByVerificationCodeUseCase {
+	logger = logger.Named("FederatedUserGetByVerificationCodeUseCase")
 	return &userGetByVerificationCodeUseCaseImpl{config, logger, repo}
 }
 

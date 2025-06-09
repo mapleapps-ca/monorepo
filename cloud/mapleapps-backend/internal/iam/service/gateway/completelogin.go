@@ -18,7 +18,7 @@ import (
 	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/jwt"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/cassandracache"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/cache/twotiercache"
 )
 
 // GatewayCompleteLoginRequestIDO used to get input from client containing the email, challenge ID, and the decrypted challenge
@@ -45,7 +45,7 @@ type GatewayCompleteLoginService interface {
 type gatewayCompleteLoginServiceImpl struct {
 	config                *config.Configuration
 	logger                *zap.Logger
-	cache                 cassandracache.Cacher
+	cache                 twotiercache.Cacher
 	jwtProvider           jwt.Provider
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
 	userUpdateUseCase     uc_user.FederatedUserUpdateUseCase
@@ -54,11 +54,12 @@ type gatewayCompleteLoginServiceImpl struct {
 func NewGatewayCompleteLoginService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	cache cassandracache.Cacher,
+	cache twotiercache.Cacher,
 	jwtProvider jwt.Provider,
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase,
 	userUpdateUseCase uc_user.FederatedUserUpdateUseCase,
 ) GatewayCompleteLoginService {
+	logger = logger.Named("GatewayCompleteLoginService")
 	return &gatewayCompleteLoginServiceImpl{
 		config:                config,
 		logger:                logger,

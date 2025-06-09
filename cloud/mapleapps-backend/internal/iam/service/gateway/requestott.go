@@ -63,6 +63,7 @@ func NewGatewayRequestLoginOTTService(
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase,
 	sendOTTEmailUseCase uc_emailer.SendLoginOTTEmailUseCase,
 ) GatewayRequestLoginOTTService {
+	logger = logger.Named("GatewayRequestLoginOTTService")
 	return &gatewayRequestLoginOTTServiceImpl{
 		config:                config,
 		logger:                logger,

@@ -21,6 +21,7 @@ type sendFederatedUserPasswordResetEmailUseCaseImpl struct {
 }
 
 func NewSendFederatedUserPasswordResetEmailUseCase(config *config.Configuration, logger *zap.Logger, emailer templatedemailer.TemplatedEmailer) SendFederatedUserPasswordResetEmailUseCase {
+	logger = logger.Named("SendFederatedUserPasswordResetEmailUseCase")
 	return &sendFederatedUserPasswordResetEmailUseCaseImpl{config, logger, emailer}
 }
 

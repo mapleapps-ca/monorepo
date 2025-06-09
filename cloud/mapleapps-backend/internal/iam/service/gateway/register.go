@@ -54,6 +54,7 @@ func NewGatewayFederatedUserRegisterService(
 	uc3 uc_user.FederatedUserUpdateUseCase,
 	uc4 uc_emailer.SendFederatedUserVerificationEmailUseCase,
 ) GatewayFederatedUserRegisterService {
+	logger = logger.Named("GatewayFederatedUserRegisterService")
 	return &gatewayFederatedUserRegisterServiceImpl{cfg, logger, pp, cach, jwtp, uc1, uc2, uc3, uc4}
 }
 

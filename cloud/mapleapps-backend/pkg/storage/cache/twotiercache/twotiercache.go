@@ -9,7 +9,16 @@ import (
 	"go.uber.org/zap"
 )
 
-// TwoTierCache: clean 2-layer (read-through write-through) cache
+type Cacher interface {
+	Shutdown(ctx context.Context)
+	Get(ctx context.Context, key string) ([]byte, error)
+	Set(ctx context.Context, key string, val []byte) error
+	SetWithExpiry(ctx context.Context, key string, val []byte, expiry time.Duration) error
+	Delete(ctx context.Context, key string) error
+	PurgeExpired(ctx context.Context) error
+}
+
+// twoTierCacheImpl: clean 2-layer (read-through write-through) cache
 //
 // L1: Redis (fast, in-memory)
 // L2: Cassandra (persistent)
@@ -18,21 +27,22 @@ import (
 // On Set: write to both
 // On SetWithExpiry: write to both with expiry
 // On Delete: remove from both
-type TwoTierCache struct {
+type twoTierCacheImpl struct {
 	RedisCache     redis.Cacher
 	CassandraCache cassandracache.Cacher
 	Logger         *zap.Logger
 }
 
-func NewTwoTierCache(redisCache redis.Cacher, cassandraCache cassandracache.Cacher, logger *zap.Logger) *TwoTierCache {
-	return &TwoTierCache{
+func NewTwoTierCache(redisCache redis.Cacher, cassandraCache cassandracache.Cacher, logger *zap.Logger) Cacher {
+	logger = logger.Named("TwoTierCache")
+	return &twoTierCacheImpl{
 		RedisCache:     redisCache,
 		CassandraCache: cassandraCache,
 		Logger:         logger,
 	}
 }
 
-func (c *TwoTierCache) Get(ctx context.Context, key string) ([]byte, error) {
+func (c *twoTierCacheImpl) Get(ctx context.Context, key string) ([]byte, error) {
 	val, err := c.RedisCache.Get(ctx, key)
 	if err != nil {
 		return nil, err
@@ -53,7 +63,7 @@ func (c *TwoTierCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return val, nil
 }
 
-func (c *TwoTierCache) Set(ctx context.Context, key string, val []byte) error {
+func (c *twoTierCacheImpl) Set(ctx context.Context, key string, val []byte) error {
 	if err := c.RedisCache.Set(ctx, key, val); err != nil {
 		return err
 	}
@@ -63,7 +73,7 @@ func (c *TwoTierCache) Set(ctx context.Context, key string, val []byte) error {
 	return nil
 }
 
-func (c *TwoTierCache) SetWithExpiry(ctx context.Context, key string, val []byte, expiry time.Duration) error {
+func (c *twoTierCacheImpl) SetWithExpiry(ctx context.Context, key string, val []byte, expiry time.Duration) error {
 	if err := c.RedisCache.SetWithExpiry(ctx, key, val, expiry); err != nil {
 		return err
 	}
@@ -73,7 +83,7 @@ func (c *TwoTierCache) SetWithExpiry(ctx context.Context, key string, val []byte
 	return nil
 }
 
-func (c *TwoTierCache) Delete(ctx context.Context, key string) error {
+func (c *twoTierCacheImpl) Delete(ctx context.Context, key string) error {
 	if err := c.RedisCache.Delete(ctx, key); err != nil {
 		return err
 	}
@@ -83,11 +93,11 @@ func (c *TwoTierCache) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-func (c *TwoTierCache) PurgeExpired(ctx context.Context) error {
+func (c *twoTierCacheImpl) PurgeExpired(ctx context.Context) error {
 	return c.CassandraCache.PurgeExpired(ctx)
 }
 
-func (c *TwoTierCache) Shutdown(ctx context.Context) {
+func (c *twoTierCacheImpl) Shutdown(ctx context.Context) {
 	c.Logger.Info("two-tier cache shutting down...")
 	c.RedisCache.Shutdown(ctx)
 	c.CassandraCache.Shutdown()

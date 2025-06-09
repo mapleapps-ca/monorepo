@@ -24,6 +24,8 @@ type cache struct {
 }
 
 func NewCache(cfg *c.Configuration, logger *zap.Logger) Cacher {
+	logger = logger.Named("Redis Memory Storage")
+
 	opt, err := redis.ParseURL(cfg.Cache.URI)
 	if err != nil {
 		logger.Fatal("failed parsing Redis URL", zap.Error(err))

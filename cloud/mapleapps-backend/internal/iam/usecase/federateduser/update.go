@@ -21,6 +21,7 @@ type userUpdateUseCaseImpl struct {
 }
 
 func NewFederatedUserUpdateUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserUpdateUseCase {
+	logger = logger.Named("FederatedUserUpdateUseCase")
 	return &userUpdateUseCaseImpl{config, logger, repo}
 }
 

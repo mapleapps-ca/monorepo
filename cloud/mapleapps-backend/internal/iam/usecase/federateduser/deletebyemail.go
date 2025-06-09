@@ -22,6 +22,7 @@ type userDeleteFederatedUserByEmailImpl struct {
 }
 
 func NewFederatedUserDeleteFederatedUserByEmailUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserDeleteFederatedUserByEmailUseCase {
+	logger = logger.Named("FederatedUserDeleteFederatedUserByEmailUseCase")
 	return &userDeleteFederatedUserByEmailImpl{config, logger, repo}
 }
 

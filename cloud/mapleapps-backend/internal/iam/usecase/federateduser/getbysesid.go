@@ -24,6 +24,7 @@ type userGetBySessionIDUseCaseImpl struct {
 }
 
 func NewFederatedUserGetBySessionIDUseCase(config *config.Configuration, logger *zap.Logger, ca cassandracache.Cacher) FederatedUserGetBySessionIDUseCase {
+	logger = logger.Named("FederatedUserGetBySessionIDUseCase")
 	return &userGetBySessionIDUseCaseImpl{config, logger, ca}
 }
 

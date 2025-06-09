@@ -23,6 +23,7 @@ type userDeleteByIDImpl struct {
 }
 
 func NewFederatedUserDeleteByIDUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserDeleteByIDUseCase {
+	logger = logger.Named("FederatedUserDeleteByIDUseCase")
 	return &userDeleteByIDImpl{config, logger, repo}
 }
 

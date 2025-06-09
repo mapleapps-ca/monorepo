@@ -23,6 +23,7 @@ type userGetByIDUseCaseImpl struct {
 }
 
 func NewFederatedUserGetByIDUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserGetByIDUseCase {
+	logger = logger.Named("FederatedUserGetByIDUseCase")
 	return &userGetByIDUseCaseImpl{config, logger, repo}
 }
 

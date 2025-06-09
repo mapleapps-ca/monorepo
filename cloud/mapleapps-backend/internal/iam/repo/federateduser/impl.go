@@ -22,6 +22,7 @@ type federatedUserRepository struct {
 
 // NewRepository creates a new Cassandra repository for federated users
 func NewRepository(p Params) dom.FederatedUserRepository {
+	p.Logger = p.Logger.Named("FederatedUserRepository")
 	return &federatedUserRepository{
 		session: p.Session,
 		logger:  p.Logger,

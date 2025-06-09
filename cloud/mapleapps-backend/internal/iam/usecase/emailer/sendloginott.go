@@ -26,6 +26,7 @@ func NewSendLoginOTTEmailUseCase(
 	logger *zap.Logger,
 	emailer templatedemailer.TemplatedEmailer,
 ) SendLoginOTTEmailUseCase {
+	logger = logger.Named("SendLoginOTTEmailUseCase")
 	return &sendLoginOTTEmailUseCaseImpl{config, logger, emailer}
 }
 

@@ -22,6 +22,7 @@ type userCreateUseCaseImpl struct {
 }
 
 func NewFederatedUserCreateUseCase(config *config.Configuration, logger *zap.Logger, repo dom_user.FederatedUserRepository) FederatedUserCreateUseCase {
+	logger = logger.Named("FederatedUserCreateUseCase")
 	return &userCreateUseCaseImpl{config, logger, repo}
 }
 

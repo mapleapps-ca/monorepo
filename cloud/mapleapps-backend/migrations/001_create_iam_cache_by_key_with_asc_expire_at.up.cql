@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS iam_cache_by_key_with_asc_expire_at (
+CREATE TABLE IF NOT EXISTS pkg_cache_by_key_with_asc_expire_at (
   partition text,         -- arbitrary or static value since we're caching by keys
   key text,
   value blob,

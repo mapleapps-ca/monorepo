@@ -79,6 +79,7 @@ func NewGatewayVerifyLoginOTTService(
 	jwtProvider jwt.Provider,
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase,
 ) GatewayVerifyLoginOTTService {
+	logger = logger.Named("GatewayVerifyLoginOTTService")
 	return &gatewayVerifyLoginOTTServiceImpl{
 		config:                config,
 		logger:                logger,
