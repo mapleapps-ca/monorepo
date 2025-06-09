@@ -2,50 +2,50 @@ package usecase
 
 import (
 	"go.uber.org/fx"
-	// "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/collection"
-	// "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/emailer"
+
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/collection"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/emailer"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/user"
 	// "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata"
 	// "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/fileobjectstorage"
-	// "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/user"
 )
 
 func Module() fx.Option {
 	return fx.Options(
 		fx.Provide(
-		// // Email use cases
-		// emailer.NewSendUserPasswordResetEmailUseCase,
-		// emailer.NewSendUserVerificationEmailUseCase,
+			// Email use cases
+			emailer.NewSendUserPasswordResetEmailUseCase,
+			emailer.NewSendUserVerificationEmailUseCase,
 
-		// // User use cases
-		// user.NewUserCreateUseCase,
-		// user.NewUserUpdateUseCase,
-		// user.NewUserGetByVerificationCodeUseCase,
-		// user.NewUserGetBySessionIDUseCase,
-		// user.NewUserGetByIDUseCase,
-		// user.NewUserGetByEmailUseCase,
-		// user.NewUserDeleteByIDUseCase,
-		// user.NewUserDeleteUserByEmailUseCase,
+			// User use cases
+			user.NewUserCreateUseCase,
+			user.NewUserUpdateUseCase,
+			user.NewUserGetByVerificationCodeUseCase,
+			user.NewUserGetBySessionIDUseCase,
+			user.NewUserGetByIDUseCase,
+			user.NewUserGetByEmailUseCase,
+			user.NewUserDeleteByIDUseCase,
+			user.NewUserDeleteUserByEmailUseCase,
 
-		// // Collection use cases
-		// collection.NewAddCollectionMemberUseCase,
-		// collection.NewAddMemberToHierarchyUseCase,
-		// collection.NewCheckCollectionAccessUseCase,
-		// collection.NewCreateCollectionUseCase,
-		// collection.NewSoftDeleteCollectionUseCase,
-		// collection.NewFindCollectionsByParentUseCase,
-		// collection.NewFindDescendantsUseCase,
-		// collection.NewFindRootCollectionsUseCase,
-		// collection.NewGetCollectionUseCase,
-		// collection.NewGetCollectionHierarchyUseCase,
-		// collection.NewGetFilteredCollectionsUseCase,
-		// collection.NewListCollectionsByUserUseCase,
-		// collection.NewListCollectionsSharedWithUserUseCase,
-		// collection.NewMoveCollectionUseCase,
-		// collection.NewRemoveCollectionMemberUseCase,
-		// collection.NewRemoveMemberFromHierarchyUseCase,
-		// collection.NewUpdateCollectionUseCase,
-		// collection.NewUpdateMemberPermissionUseCase,
-		// collection.NewGetCollectionSyncDataUseCase,
+			// // Collection use cases
+			collection.NewAddCollectionMemberUseCase,
+			collection.NewAddMemberToHierarchyUseCase,
+			collection.NewCheckCollectionAccessUseCase,
+			collection.NewCreateCollectionUseCase,
+			collection.NewSoftDeleteCollectionUseCase,
+			collection.NewFindCollectionsByParentUseCase,
+			collection.NewFindDescendantsUseCase,
+			collection.NewFindRootCollectionsUseCase,
+			collection.NewGetCollectionUseCase,
+			collection.NewGetFilteredCollectionsUseCase,
+			collection.NewListCollectionsByUserUseCase,
+			collection.NewListCollectionsSharedWithUserUseCase,
+			collection.NewMoveCollectionUseCase,
+			collection.NewRemoveCollectionMemberUseCase,
+			collection.NewRemoveMemberFromHierarchyUseCase,
+			collection.NewUpdateCollectionUseCase,
+			collection.NewUpdateMemberPermissionUseCase,
+			collection.NewGetCollectionSyncDataUseCase,
 
 		// // File Metadata use cases
 		// filemetadata.NewCreateFileMetadataUseCase,
