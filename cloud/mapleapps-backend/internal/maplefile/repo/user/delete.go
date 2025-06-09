@@ -25,7 +25,7 @@ func (impl userStorerImpl) DeleteByID(ctx context.Context, id gocql.UUID) error 
 
 	// Delete from all tables
 	batch.Query(`DELETE FROM maplefile_users_by_id WHERE id = ?`, id)
-	batch.Query(`DELETE FROM federatedusers_by_email WHERE email = ?`, user.Email)
+	batch.Query(`DELETE FROM maplefile_users_by_email WHERE email = ?`, user.Email)
 
 	// Delete from status table
 	// Skip
