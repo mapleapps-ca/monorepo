@@ -1,18 +1,17 @@
-// github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/me/verifyprofile.go
+// github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/service/me/verifyprofile.go
 package me
 
 import (
 	"context"
 	"errors"
-	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
-	domain "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/user"
-	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/user"
+	domain "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/federateduser"
+	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
@@ -60,14 +59,14 @@ type VerifyProfileRequestDTO struct {
 	OtherGradingServiceName      string `json:"other_grading_service_name,omitempty"`
 	RequestWelcomePackage        int8   `json:"request_welcome_package,omitempty"`
 
-	// Explicitly specify user role if needed (overrides the user's current role)
-	UserRole int8 `json:"user_role,omitempty"`
+	// Explicitly specify federateduser role if needed (overrides the federateduser's current role)
+	FederatedUserRole int8 `json:"user_role,omitempty"`
 }
 
 type VerifyProfileResponseDTO struct {
-	Message  string `json:"message"`
-	UserRole int8   `json:"user_role"`
-	Status   int8   `json:"profile_verification_status"`
+	Message           string `json:"message"`
+	FederatedUserRole int8   `json:"user_role"`
+	Status            int8   `json:"profile_verification_status"`
 }
 
 type VerifyProfileService interface {
@@ -77,17 +76,16 @@ type VerifyProfileService interface {
 type verifyProfileServiceImpl struct {
 	config             *config.Configuration
 	logger             *zap.Logger
-	userGetByIDUseCase uc_user.UserGetByIDUseCase
-	userUpdateUseCase  uc_user.UserUpdateUseCase
+	userGetByIDUseCase uc_user.FederatedUserGetByIDUseCase
+	userUpdateUseCase  uc_user.FederatedUserUpdateUseCase
 }
 
 func NewVerifyProfileService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	userGetByIDUseCase uc_user.UserGetByIDUseCase,
-	userUpdateUseCase uc_user.UserUpdateUseCase,
+	userGetByIDUseCase uc_user.FederatedUserGetByIDUseCase,
+	userUpdateUseCase uc_user.FederatedUserUpdateUseCase,
 ) VerifyProfileService {
-	logger = logger.Named("VerifyProfileService")
 	return &verifyProfileServiceImpl{
 		config:             config,
 		logger:             logger,
@@ -105,34 +103,34 @@ func (s *verifyProfileServiceImpl) Execute(
 	//
 	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
-		s.logger.Error("Failed getting local user id",
+		s.logger.Error("Failed getting local federateduser id",
 			zap.Any("error", "Not found in context: user_id"))
-		return nil, errors.New("user id not found in context")
+		return nil, errors.New("federateduser id not found in context")
 	}
 
 	//
-	// STEP 2: Retrieve user from database
+	// STEP 2: Retrieve federateduser from database
 	//
-	user, err := s.userGetByIDUseCase.Execute(sessCtx, userID)
+	federateduser, err := s.userGetByIDUseCase.Execute(sessCtx, userID)
 	if err != nil {
-		s.logger.Error("Failed retrieving user", zap.Any("error", err))
+		s.logger.Error("Failed retrieving federateduser", zap.Any("error", err))
 		return nil, err
 	}
-	if user == nil {
-		s.logger.Error("User not found", zap.Any("userID", userID))
-		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "User not found")
+	if federateduser == nil {
+		s.logger.Error("FederatedUser not found", zap.Any("userID", userID))
+		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "FederatedUser not found")
 	}
 
-	// Check if we need to override the user role based on the request
-	if req.UserRole != 0 && (req.UserRole == domain.UserRoleIndividual || req.UserRole == domain.UserRoleCompany) {
-		s.logger.Info("Setting user role based on request",
-			zap.Int("original_role", int(user.Role)),
-			zap.Int("new_role", int(req.UserRole)))
-		user.Role = req.UserRole
+	// Check if we need to override the federateduser role based on the request
+	if req.FederatedUserRole != 0 && (req.FederatedUserRole == domain.FederatedUserRoleIndividual || req.FederatedUserRole == domain.FederatedUserRoleCompany) {
+		s.logger.Info("Setting federateduser role based on request",
+			zap.Int("original_role", int(federateduser.Role)),
+			zap.Int("new_role", int(req.FederatedUserRole)))
+		federateduser.Role = req.FederatedUserRole
 	}
 
 	//
-	// STEP 3: Validate request based on user role
+	// STEP 3: Validate request based on federateduser role
 	//
 	e := make(map[string]string)
 
@@ -140,13 +138,13 @@ func (s *verifyProfileServiceImpl) Execute(
 	s.validateCommonFields(req, e)
 
 	// Role-specific validation
-	if user.Role == domain.UserRoleIndividual {
+	if federateduser.Role == domain.FederatedUserRoleIndividual {
 		s.validateCustomerFields(req, e)
-	} else if user.Role == domain.UserRoleCompany {
+	} else if federateduser.Role == domain.FederatedUserRoleCompany {
 		s.validateRetailerFields(req, e)
 	} else {
-		s.logger.Warn("Unrecognized user role", zap.Int("role", int(user.Role)))
-		e["user_role"] = "Invalid user role. Must be either customer or retailer."
+		s.logger.Warn("Unrecognized federateduser role", zap.Int("role", int(federateduser.Role)))
+		e["user_role"] = "Invalid federateduser role. Must be either customer or retailer."
 	}
 
 	// Return validation errors if any
@@ -156,58 +154,39 @@ func (s *verifyProfileServiceImpl) Execute(
 	}
 
 	//
-	// STEP 4: Update user profile based on role
+	// STEP 4: Update federateduser profile based on role
 	//
 
 	// Update common fields
-	s.updateCommonFields(user, req)
-
-	// Update role-specific fields
-	if user.Role == domain.UserRoleIndividual {
-		s.updateCustomerFields(user, req)
-	} else if user.Role == domain.UserRoleCompany {
-		s.updateRetailerFields(user, req)
-	} else {
-		// Developers Note: No you cannot update a user with an unrecognized role nor the administrative role!
-		s.logger.Error("Unrecognized user role", zap.Int("role", int(user.Role)))
-		e["user_role"] = "Invalid user role. Must be either customer or retailer."
-	}
+	s.updateCommonFields(federateduser, req)
 
 	//
-	// STEP 5: Update profile verification status and timestamps
+	// STEP 5: Save updated federateduser to database
 	//
-	user.ProfileVerificationStatus = domain.UserProfileVerificationStatusSubmittedForReview
-	user.ModifiedAt = time.Now()
-	user.ModifiedFromIPAddress, _ = sessCtx.Value(constants.SessionIPAddress).(string)
-
-	//
-	// STEP 6: Save updated user to database
-	//
-	if err := s.userUpdateUseCase.Execute(sessCtx, user); err != nil {
-		s.logger.Error("Failed to update user", zap.Any("error", err))
+	if err := s.userUpdateUseCase.Execute(sessCtx, federateduser); err != nil {
+		s.logger.Error("Failed to update federateduser", zap.Any("error", err))
 		return nil, err
 	}
 
 	//
-	// STEP 7: Generate appropriate response
+	// STEP 6: Generate appropriate response
 	//
 	var responseMessage string
-	if user.Role == domain.UserRoleIndividual {
+	if federateduser.Role == domain.FederatedUserRoleIndividual {
 		responseMessage = "Your profile has been submitted for verification. You'll be notified once it's been reviewed."
-	} else if user.Role == domain.UserRoleCompany {
+	} else if federateduser.Role == domain.FederatedUserRoleCompany {
 		responseMessage = "Your retailer profile has been submitted for verification. Our team will review your application and contact you soon."
 	} else {
 		responseMessage = "Your profile has been submitted for verification."
 	}
 
 	return &VerifyProfileResponseDTO{
-		Message:  responseMessage,
-		UserRole: user.Role,
-		Status:   user.ProfileVerificationStatus,
+		Message:           responseMessage,
+		FederatedUserRole: federateduser.Role,
 	}, nil
 }
 
-// validateCommonFields validates fields common to all user types
+// validateCommonFields validates fields common to all federateduser types
 func (s *verifyProfileServiceImpl) validateCommonFields(req *VerifyProfileRequestDTO, e map[string]string) {
 	if req.Country == "" {
 		e["country"] = "Country is required"
@@ -315,48 +294,21 @@ func (s *verifyProfileServiceImpl) validateRetailerFields(req *VerifyProfileRequ
 	}
 }
 
-// updateCommonFields updates common fields for all user types
-func (s *verifyProfileServiceImpl) updateCommonFields(user *domain.User, req *VerifyProfileRequestDTO) {
-	user.Country = req.Country
-	user.Region = req.Region
-	user.City = req.City
-	user.PostalCode = req.PostalCode
-	user.AddressLine1 = req.AddressLine1
-	user.AddressLine2 = req.AddressLine2
-	user.HasShippingAddress = req.HasShippingAddress
-	user.ShippingName = req.ShippingName
-	user.ShippingPhone = req.ShippingPhone
-	user.ShippingCountry = req.ShippingCountry
-	user.ShippingRegion = req.ShippingRegion
-	user.ShippingCity = req.ShippingCity
-	user.ShippingPostalCode = req.ShippingPostalCode
-	user.ShippingAddressLine1 = req.ShippingAddressLine1
-	user.ShippingAddressLine2 = req.ShippingAddressLine2
-	user.HowDidYouHearAboutUs = req.HowDidYouHearAboutUs
-	user.HowDidYouHearAboutUsOther = req.HowDidYouHearAboutUsOther
-	user.WebsiteURL = req.WebsiteURL
-	user.Description = req.Description
-}
-
-// updateCustomerFields updates fields specific to customers
-func (s *verifyProfileServiceImpl) updateCustomerFields(user *domain.User, req *VerifyProfileRequestDTO) {
-	user.HowLongCollectingComicBooksForGrading = req.HowLongCollectingComicBooksForGrading
-	user.HasPreviouslySubmittedComicBookForGrading = req.HasPreviouslySubmittedComicBookForGrading
-	user.HasOwnedGradedComicBooks = req.HasOwnedGradedComicBooks
-	user.HasRegularComicBookShop = req.HasRegularComicBookShop
-	user.HasPreviouslyPurchasedFromAuctionSite = req.HasPreviouslyPurchasedFromAuctionSite
-	user.HasPreviouslyPurchasedFromFacebookMarketplace = req.HasPreviouslyPurchasedFromFacebookMarketplace
-	user.HasRegularlyAttendedComicConsOrCollectibleShows = req.HasRegularlyAttendedComicConsOrCollectibleShows
-}
-
-// updateRetailerFields updates fields specific to retailers
-func (s *verifyProfileServiceImpl) updateRetailerFields(user *domain.User, req *VerifyProfileRequestDTO) {
-	user.ComicBookStoreName = req.ComicBookStoreName
-	user.HowLongStoreOperating = req.HowLongStoreOperating
-	user.RetailPartnershipReason = req.RetailPartnershipReason
-	user.ComicCoinPartnershipReason = req.ComicCoinPartnershipReason
-	user.EstimatedSubmissionsPerMonth = req.EstimatedSubmissionsPerMonth
-	user.HasOtherGradingService = req.HasOtherGradingService
-	user.OtherGradingServiceName = req.OtherGradingServiceName
-	user.RequestWelcomePackage = req.RequestWelcomePackage
+// updateCommonFields updates common fields for all federateduser types
+func (s *verifyProfileServiceImpl) updateCommonFields(federateduser *domain.FederatedUser, req *VerifyProfileRequestDTO) {
+	federateduser.ProfileData.Country = req.Country
+	federateduser.ProfileData.Region = req.Region
+	federateduser.ProfileData.City = req.City
+	federateduser.ProfileData.PostalCode = req.PostalCode
+	federateduser.ProfileData.AddressLine1 = req.AddressLine1
+	federateduser.ProfileData.AddressLine2 = req.AddressLine2
+	federateduser.ProfileData.HasShippingAddress = req.HasShippingAddress
+	federateduser.ProfileData.ShippingName = req.ShippingName
+	federateduser.ProfileData.ShippingPhone = req.ShippingPhone
+	federateduser.ProfileData.ShippingCountry = req.ShippingCountry
+	federateduser.ProfileData.ShippingRegion = req.ShippingRegion
+	federateduser.ProfileData.ShippingCity = req.ShippingCity
+	federateduser.ProfileData.ShippingPostalCode = req.ShippingPostalCode
+	federateduser.ProfileData.ShippingAddressLine1 = req.ShippingAddressLine1
+	federateduser.ProfileData.ShippingAddressLine2 = req.ShippingAddressLine2
 }

@@ -40,8 +40,11 @@ func (uc *sendUserPasswordResetEmailUseCaseImpl) Execute(ctx context.Context, us
 		if user.Email == "" {
 			e["email"] = "Email is required"
 		}
-		if user.PasswordResetVerificationCode == "" {
-			e["password_reset_verification_code"] = "Password reset verification code is required"
+		if user.SecurityData.Code == "" {
+			e["code"] = "Code is required for password reset verification "
+		}
+		if user.SecurityData.CodeType != domain.UserCodeTypePasswordReset {
+			e["code_type"] = "Code type is required for password reset verification "
 		}
 	}
 	if len(e) != 0 {
@@ -54,5 +57,5 @@ func (uc *sendUserPasswordResetEmailUseCaseImpl) Execute(ctx context.Context, us
 	// STEP 2: Send email
 	//
 
-	return uc.emailer.SendUserPasswordResetEmail(ctx, user.Email, user.PasswordResetVerificationCode, user.FirstName)
+	return uc.emailer.SendUserPasswordResetEmail(ctx, user.Email, user.SecurityData.Code, user.FirstName)
 }

@@ -1,4 +1,4 @@
-// github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/user/service.go
+// github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/service/federateduser/service.go
 package me
 
 import (
@@ -14,7 +14,7 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
-	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/user"
+	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
@@ -37,19 +37,18 @@ type UpdateMeService interface {
 type updateMeServiceImpl struct {
 	config                *config.Configuration
 	logger                *zap.Logger
-	userGetByIDUseCase    uc_user.UserGetByIDUseCase
-	userGetByEmailUseCase uc_user.UserGetByEmailUseCase
-	userUpdateUseCase     uc_user.UserUpdateUseCase
+	userGetByIDUseCase    uc_user.FederatedUserGetByIDUseCase
+	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
+	userUpdateUseCase     uc_user.FederatedUserUpdateUseCase
 }
 
 func NewUpdateMeService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	userGetByIDUseCase uc_user.UserGetByIDUseCase,
-	userGetByEmailUseCase uc_user.UserGetByEmailUseCase,
-	userUpdateUseCase uc_user.UserUpdateUseCase,
+	userGetByIDUseCase uc_user.FederatedUserGetByIDUseCase,
+	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase,
+	userUpdateUseCase uc_user.FederatedUserUpdateUseCase,
 ) UpdateMeService {
-	logger = logger.Named("UpdateMeService")
 	return &updateMeServiceImpl{
 		config:                config,
 		logger:                logger,
@@ -66,9 +65,9 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 
 	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
-		svc.logger.Error("Failed getting local user id",
+		svc.logger.Error("Failed getting local federateduser id",
 			zap.Any("error", "Not found in context: user_id"))
-		return nil, errors.New("user id not found in context")
+		return nil, errors.New("federateduser id not found in context")
 	}
 
 	//
@@ -116,89 +115,89 @@ func (svc *updateMeServiceImpl) Execute(sessCtx context.Context, req *UpdateMeRe
 	// Get related records.
 	//
 
-	// Get the user account (aka "Me").
-	user, err := svc.userGetByIDUseCase.Execute(sessCtx, userID)
+	// Get the federateduser account (aka "Me").
+	federateduser, err := svc.userGetByIDUseCase.Execute(sessCtx, userID)
 	if err != nil {
 		// If it's a "not found" error, it's a critical issue since the ID came from the context.
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			err := fmt.Errorf("authenticated user does not exist for id: %v", userID.String())
-			svc.logger.Error("Failed getting authenticated user", zap.Any("error", err))
+			err := fmt.Errorf("authenticated federateduser does not exist for id: %v", userID.String())
+			svc.logger.Error("Failed getting authenticated federateduser", zap.Any("error", err))
 			return nil, err
 		}
 		// Handle other potential errors during fetch.
-		svc.logger.Error("Failed getting user by ID", zap.Any("error", err))
+		svc.logger.Error("Failed getting federateduser by ID", zap.Any("error", err))
 		return nil, err
 	}
 	// Defensive check, though GetByID should return ErrNoDocuments if not found.
-	if user == nil {
-		err := fmt.Errorf("user is nil after lookup for id: %v", userID.String())
-		svc.logger.Error("Failed getting user", zap.Any("error", err))
+	if federateduser == nil {
+		err := fmt.Errorf("federateduser is nil after lookup for id: %v", userID.String())
+		svc.logger.Error("Failed getting federateduser", zap.Any("error", err))
 		return nil, err
 	}
 
 	//
-	// Check if the requested email is already taken by another user.
+	// Check if the requested email is already taken by another federateduser.
 	//
-	if req.Email != user.Email {
-		existingUser, err := svc.userGetByEmailUseCase.Execute(sessCtx, req.Email)
+	if req.Email != federateduser.Email {
+		existingFederatedUser, err := svc.userGetByEmailUseCase.Execute(sessCtx, req.Email)
 		if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
 			svc.logger.Error("Failed checking existing email", zap.String("email", req.Email), zap.Any("error", err))
 			return nil, err // Internal Server Error
 		}
-		if existingUser != nil {
-			// Email exists. Check if it belongs to the *current* user (which shouldn't happen based on the outer if, but defensive check).
-			// The important check is implicit: if existingUser is not nil, the email is taken.
-			// We already know req.Email != user.Email, so if existingUser is found, it *must* be another user.
+		if existingFederatedUser != nil {
+			// Email exists. Check if it belongs to the *current* federateduser (which shouldn't happen based on the outer if, but defensive check).
+			// The important check is implicit: if existingFederatedUser is not nil, the email is taken.
+			// We already know req.Email != federateduser.Email, so if existingFederatedUser is found, it *must* be another federateduser.
 			svc.logger.Warn("Attempted to update to an email already in use",
 				zap.String("user_id", userID.String()),
-				zap.String("existing_user_id", existingUser.ID.String()),
+				zap.String("existing_user_id", existingFederatedUser.ID.String()),
 				zap.String("email", req.Email))
 			e["email"] = "This email address is already in use."
 			return nil, httperror.NewForBadRequest(&e)
 		}
-		// If err is mongo.ErrNoDocuments or existingUser is nil, the email is available.
+		// If err is mongo.ErrNoDocuments or existingFederatedUser is nil, the email is available.
 	}
 
 	//
 	// Update local database.
 	//
 
-	// Apply changes from request DTO to the user object
-	user.Email = req.Email
-	user.FirstName = req.FirstName
-	user.LastName = req.LastName
-	user.Name = fmt.Sprintf("%s %s", req.FirstName, req.LastName)
-	user.LexicalName = fmt.Sprintf("%s, %s", req.LastName, req.FirstName)
-	user.Phone = req.Phone
-	user.Country = req.Country
-	user.Region = req.Region
-	user.Timezone = req.Timezone
-	user.AgreePromotions = req.AgreePromotions
-	user.AgreeToTrackingAcrossThirdPartyAppsAndServices = req.AgreeToTrackingAcrossThirdPartyAppsAndServices
+	// Apply changes from request DTO to the federateduser object
+	federateduser.Email = req.Email
+	federateduser.FirstName = req.FirstName
+	federateduser.LastName = req.LastName
+	federateduser.Name = fmt.Sprintf("%s %s", req.FirstName, req.LastName)
+	federateduser.LexicalName = fmt.Sprintf("%s, %s", req.LastName, req.FirstName)
+	federateduser.ProfileData.Phone = req.Phone
+	federateduser.ProfileData.Country = req.Country
+	federateduser.ProfileData.Region = req.Region
+	federateduser.Timezone = req.Timezone
+	federateduser.ProfileData.AgreePromotions = req.AgreePromotions
+	federateduser.ProfileData.AgreeToTrackingAcrossThirdPartyAppsAndServices = req.AgreeToTrackingAcrossThirdPartyAppsAndServices
 
 	// Persist changes
-	if err := svc.userUpdateUseCase.Execute(sessCtx, user); err != nil {
-		svc.logger.Error("Failed updating user", zap.Any("error", err), zap.String("user_id", user.ID.String()))
+	if err := svc.userUpdateUseCase.Execute(sessCtx, federateduser); err != nil {
+		svc.logger.Error("Failed updating federateduser", zap.Any("error", err), zap.String("user_id", federateduser.ID.String()))
 		// Consider mapping specific DB errors (like constraint violations) to HTTP errors if applicable
 		return nil, err
 	}
 
-	svc.logger.Debug("User updated successfully",
-		zap.String("user_id", user.ID.String()))
+	svc.logger.Debug("FederatedUser updated successfully",
+		zap.String("user_id", federateduser.ID.String()))
 
-	// Return updated user details
+	// Return updated federateduser details
 	return &MeResponseDTO{
-		ID:              user.ID,
-		Email:           user.Email,
-		FirstName:       user.FirstName,
-		LastName:        user.LastName,
-		Name:            user.Name,
-		LexicalName:     user.LexicalName,
-		Phone:           user.Phone,
-		Country:         user.Country,
-		Region:          user.Region, // Added Region
-		Timezone:        user.Timezone,
-		AgreePromotions: user.AgreePromotions,
-		AgreeToTrackingAcrossThirdPartyAppsAndServices: user.AgreeToTrackingAcrossThirdPartyAppsAndServices,
+		ID:              federateduser.ID,
+		Email:           federateduser.Email,
+		FirstName:       federateduser.FirstName,
+		LastName:        federateduser.LastName,
+		Name:            federateduser.Name,
+		LexicalName:     federateduser.LexicalName,
+		Phone:           federateduser.ProfileData.Phone,
+		Country:         federateduser.ProfileData.Country,
+		Region:          federateduser.ProfileData.Region, // Added Region
+		Timezone:        federateduser.Timezone,
+		AgreePromotions: federateduser.ProfileData.AgreePromotions,
+		AgreeToTrackingAcrossThirdPartyAppsAndServices: federateduser.ProfileData.AgreeToTrackingAcrossThirdPartyAppsAndServices,
 	}, nil
 }

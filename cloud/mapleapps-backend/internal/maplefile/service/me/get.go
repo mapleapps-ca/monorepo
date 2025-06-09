@@ -1,4 +1,4 @@
-// github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/user/service.go
+// github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/service/federateduser/service.go
 package me
 
 import (
@@ -12,28 +12,28 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
-	uc_federateduser "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
-	dom_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/user"
-	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/user"
+	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
 )
 
 type MeResponseDTO struct {
-	ID               gocql.UUID `bson:"_id" json:"id"`
-	Email            string     `bson:"email" json:"email"`
-	FirstName        string     `bson:"first_name" json:"first_name"`
-	LastName         string     `bson:"last_name" json:"last_name"`
-	Name             string     `bson:"name" json:"name"`
-	LexicalName      string     `bson:"lexical_name" json:"lexical_name"`
-	Role             int8       `bson:"role" json:"role"`
-	WasEmailVerified bool       `bson:"was_email_verified" json:"was_email_verified,omitempty"`
-	Phone            string     `bson:"phone" json:"phone,omitempty"`
-	Country          string     `bson:"country" json:"country,omitempty"`
-	Timezone         string     `bson:"timezone" json:"timezone"`
-	Region           string     `bson:"region" json:"region,omitempty"`
-	City             string     `bson:"city" json:"city,omitempty"`
-	PostalCode       string     `bson:"postal_code" json:"postal_code,omitempty"`
-	AddressLine1     string     `bson:"address_line1" json:"address_line1,omitempty"`
-	AddressLine2     string     `bson:"address_line2" json:"address_line2,omitempty"`
+	ID          gocql.UUID `bson:"_id" json:"id"`
+	Email       string     `bson:"email" json:"email"`
+	FirstName   string     `bson:"first_name" json:"first_name"`
+	LastName    string     `bson:"last_name" json:"last_name"`
+	Name        string     `bson:"name" json:"name"`
+	LexicalName string     `bson:"lexical_name" json:"lexical_name"`
+	Role        int8       `bson:"role" json:"role"`
+	// WasEmailVerified        bool               `bson:"was_email_verified" json:"was_email_verified,omitempty"`
+	// EmailVerificationCode   string             `bson:"email_verification_code,omitempty" json:"email_verification_code,omitempty"`
+	// EmailVerificationExpiry time.Time          `bson:"email_verification_expiry,omitempty" json:"email_verification_expiry,omitempty"`
+	Phone        string `bson:"phone" json:"phone,omitempty"`
+	Country      string `bson:"country" json:"country,omitempty"`
+	Timezone     string `bson:"timezone" json:"timezone"`
+	Region       string `bson:"region" json:"region,omitempty"`
+	City         string `bson:"city" json:"city,omitempty"`
+	PostalCode   string `bson:"postal_code" json:"postal_code,omitempty"`
+	AddressLine1 string `bson:"address_line1" json:"address_line1,omitempty"`
+	AddressLine2 string `bson:"address_line2" json:"address_line2,omitempty"`
 	// HasShippingAddress                              bool               `bson:"has_shipping_address" json:"has_shipping_address,omitempty"`
 	// ShippingName                                    string             `bson:"shipping_name" json:"shipping_name,omitempty"`
 	// ShippingPhone                                   string             `bson:"shipping_phone" json:"shipping_phone,omitempty"`
@@ -66,6 +66,17 @@ type MeResponseDTO struct {
 	// OTPAuthURL                                      string             `bson:"otp_auth_url" json:"-"`
 	// OTPBackupCodeHash                               string             `bson:"otp_backup_code_hash" json:"-"`
 	// OTPBackupCodeHashAlgorithm                      string             `bson:"otp_backup_code_hash_algorithm" json:"-"`
+	// HowLongCollectingComicBooksForGrading           int8               `bson:"how_long_collecting_comic_books_for_grading" json:"how_long_collecting_comic_books_for_grading"`
+	// HasPreviouslySubmittedComicBookForGrading       int8               `bson:"has_previously_submitted_comic_book_for_grading" json:"has_previously_submitted_comic_book_for_grading"`
+	// HasOwnedGradedComicBooks                        int8               `bson:"has_owned_graded_comic_books" json:"has_owned_graded_comic_books"`
+	// HasRegularComicBookShop                         int8               `bson:"has_regular_comic_book_shop" json:"has_regular_comic_book_shop"`
+	// HasPreviouslyPurchasedFromAuctionSite           int8               `bson:"has_previously_purchased_from_auction_site" json:"has_previously_purchased_from_auction_site"`
+	// HasPreviouslyPurchasedFromFacebookMarketplace   int8               `bson:"has_previously_purchased_from_facebook_marketplace" json:"has_previously_purchased_from_facebook_marketplace"`
+	// HasRegularlyAttendedComicConsOrCollectibleShows int8               `bson:"has_regularly_attended_comic_cons_or_collectible_shows" json:"has_regularly_attended_comic_cons_or_collectible_shows"`
+	ProfileVerificationStatus int8   `bson:"profile_verification_status" json:"profile_verification_status,omitempty"`
+	WebsiteURL                string `bson:"website_url" json:"website_url"`
+	Description               string `bson:"description" json:"description"`
+	ComicBookStoreName        string `bson:"comic_book_store_name" json:"comic_book_store_name,omitempty"`
 }
 
 type GetMeService interface {
@@ -73,30 +84,26 @@ type GetMeService interface {
 }
 
 type getMeServiceImpl struct {
-	config                      *config.Configuration
-	logger                      *zap.Logger
-	federatedUserGetByIDUseCase uc_federateduser.FederatedUserGetByIDUseCase
-	userGetByIDUseCase          uc_user.UserGetByIDUseCase
-	userCreateUseCase           uc_user.UserCreateUseCase
-	userUpdateUseCase           uc_user.UserUpdateUseCase
+	config             *config.Configuration
+	logger             *zap.Logger
+	userGetByIDUseCase uc_user.FederatedUserGetByIDUseCase
+	userCreateUseCase  uc_user.FederatedUserCreateUseCase
+	userUpdateUseCase  uc_user.FederatedUserUpdateUseCase
 }
 
 func NewGetMeService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	federatedUserGetByIDUseCase uc_federateduser.FederatedUserGetByIDUseCase,
-	userGetByIDUseCase uc_user.UserGetByIDUseCase,
-	userCreateUseCase uc_user.UserCreateUseCase,
-	userUpdateUseCase uc_user.UserUpdateUseCase,
+	userGetByIDUseCase uc_user.FederatedUserGetByIDUseCase,
+	userCreateUseCase uc_user.FederatedUserCreateUseCase,
+	userUpdateUseCase uc_user.FederatedUserUpdateUseCase,
 ) GetMeService {
-	logger = logger.Named("GetMeService")
 	return &getMeServiceImpl{
-		config:                      config,
-		logger:                      logger,
-		federatedUserGetByIDUseCase: federatedUserGetByIDUseCase,
-		userGetByIDUseCase:          userGetByIDUseCase,
-		userCreateUseCase:           userCreateUseCase,
-		userUpdateUseCase:           userUpdateUseCase,
+		config:             config,
+		logger:             logger,
+		userGetByIDUseCase: userGetByIDUseCase,
+		userCreateUseCase:  userCreateUseCase,
+		userUpdateUseCase:  userUpdateUseCase,
 	}
 }
 
@@ -107,68 +114,43 @@ func (svc *getMeServiceImpl) Execute(sessCtx context.Context) (*MeResponseDTO, e
 
 	userID, ok := sessCtx.Value(constants.SessionFederatedUserID).(gocql.UUID)
 	if !ok {
-		return nil, errors.New("user id not found in context")
+		svc.logger.Error("Failed getting local federateduser id",
+			zap.Any("error", "Not found in context: user_id"))
+		return nil, errors.New("federateduser id not found in context")
 	}
 
-	// Get the user account (aka "Me") and if it doesn't exist then we will
+	// Get the federateduser account (aka "Me") and if it doesn't exist then we will
 	// create it immediately here and now.
-	user, err := svc.userGetByIDUseCase.Execute(sessCtx, userID)
+	federateduser, err := svc.userGetByIDUseCase.Execute(sessCtx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed getting user from database: %v", err)
+		svc.logger.Error("Failed getting me", zap.Any("error", err))
+		return nil, err
 	}
-	if user == nil {
-		federateduser, err := svc.federatedUserGetByIDUseCase.Execute(sessCtx, userID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed getting federated user from database: %v", err)
-		}
-		if federateduser == nil {
-			return nil, fmt.Errorf("User does not exist for federated iam id: %v", userID.String())
-		}
-
-		user = &dom_user.User{
-			ID:              federateduser.ID,
-			Email:           federateduser.Email,
-			FirstName:       federateduser.FirstName,
-			LastName:        federateduser.LastName,
-			Name:            federateduser.Name,
-			LexicalName:     federateduser.LexicalName,
-			Role:            federateduser.Role,
-			Phone:           federateduser.Phone,
-			Country:         federateduser.Country,
-			Timezone:        federateduser.Timezone,
-			Region:          federateduser.Region,
-			City:            federateduser.City,
-			PostalCode:      federateduser.PostalCode,
-			AddressLine1:    federateduser.AddressLine1,
-			AddressLine2:    federateduser.AddressLine2,
-			AgreePromotions: federateduser.AgreePromotions,
-			AgreeToTrackingAcrossThirdPartyAppsAndServices: federateduser.AgreeToTrackingAcrossThirdPartyAppsAndServices,
-			CreatedAt: federateduser.CreatedAt,
-		}
-
-		if err := svc.userCreateUseCase.Execute(sessCtx, user); err != nil {
-			return nil, fmt.Errorf("Failed creating user in database: %v", err)
-		}
+	if federateduser == nil {
+		err := fmt.Errorf("FederatedUser does not exist for federated user id: %v", userID.String())
+		svc.logger.Error("Failed getting me", zap.Any("error", err))
+		return nil, err
 	}
 
 	return &MeResponseDTO{
-		ID:              user.ID,
-		Email:           user.Email,
-		FirstName:       user.FirstName,
-		LastName:        user.LastName,
-		Name:            user.Name,
-		LexicalName:     user.LexicalName,
-		Role:            user.Role,
-		Phone:           user.Phone,
-		Country:         user.Country,
-		Timezone:        user.Timezone,
-		Region:          user.Region,
-		City:            user.City,
-		PostalCode:      user.PostalCode,
-		AddressLine1:    user.AddressLine1,
-		AddressLine2:    user.AddressLine2,
-		AgreePromotions: user.AgreePromotions,
-		AgreeToTrackingAcrossThirdPartyAppsAndServices: user.AgreeToTrackingAcrossThirdPartyAppsAndServices,
-		CreatedAt: user.CreatedAt,
+		ID:              federateduser.ID,
+		Email:           federateduser.Email,
+		FirstName:       federateduser.FirstName,
+		LastName:        federateduser.LastName,
+		Name:            federateduser.Name,
+		LexicalName:     federateduser.LexicalName,
+		Role:            federateduser.Role,
+		Phone:           federateduser.ProfileData.Phone,
+		Country:         federateduser.ProfileData.Country,
+		Timezone:        federateduser.Timezone,
+		Region:          federateduser.ProfileData.Region,
+		City:            federateduser.ProfileData.City,
+		PostalCode:      federateduser.ProfileData.PostalCode,
+		AddressLine1:    federateduser.ProfileData.AddressLine1,
+		AddressLine2:    federateduser.ProfileData.AddressLine2,
+		AgreePromotions: federateduser.ProfileData.AgreePromotions,
+		AgreeToTrackingAcrossThirdPartyAppsAndServices: federateduser.ProfileData.AgreeToTrackingAcrossThirdPartyAppsAndServices,
+		CreatedAt: federateduser.CreatedAt,
+		Status:    federateduser.Status,
 	}, nil
 }

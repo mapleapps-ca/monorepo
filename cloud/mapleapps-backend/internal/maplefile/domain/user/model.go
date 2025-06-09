@@ -41,6 +41,9 @@ const (
 	RequestWelcomePackageNo   = 2 // Request welcome package: No
 
 	SpecialCollection040001 = 1
+
+	UserCodeTypeEmailVerification = "email_verification"
+	UserCodeTypePasswordReset     = "password_reset"
 )
 
 type UserProfileData struct {
