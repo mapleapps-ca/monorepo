@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/get_hierarchy.go
+// cloud/backend/internal/maplefile/usecase/collection/get_hierarchy.go (DEPRECATED AND WILL BE REMOVED)
 package collection
 
 import (

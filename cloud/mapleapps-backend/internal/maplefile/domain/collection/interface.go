@@ -25,7 +25,7 @@ type CollectionRepository interface {
 	FindByParent(ctx context.Context, parentID gocql.UUID) ([]*Collection, error)
 	FindRootCollections(ctx context.Context, ownerID gocql.UUID) ([]*Collection, error)
 	FindDescendants(ctx context.Context, collectionID gocql.UUID) ([]*Collection, error)
-	GetFullHierarchy(ctx context.Context, rootID gocql.UUID) (*Collection, error)
+	// GetFullHierarchy(ctx context.Context, rootID gocql.UUID) (*Collection, error) // DEPRECATED AND WILL BE REMOVED
 
 	// Move collection to a new parent
 	MoveCollection(ctx context.Context, collectionID, newParentID gocql.UUID, updatedAncestors []gocql.UUID, updatedPathSegments []string) error

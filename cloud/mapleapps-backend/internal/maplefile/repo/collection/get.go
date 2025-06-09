@@ -215,21 +215,22 @@ func (impl *collectionRepositoryImpl) FindDescendants(ctx context.Context, colle
 	return impl.getCollectionsByIDs(ctx, descendantIDs)
 }
 
-func (impl *collectionRepositoryImpl) GetFullHierarchy(ctx context.Context, rootID gocql.UUID) (*dom_collection.Collection, error) {
-	// Get root collection
-	root, err := impl.Get(ctx, rootID)
-	if err != nil {
-		return nil, err
-	}
+// DEPRECATED AND WILL BE REMOVED
+// func (impl *collectionRepositoryImpl) GetFullHierarchy(ctx context.Context, rootID gocql.UUID) (*dom_collection.Collection, error) {
+// 	// Get root collection
+// 	root, err := impl.Get(ctx, rootID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	if root == nil {
-		return nil, nil
-	}
+// 	if root == nil {
+// 		return nil, nil
+// 	}
 
-	// For now, return just the root. In a full implementation, you might want to
-	// build the complete hierarchy tree structure
-	return root, nil
-}
+// 	// For now, return just the root. In a full implementation, you might want to
+// 	// build the complete hierarchy tree structure
+// 	return root, nil
+// }
 
 // Helper method to fetch multiple collections by IDs
 func (impl *collectionRepositoryImpl) getCollectionsByIDs(ctx context.Context, ids []gocql.UUID) ([]*dom_collection.Collection, error) {
