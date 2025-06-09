@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// cloud/mapleapps-backend/internal/maplefile/repo/collection/update.go
 func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *dom_collection.Collection) error {
 	if collection == nil {
 		return fmt.Errorf("collection cannot be nil")
@@ -137,7 +136,7 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 	}
 
 	// Execute batch
-	if err := impl.Session.ExecuteBatch(batch); err != nil {
+	if err := impl.Session.ExecuteBatch(batch.WithContext(ctx)); err != nil {
 		impl.Logger.Error("failed to update collection",
 			zap.String("collection_id", collection.ID.String()),
 			zap.Error(err))

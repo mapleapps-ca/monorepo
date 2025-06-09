@@ -18,7 +18,7 @@ type collectionRepositoryImpl struct {
 }
 
 func NewRepository(appCfg *config.Configuration, session *gocql.Session, loggerp *zap.Logger) dom_collection.CollectionRepository {
-	loggerp = loggerp.Named("MapleFile-CollectionRepository")
+	loggerp = loggerp.Named("CollectionRepository")
 
 	return &collectionRepositoryImpl{
 		Logger:  loggerp,

@@ -12,7 +12,6 @@ import (
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
-// cloud/mapleapps-backend/internal/maplefile/repo/collection/create.go
 func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *dom_collection.Collection) error {
 	// Validate collection
 	if collection == nil {
@@ -106,7 +105,7 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 	}
 
 	// Execute batch
-	if err := impl.Session.ExecuteBatch(batch); err != nil {
+	if err := impl.Session.ExecuteBatch(batch.WithContext(ctx)); err != nil {
 		impl.Logger.Error("failed to create collection",
 			zap.String("collection_id", collection.ID.String()),
 			zap.Error(err))

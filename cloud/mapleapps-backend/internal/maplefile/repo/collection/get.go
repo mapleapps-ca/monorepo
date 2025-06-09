@@ -43,7 +43,8 @@ func (impl *collectionRepositoryImpl) getCollectionByID(ctx context.Context, id 
 		modified_by_user_id, version, state, tombstone_version, tombstone_expiry
 		FROM maplefile_collections_by_id WHERE id = ?`
 
-	err := impl.Session.Query(query, id).Scan(
+	// Use context properly in the query
+	err := impl.Session.Query(query, id).WithContext(ctx).Scan(
 		&id, &ownerID, &encryptedName, &collectionType, &encryptedKeyJSON,
 		&membersJSON, &parentID, &ancestorIDsJSON, &createdAt, &createdByUserID,
 		&modifiedAt, &modifiedByUserID, &version, &state, &tombstoneVersion, &tombstoneExpiry)
@@ -53,6 +54,11 @@ func (impl *collectionRepositoryImpl) getCollectionByID(ctx context.Context, id 
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get collection: %w", err)
+	}
+
+	// Apply state filtering if state-aware mode is enabled
+	if stateAware && state != dom_collection.CollectionStateActive {
+		return nil, nil // Collection exists but not in active state
 	}
 
 	// Deserialize complex fields
@@ -99,7 +105,7 @@ func (impl *collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerI
 	query := `SELECT collection_id FROM maplefile_collections_by_owner_id_with_desc_modified_at_and_asc_id
 		WHERE owner_id = ? AND state = ?`
 
-	iter := impl.Session.Query(query, ownerID, dom_collection.CollectionStateActive).Iter()
+	iter := impl.Session.Query(query, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
 
 	var collectionID gocql.UUID
 	for iter.Scan(&collectionID) {
@@ -120,7 +126,7 @@ func (impl *collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.C
 	query := `SELECT collection_id FROM maplefile_collections_by_recipient_id_and_collection_id
 		WHERE recipient_id = ?`
 
-	iter := impl.Session.Query(query, userID).Iter()
+	iter := impl.Session.Query(query, userID).WithContext(ctx).Iter()
 
 	var collectionID gocql.UUID
 	for iter.Scan(&collectionID) {
@@ -154,7 +160,7 @@ func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID
 	query := `SELECT collection_id FROM maplefile_collections_by_parent_id_with_asc_created_at_and_asc_id
 		WHERE parent_id = ? AND state = ?`
 
-	iter := impl.Session.Query(query, parentID, dom_collection.CollectionStateActive).Iter()
+	iter := impl.Session.Query(query, parentID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
 
 	var collectionID gocql.UUID
 	for iter.Scan(&collectionID) {
@@ -175,7 +181,7 @@ func (impl *collectionRepositoryImpl) FindRootCollections(ctx context.Context, o
 	query := `SELECT collection_id FROM maplefile_collections_by_owner_id_with_desc_modified_at_and_asc_id
 		WHERE owner_id = ? AND state = ? AND parent_id = null ALLOW FILTERING`
 
-	iter := impl.Session.Query(query, ownerID, dom_collection.CollectionStateActive).Iter()
+	iter := impl.Session.Query(query, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
 
 	var collectionID gocql.UUID
 	for iter.Scan(&collectionID) {
@@ -195,7 +201,7 @@ func (impl *collectionRepositoryImpl) FindDescendants(ctx context.Context, colle
 	query := `SELECT collection_id FROM maplefile_collections_by_ancestor_id_with_asc_depth_and_asc_collection_id
 		WHERE ancestor_id = ? AND state = ?`
 
-	iter := impl.Session.Query(query, collectionID, dom_collection.CollectionStateActive).Iter()
+	iter := impl.Session.Query(query, collectionID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
 
 	var descendantID gocql.UUID
 	for iter.Scan(&descendantID) {

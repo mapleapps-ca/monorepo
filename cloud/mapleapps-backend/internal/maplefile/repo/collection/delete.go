@@ -81,7 +81,7 @@ func (impl *collectionRepositoryImpl) HardDelete(ctx context.Context, id gocql.U
 	}
 
 	// Execute batch
-	if err := impl.Session.ExecuteBatch(batch); err != nil {
+	if err := impl.Session.ExecuteBatch(batch.WithContext(ctx)); err != nil {
 		impl.Logger.Error("failed to hard delete collection",
 			zap.String("collection_id", id.String()),
 			zap.Error(err))

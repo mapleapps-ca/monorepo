@@ -15,7 +15,7 @@ func (impl *collectionRepositoryImpl) CheckIfExistsByID(ctx context.Context, id 
 
 	query := `SELECT COUNT(*) FROM maplefile_collections_by_id WHERE id = ?`
 
-	if err := impl.Session.Query(query, id).Scan(&count); err != nil {
+	if err := impl.Session.Query(query, id).WithContext(ctx).Scan(&count); err != nil {
 		return false, fmt.Errorf("failed to check collection existence: %w", err)
 	}
 
@@ -52,7 +52,7 @@ func (impl *collectionRepositoryImpl) CheckAccess(ctx context.Context, collectio
 	query := `SELECT permission_level FROM maplefile_collections_by_recipient_id_and_collection_id
 		WHERE recipient_id = ? AND collection_id = ?`
 
-	err = impl.Session.Query(query, userID, collectionID).Scan(&permissionLevel)
+	err = impl.Session.Query(query, userID, collectionID).WithContext(ctx).Scan(&permissionLevel)
 	if err != nil {
 		if err == gocql.ErrNotFound {
 			return false, nil // No access
@@ -81,7 +81,7 @@ func (impl *collectionRepositoryImpl) GetUserPermissionLevel(ctx context.Context
 	query := `SELECT permission_level FROM maplefile_collections_by_recipient_id_and_collection_id
 		WHERE recipient_id = ? AND collection_id = ?`
 
-	err = impl.Session.Query(query, userID, collectionID).Scan(&permissionLevel)
+	err = impl.Session.Query(query, userID, collectionID).WithContext(ctx).Scan(&permissionLevel)
 	if err != nil {
 		if err == gocql.ErrNotFound {
 			return "", nil // No access

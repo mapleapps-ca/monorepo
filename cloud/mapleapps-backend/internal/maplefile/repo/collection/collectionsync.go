@@ -12,7 +12,6 @@ import (
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
-// cloud/mapleapps-backend/internal/maplefile/repo/collection/collectionsync.go
 func (impl *collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error) {
 	// Build query based on cursor
 	var query string
@@ -32,7 +31,7 @@ func (impl *collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context,
 		args = []interface{}{userID, cursor.LastModified, cursor.LastID, limit}
 	}
 
-	iter := impl.Session.Query(query, args...).Iter()
+	iter := impl.Session.Query(query, args...).WithContext(ctx).Iter()
 
 	var syncItems []dom_collection.CollectionSyncItem
 	var lastModified time.Time
@@ -92,7 +91,7 @@ func (impl *collectionRepositoryImpl) getCollectionSyncItem(ctx context.Context,
 	query := `SELECT id, version, modified_at, state, parent_id, tombstone_version, tombstone_expiry
 		FROM maplefile_collections_by_id WHERE id = ?`
 
-	err := impl.Session.Query(query, collectionID).Scan(
+	err := impl.Session.Query(query, collectionID).WithContext(ctx).Scan(
 		&id, &version, &modifiedAt, &state, &parentID, &tombstoneVersion, &tombstoneExpiry)
 
 	if err != nil {

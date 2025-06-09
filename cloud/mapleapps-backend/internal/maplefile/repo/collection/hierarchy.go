@@ -71,7 +71,7 @@ func (impl *collectionRepositoryImpl) MoveCollection(
 	}
 
 	// Execute the batch
-	if err := impl.Session.ExecuteBatch(batch); err != nil {
+	if err := impl.Session.ExecuteBatch(batch.WithContext(ctx)); err != nil {
 		impl.Logger.Error("failed to move collection hierarchy",
 			zap.String("collection_id", collectionID.String()),
 			zap.String("new_parent_id", newParentID.String()),
