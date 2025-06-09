@@ -65,7 +65,7 @@ func (r *federatedUserRepository) Create(ctx context.Context, user *dom.Federate
         role, status, timezone, created_at, modified_at,
         profile_data, security_data, metadata
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		user.ID, user.Email, user.FirstName, user.LastName, user.Name, user.LexicalName,
+		user.Email, user.ID, user.FirstName, user.LastName, user.Name, user.LexicalName,
 		user.Role, user.Status, user.Timezone, user.CreatedAt, user.ModifiedAt,
 		profileDataJSON, securityDataJSON, metadataJSON,
 	)

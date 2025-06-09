@@ -1,3 +1,4 @@
+// cloud/maplefileapps-backend/pkg/storage/cache/cassandracache/cassandaracache.go
 package cassandracache
 
 import (
@@ -38,30 +39,70 @@ func (s *cache) Shutdown() {
 
 func (s *cache) Get(ctx context.Context, key string) ([]byte, error) {
 	var value []byte
-	query := `SELECT value FROM pkg_cache_by_key_with_asc_expire_at WHERE key=? AND expires_at > toTimestamp(now()) LIMIT 1`
-	err := s.Session.Query(query, key).WithContext(ctx).Consistency(gocql.LocalQuorum).Scan(&value)
+	var expiresAt time.Time
+
+	query := `SELECT value, expires_at FROM pkg_cache_by_key_with_asc_expire_at WHERE key=?`
+	err := s.Session.Query(query, key).WithContext(ctx).Consistency(gocql.LocalQuorum).Scan(&value, &expiresAt)
+
 	if err == gocql.ErrNotFound {
 		return nil, nil
 	}
-	return value, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if expired in application code
+	if time.Now().After(expiresAt) {
+		// Entry is expired, delete it and return nil
+		_ = s.Delete(ctx, key) // Clean up expired entry
+		return nil, nil
+	}
+
+	return value, nil
 }
 
 func (s *cache) Set(ctx context.Context, key string, val []byte) error {
-	return s.Session.Query(`INSERT INTO pkg_cache_by_key_with_asc_expire_at (key, expires_at, value) VALUES (?, toTimestamp(now()) + 86400000, ?)`,
-		key, val).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
+	expiresAt := time.Now().Add(24 * time.Hour) // Default 24 hour expiry
+	return s.Session.Query(`INSERT INTO pkg_cache_by_key_with_asc_expire_at (key, expires_at, value) VALUES (?, ?, ?)`,
+		key, expiresAt, val).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
 }
 
 func (s *cache) SetWithExpiry(ctx context.Context, key string, val []byte, expiry time.Duration) error {
-	return s.Session.Query(`INSERT INTO pkg_cache_by_key_with_asc_expire_at (key, expires_at, value) VALUES (?, toTimestamp(now()) + ?, ?)`,
-		key, int64(expiry/time.Millisecond), val).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
+	expiresAt := time.Now().Add(expiry)
+	return s.Session.Query(`INSERT INTO pkg_cache_by_key_with_asc_expire_at (key, expires_at, value) VALUES (?, ?, ?)`,
+		key, expiresAt, val).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
 }
 
 func (s *cache) Delete(ctx context.Context, key string) error {
-	return s.Session.Query(`DELETE FROM pkg_cache_by_key_with_asc_expire_at WHERE key=?`, key).
-		WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
+	return s.Session.Query(`DELETE FROM pkg_cache_by_key_with_asc_expire_at WHERE key=?`,
+		key).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
 }
 
 func (s *cache) PurgeExpired(ctx context.Context) error {
-	return s.Session.Query(`DELETE FROM pkg_cache_by_key_with_asc_expire_at WHERE expires_at < toTimestamp(now())`).
-		WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
+	now := time.Now()
+
+	// Thanks to the index on expires_at, this query is efficient
+	iter := s.Session.Query(`SELECT key FROM pkg_cache_by_key_with_asc_expire_at WHERE expires_at < ? ALLOW FILTERING`,
+		now).WithContext(ctx).Iter()
+
+	var expiredKeys []string
+	var key string
+	for iter.Scan(&key) {
+		expiredKeys = append(expiredKeys, key)
+	}
+
+	if err := iter.Close(); err != nil {
+		return err
+	}
+
+	// Delete expired keys in batch
+	if len(expiredKeys) > 0 {
+		batch := s.Session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+		for _, expiredKey := range expiredKeys {
+			batch.Query(`DELETE FROM pkg_cache_by_key_with_asc_expire_at WHERE key=?`, expiredKey)
+		}
+		return s.Session.ExecuteBatch(batch)
+	}
+
+	return nil
 }

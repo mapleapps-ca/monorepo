@@ -40,8 +40,11 @@ func (uc *sendFederatedUserVerificationEmailUseCaseImpl) Execute(ctx context.Con
 		if user.Email == "" {
 			e["email"] = "Email is required"
 		}
-		if user.SecurityData.CodeType == domain.FederatedUserCodeTypeEmailVerification {
-			e["email_verification_code"] = "Email verification code is required"
+		if user.SecurityData.Code == "" {
+			e["code"] = "Email verification code is required"
+		}
+		if user.SecurityData.CodeType != domain.FederatedUserCodeTypeEmailVerification {
+			e["code_type"] = "Email verification code type is required"
 		}
 	}
 	if len(e) != 0 {

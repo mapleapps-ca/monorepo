@@ -26,7 +26,7 @@ import (
 
 type GatewayFederatedUserRegisterService interface {
 	Execute(
-		sessCtx context.Context,
+		ctx context.Context,
 		req *RegisterCustomerRequestIDO,
 	) error
 }
@@ -84,10 +84,7 @@ type RegisterCustomerRequestIDO struct {
 	VerificationID                    string `json:"verificationID"`
 }
 
-func (svc *gatewayFederatedUserRegisterServiceImpl) Execute(
-	sessCtx context.Context,
-	req *RegisterCustomerRequestIDO,
-) error {
+func (svc *gatewayFederatedUserRegisterServiceImpl) Execute(ctx context.Context, req *RegisterCustomerRequestIDO) error {
 	//
 	// STEP 1: Sanitization of the input.
 	//
@@ -177,7 +174,7 @@ func (svc *gatewayFederatedUserRegisterServiceImpl) Execute(
 	//
 
 	// Lookup the federateduser in our database, else return a `400 Bad Request` error.
-	u, err := svc.userGetByEmailUseCase.Execute(sessCtx, req.Email)
+	u, err := svc.userGetByEmailUseCase.Execute(ctx, req.Email)
 	if err != nil {
 		svc.logger.Error("failed getting user by email from database",
 			zap.Any("error", err))
@@ -187,7 +184,7 @@ func (svc *gatewayFederatedUserRegisterServiceImpl) Execute(
 		return httperror.NewForBadRequestWithSingleField("email", "Email address already exists")
 	}
 	// Create our federateduser.
-	u, err = svc.createCustomerFederatedUserForRequest(sessCtx, req)
+	u, err = svc.createCustomerFederatedUserForRequest(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -199,9 +196,9 @@ func (svc *gatewayFederatedUserRegisterServiceImpl) Execute(
 	return nil
 }
 
-func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserForRequest(sessCtx context.Context, req *RegisterCustomerRequestIDO) (*dom_user.FederatedUser, error) {
+func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserForRequest(ctx context.Context, req *RegisterCustomerRequestIDO) (*dom_user.FederatedUser, error) {
 	// Get the IP address from the session context
-	ipAddress, _ := sessCtx.Value(constants.SessionIPAddress).(string)
+	ipAddress, _ := ctx.Value(constants.SessionIPAddress).(string)
 
 	// Generate email verification code
 	emailVerificationCode, err := random.GenerateSixDigitCode()
@@ -391,7 +388,7 @@ func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserFor
 		CreatedAt:    metadata.CreatedAt,
 		ModifiedAt:   metadata.ModifiedAt,
 	}
-	err = s.userCreateUseCase.Execute(sessCtx, u)
+	err = s.userCreateUseCase.Execute(ctx, u)
 	if err != nil {
 		return nil, err
 	}
