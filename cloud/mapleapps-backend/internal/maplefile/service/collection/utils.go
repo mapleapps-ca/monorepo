@@ -63,23 +63,6 @@ func mapCollectionDTOToDomain(dto *CreateCollectionRequestDTO, userID gocql.UUID
 		}
 	}
 
-	// Map children slice recursively from DTO to domain model slice
-	if len(dto.Children) > 0 {
-		collection.Children = make([]*dom_collection.Collection, len(dto.Children))
-		for i, childDTO := range dto.Children {
-			// Recursively map child collections, passing server context.
-			// The recursive call will also copy fields from the child DTO
-			// and then server-side overrides will be applied within that recursive context
-			// if mapCollectionDTOToDomain handles overrides (which it currently does not,
-			// overrides are handled *after* the top-level call in Execute).
-			// A cleaner approach might be to map DTO -> domain without overrides,
-			// then apply overrides in a post-processing step, potentially recursively.
-			// For simplicity following the prompt structure, we map recursively,
-			// assuming overrides happen *after* the initial mapping is complete for a given object.
-			collection.Children[i] = mapCollectionDTOToDomain(childDTO, userID, now) // Recursive call
-		}
-	}
-
 	return collection
 }
 
@@ -108,8 +91,6 @@ func mapCollectionToDTO(collection *dom_collection.Collection) *CollectionRespon
 		ModifiedAt:             collection.ModifiedAt,
 		// Members slice needs mapping to MembershipResponseDTO
 		Members: make([]MembershipResponseDTO, len(collection.Members)),
-		// Children slice needs recursive mapping
-		Children: nil, // Will be populated below
 	}
 
 	// Map members
@@ -129,14 +110,6 @@ func mapCollectionToDTO(collection *dom_collection.Collection) *CollectionRespon
 			// filtered for the specific recipient receiving the response.
 			// The MembershipResponseDTO does not have a field for this, which is correct.
 			EncryptedCollectionKey: member.EncryptedCollectionKey,
-		}
-	}
-
-	// Map children if present (recursive)
-	if len(collection.Children) > 0 {
-		responseDTO.Children = make([]*CollectionResponseDTO, len(collection.Children))
-		for i, child := range collection.Children {
-			responseDTO.Children[i] = mapCollectionToDTO(child) // Recursive call
 		}
 	}
 

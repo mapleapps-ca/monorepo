@@ -38,7 +38,6 @@ func init() {
 		// Collection patterns
 		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+$",           // Individual collection operations
 		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/files$",     // Collection files
-		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/hierarchy$", // Collection hierarchy
 		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/move$",      // Move collection
 		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/share$",     // Share collection
 		"^/maplefile/api/v1/collections/[a-zA-Z0-9-]+/members$",   // Collection members
