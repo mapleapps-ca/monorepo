@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/keys"
 )
 
 const (
@@ -42,58 +43,56 @@ const (
 	SpecialCollection040001 = 1
 )
 
-type User struct {
-	ID                                             gocql.UUID `bson:"_id" json:"id"`
-	Email                                          string     `bson:"email" json:"email"`
-	FirstName                                      string     `bson:"first_name" json:"first_name"`
-	LastName                                       string     `bson:"last_name" json:"last_name"`
-	Name                                           string     `bson:"name" json:"name"`
-	LexicalName                                    string     `bson:"lexical_name" json:"lexical_name"`
-	PasswordHashAlgorithm                          string     `bson:"password_hash_algorithm" json:"-"`
-	PasswordHash                                   string     `bson:"password_hash" json:"-"`
-	Role                                           int8       `bson:"role" json:"role"`
-	WasEmailVerified                               bool       `bson:"was_email_verified,omitempty" json:"was_email_verified,omitempty"`
-	EmailVerificationCode                          string     `bson:"email_verification_code,omitempty" json:"email_verification_code,omitempty"`
-	EmailVerificationExpiry                        time.Time  `bson:"email_verification_expiry,omitempty" json:"email_verification_expiry,omitempty"`
-	PasswordResetVerificationCode                  string     `bson:"password_reset_verification_code,omitempty" json:"password_reset_verification_code,omitempty"`
-	PasswordResetVerificationExpiry                time.Time  `bson:"password_reset_verification_expiry,omitempty" json:"password_reset_verification_expiry,omitempty"`
-	Phone                                          string     `bson:"phone,omitempty" json:"phone,omitempty"`
-	Country                                        string     `bson:"country,omitempty" json:"country,omitempty"`
-	Timezone                                       string     `bson:"timezone" json:"timezone"`
-	Region                                         string     `bson:"region,omitempty" json:"region,omitempty"`
-	City                                           string     `bson:"city,omitempty" json:"city,omitempty"`
-	PostalCode                                     string     `bson:"postal_code,omitempty" json:"postal_code,omitempty"`
-	AddressLine1                                   string     `bson:"address_line1,omitempty" json:"address_line1,omitempty"`
-	AddressLine2                                   string     `bson:"address_line2,omitempty" json:"address_line2,omitempty"`
-	HasShippingAddress                             bool       `bson:"has_shipping_address,omitempty" json:"has_shipping_address,omitempty"`
-	ShippingName                                   string     `bson:"shipping_name,omitempty" json:"shipping_name,omitempty"`
-	ShippingPhone                                  string     `bson:"shipping_phone,omitempty" json:"shipping_phone,omitempty"`
-	ShippingCountry                                string     `bson:"shipping_country,omitempty" json:"shipping_country,omitempty"`
-	ShippingRegion                                 string     `bson:"shipping_region,omitempty" json:"shipping_region,omitempty"`
-	ShippingCity                                   string     `bson:"shipping_city,omitempty" json:"shipping_city,omitempty"`
-	ShippingPostalCode                             string     `bson:"shipping_postal_code,omitempty" json:"shipping_postal_code,omitempty"`
-	ShippingAddressLine1                           string     `bson:"shipping_address_line1,omitempty" json:"shipping_address_line1,omitempty"`
-	ShippingAddressLine2                           string     `bson:"shipping_address_line2,omitempty" json:"shipping_address_line2,omitempty"`
-	AgreeTermsOfService                            bool       `bson:"agree_terms_of_service,omitempty" json:"agree_terms_of_service,omitempty"`
-	AgreePromotions                                bool       `bson:"agree_promotions,omitempty" json:"agree_promotions,omitempty"`
-	AgreeToTrackingAcrossThirdPartyAppsAndServices bool       `bson:"agree_to_tracking_across_third_party_apps_and_services,omitempty" json:"agree_to_tracking_across_third_party_apps_and_services,omitempty"`
-	CreatedFromIPAddress                           string     `bson:"created_from_ip_address" json:"created_from_ip_address"`
-	CreatedByUserID                                gocql.UUID `bson:"created_by_user_id" json:"created_by_user_id"`
-	CreatedAt                                      time.Time  `bson:"created_at,omitempty" json:"created_at,omitempty"`
-	CreatedByName                                  string     `bson:"created_by_name" json:"created_by_name"`
-	ModifiedFromIPAddress                          string     `bson:"modified_from_ip_address" json:"modified_from_ip_address"`
-	ModifiedByUserID                               gocql.UUID `bson:"modified_by_user_id" json:"modified_by_user_id"`
-	ModifiedAt                                     time.Time  `bson:"modified_at,omitempty" json:"modified_at,omitempty"`
-	ModifiedByName                                 string     `bson:"modified_by_name" json:"modified_by_name"`
-	Status                                         int8       `bson:"status" json:"status"`
+type UserProfileData struct {
+	Phone                                          string `bson:"phone" json:"phone,omitempty"`
+	Country                                        string `bson:"country" json:"country,omitempty"`
+	Region                                         string `bson:"region" json:"region,omitempty"`
+	City                                           string `bson:"city" json:"city,omitempty"`
+	PostalCode                                     string `bson:"postal_code" json:"postal_code,omitempty"`
+	AddressLine1                                   string `bson:"address_line1" json:"address_line1,omitempty"`
+	AddressLine2                                   string `bson:"address_line2" json:"address_line2,omitempty"`
+	HasShippingAddress                             bool   `bson:"has_shipping_address" json:"has_shipping_address,omitempty"`
+	ShippingName                                   string `bson:"shipping_name" json:"shipping_name,omitempty"`
+	ShippingPhone                                  string `bson:"shipping_phone" json:"shipping_phone,omitempty"`
+	ShippingCountry                                string `bson:"shipping_country" json:"shipping_country,omitempty"`
+	ShippingRegion                                 string `bson:"shipping_region" json:"shipping_region,omitempty"`
+	ShippingCity                                   string `bson:"shipping_city" json:"shipping_city,omitempty"`
+	ShippingPostalCode                             string `bson:"shipping_postal_code" json:"shipping_postal_code,omitempty"`
+	ShippingAddressLine1                           string `bson:"shipping_address_line1" json:"shipping_address_line1,omitempty"`
+	ShippingAddressLine2                           string `bson:"shipping_address_line2" json:"shipping_address_line2,omitempty"`
+	Timezone                                       string `bson:"timezone" json:"timezone"`
+	AgreeTermsOfService                            bool   `bson:"agree_terms_of_service" json:"agree_terms_of_service,omitempty"`
+	AgreePromotions                                bool   `bson:"agree_promotions" json:"agree_promotions,omitempty"`
+	AgreeToTrackingAcrossThirdPartyAppsAndServices bool   `bson:"agree_to_tracking_across_third_party_apps_and_services" json:"agree_to_tracking_across_third_party_apps_and_services,omitempty"`
+}
 
-	// The name of the payment processor we are using to handle payments with
-	// this particular member.
-	PaymentProcessorName string `bson:"payment_processor_name" json:"payment_processor_name"`
-	// The unique identifier used by the payment processor which has a somesort of
-	// copy of this member's details saved and we can reference that customer on
-	// the payment processor using this `customer_id`.
-	PaymentProcessorCustomerID string `bson:"payment_processor_customer_id" json:"payment_processor_customer_id"`
+type UserSecurityData struct {
+	WasEmailVerified bool `bson:"was_email_verified" json:"was_email_verified,omitempty"`
+
+	Code       string    `bson:"code,omitempty" json:"code,omitempty"`
+	CodeType   string    `bson:"code_type,omitempty" json:"code_type,omitempty"` // -- 'email_verification' or 'password_reset'
+	CodeExpiry time.Time `bson:"code_expiry,omitempty" json:"code_expiry"`
+
+	// --- E2EE Related ---
+	PasswordSalt []byte `json:"password_salt" bson:"password_salt"`
+	// KDFParams stores the key derivation function parameters used to derive the user's password hash.
+	KDFParams                         keys.KDFParams                         `json:"kdf_params" bson:"kdf_params"`
+	EncryptedMasterKey                keys.EncryptedMasterKey                `json:"encrypted_master_key" bson:"encrypted_master_key"`
+	PublicKey                         keys.PublicKey                         `json:"public_key" bson:"public_key"`
+	EncryptedPrivateKey               keys.EncryptedPrivateKey               `json:"encrypted_private_key" bson:"encrypted_private_key"`
+	EncryptedRecoveryKey              keys.EncryptedRecoveryKey              `json:"encrypted_recovery_key" bson:"encrypted_recovery_key"`
+	MasterKeyEncryptedWithRecoveryKey keys.MasterKeyEncryptedWithRecoveryKey `json:"master_key_encrypted_with_recovery_key" bson:"master_key_encrypted_with_recovery_key"`
+	EncryptedChallenge                []byte                                 `json:"encrypted_challenge,omitempty" bson:"encrypted_challenge,omitempty"`
+	VerificationID                    string                                 `json:"verification_id" bson:"verification_id"`
+
+	// Track KDF upgrade status
+	LastPasswordChange   time.Time `json:"last_password_change" bson:"last_password_change"`
+	KDFParamsNeedUpgrade bool      `json:"kdf_params_need_upgrade" bson:"kdf_params_need_upgrade"`
+
+	// Key rotation tracking fields
+	CurrentKeyVersion int                     `json:"current_key_version" bson:"current_key_version"`
+	LastKeyRotation   *time.Time              `json:"last_key_rotation,omitempty" bson:"last_key_rotation,omitempty"`
+	KeyRotationPolicy *keys.KeyRotationPolicy `json:"key_rotation_policy,omitempty" bson:"key_rotation_policy,omitempty"`
 
 	// OTPEnabled controls whether we force 2FA or not during login.
 	OTPEnabled bool `bson:"otp_enabled" json:"otp_enabled"`
@@ -116,77 +115,33 @@ type User struct {
 
 	// OTPBackupCodeHashAlgorithm tracks the hashing algorithm used.
 	OTPBackupCodeHashAlgorithm string `bson:"otp_backup_code_hash_algorithm" json:"-"`
-
-	// ProfileVerificationStatus indicates the profile verification status of this user account.
-	ProfileVerificationStatus int8 `bson:"profile_verification_status,omitempty" json:"profile_verification_status,omitempty"`
-
-	HowDidYouHearAboutUs      int8   `bson:"how_did_you_hear_about_us,omitempty" json:"how_did_you_hear_about_us,omitempty"`
-	HowDidYouHearAboutUsOther string `bson:"how_did_you_hear_about_us_other,omitempty" json:"how_did_you_hear_about_us_other,omitempty"`
-
-	StoreLogoS3Key         string    `bson:"store_logo_s3_key,omitempty" json:"store_logo_s3_key,omitempty"`
-	StoreLogoTitle         string    `bson:"store_logo_title,omitempty" json:"store_logo_title,omitempty"`
-	StoreLogoFileURL       string    `bson:"-" json:"store_logo_file_url,omitempty"` // (Optional, added by endpoint)
-	StoreLogoFileURLExpiry time.Time `bson:"-" json:"store_logo_file_url_expiry"`    // (Optional, added by endpoint)
-
-	ComicBookStoreName           string `bson:"comic_book_store_name,omitempty" json:"comic_book_store_name,omitempty"`
-	HowLongStoreOperating        int8   `bson:"how_long_store_operating,omitempty" json:"how_long_store_operating,omitempty"`
-	RetailPartnershipReason      string `bson:"retail_partnership_reason,omitempty" json:"retail_partnership_reason,omitempty"`         // "Please describe how you could become a good retail partner for the ComicCoin Blockchain"
-	ComicCoinPartnershipReason   string `bson:"comic_coin_partnership_reason,omitempty" json:"comic_coin_partnership_reason,omitempty"` // "Please describe how the ComicCoin Blockchain could help you grow your business"
-	EstimatedSubmissionsPerMonth int8   `bson:"estimated_submissions_per_month" json:"estimated_submissions_per_month"`
-	HasOtherGradingService       int8   `bson:"has_other_grading_service" json:"has_other_grading_service"`
-	OtherGradingServiceName      string `bson:"other_grading_service_name" json:"other_grading_service_name"`
-	RequestWelcomePackage        int8   `bson:"request_welcome_package" json:"request_welcome_package"`
-
-	HowLongCollectingComicBooksForGrading           int8 `bson:"how_long_collecting_comic_books_for_grading" json:"how_long_collecting_comic_books_for_grading"`
-	HasPreviouslySubmittedComicBookForGrading       int8 `bson:"has_previously_submitted_comic_book_for_grading" json:"has_previously_submitted_comic_book_for_grading"`
-	HasOwnedGradedComicBooks                        int8 `bson:"has_owned_graded_comic_books" json:"has_owned_graded_comic_books"`
-	HasRegularComicBookShop                         int8 `bson:"has_regular_comic_book_shop" json:"has_regular_comic_book_shop"`
-	HasPreviouslyPurchasedFromAuctionSite           int8 `bson:"has_previously_purchased_from_auction_site" json:"has_previously_purchased_from_auction_site"`
-	HasPreviouslyPurchasedFromFacebookMarketplace   int8 `bson:"has_previously_purchased_from_facebook_marketplace" json:"has_previously_purchased_from_facebook_marketplace"`
-	HasRegularlyAttendedComicConsOrCollectibleShows int8 `bson:"has_regularly_attended_comic_cons_or_collectible_shows" json:"has_regularly_attended_comic_cons_or_collectible_shows"`
-
-	// Website URL of the individualuser's website/blog/etc or user's company website.
-	WebsiteURL string `bson:"website_url" json:"website_url"`
-
-	// Description of the individual user or user's company to be used in their profile.
-	Description string `bson:"description" json:"description"`
 }
 
-type UserClaimedCoinTransaction struct {
-	ID        gocql.UUID `bson:"_id" json:"id"`
-	Timestamp time.Time  `bson:"timestamp,omitempty" json:"timestamp,omitempty"`
-	Amount    uint64     `bson:"amount,omitempty" json:"amount,omitempty"`
+type UserMetadata struct {
+	CreatedFromIPAddress  string     `bson:"created_from_ip_address" json:"created_from_ip_address"`
+	CreatedByUserID       gocql.UUID `bson:"created_by_user_id" json:"created_by_user_id"`
+	CreatedAt             time.Time  `bson:"created_at" json:"created_at"`
+	CreatedByName         string     `bson:"created_by_name" json:"created_by_name"`
+	ModifiedFromIPAddress string     `bson:"modified_from_ip_address" json:"modified_from_ip_address"`
+	ModifiedByUserID      gocql.UUID `bson:"modified_by_user_id" json:"modified_by_user_id"`
+	ModifiedAt            time.Time  `bson:"modified_at" json:"modified_at"`
+	ModifiedByName        string     `bson:"modified_by_name" json:"modified_by_name"`
+	LastLoginAt           time.Time  `json:"last_login_at" bson:"last_login_at"`
 }
 
-// UserFilter represents the filter criteria for listing users
-type UserFilter struct {
-	// Basic filters
-	Name   *string `bson:"name,omitempty" json:"name,omitempty"`
-	Email  *string `bson:"email,omitempty" json:"email,omitempty"`
-	Role   int8    `bson:"role,omitempty" json:"role,omitempty"`
-	Status int8    `bson:"status,omitempty" json:"status,omitempty"`
-
-	// Date range filters
-	CreatedAtStart *time.Time `bson:"created_at_start,omitempty" json:"created_at_start,omitempty"`
-	CreatedAtEnd   *time.Time `bson:"created_at_end,omitempty" json:"created_at_end,omitempty"`
-
-	// Pagination - cursor based
-	LastID        *gocql.UUID `bson:"last_id,omitempty" json:"last_id,omitempty"`
-	LastCreatedAt *time.Time  `bson:"last_created_at,omitempty" json:"last_created_at,omitempty"`
-	Limit         int64       `bson:"limit,omitempty" json:"limit,omitempty"`
-
-	// Profile verification status filter
-	ProfileVerificationStatus int8 `bson:"profile_verification_status,omitempty" json:"profile_verification_status,omitempty"`
-
-	// Search term for text search across multiple fields
-	SearchTerm *string `bson:"search_term,omitempty" json:"search_term,omitempty"`
-}
-
-// UserFilterResult represents the result of a filtered list operation
-type UserFilterResult struct {
-	Users         []*User    `bson:"users" json:"users"`
-	HasMore       bool       `bson:"has_more" json:"has_more"`
-	LastID        gocql.UUID `bson:"last_id,omitempty" json:"last_id,omitempty"`
-	LastCreatedAt time.Time  `bson:"last_created_at,omitempty" json:"last_created_at,omitempty"`
-	TotalCount    uint64     `bson:"total_count,omitempty" json:"total_count,omitempty"`
+type User struct {
+	ID           gocql.UUID        `bson:"_id" json:"id"`
+	Email        string            `bson:"email" json:"email"`
+	FirstName    string            `bson:"first_name" json:"first_name"`
+	LastName     string            `bson:"last_name" json:"last_name"`
+	Name         string            `bson:"name" json:"name"`
+	LexicalName  string            `bson:"lexical_name" json:"lexical_name"`
+	Role         int8              `bson:"role" json:"role"`
+	Status       int8              `bson:"status" json:"status"`
+	Timezone     string            `bson:"timezone" json:"timezone"`
+	ProfileData  *UserProfileData  `bson:"profile_data" json:"profile_data"`
+	SecurityData *UserSecurityData `bson:"security_data" json:"security_data"`
+	Metadata     *UserMetadata     `bson:"metadata" json:"metadata"`
+	CreatedAt    time.Time         `bson:"created_at" json:"created_at"`
+	ModifiedAt   time.Time         `bson:"modified_at" json:"modified_at"`
 }

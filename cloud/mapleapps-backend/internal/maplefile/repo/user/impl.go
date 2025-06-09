@@ -4,26 +4,30 @@ package user
 import (
 	"context"
 
+	"go.uber.org/fx"
 	"go.uber.org/zap"
 
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
+	"github.com/gocql/gocql"
 	dom_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/user"
 )
 
-type userStorerImpl struct {
-	Logger *zap.Logger
-	//TODO
+type Params struct {
+	fx.In
+	Session *gocql.Session
+	Logger  *zap.Logger
 }
 
-func NewRepository(appCfg *config.Configuration, loggerp *zap.Logger) dom_user.Repository {
-	loggerp = loggerp.Named("UserRepository")
+type userStorerImpl struct {
+	session *gocql.Session
+	logger  *zap.Logger
+}
 
-	// Create the repository instance first
-	repo := &userStorerImpl{
-		Logger: loggerp,
-		//TODO
+func NewRepository(p Params) dom_user.Repository {
+	p.Logger = p.Logger.Named("MapleFileUserRepository")
+	return &userStorerImpl{
+		session: p.Session,
+		logger:  p.Logger,
 	}
-	return repo
 }
 
 // ListAll retrieves all users from the database
