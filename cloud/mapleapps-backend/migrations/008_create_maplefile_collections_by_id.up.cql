@@ -1,4 +1,8 @@
-CREATE TABLE IF NOT EXISTS mapleapps.collections_by_id (
+-- 1. MAIN TABLE - maplefile_collections_by_id
+-- Handles: Get, GetWithAnyState, Update, Create, Delete operations
+-- Primary Key: id
+
+CREATE TABLE IF NOT EXISTS mapleapps.maplefile_collections_by_id (
     -- Identifiers
     id UUID PRIMARY KEY,
     owner_id UUID,

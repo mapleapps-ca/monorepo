@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS mapleapps.collections_by_id;
+DROP TABLE IF EXISTS mapleapps.maplefile_collections_by_id;

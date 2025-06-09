@@ -1,0 +1,10 @@
+-- 3. COLLECTIONS BY PARENT
+-- Handles: FindByParent hierarchical queries
+-- Query pattern: "What collection IDs are children of this parent?"
+CREATE TABLE IF NOT EXISTS mapleapps.maplefile_collections_by_parent_id_with_asc_created_at_and_asc_id (
+    parent_id UUID,
+    created_at TIMESTAMP,
+    collection_id UUID,
+    state TEXT,  -- For filtering out deleted children
+    PRIMARY KEY ((parent_id), created_at, collection_id)
+) WITH CLUSTERING ORDER BY (created_at ASC, collection_id ASC);
