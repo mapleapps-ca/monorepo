@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS idx_pkg_cache_by_key_with_asc_expire_at;
