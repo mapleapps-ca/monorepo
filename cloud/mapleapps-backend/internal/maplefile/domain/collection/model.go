@@ -41,10 +41,6 @@ type Collection struct {
 	// AncestorIDs is an array containing the IDs of all parent collections up to the root.
 	// This field is used for efficient querying and traversal of the collection hierarchy without joins.
 	AncestorIDs []gocql.UUID `bson:"ancestor_ids,omitempty" json:"ancestor_ids,omitempty"` // Array of ancestor IDs for efficient querying
-	// Children is an optional field for representing subcollections embedded directly within this DTO.
-	// This is primarily used for tree-like structures in certain API responses or operations, not for persistent storage in this format.
-	// Recursive embedding of the same type.
-	Children []*Collection `bson:"children,omitempty" json:"children,omitempty"`
 
 	// Ownership, timestamps and conflict resolution
 	// CreatedAt is the timestamp when the collection was initially created.
