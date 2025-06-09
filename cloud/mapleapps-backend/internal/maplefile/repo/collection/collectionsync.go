@@ -15,20 +15,20 @@ import (
 func (impl *collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error) {
 	// Build query based on cursor
 	var query string
-	var args []interface{}
+	var args []any
 
 	if cursor == nil {
 		// Initial sync - get all collections for user
 		query = `SELECT collection_id, modified_at FROM
 			maplefile_collections_by_owner_id_with_desc_modified_at_and_asc_id
 			WHERE owner_id = ? LIMIT ?`
-		args = []interface{}{userID, limit}
+		args = []any{userID, limit}
 	} else {
 		// Incremental sync - get collections modified after cursor
 		query = `SELECT collection_id, modified_at FROM
 			maplefile_collections_by_owner_id_with_desc_modified_at_and_asc_id
 			WHERE owner_id = ? AND (modified_at, collection_id) > (?, ?) LIMIT ?`
-		args = []interface{}{userID, cursor.LastModified, cursor.LastID, limit}
+		args = []any{userID, cursor.LastModified, cursor.LastID, limit}
 	}
 
 	iter := impl.Session.Query(query, args...).WithContext(ctx).Iter()

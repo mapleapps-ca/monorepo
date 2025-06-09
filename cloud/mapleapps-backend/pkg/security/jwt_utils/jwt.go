@@ -57,7 +57,7 @@ func GenerateJWTTokenPair(hmacSecret []byte, uuid string, ad time.Duration, rd t
 
 // ProcessJWTToken validates either the `access token` or `refresh token` and returns either the `uuid` if success or error on failure.
 func ProcessJWTToken(hmacSecret []byte, reqToken string) (string, error) {
-	token, err := jwt.Parse(reqToken, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(reqToken, func(t *jwt.Token) (any, error) {
 		return hmacSecret, nil
 	})
 	if err == nil && token.Valid {

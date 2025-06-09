@@ -19,15 +19,15 @@ func (m *mockRedisClient) Get(ctx context.Context, key string) *redis.StringCmd 
 	return redis.NewStringCmd(ctx)
 }
 
-func (m *mockRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+func (m *mockRedisClient) Set(ctx context.Context, key string, value any, expiration time.Duration) *redis.StatusCmd {
 	return redis.NewStatusCmd(ctx)
 }
 
-func (m *mockRedisClient) Eval(ctx context.Context, script string, keys []string, args ...interface{}) *redis.Cmd {
+func (m *mockRedisClient) Eval(ctx context.Context, script string, keys []string, args ...any) *redis.Cmd {
 	return redis.NewCmd(ctx)
 }
 
-func (m *mockRedisClient) EvalSha(ctx context.Context, sha string, keys []string, args ...interface{}) *redis.Cmd {
+func (m *mockRedisClient) EvalSha(ctx context.Context, sha string, keys []string, args ...any) *redis.Cmd {
 	return redis.NewCmd(ctx)
 }
 
