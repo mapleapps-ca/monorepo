@@ -27,6 +27,7 @@ func DaemonCmd() *cobra.Command {
 func doRunDaemon() {
 	fx.New(
 		fx.StartTimeout(5*time.Minute),
+		fx.StopTimeout(2*time.Minute),
 		fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
 			return &fxevent.ZapLogger{Logger: log}
 		}),

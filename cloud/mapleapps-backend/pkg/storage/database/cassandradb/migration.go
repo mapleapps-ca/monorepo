@@ -24,13 +24,14 @@ func NewMigrator(cfg *config.Configuration) *Migrator {
 
 // Up runs all pending migrations with dirty state recovery
 func (m *Migrator) Up() error {
+	log.Printf("Creating migrator...")
 	migrateInstance, err := m.createMigrate()
 	if err != nil {
 		return fmt.Errorf("failed to create migrator: %w", err)
 	}
 	defer migrateInstance.Close()
 
-	// Check for dirty state and attempt recovery
+	log.Printf("Checking migration version...")
 	version, dirty, err := migrateInstance.Version()
 	if err != nil && err != migrate.ErrNilVersion {
 		return fmt.Errorf("failed to get migration version: %w", err)
@@ -38,13 +39,9 @@ func (m *Migrator) Up() error {
 
 	if dirty {
 		log.Printf("Database is in dirty state at version %d, attempting to force clean state...", version)
-
-		// Force the version to clean state
 		if err := migrateInstance.Force(int(version)); err != nil {
 			return fmt.Errorf("failed to force clean migration state: %w", err)
 		}
-
-		log.Printf("Successfully forced migration to clean state at version %d", version)
 	}
 
 	// Run migrations

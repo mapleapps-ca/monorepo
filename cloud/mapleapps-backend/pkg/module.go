@@ -3,6 +3,7 @@ package pkg
 
 import (
 	"context"
+	"fmt"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -60,13 +61,13 @@ func runMigrationsAndSetupLifecycle(
 ) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			logger.Info("Running database migrations...")
-			if err := migrator.Up(); err != nil {
-				logger.Error("Failed to run migrations", zap.Error(err))
-				return err
-			}
-			logger.Info("Database migrations completed successfully")
-			return nil
+			// Run migrations in background
+			go func() {
+				if err := migrator.Up(); err != nil {
+					fmt.Errorf("Migration failed", zap.Error(err))
+				}
+			}()
+			return nil // Return immediately
 		},
 		OnStop: func(ctx context.Context) error {
 			logger.Info("Shutting down Cassandra connection...")
