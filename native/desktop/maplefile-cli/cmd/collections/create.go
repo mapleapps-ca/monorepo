@@ -118,7 +118,7 @@ Examples:
 			fmt.Printf("📋 Collection Details:\n")
 			fmt.Printf("  📁 Name: %s\n", displayName)
 			fmt.Printf("  🏷️  Type: %s\n", output.Collection.CollectionType)
-			fmt.Printf("  🆔 ID: %s\n", output.Collection.ID.String)
+			fmt.Printf("  🆔 ID: %s\n", output.Collection.ID.String())
 
 			if isSubCollection {
 				fmt.Printf("  📂 Parent ID: %s\n", output.Collection.ParentID.String())

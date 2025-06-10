@@ -2,6 +2,8 @@
 package daemon
 
 import (
+	"time"
+
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
@@ -24,6 +26,7 @@ func DaemonCmd() *cobra.Command {
 
 func doRunDaemon() {
 	fx.New(
+		fx.StartTimeout(5*time.Minute),
 		fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
 			return &fxevent.ZapLogger{Logger: log}
 		}),
