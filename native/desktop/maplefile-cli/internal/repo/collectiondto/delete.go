@@ -4,10 +4,10 @@ package collectiondto
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 )
 
-func (s *collectionDTORepository) DeleteInCloudByID(ctx context.Context, id primitive.ObjectID) error {
+func (s *collectionDTORepository) DeleteInCloudByID(ctx context.Context, id gocql.UUID) error {
 	// Stub implementation: Always return nil error.
 	// In a real stub or mock, you would simulate specific errors like ErrNotFound.
 	return nil

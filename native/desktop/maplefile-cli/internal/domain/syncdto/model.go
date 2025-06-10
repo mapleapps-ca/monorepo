@@ -4,24 +4,24 @@ package syncdto
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 )
 
 // SyncCursorDTO represents cursor-based pagination for sync operations
 type SyncCursorDTO struct {
-	LastModified time.Time          `json:"last_modified"`
-	LastID       primitive.ObjectID `json:"last_id"`
+	LastModified time.Time  `json:"last_modified"`
+	LastID       gocql.UUID `json:"last_id"`
 }
 
 // CollectionSyncItem represents minimal collection data for sync operations
 type CollectionSyncItem struct {
-	ID               primitive.ObjectID  `json:"id"`
-	Version          uint64              `json:"version"`
-	ModifiedAt       time.Time           `json:"modified_at"`
-	State            string              `json:"state"`
-	ParentID         *primitive.ObjectID `json:"parent_id,omitempty"`
-	TombstoneVersion uint64              `bson:"tombstone_version" json:"tombstone_version"`
-	TombstoneExpiry  time.Time           `bson:"tombstone_expiry" json:"tombstone_expiry"`
+	ID               gocql.UUID  `json:"id"`
+	Version          uint64      `json:"version"`
+	ModifiedAt       time.Time   `json:"modified_at"`
+	State            string      `json:"state"`
+	ParentID         *gocql.UUID `json:"parent_id,omitempty"`
+	TombstoneVersion uint64      `bson:"tombstone_version" json:"tombstone_version"`
+	TombstoneExpiry  time.Time   `bson:"tombstone_expiry" json:"tombstone_expiry"`
 }
 
 // CollectionSyncResponseDTO represents the response for collection sync data
@@ -33,13 +33,13 @@ type CollectionSyncResponseDTO struct {
 
 // FileSyncItem represents minimal file data for sync operations
 type FileSyncItem struct {
-	ID               primitive.ObjectID `json:"id"`
-	CollectionID     primitive.ObjectID `json:"collection_id"`
-	Version          uint64             `json:"version"`
-	ModifiedAt       time.Time          `json:"modified_at"`
-	State            string             `json:"state"`
-	TombstoneVersion uint64             `bson:"tombstone_version" json:"tombstone_version"`
-	TombstoneExpiry  time.Time          `bson:"tombstone_expiry" json:"tombstone_expiry"`
+	ID               gocql.UUID `json:"id"`
+	CollectionID     gocql.UUID `json:"collection_id"`
+	Version          uint64     `json:"version"`
+	ModifiedAt       time.Time  `json:"modified_at"`
+	State            string     `json:"state"`
+	TombstoneVersion uint64     `bson:"tombstone_version" json:"tombstone_version"`
+	TombstoneExpiry  time.Time  `bson:"tombstone_expiry" json:"tombstone_expiry"`
 }
 
 // FileSyncResponseDTO represents the response for file sync data

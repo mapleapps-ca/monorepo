@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
@@ -27,7 +28,7 @@ type OnloadInput struct {
 
 // OnloadOutput represents the result of onloading a cloud-only file
 type OnloadOutput struct {
-	FileID         primitive.ObjectID  `json:"file_id"`
+	FileID         gocql.UUID          `json:"file_id"`
 	PreviousStatus dom_file.SyncStatus `json:"previous_status"`
 	NewStatus      dom_file.SyncStatus `json:"new_status"`
 	DecryptedPath  string              `json:"decrypted_path"`

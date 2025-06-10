@@ -4,9 +4,9 @@ package collectionsharingdto
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
 	uc_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
@@ -15,9 +15,9 @@ import (
 
 // RemoveMemberInput represents input for removing a member from a collection
 type RemoveMemberInput struct {
-	CollectionID          primitive.ObjectID `json:"collection_id"`
-	RecipientEmail        string             `json:"recipient_email"`
-	RemoveFromDescendants bool               `json:"remove_from_descendants"`
+	CollectionID          gocql.UUID `json:"collection_id"`
+	RecipientEmail        string     `json:"recipient_email"`
+	RemoveFromDescendants bool       `json:"remove_from_descendants"`
 }
 
 // RemoveMemberUseCase defines the interface for removing members from collections

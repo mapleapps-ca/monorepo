@@ -5,9 +5,9 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncdto"
 )
@@ -15,7 +15,7 @@ import (
 // BuildSyncCursorInput represents the input for building a sync cursor
 type BuildSyncCursorInput struct {
 	LastModified time.Time
-	LastID       primitive.ObjectID
+	LastID       gocql.UUID
 }
 
 // BuildSyncCursorUseCase defines the interface for building sync cursors

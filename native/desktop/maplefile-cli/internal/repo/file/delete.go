@@ -4,13 +4,13 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 )
 
-func (r *fileRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
+func (r *fileRepository) Delete(ctx context.Context, id gocql.UUID) error {
 	r.logger.Debug("Deleting file from local storage", zap.String("fileID", id.Hex()))
 
 	// Generate key for this file

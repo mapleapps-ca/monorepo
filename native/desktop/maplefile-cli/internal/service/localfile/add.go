@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
@@ -26,11 +26,11 @@ import (
 
 // LocalFileAddInput represents the input for adding a local file
 type LocalFileAddInput struct {
-	FilePath     string             `json:"file_path"`
-	CollectionID primitive.ObjectID `json:"collection_id"`
-	OwnerID      primitive.ObjectID `json:"owner_id"`
-	Name         string             `json:"name,omitempty"`
-	StorageMode  string             `json:"storage_mode"`
+	FilePath     string     `json:"file_path"`
+	CollectionID gocql.UUID `json:"collection_id"`
+	OwnerID      gocql.UUID `json:"owner_id"`
+	Name         string     `json:"name,omitempty"`
+	StorageMode  string     `json:"storage_mode"`
 }
 
 // LocalFileAddOutput represents the result of adding a local file

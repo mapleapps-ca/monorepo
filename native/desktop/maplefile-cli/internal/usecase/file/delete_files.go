@@ -5,17 +5,17 @@ import (
 	"context"
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 // DeleteFilesUseCase defines the interface for deleting multiple local files
 type DeleteFilesUseCase interface {
-	Execute(ctx context.Context, ids []primitive.ObjectID) error
-	DeleteByCollection(ctx context.Context, collectionID primitive.ObjectID) error
+	Execute(ctx context.Context, ids []gocql.UUID) error
+	DeleteByCollection(ctx context.Context, collectionID gocql.UUID) error
 }
 
 // deleteFilesUseCase implements the DeleteFilesUseCase interface
@@ -42,7 +42,7 @@ func NewDeleteFilesUseCase(
 // Execute deletes multiple local files by IDs
 func (uc *deleteFilesUseCase) Execute(
 	ctx context.Context,
-	ids []primitive.ObjectID,
+	ids []gocql.UUID,
 ) error {
 	if len(ids) == 0 {
 		return errors.NewAppError("at least one file ID is required", nil)
@@ -67,7 +67,7 @@ func (uc *deleteFilesUseCase) Execute(
 // DeleteByCollection deletes all files in a collection
 func (uc *deleteFilesUseCase) DeleteByCollection(
 	ctx context.Context,
-	collectionID primitive.ObjectID,
+	collectionID gocql.UUID,
 ) error {
 	// Validate inputs
 	if collectionID.IsZero() {
@@ -86,7 +86,7 @@ func (uc *deleteFilesUseCase) DeleteByCollection(
 	}
 
 	// Extract file IDs
-	fileIDs := make([]primitive.ObjectID, len(files))
+	fileIDs := make([]gocql.UUID, len(files))
 	for i, file := range files {
 		fileIDs[i] = file.ID
 	}

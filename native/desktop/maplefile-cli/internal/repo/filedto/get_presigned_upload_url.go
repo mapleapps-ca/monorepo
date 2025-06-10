@@ -10,15 +10,15 @@ import (
 	"net/http"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
 )
 
 // GetPresignedUploadURLFromCloud generates new presigned upload URLs for an existing file
-func (r *fileDTORepository) GetPresignedUploadURLFromCloud(ctx context.Context, fileID primitive.ObjectID, request *filedto.GetPresignedUploadURLRequest) (*filedto.GetPresignedUploadURLResponse, error) {
+func (r *fileDTORepository) GetPresignedUploadURLFromCloud(ctx context.Context, fileID gocql.UUID, request *filedto.GetPresignedUploadURLRequest) (*filedto.GetPresignedUploadURLResponse, error) {
 	r.logger.Debug("🔍 Getting presigned upload URL",
 		zap.String("fileID", fileID.Hex()),
 		zap.Duration("urlDuration", request.URLDuration))

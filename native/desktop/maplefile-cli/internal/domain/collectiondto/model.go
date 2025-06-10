@@ -4,8 +4,7 @@ package collectiondto
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
@@ -15,10 +14,10 @@ import (
 type CollectionDTO struct {
 	// Identifiers
 	// ID is the unique identifier for the collection in the cloud backend.
-	ID primitive.ObjectID `bson:"_id" json:"id"`
+	ID gocql.UUID `bson:"_id" json:"id"`
 	// OwnerID is the ID of the user who originally created and owns this collection.
 	// The owner has administrative privileges by default.
-	OwnerID primitive.ObjectID `bson:"owner_id" json:"owner_id"`
+	OwnerID gocql.UUID `bson:"owner_id" json:"owner_id"`
 
 	// Encryption and Content Details
 	// EncryptedName is the name of the collection, encrypted using the collection's unique key.
@@ -39,10 +38,10 @@ type CollectionDTO struct {
 	// Hierarchical structure fields
 	// ParentID is the ID of the parent collection if this is a subcollection.
 	// It is omitted (nil) for root collections. Used to reconstruct the hierarchy.
-	ParentID primitive.ObjectID `bson:"parent_id,omitempty" json:"parent_id,omitempty"` // Parent collection ID, not stored for root collections
+	ParentID gocql.UUID `bson:"parent_id,omitempty" json:"parent_id,omitempty"` // Parent collection ID, not stored for root collections
 	// AncestorIDs is an array containing the IDs of all parent collections up to the root.
 	// This field is used for efficient querying and traversal of the collection hierarchy without joins.
-	AncestorIDs []primitive.ObjectID `bson:"ancestor_ids,omitempty" json:"ancestor_ids,omitempty"` // Array of ancestor IDs for efficient querying
+	AncestorIDs []gocql.UUID `bson:"ancestor_ids,omitempty" json:"ancestor_ids,omitempty"` // Array of ancestor IDs for efficient querying
 	// Children is an optional field for representing subcollections embedded directly within this DTO.
 	// This is primarily used for tree-like structures in certain API responses or operations, not for persistent storage in this format.
 	// Recursive embedding of the same type.
@@ -53,11 +52,11 @@ type CollectionDTO struct {
 	// Recorded on the local device and synced.
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	// CreatedByUserID is the ID of the user who created this collection.
-	CreatedByUserID primitive.ObjectID `bson:"created_by_user_id" json:"created_by_user_id"`
+	CreatedByUserID gocql.UUID `bson:"created_by_user_id" json:"created_by_user_id"`
 	// ModifiedAt is the timestamp of the last modification to the collection's metadata or content.
 	// Updated on the local device and synced.
-	ModifiedAt       time.Time          `bson:"modified_at" json:"modified_at"`
-	ModifiedByUserID primitive.ObjectID `bson:"modified_by_user_id" json:"modified_by_user_id"`
+	ModifiedAt       time.Time  `bson:"modified_at" json:"modified_at"`
+	ModifiedByUserID gocql.UUID `bson:"modified_by_user_id" json:"modified_by_user_id"`
 	// The current version of the collection.
 	Version uint64 `bson:"version" json:"version"`
 
@@ -69,11 +68,11 @@ type CollectionDTO struct {
 
 // CollectionMembershipDTO represents a user's access to a collection in DTO format
 type CollectionMembershipDTO struct {
-	ID             primitive.ObjectID `bson:"_id" json:"id"`
-	CollectionID   primitive.ObjectID `bson:"collection_id" json:"collection_id"`     // ID of the collection (redundant but helpful for queries)
-	RecipientID    primitive.ObjectID `bson:"recipient_id" json:"recipient_id"`       // User receiving access
-	RecipientEmail string             `bson:"recipient_email" json:"recipient_email"` // Email for display purposes
-	GrantedByID    primitive.ObjectID `bson:"granted_by_id" json:"granted_by_id"`     // User who shared the collection
+	ID             gocql.UUID `bson:"_id" json:"id"`
+	CollectionID   gocql.UUID `bson:"collection_id" json:"collection_id"`     // ID of the collection (redundant but helpful for queries)
+	RecipientID    gocql.UUID `bson:"recipient_id" json:"recipient_id"`       // User receiving access
+	RecipientEmail string     `bson:"recipient_email" json:"recipient_email"` // Email for display purposes
+	GrantedByID    gocql.UUID `bson:"granted_by_id" json:"granted_by_id"`     // User who shared the collection
 
 	EncryptedCollectionKey *keys.EncryptedCollectionKey `bson:"encrypted_collection_key" json:"encrypted_collection_key"`
 
@@ -82,6 +81,6 @@ type CollectionMembershipDTO struct {
 	CreatedAt       time.Time `bson:"created_at" json:"created_at"`
 
 	// Sharing origin tracking
-	IsInherited     bool               `bson:"is_inherited" json:"is_inherited"`                               // Tracks whether access was granted directly or inherited from a parent
-	InheritedFromID primitive.ObjectID `bson:"inherited_from_id,omitempty" json:"inherited_from_id,omitempty"` // InheritedFromID identifies which parent collection granted this access
+	IsInherited     bool       `bson:"is_inherited" json:"is_inherited"`                               // Tracks whether access was granted directly or inherited from a parent
+	InheritedFromID gocql.UUID `bson:"inherited_from_id,omitempty" json:"inherited_from_id,omitempty"` // InheritedFromID identifies which parent collection granted this access
 }

@@ -4,16 +4,16 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 // ListFilesByCollectionUseCase defines the interface for listing files by collection
 type ListFilesByCollectionUseCase interface {
-	Execute(ctx context.Context, collectionID primitive.ObjectID) ([]*dom_file.File, error)
+	Execute(ctx context.Context, collectionID gocql.UUID) ([]*dom_file.File, error)
 }
 
 // listFilesByCollectionUseCase implements the ListFilesByCollectionUseCase interface
@@ -37,7 +37,7 @@ func NewListFilesByCollectionUseCase(
 // Execute lists local files within a specific collection
 func (uc *listFilesByCollectionUseCase) Execute(
 	ctx context.Context,
-	collectionID primitive.ObjectID,
+	collectionID gocql.UUID,
 ) ([]*dom_file.File, error) {
 	// Validate inputs
 	if collectionID.IsZero() {

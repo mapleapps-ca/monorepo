@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
@@ -69,7 +70,7 @@ Examples:
 			}
 
 			// Convert to ObjectID for local operations
-			var fileObjectID primitive.ObjectID
+			var fileObjectID gocql.UUID
 			var err error
 			if localOnly || (!localOnly && !cloudOnly) {
 				fileObjectID, err = primitive.ObjectIDFromHex(fileID)

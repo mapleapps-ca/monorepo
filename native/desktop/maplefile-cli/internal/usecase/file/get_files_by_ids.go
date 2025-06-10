@@ -5,16 +5,16 @@ import (
 	"context"
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 // GetFilesByIDsUseCase defines the interface for getting multiple local files
 type GetFilesByIDsUseCase interface {
-	Execute(ctx context.Context, ids []primitive.ObjectID) ([]*dom_file.File, error)
+	Execute(ctx context.Context, ids []gocql.UUID) ([]*dom_file.File, error)
 }
 
 // getFilesByIDsUseCase implements the GetFilesByIDsUseCase interface
@@ -38,7 +38,7 @@ func NewGetFilesByIDsUseCase(
 // Execute retrieves multiple local files by IDs
 func (uc *getFilesByIDsUseCase) Execute(
 	ctx context.Context,
-	ids []primitive.ObjectID,
+	ids []gocql.UUID,
 ) ([]*dom_file.File, error) {
 	if len(ids) == 0 {
 		return []*dom_file.File{}, nil

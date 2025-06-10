@@ -8,9 +8,9 @@ import (
 	"io"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 )
@@ -66,12 +66,12 @@ func (r *collectionSharingDTORepository) ListSharedCollectionsFromCloud(ctx cont
 	// Parse response
 	var response struct {
 		Collections []struct {
-			ID             primitive.ObjectID `json:"id"`
-			OwnerID        primitive.ObjectID `json:"owner_id"`
-			EncryptedName  string             `json:"encrypted_name"`
-			CollectionType string             `json:"collection_type"`
-			CreatedAt      string             `json:"created_at"`
-			ModifiedAt     string             `json:"modified_at"`
+			ID             gocql.UUID `json:"id"`
+			OwnerID        gocql.UUID `json:"owner_id"`
+			EncryptedName  string     `json:"encrypted_name"`
+			CollectionType string     `json:"collection_type"`
+			CreatedAt      string     `json:"created_at"`
+			ModifiedAt     string     `json:"modified_at"`
 		} `json:"collections"`
 	}
 

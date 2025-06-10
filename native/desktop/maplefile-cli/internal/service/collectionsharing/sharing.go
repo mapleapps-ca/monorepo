@@ -23,7 +23,7 @@ import (
 
 // ShareCollectionInput represents input for sharing a collection at the service level
 type ShareCollectionInput struct {
-	CollectionID         primitive.ObjectID `json:"collection_id"`
+	CollectionID         gocql.UUID `json:"collection_id"`
 	RecipientEmail       string             `json:"recipient_email"`
 	PermissionLevel      string             `json:"permission_level"`
 	ShareWithDescendants bool               `json:"share_with_descendants"`
@@ -44,7 +44,7 @@ type CollectionSharingService interface {
 
 // Batch sharing input for multiple recipients
 type BatchShareCollectionInput struct {
-	CollectionID         primitive.ObjectID `json:"collection_id"`
+	CollectionID         gocql.UUID `json:"collection_id"`
 	Recipients           []RecipientInfo    `json:"recipients"`
 	ShareWithDescendants bool               `json:"share_with_descendants"`
 }

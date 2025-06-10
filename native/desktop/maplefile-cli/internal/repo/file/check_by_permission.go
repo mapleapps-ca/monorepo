@@ -4,11 +4,11 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 )
 
-func (r *fileRepository) CheckIfUserHasAccess(ctx context.Context, fileID primitive.ObjectID, userID primitive.ObjectID) (bool, error) {
+func (r *fileRepository) CheckIfUserHasAccess(ctx context.Context, fileID gocql.UUID, userID gocql.UUID) (bool, error) {
 	r.logger.Debug("Checking user access to file",
 		zap.String("fileID", fileID.Hex()),
 		zap.String("userID", userID.Hex()))

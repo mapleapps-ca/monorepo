@@ -4,9 +4,9 @@ package filesyncer
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
@@ -16,7 +16,7 @@ import (
 
 // UpdateLocalFileFromCloudFileService defines the interface for updating a local file from a cloud file
 type UpdateLocalFileFromCloudFileService interface {
-	Execute(ctx context.Context, cloudID primitive.ObjectID, password string) (*dom_file.File, error)
+	Execute(ctx context.Context, cloudID gocql.UUID, password string) (*dom_file.File, error)
 }
 
 // updateLocalFileFromCloudFileService implements the UpdateLocalFileFromCloudFileService interface
@@ -47,7 +47,7 @@ func NewUpdateLocalFileFromCloudFileService(
 }
 
 // Execute updates a local file from cloud file data
-func (s *updateLocalFileFromCloudFileService) Execute(ctx context.Context, cloudFileID primitive.ObjectID, password string) (*dom_file.File, error) {
+func (s *updateLocalFileFromCloudFileService) Execute(ctx context.Context, cloudFileID gocql.UUID, password string) (*dom_file.File, error) {
 	//
 	// STEP 1: Validate the input
 	//
@@ -219,7 +219,7 @@ func (s *updateLocalFileFromCloudFileService) hasLocalFileContent(localFile *dom
 }
 
 // updateMetadataOnly updates only the metadata without downloading file content
-func (s *updateLocalFileFromCloudFileService) updateMetadataOnly(ctx context.Context, cloudFileID primitive.ObjectID, localFile *dom_file.File) (*dom_file.File, error) {
+func (s *updateLocalFileFromCloudFileService) updateMetadataOnly(ctx context.Context, cloudFileID gocql.UUID, localFile *dom_file.File) (*dom_file.File, error) {
 	// Get the file metadata from cloud (lightweight operation)
 	cloudFileDTO, err := s.cloudRepository.DownloadByIDFromCloud(ctx, cloudFileID)
 	if err != nil {

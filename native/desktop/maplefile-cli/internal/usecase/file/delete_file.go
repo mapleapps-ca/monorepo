@@ -4,16 +4,16 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 // DeleteFileUseCase defines the interface for deleting a local file
 type DeleteFileUseCase interface {
-	Execute(ctx context.Context, id primitive.ObjectID) error
+	Execute(ctx context.Context, id gocql.UUID) error
 }
 
 // deleteFileUseCase implements the DeleteFileUseCase interface
@@ -37,7 +37,7 @@ func NewDeleteFileUseCase(
 // Execute deletes a local file by ID
 func (uc *deleteFileUseCase) Execute(
 	ctx context.Context,
-	id primitive.ObjectID,
+	id gocql.UUID,
 ) error {
 	// Validate inputs
 	if id.IsZero() {

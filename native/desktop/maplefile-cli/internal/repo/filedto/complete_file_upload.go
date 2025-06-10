@@ -17,7 +17,7 @@ import (
 )
 
 // CompleteFileUploadInCloud completes the file upload process and transitions the file to active state
-func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileID primitive.ObjectID, request *filedto.CompleteFileUploadRequest) (*filedto.CompleteFileUploadResponse, error) {
+func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileID gocql.UUID, request *filedto.CompleteFileUploadRequest) (*filedto.CompleteFileUploadResponse, error) {
 	r.logger.Debug("🐛 Completing file upload",
 		zap.String("fileID", fileID.Hex()),
 		zap.Int64("actualFileSize", request.ActualFileSizeInBytes),

@@ -3,8 +3,7 @@ package file
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
@@ -12,11 +11,11 @@ import (
 type File struct {
 	// Identifiers
 	// ID is the unique identifier of the corresponding cloud file set by the cloud server. This gets updated when the file is synced with the cloud server.
-	ID primitive.ObjectID `json:"id" bson:"id"`
+	ID gocql.UUID `json:"id" bson:"id"`
 	// Collection this file belongs to
-	CollectionID primitive.ObjectID `json:"collection_id" bson:"collection_id"`
+	CollectionID gocql.UUID `json:"collection_id" bson:"collection_id"`
 	// Owner of the file
-	OwnerID primitive.ObjectID `json:"owner_id" bson:"owner_id"`
+	OwnerID gocql.UUID `json:"owner_id" bson:"owner_id"`
 
 	// Encryption, Decryption and Content Details
 	// Client-side encrypted JSON blob containing file-specific metadata like the original file name,
@@ -67,11 +66,11 @@ type File struct {
 	// When was this file created locally
 	CreatedAt time.Time `json:"created_at" bson:"created_at"`
 	// CreatedByUserID is the ID of the user who created this file.
-	CreatedByUserID primitive.ObjectID `json:"created_by_user_id" bson:"created_by_user_id"`
+	CreatedByUserID gocql.UUID `json:"created_by_user_id" bson:"created_by_user_id"`
 	// When was this file last modified
 	ModifiedAt time.Time `json:"modified_at" bson:"modified_at"`
 	// ModifiedByUserID is the ID of the user whom has last modified this file.
-	ModifiedByUserID primitive.ObjectID `json:"modified_by_user_id" bson:"modified_by_user_id"`
+	ModifiedByUserID gocql.UUID `json:"modified_by_user_id" bson:"modified_by_user_id"`
 	// The current version of the file.
 	Version uint64 `bson:"version" json:"version"` // Every mutation (create, update, delete, etc) is a versioned operation, keep track of the version number with this variable
 

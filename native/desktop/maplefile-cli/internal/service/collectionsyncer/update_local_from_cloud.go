@@ -4,9 +4,9 @@ package collectionsyncer
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
@@ -18,7 +18,7 @@ import (
 
 // UpdateLocalCollectionFromCloudCollectionService defines the interface for updating a local collection from a cloud collection
 type UpdateLocalCollectionFromCloudCollectionService interface {
-	Execute(ctx context.Context, cloudID primitive.ObjectID, password string) (*dom_collection.Collection, error)
+	Execute(ctx context.Context, cloudID gocql.UUID, password string) (*dom_collection.Collection, error)
 }
 
 // updateLocalCollectionFromCloudCollectionService implements the UpdateLocalCollectionFromCloudCollectionService interface
@@ -49,7 +49,7 @@ func NewUpdateLocalCollectionFromCloudCollectionService(
 }
 
 // Execute updates a local collection from the cloud
-func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.Context, cloudCollectionID primitive.ObjectID, password string) (*dom_collection.Collection, error) {
+func (uc *updateLocalCollectionFromCloudCollectionService) Execute(ctx context.Context, cloudCollectionID gocql.UUID, password string) (*dom_collection.Collection, error) {
 	//
 	// STEP 1: Validate the input
 	//

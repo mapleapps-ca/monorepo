@@ -7,17 +7,17 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncstate"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // SaveInput represents the input for saving sync state
 type SaveInput struct {
-	LastCollectionSync *time.Time          `json:"last_collection_sync,omitempty"`
-	LastFileSync       *time.Time          `json:"last_file_sync,omitempty"`
-	LastCollectionID   *primitive.ObjectID `json:"last_collection_id,omitempty"`
-	LastFileID         *primitive.ObjectID `json:"last_file_id,omitempty"`
+	LastCollectionSync *time.Time  `json:"last_collection_sync,omitempty"`
+	LastFileSync       *time.Time  `json:"last_file_sync,omitempty"`
+	LastCollectionID   *gocql.UUID `json:"last_collection_id,omitempty"`
+	LastFileID         *gocql.UUID `json:"last_file_id,omitempty"`
 }
 
 // SaveOutput represents the result of saving sync state
@@ -29,8 +29,8 @@ type SaveOutput struct {
 // SaveService defines the interface for saving sync state
 type SaveService interface {
 	SaveSyncState(ctx context.Context, input *SaveInput) (*SaveOutput, error)
-	UpdateCollectionSync(ctx context.Context, timestamp time.Time, lastID primitive.ObjectID) (*SaveOutput, error)
-	UpdateFileSync(ctx context.Context, timestamp time.Time, lastID primitive.ObjectID) (*SaveOutput, error)
+	UpdateCollectionSync(ctx context.Context, timestamp time.Time, lastID gocql.UUID) (*SaveOutput, error)
+	UpdateFileSync(ctx context.Context, timestamp time.Time, lastID gocql.UUID) (*SaveOutput, error)
 }
 
 // saveService implements the SaveService interface
@@ -105,7 +105,7 @@ func (s *saveService) SaveSyncState(ctx context.Context, input *SaveInput) (*Sav
 }
 
 // UpdateCollectionSync updates only the collection sync timestamp and ID
-func (s *saveService) UpdateCollectionSync(ctx context.Context, timestamp time.Time, lastID primitive.ObjectID) (*SaveOutput, error) {
+func (s *saveService) UpdateCollectionSync(ctx context.Context, timestamp time.Time, lastID gocql.UUID) (*SaveOutput, error) {
 	s.logger.Debug("🔄 Updating collection sync state",
 		zap.Time("timestamp", timestamp),
 		zap.String("lastID", lastID.Hex()))
@@ -119,7 +119,7 @@ func (s *saveService) UpdateCollectionSync(ctx context.Context, timestamp time.T
 }
 
 // UpdateFileSync updates only the file sync timestamp and ID
-func (s *saveService) UpdateFileSync(ctx context.Context, timestamp time.Time, lastID primitive.ObjectID) (*SaveOutput, error) {
+func (s *saveService) UpdateFileSync(ctx context.Context, timestamp time.Time, lastID gocql.UUID) (*SaveOutput, error) {
 	s.logger.Debug("🔄 Updating file sync state",
 		zap.Time("timestamp", timestamp),
 		zap.String("lastID", lastID.Hex()))

@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/fileupload"
@@ -24,7 +25,7 @@ type OffloadInput struct {
 
 // OffloadOutput represents the result of offloading a local file
 type OffloadOutput struct {
-	FileID         primitive.ObjectID           `json:"file_id"`
+	FileID         gocql.UUID                   `json:"file_id"`
 	Action         string                       `json:"action"` // "uploaded" or "offloaded"
 	PreviousStatus dom_file.SyncStatus          `json:"previous_status"`
 	NewStatus      dom_file.SyncStatus          `json:"new_status"`

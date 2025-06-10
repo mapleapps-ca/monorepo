@@ -5,16 +5,16 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 )
 
 // UpdateCollectionInput defines the input for updating a local collection
 type UpdateCollectionInput struct {
-	ID             primitive.ObjectID
+	ID             gocql.UUID
 	EncryptedName  *string
 	DecryptedName  *string
 	CollectionType *string

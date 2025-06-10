@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
@@ -66,7 +67,7 @@ Examples:
 			}
 
 			// Handle parent ID if provided
-			var parentObjectID primitive.ObjectID
+			var parentObjectID gocql.UUID
 			var isSubCollection bool
 
 			if parentID != "" {

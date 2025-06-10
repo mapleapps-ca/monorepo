@@ -5,9 +5,9 @@ import (
 	"context"
 	"strings"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
@@ -78,7 +78,7 @@ func (r *fileRepository) List(ctx context.Context, filter file.FileFilter) ([]*d
 }
 
 // ListByCollection lists local files within a specific collection
-func (r *fileRepository) ListByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*dom_file.File, error) {
+func (r *fileRepository) ListByCollection(ctx context.Context, collectionID gocql.UUID) ([]*dom_file.File, error) {
 	r.logger.Debug("Listing files by collection from local storage",
 		zap.String("collectionID", collectionID.Hex()))
 

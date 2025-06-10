@@ -5,9 +5,9 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	svc_filecrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filecrypto"
@@ -37,7 +37,7 @@ type DecryptedFileMetadata struct {
 
 // DownloadResult represents the result of a file download with decryption
 type DownloadResult struct {
-	FileID            primitive.ObjectID     `json:"file_id"`
+	FileID            gocql.UUID             `json:"file_id"`
 	DecryptedData     []byte                 `json:"decrypted_data"`
 	DecryptedMetadata *DecryptedFileMetadata `json:"decrypted_metadata"`
 	ThumbnailData     []byte                 `json:"thumbnail_data,omitempty"`
@@ -47,7 +47,7 @@ type DownloadResult struct {
 
 // DownloadService handles file download operations with E2EE decryption
 type DownloadService interface {
-	DownloadAndDecryptFile(ctx context.Context, fileID primitive.ObjectID, userPassword string, urlDuration time.Duration) (*DownloadResult, error)
+	DownloadAndDecryptFile(ctx context.Context, fileID gocql.UUID, userPassword string, urlDuration time.Duration) (*DownloadResult, error)
 }
 
 type downloadService struct {
@@ -84,7 +84,7 @@ func NewDownloadService(
 	}
 }
 
-func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID primitive.ObjectID, userPassword string, urlDuration time.Duration) (*DownloadResult, error) {
+func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID gocql.UUID, userPassword string, urlDuration time.Duration) (*DownloadResult, error) {
 	s.logger.Info("👇 Starting E2EE file download and decryption", zap.String("fileID", fileID.Hex()))
 
 	//

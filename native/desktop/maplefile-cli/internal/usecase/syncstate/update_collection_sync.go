@@ -5,9 +5,9 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncstate"
 )
@@ -15,7 +15,7 @@ import (
 // UpdateCollectionSyncInput represents the input for updating collection sync
 type UpdateCollectionSyncInput struct {
 	LastCollectionSync time.Time
-	LastCollectionID   primitive.ObjectID
+	LastCollectionID   gocql.UUID
 }
 
 // UpdateCollectionSyncUseCase defines the interface for updating collection sync state

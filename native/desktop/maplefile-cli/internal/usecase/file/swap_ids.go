@@ -4,16 +4,16 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 // SwapIDsUseCase defines the interface for swapping IDs of a local file
 type SwapIDsUseCase interface {
-	Execute(ctx context.Context, oldID primitive.ObjectID, newID primitive.ObjectID) error
+	Execute(ctx context.Context, oldID gocql.UUID, newID gocql.UUID) error
 }
 
 // swapIDsUseCase implements the SwapIDsUseCase interface
@@ -35,7 +35,7 @@ func NewSwapIDsUseCase(
 }
 
 // Execute swaps IDs of a local file
-func (uc *swapIDsUseCase) Execute(ctx context.Context, oldID primitive.ObjectID, newID primitive.ObjectID) error {
+func (uc *swapIDsUseCase) Execute(ctx context.Context, oldID gocql.UUID, newID gocql.UUID) error {
 	// Validate inputs
 	if oldID.IsZero() {
 		return errors.NewAppError("file old ID is required", nil)

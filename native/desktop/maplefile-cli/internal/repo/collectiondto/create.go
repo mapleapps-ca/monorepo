@@ -9,14 +9,14 @@ import (
 	"io"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 )
 
-func (r *collectionDTORepository) CreateInCloud(ctx context.Context, collectionDTO *collectiondto.CollectionDTO) (*primitive.ObjectID, error) {
+func (r *collectionDTORepository) CreateInCloud(ctx context.Context, collectionDTO *collectiondto.CollectionDTO) (*gocql.UUID, error) {
 	accessToken, err := r.tokenRepository.GetAccessToken(ctx)
 	if err != nil {
 		r.logger.Error("❌ Failed to get access token", zap.Error(err))

@@ -4,9 +4,9 @@ package collectiondto
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/httperror"
@@ -14,7 +14,7 @@ import (
 
 // GetCollectionFromCloudUseCase defines the interface for creating a cloud collection
 type GetCollectionFromCloudUseCase interface {
-	Execute(ctx context.Context, collectionID primitive.ObjectID) (*collectiondto.CollectionDTO, error)
+	Execute(ctx context.Context, collectionID gocql.UUID) (*collectiondto.CollectionDTO, error)
 }
 
 // getCollectionFromCloudUseCase implements the GetCollectionFromCloudUseCase interface
@@ -36,7 +36,7 @@ func NewGetCollectionFromCloudUseCase(
 }
 
 // Execute creates a new cloud collection
-func (uc *getCollectionFromCloudUseCase) Execute(ctx context.Context, collectionID primitive.ObjectID) (*collectiondto.CollectionDTO, error) {
+func (uc *getCollectionFromCloudUseCase) Execute(ctx context.Context, collectionID gocql.UUID) (*collectiondto.CollectionDTO, error) {
 	//
 	// STEP 1: Validate the input
 	//

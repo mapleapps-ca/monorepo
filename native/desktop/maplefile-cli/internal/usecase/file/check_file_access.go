@@ -3,16 +3,16 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 // CheckFileAccessUseCase defines the interface for checking user access to a file
 type CheckFileAccessUseCase interface {
-	Execute(ctx context.Context, fileID primitive.ObjectID, userID primitive.ObjectID) (bool, error)
+	Execute(ctx context.Context, fileID gocql.UUID, userID gocql.UUID) (bool, error)
 }
 
 // checkFileAccessUseCase implements the CheckFileAccessUseCase interface
@@ -36,8 +36,8 @@ func NewCheckFileAccessUseCase(
 // Execute checks if a user has access to a local file
 func (uc *checkFileAccessUseCase) Execute(
 	ctx context.Context,
-	fileID primitive.ObjectID,
-	userID primitive.ObjectID,
+	fileID gocql.UUID,
+	userID gocql.UUID,
 ) (bool, error) {
 	// Validate inputs
 	if fileID.IsZero() {

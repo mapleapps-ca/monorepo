@@ -4,9 +4,9 @@ package filesyncer
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
@@ -21,7 +21,7 @@ import (
 
 // CreateLocalFileFromCloudFileService defines the interface for creating a local file from a cloud file
 type CreateLocalFileFromCloudFileService interface {
-	Execute(ctx context.Context, cloudID primitive.ObjectID, password string) (*dom_file.File, error)
+	Execute(ctx context.Context, cloudID gocql.UUID, password string) (*dom_file.File, error)
 }
 
 // createLocalFileFromCloudFileService implements the CreateLocalFileFromCloudFileService interface
@@ -58,7 +58,7 @@ func NewCreateLocalFileFromCloudFileService(
 }
 
 // Execute creates a new local file from cloud file data
-func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloudFileID primitive.ObjectID, password string) (*dom_file.File, error) {
+func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloudFileID gocql.UUID, password string) (*dom_file.File, error) {
 	//
 	// STEP 1: Validate the input
 	//

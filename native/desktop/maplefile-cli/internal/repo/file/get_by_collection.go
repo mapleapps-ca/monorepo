@@ -4,13 +4,13 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
-func (r *fileRepository) GetByCollection(ctx context.Context, collectionID primitive.ObjectID) ([]*dom_file.File, error) {
+func (r *fileRepository) GetByCollection(ctx context.Context, collectionID gocql.UUID) ([]*dom_file.File, error) {
 	r.logger.Debug("Getting files by collection from local storage",
 		zap.String("collectionID", collectionID.Hex()))
 

@@ -5,17 +5,17 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 )
 
 // MoveCollectionInput defines the input for moving a local collection
 type MoveCollectionInput struct {
-	ID          primitive.ObjectID
-	NewParentID primitive.ObjectID
+	ID          gocql.UUID
+	NewParentID gocql.UUID
 }
 
 // MoveCollectionUseCase defines the interface for moving a local collection

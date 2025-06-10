@@ -9,15 +9,15 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 )
 
 // GetCollectionWithMembersFromCloud retrieves collection information including member list
-func (r *collectionSharingDTORepository) GetCollectionWithMembersFromCloud(ctx context.Context, collectionID primitive.ObjectID) (*collectiondto.CollectionDTO, error) {
+func (r *collectionSharingDTORepository) GetCollectionWithMembersFromCloud(ctx context.Context, collectionID gocql.UUID) (*collectiondto.CollectionDTO, error) {
 	accessToken, err := r.tokenRepository.GetAccessToken(ctx)
 	if err != nil {
 		r.logger.Error("❌ Failed to get access token", zap.Error(err))
@@ -66,19 +66,19 @@ func (r *collectionSharingDTORepository) GetCollectionWithMembersFromCloud(ctx c
 
 	// Parse response - this will be a CollectionDTO format from the API
 	var collectionResponse struct {
-		ID             primitive.ObjectID `json:"id"`
-		OwnerID        primitive.ObjectID `json:"owner_id"`
-		EncryptedName  string             `json:"encrypted_name"`
-		CollectionType string             `json:"collection_type"`
+		ID             gocql.UUID `json:"id"`
+		OwnerID        gocql.UUID `json:"owner_id"`
+		EncryptedName  string     `json:"encrypted_name"`
+		CollectionType string     `json:"collection_type"`
 		Members        []struct {
-			ID              primitive.ObjectID `json:"id"`
-			RecipientID     primitive.ObjectID `json:"recipient_id"`
-			RecipientEmail  string             `json:"recipient_email"`
-			PermissionLevel string             `json:"permission_level"`
-			GrantedByID     primitive.ObjectID `json:"granted_by_id"`
-			IsInherited     bool               `json:"is_inherited"`
-			InheritedFromID primitive.ObjectID `json:"inherited_from_id,omitempty"`
-			CreatedAt       string             `json:"created_at"`
+			ID              gocql.UUID `json:"id"`
+			RecipientID     gocql.UUID `json:"recipient_id"`
+			RecipientEmail  string     `json:"recipient_email"`
+			PermissionLevel string     `json:"permission_level"`
+			GrantedByID     gocql.UUID `json:"granted_by_id"`
+			IsInherited     bool       `json:"is_inherited"`
+			InheritedFromID gocql.UUID `json:"inherited_from_id,omitempty"`
+			CreatedAt       string     `json:"created_at"`
 			// Handle encrypted collection key as bytes from API
 			EncryptedCollectionKey []byte `json:"encrypted_collection_key"`
 		} `json:"members"`

@@ -5,8 +5,7 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
@@ -33,17 +32,17 @@ type FileDTORepository interface {
 	// CompleteFileUploadInCloud completes the file upload process by notifying the cloud
 	// service that the upload is finished. This transitions the file from 'pending'
 	// to 'active' state. This is Step 3 of the three-step upload process.
-	CompleteFileUploadInCloud(ctx context.Context, fileID primitive.ObjectID, request *CompleteFileUploadRequest) (*CompleteFileUploadResponse, error)
+	CompleteFileUploadInCloud(ctx context.Context, fileID gocql.UUID, request *CompleteFileUploadRequest) (*CompleteFileUploadResponse, error)
 
 	// GetPresignedUploadURLFromCloud generates new presigned upload URLs for an existing file.
 	// This can be used to re-upload or replace file content.
-	GetPresignedUploadURLFromCloud(ctx context.Context, fileID primitive.ObjectID, request *GetPresignedUploadURLRequest) (*GetPresignedUploadURLResponse, error)
+	GetPresignedUploadURLFromCloud(ctx context.Context, fileID gocql.UUID, request *GetPresignedUploadURLRequest) (*GetPresignedUploadURLResponse, error)
 
 	// DownloadByIDFromCloud downloads a FileDTO by its unique identifier from the cloud service.
-	DownloadByIDFromCloud(ctx context.Context, id primitive.ObjectID) (*FileDTO, error) // (Deprecated)
+	DownloadByIDFromCloud(ctx context.Context, id gocql.UUID) (*FileDTO, error) // (Deprecated)
 
 	// GetPresignedDownloadURLFromCloud generates presigned download URLs for an existing file.
-	GetPresignedDownloadURLFromCloud(ctx context.Context, fileID primitive.ObjectID, request *GetPresignedDownloadURLRequest) (*GetPresignedDownloadURLResponse, error)
+	GetPresignedDownloadURLFromCloud(ctx context.Context, fileID gocql.UUID, request *GetPresignedDownloadURLRequest) (*GetPresignedDownloadURLResponse, error)
 
 	// DownloadFileViaPresignedURLFromCloud downloads file content from a presigned URL.
 	DownloadFileViaPresignedURLFromCloud(ctx context.Context, presignedURL string) ([]byte, error)
@@ -55,15 +54,15 @@ type FileDTORepository interface {
 	ListFromCloud(ctx context.Context, filter FileFilter) ([]*FileDTO, error)
 
 	// DeleteByIDFromCloud deletes a FileDTO by its unique identifier from the cloud service.
-	DeleteByIDFromCloud(ctx context.Context, id primitive.ObjectID) error
+	DeleteByIDFromCloud(ctx context.Context, id gocql.UUID) error
 }
 
 // Three-Step Upload Request/Response Types
 
 // CreatePendingFileRequest represents the request to create a pending file record
 type CreatePendingFileRequest struct {
-	ID                           primitive.ObjectID    `json:"id"`
-	CollectionID                 primitive.ObjectID    `json:"collection_id"`
+	ID                           gocql.UUID            `json:"id"`
+	CollectionID                 gocql.UUID            `json:"collection_id"`
 	EncryptedMetadata            string                `json:"encrypted_metadata"`
 	EncryptedFileKey             keys.EncryptedFileKey `json:"encrypted_file_key"`
 	EncryptionVersion            string                `json:"encryption_version"`
@@ -119,7 +118,7 @@ type GetPresignedUploadURLResponse struct {
 // FileFilter defines filtering options for listing FileDTOs.
 type FileFilter struct {
 	// CollectionID filters files that belong to the specified collection.
-	CollectionID *primitive.ObjectID `json:"collection_id,omitempty"`
+	CollectionID *gocql.UUID `json:"collection_id,omitempty"`
 	// State filters files by their state (pending, active, deleted, archived).
 	State string `json:"state,omitempty"`
 }

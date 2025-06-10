@@ -7,9 +7,9 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/syncdto"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // SyncProgressInput represents the input for managing sync progress
@@ -39,7 +39,7 @@ type SyncProgressOutput struct {
 type SyncProgressService interface {
 	GetAllCollections(ctx context.Context, input *SyncProgressInput) (*SyncProgressOutput, error)
 	GetAllFiles(ctx context.Context, input *SyncProgressInput) (*SyncProgressOutput, error)
-	GetIncrementalSync(ctx context.Context, lastModified time.Time, lastID primitive.ObjectID, syncType string) (*SyncProgressOutput, error)
+	GetIncrementalSync(ctx context.Context, lastModified time.Time, lastID gocql.UUID, syncType string) (*SyncProgressOutput, error)
 }
 
 // syncProgressService implements the SyncProgressService interface
@@ -281,7 +281,7 @@ func (s *syncProgressService) GetAllFiles(ctx context.Context, input *SyncProgre
 }
 
 // GetIncrementalSync performs incremental sync based on last sync timestamp
-func (s *syncProgressService) GetIncrementalSync(ctx context.Context, lastModified time.Time, lastID primitive.ObjectID, syncType string) (*SyncProgressOutput, error) {
+func (s *syncProgressService) GetIncrementalSync(ctx context.Context, lastModified time.Time, lastID gocql.UUID, syncType string) (*SyncProgressOutput, error) {
 	s.logger.Info("✨ Starting incremental sync",
 		zap.Time("last_modified", lastModified),
 		zap.String("last_id", lastID.Hex()),

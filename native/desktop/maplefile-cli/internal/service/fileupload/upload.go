@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
@@ -26,7 +26,7 @@ import (
 
 // FileUploadService handles three-step file upload to cloud
 type FileUploadService interface {
-	Execute(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*fileupload.FileUploadResult, error)
+	Execute(ctx context.Context, fileID gocql.UUID, userPassword string) (*fileupload.FileUploadResult, error)
 }
 
 type fileUploadService struct {
@@ -72,7 +72,7 @@ func NewFileUploadService(
 	}
 }
 
-func (s *fileUploadService) Execute(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*fileupload.FileUploadResult, error) {
+func (s *fileUploadService) Execute(ctx context.Context, fileID gocql.UUID, userPassword string) (*fileupload.FileUploadResult, error) {
 	// startTime := time.Now()
 	s.logger.Info("✨ Starting three-step file upload", zap.String("fileID", fileID.Hex()))
 
@@ -138,7 +138,7 @@ func (s *fileUploadService) Execute(ctx context.Context, fileID primitive.Object
 	}, nil
 }
 
-func (s *fileUploadService) validateAndPrepareE2EE(ctx context.Context, fileID primitive.ObjectID, userPassword string) (*dom_file.File, *dom_collection.Collection, []byte, error) {
+func (s *fileUploadService) validateAndPrepareE2EE(ctx context.Context, fileID gocql.UUID, userPassword string) (*dom_file.File, *dom_collection.Collection, []byte, error) {
 	// Confirm user's password is not empty.
 	if userPassword == "" {
 		return nil, nil, nil, errors.NewAppError("user password is required for E2EE operations", nil)
@@ -223,7 +223,7 @@ func (s *fileUploadService) createPendingFile(
 	return response, nil
 }
 
-func (s *fileUploadService) completeUpload(ctx context.Context, fileID primitive.ObjectID, fileSize, thumbnailSize int64) error {
+func (s *fileUploadService) completeUpload(ctx context.Context, fileID gocql.UUID, fileSize, thumbnailSize int64) error {
 	s.logger.Debug("⚙️ Completing file upload", zap.String("fileID", fileID.Hex()))
 
 	request := &filedto.CompleteFileUploadRequest{
@@ -283,7 +283,7 @@ func (s *fileUploadService) updateLocalFile(ctx context.Context, file *dom_file.
 	return nil // Update was successful
 }
 
-func (s *fileUploadService) failedResult(fileID primitive.ObjectID, err error) (*fileupload.FileUploadResult, error) {
+func (s *fileUploadService) failedResult(fileID gocql.UUID, err error) (*fileupload.FileUploadResult, error) {
 	return &fileupload.FileUploadResult{
 		FileID:  fileID, // This is the unified ID
 		Success: false,

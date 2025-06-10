@@ -8,15 +8,15 @@ import (
 	"io"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
 )
 
 // DownloadByIDFromCloud downloads a FileDTO by its unique identifier from the cloud service
-func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id primitive.ObjectID) (*filedto.FileDTO, error) {
+func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id gocql.UUID) (*filedto.FileDTO, error) {
 	r.logger.Debug("⬇️ Downloading file metadata from cloud", zap.String("fileID", id.Hex()))
 
 	if id.IsZero() {

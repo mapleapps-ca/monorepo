@@ -4,16 +4,16 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 )
 
 // GetCollectionUseCase defines the interface for getting a local collection
 type GetCollectionUseCase interface {
-	Execute(ctx context.Context, id primitive.ObjectID) (*collection.Collection, error)
+	Execute(ctx context.Context, id gocql.UUID) (*collection.Collection, error)
 }
 
 // getCollectionUseCase implements the GetCollectionUseCase interface
@@ -37,7 +37,7 @@ func NewGetCollectionUseCase(
 // Execute retrieves a local collection by ID
 func (uc *getCollectionUseCase) Execute(
 	ctx context.Context,
-	id primitive.ObjectID,
+	id gocql.UUID,
 ) (*collection.Collection, error) {
 	uc.logger.Debug("🔎 Attempting to get collection by ID", zap.String("collection_id", id.Hex()))
 

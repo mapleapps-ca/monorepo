@@ -5,9 +5,9 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
@@ -24,10 +24,10 @@ import (
 
 // CreateInput represents the input for creating a local collection
 type CreateInput struct {
-	Name           string             `json:"name"`
-	CollectionType string             `json:"collection_type"`
-	ParentID       primitive.ObjectID `json:"parent_id,omitempty"`
-	OwnerID        primitive.ObjectID `bson:"owner_id" json:"owner_id"`
+	Name           string     `json:"name"`
+	CollectionType string     `json:"collection_type"`
+	ParentID       gocql.UUID `json:"parent_id,omitempty"`
+	OwnerID        gocql.UUID `bson:"owner_id" json:"owner_id"`
 }
 
 // CreateOutput represents the result of creating a local collection

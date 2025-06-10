@@ -8,14 +8,14 @@ import (
 	"io"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 )
 
 // DeleteByIDFromCloud deletes a FileDTO by its unique identifier from the cloud service
-func (r *fileDTORepository) DeleteByIDFromCloud(ctx context.Context, id primitive.ObjectID) error {
+func (r *fileDTORepository) DeleteByIDFromCloud(ctx context.Context, id gocql.UUID) error {
 	r.logger.Debug("⚙️ Deleting file from cloud", zap.String("fileID", id.Hex()))
 
 	if id.IsZero() {

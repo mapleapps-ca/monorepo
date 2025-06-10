@@ -5,16 +5,16 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/filedto"
 )
 
 // GetPresignedDownloadURLUseCase defines the interface for getting presigned download URLs
 type GetPresignedDownloadURLUseCase interface {
-	Execute(ctx context.Context, fileID primitive.ObjectID, urlDuration time.Duration) (*filedto.GetPresignedDownloadURLResponse, error)
+	Execute(ctx context.Context, fileID gocql.UUID, urlDuration time.Duration) (*filedto.GetPresignedDownloadURLResponse, error)
 }
 
 // getPresignedDownloadURLUseCase implements the GetPresignedDownloadURLUseCase interface
@@ -38,7 +38,7 @@ func NewGetPresignedDownloadURLUseCase(
 // Execute gets presigned download URLs for a file
 func (uc *getPresignedDownloadURLUseCase) Execute(
 	ctx context.Context,
-	fileID primitive.ObjectID,
+	fileID gocql.UUID,
 	urlDuration time.Duration,
 ) (*filedto.GetPresignedDownloadURLResponse, error) {
 	// Validate inputs

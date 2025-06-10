@@ -8,12 +8,13 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 )
 
 type SecurePrimitiveObjectIDGenerator interface {
-	GenerateValidObjectID() primitive.ObjectID
-	ValidateObjectID(id primitive.ObjectID) error
+	GenerateValidObjectID() gocql.UUID
+	ValidateObjectID(id gocql.UUID) error
 }
 
 // securePrimitiveObjectIDGeneratorImpl provides secure, validated ObjectID generation
@@ -28,7 +29,7 @@ func NewSecureObjectIDGenerator(logger *zap.Logger) SecurePrimitiveObjectIDGener
 }
 
 // GenerateValidObjectID creates a cryptographically secure ObjectID
-func (g *securePrimitiveObjectIDGeneratorImpl) GenerateValidObjectID() primitive.ObjectID {
+func (g *securePrimitiveObjectIDGeneratorImpl) GenerateValidObjectID() gocql.UUID {
 	id := primitive.NewObjectID()
 
 	if err := g.ValidateObjectID(id); err != nil {
@@ -44,7 +45,7 @@ func (g *securePrimitiveObjectIDGeneratorImpl) GenerateValidObjectID() primitive
 }
 
 // ValidateObjectID ensures ObjectID meets security requirements
-func (g *securePrimitiveObjectIDGeneratorImpl) ValidateObjectID(id primitive.ObjectID) error {
+func (g *securePrimitiveObjectIDGeneratorImpl) ValidateObjectID(id gocql.UUID) error {
 	if id.IsZero() {
 		return errors.NewAppError("ObjectID cannot be zero", nil)
 	}

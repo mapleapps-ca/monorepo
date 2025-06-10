@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
@@ -28,7 +29,7 @@ type UnlockInput struct {
 
 // UnlockOutput represents the result of unlocking a file
 type UnlockOutput struct {
-	FileID         primitive.ObjectID  `json:"file_id"`
+	FileID         gocql.UUID          `json:"file_id"`
 	PreviousMode   string              `json:"previous_mode"`
 	NewMode        string              `json:"new_mode"`
 	PreviousStatus dom_file.SyncStatus `json:"previous_status"`

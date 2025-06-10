@@ -4,9 +4,9 @@ package collectionsharingdto
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
@@ -14,10 +14,10 @@ import (
 
 // ShareCollectionInput represents input for sharing a collection
 type ShareCollectionInputDTO struct {
-	CollectionID           primitive.ObjectID `json:"collection_id"`
-	RecipientID            primitive.ObjectID `json:"recipient_id"`
-	RecipientEmail         string             `json:"recipient_email"`
-	PermissionLevel        string             `json:"permission_level"`
+	CollectionID           gocql.UUID `json:"collection_id"`
+	RecipientID            gocql.UUID `json:"recipient_id"`
+	RecipientEmail         string     `json:"recipient_email"`
+	PermissionLevel        string     `json:"permission_level"`
 	EncryptedCollectionKey *keys.EncryptedCollectionKey
 	ShareWithDescendants   bool `json:"share_with_descendants"`
 }

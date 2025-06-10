@@ -4,8 +4,7 @@ package filedto
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 )
 
@@ -17,11 +16,11 @@ import (
 type FileDTO struct {
 	// Identifiers
 	// Unique identifier set by the cloud service.
-	ID primitive.ObjectID `bson:"_id" json:"id"`
+	ID gocql.UUID `bson:"_id" json:"id"`
 	// Identifier of the collection this file belongs to. Used for grouping and key management.
-	CollectionID primitive.ObjectID `bson:"collection_id" json:"collection_id"`
+	CollectionID gocql.UUID `bson:"collection_id" json:"collection_id"`
 	// Identifier of the user who owns this file.
-	OwnerID primitive.ObjectID `bson:"owner_id" json:"owner_id"`
+	OwnerID gocql.UUID `bson:"owner_id" json:"owner_id"`
 
 	// Encryption and Content Details
 	// Client-side encrypted JSON blob containing file-specific metadata like the original file name,
@@ -58,11 +57,11 @@ type FileDTO struct {
 	// Timestamp when this file entity was created/uploaded.
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	// CreatedByUserID is the ID of the user who created this file.
-	CreatedByUserID primitive.ObjectID `json:"created_by_user_id"`
+	CreatedByUserID gocql.UUID `json:"created_by_user_id"`
 	// Timestamp when this file entity's metadata or content was last modified.
 	ModifiedAt time.Time `bson:"modified_at" json:"modified_at"`
 	// ModifiedByUserID is the ID of the user whom has last modified this file.
-	ModifiedByUserID primitive.ObjectID `json:"modified_by_user_id"`
+	ModifiedByUserID gocql.UUID `json:"modified_by_user_id"`
 	// The current version of the file.
 	Version uint64 `json:"version"`
 

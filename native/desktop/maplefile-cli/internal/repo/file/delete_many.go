@@ -4,11 +4,11 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 )
 
-func (r *fileRepository) DeleteMany(ctx context.Context, ids []primitive.ObjectID) error {
+func (r *fileRepository) DeleteMany(ctx context.Context, ids []gocql.UUID) error {
 	if len(ids) == 0 {
 		return nil
 	}

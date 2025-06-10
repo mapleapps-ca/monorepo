@@ -2,14 +2,14 @@
 package collectionsharingdto
 
 import (
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // ShareCollectionRequestDTO represents a request to share a collection
 type ShareCollectionRequestDTO struct {
-	CollectionID           primitive.ObjectID           `json:"collection_id"`
-	RecipientID            primitive.ObjectID           `json:"recipient_id"`
+	CollectionID           gocql.UUID                   `json:"collection_id"`
+	RecipientID            gocql.UUID                   `json:"recipient_id"`
 	RecipientEmail         string                       `json:"recipient_email"`
 	PermissionLevel        string                       `json:"permission_level"`
 	EncryptedCollectionKey *keys.EncryptedCollectionKey `json:"encrypted_collection_key"`
@@ -25,9 +25,9 @@ type ShareCollectionResponseDTO struct {
 
 // RemoveMemberRequest represents a request to remove a member from a collection
 type RemoveMemberRequestDTO struct {
-	CollectionID          primitive.ObjectID `json:"collection_id"`
-	RecipientID           primitive.ObjectID `json:"recipient_id"`
-	RemoveFromDescendants bool               `json:"remove_from_descendants"`
+	CollectionID          gocql.UUID `json:"collection_id"`
+	RecipientID           gocql.UUID `json:"recipient_id"`
+	RemoveFromDescendants bool       `json:"remove_from_descendants"`
 }
 
 // RemoveMemberResponseDTO represents the response from removing a member

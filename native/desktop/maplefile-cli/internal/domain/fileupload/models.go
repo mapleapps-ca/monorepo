@@ -4,19 +4,19 @@ package fileupload
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 )
 
 // FileUploadRequest represents a request to upload a file
 type FileUploadRequest struct {
-	FileID       primitive.ObjectID
-	CollectionID primitive.ObjectID
-	OwnerID      primitive.ObjectID
+	FileID       gocql.UUID
+	CollectionID gocql.UUID
+	OwnerID      gocql.UUID
 }
 
 // FileUploadResult represents the result of a file upload
 type FileUploadResult struct {
-	FileID             primitive.ObjectID
+	FileID             gocql.UUID
 	UploadedAt         time.Time
 	FileSizeBytes      int64
 	ThumbnailSizeBytes int64
@@ -26,7 +26,7 @@ type FileUploadResult struct {
 
 // FileUploadProgress tracks the progress of an upload
 type FileUploadProgress struct {
-	FileID        primitive.ObjectID
+	FileID        gocql.UUID
 	State         UploadState
 	BytesUploaded int64
 	TotalBytes    int64

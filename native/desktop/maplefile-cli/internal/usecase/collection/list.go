@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 )
@@ -34,8 +35,8 @@ type ListCollectionsUseCase interface {
 	Execute(ctx context.Context, filter collection.CollectionFilter) ([]*collection.Collection, error)
 	ListRoots(ctx context.Context) ([]*collection.Collection, error)
 	ListRootsByState(ctx context.Context, state string) ([]*collection.Collection, error)
-	ListByParent(ctx context.Context, parentID primitive.ObjectID) ([]*collection.Collection, error)
-	ListByParentAndState(ctx context.Context, parentID primitive.ObjectID, state string) ([]*collection.Collection, error)
+	ListByParent(ctx context.Context, parentID gocql.UUID) ([]*collection.Collection, error)
+	ListByParentAndState(ctx context.Context, parentID gocql.UUID, state string) ([]*collection.Collection, error)
 	ListModifiedLocally(ctx context.Context) ([]*collection.Collection, error)
 	ListByState(ctx context.Context, state string) ([]*collection.Collection, error)
 	ListActiveCollections(ctx context.Context) ([]*collection.Collection, error)
@@ -101,7 +102,7 @@ func (uc *listCollectionsUseCase) ListRootsByState(
 // ListByParent lists local collections with the specified parent - only active by default
 func (uc *listCollectionsUseCase) ListByParent(
 	ctx context.Context,
-	parentID primitive.ObjectID,
+	parentID gocql.UUID,
 ) ([]*collection.Collection, error) {
 	return uc.ListByParentAndState(ctx, parentID, collection.CollectionStateActive)
 }
@@ -109,7 +110,7 @@ func (uc *listCollectionsUseCase) ListByParent(
 // ListByParentAndState lists local collections with the specified parent and state
 func (uc *listCollectionsUseCase) ListByParentAndState(
 	ctx context.Context,
-	parentID primitive.ObjectID,
+	parentID gocql.UUID,
 	state string,
 ) ([]*collection.Collection, error) {
 	// Validate inputs

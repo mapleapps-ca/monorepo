@@ -11,7 +11,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 )
 
-func (r *collectionRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*collection.Collection, error) {
+func (r *collectionRepository) GetByID(ctx context.Context, id gocql.UUID) (*collection.Collection, error) {
 	// Generate key for this collection
 	key := r.generateKey(id.Hex())
 

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
@@ -16,9 +16,9 @@ import (
 
 // UpdateFileInput defines the input for updating a local file
 type UpdateFileInput struct {
-	ID                     primitive.ObjectID
-	CollectionID           *primitive.ObjectID
-	OwnerID                *primitive.ObjectID
+	ID                     gocql.UUID
+	CollectionID           *gocql.UUID
+	OwnerID                *gocql.UUID
 	EncryptedMetadata      *string
 	EncryptionVersion      *string
 	EncryptedHash          *string
@@ -34,7 +34,7 @@ type UpdateFileInput struct {
 	SyncStatus             *file.SyncStatus
 	Version                *uint64
 	ModifiedAt             *time.Time
-	ModifiedByUserID       *primitive.ObjectID
+	ModifiedByUserID       *gocql.UUID
 	State                  *string
 }
 

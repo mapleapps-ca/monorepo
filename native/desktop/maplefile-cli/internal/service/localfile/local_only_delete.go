@@ -5,9 +5,9 @@ import (
 	"context"
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	dom_tx "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
@@ -17,7 +17,7 @@ import (
 
 // LocalOnlyDeleteInput represents the input for deleting local file by id
 type LocalOnlyDeleteInput struct {
-	ID primitive.ObjectID `json:"id"`
+	ID gocql.UUID `json:"id"`
 }
 
 // LocalOnlyDeleteService defines the interface for LocalOnlyDeleteService for deleting local files by id

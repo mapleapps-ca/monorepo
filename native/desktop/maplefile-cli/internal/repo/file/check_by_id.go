@@ -4,13 +4,13 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 )
 
-func (r *fileRepository) CheckIfExistsByID(ctx context.Context, id primitive.ObjectID) (bool, error) {
+func (r *fileRepository) CheckIfExistsByID(ctx context.Context, id gocql.UUID) (bool, error) {
 	r.logger.Debug("Checking if file exists by ID", zap.String("fileID", id.Hex()))
 
 	// Generate key for this file

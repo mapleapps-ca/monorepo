@@ -4,16 +4,16 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 // CheckFileExistsUseCase defines the interface for checking if a file exists
 type CheckFileExistsUseCase interface {
-	Execute(ctx context.Context, id primitive.ObjectID) (bool, error)
+	Execute(ctx context.Context, id gocql.UUID) (bool, error)
 }
 
 // checkFileExistsUseCase implements the CheckFileExistsUseCase interface
@@ -37,7 +37,7 @@ func NewCheckFileExistsUseCase(
 // Execute checks if a local file exists by ID
 func (uc *checkFileExistsUseCase) Execute(
 	ctx context.Context,
-	id primitive.ObjectID,
+	id gocql.UUID,
 ) (bool, error) {
 	// Validate inputs
 	if id.IsZero() {

@@ -4,13 +4,13 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
-func (r *fileRepository) GetByIDs(ctx context.Context, ids []primitive.ObjectID) ([]*dom_file.File, error) {
+func (r *fileRepository) GetByIDs(ctx context.Context, ids []gocql.UUID) ([]*dom_file.File, error) {
 	if len(ids) == 0 {
 		return []*dom_file.File{}, nil
 	}

@@ -5,8 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 )
 
@@ -19,7 +18,7 @@ type CollectionSharingDTORepository interface {
 	RemoveMemberInCloud(ctx context.Context, request *RemoveMemberRequestDTO) (*RemoveMemberResponseDTO, error)
 
 	// GetCollectionWithMembersFromCloud retrieves collection information including member list
-	GetCollectionWithMembersFromCloud(ctx context.Context, collectionID primitive.ObjectID) (*collectiondto.CollectionDTO, error)
+	GetCollectionWithMembersFromCloud(ctx context.Context, collectionID gocql.UUID) (*collectiondto.CollectionDTO, error)
 
 	// ListSharedCollectionsFromCloud gets all collections that have been shared with the authenticated user
 	ListSharedCollectionsFromCloud(ctx context.Context) ([]*collectiondto.CollectionDTO, error)

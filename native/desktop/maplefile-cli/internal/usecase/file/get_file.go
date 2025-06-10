@@ -4,16 +4,16 @@ package file
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 // GetFileUseCase defines the interface for getting a local file
 type GetFileUseCase interface {
-	Execute(ctx context.Context, id primitive.ObjectID) (*file.File, error)
+	Execute(ctx context.Context, id gocql.UUID) (*file.File, error)
 }
 
 // getFileUseCase implements the GetFileUseCase interface
@@ -37,7 +37,7 @@ func NewGetFileUseCase(
 // Execute retrieves a local file by ID
 func (uc *getFileUseCase) Execute(
 	ctx context.Context,
-	id primitive.ObjectID,
+	id gocql.UUID,
 ) (*file.File, error) {
 	// Validate inputs
 	if id.IsZero() {

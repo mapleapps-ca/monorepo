@@ -4,16 +4,16 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 )
 
 // GetCollectionPathUseCase defines the interface for getting a collection's path
 type GetCollectionPathUseCase interface {
-	Execute(ctx context.Context, id primitive.ObjectID) ([]*collection.Collection, error)
+	Execute(ctx context.Context, id gocql.UUID) ([]*collection.Collection, error)
 }
 
 // getCollectionPathUseCase implements the GetCollectionPathUseCase interface
@@ -37,7 +37,7 @@ func NewGetCollectionPathUseCase(
 // Execute retrieves the full path (ancestors) of a collection
 func (uc *getCollectionPathUseCase) Execute(
 	ctx context.Context,
-	id primitive.ObjectID,
+	id gocql.UUID,
 ) ([]*collection.Collection, error) {
 	// Validate inputs
 	if id.IsZero() {
