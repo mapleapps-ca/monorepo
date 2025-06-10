@@ -20,6 +20,16 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		return fmt.Errorf("collection ID is required")
 	}
 
+	// Get existing collection to compare changes
+	existing, err := impl.GetWithAnyState(ctx, collection.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get existing collection: %w", err)
+	}
+
+	if existing == nil {
+		return fmt.Errorf("collection not found")
+	}
+
 	// Update modified timestamp
 	collection.ModifiedAt = time.Now()
 
@@ -36,7 +46,7 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 
 	batch := impl.Session.NewBatch(gocql.LoggedBatch)
 
-	// 1. Update main collection table with ALL Collection struct fields (except Members)
+	// 1. Update main table
 	batch.Query(`UPDATE maplefile_collections_by_id SET
 		owner_id = ?, encrypted_name = ?, collection_type = ?, encrypted_collection_key = ?,
 		parent_id = ?, ancestor_ids = ?, created_at = ?, created_by_user_id = ?,
@@ -48,25 +58,79 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		collection.ModifiedAt, collection.ModifiedByUserID, collection.Version, collection.State,
 		collection.TombstoneVersion, collection.TombstoneExpiry, collection.ID)
 
-	// 2. Update owner access entry
-	batch.Query(`DELETE FROM maplefile_collections_by_user
-		WHERE user_id = ? AND collection_id = ? AND access_type = 'owner'`,
-		collection.OwnerID, collection.ID)
+	// 2. Update user access (delete old, insert new)
+	batch.Query(`DELETE FROM maplefile_collections_by_user WHERE user_id = ? AND collection_id = ?`,
+		existing.OwnerID, collection.ID)
 
 	batch.Query(`INSERT INTO maplefile_collections_by_user
-		(user_id, collection_id, access_type, modified_at, state, parent_id, created_at)
-		VALUES (?, ?, 'owner', ?, ?, ?, ?)`,
-		collection.OwnerID, collection.ID, collection.ModifiedAt,
-		collection.State, collection.ParentID, collection.CreatedAt)
+		(user_id, collection_id, access_type, modified_at, state)
+		VALUES (?, ?, 'owner', ?, ?)`,
+		collection.OwnerID, collection.ID, collection.ModifiedAt, collection.State)
 
-	// 3. Replace all members (delete old, insert new)
+	// 3. Update parent index if parent changed
+	oldParentID := existing.ParentID
+	if !impl.isValidUUID(oldParentID) {
+		oldParentID = impl.nullParentUUID()
+	}
+
+	newParentID := collection.ParentID
+	if !impl.isValidUUID(newParentID) {
+		newParentID = impl.nullParentUUID()
+	}
+
+	if oldParentID != newParentID {
+		// Remove from old parent
+		batch.Query(`DELETE FROM maplefile_collections_by_parent
+			WHERE parent_id = ? AND created_at = ? AND collection_id = ?`,
+			oldParentID, collection.CreatedAt, collection.ID)
+
+		// Add to new parent
+		batch.Query(`INSERT INTO maplefile_collections_by_parent
+			(parent_id, created_at, collection_id, owner_id, state)
+			VALUES (?, ?, ?, ?, ?)`,
+			newParentID, collection.CreatedAt, collection.ID, collection.OwnerID, collection.State)
+	} else {
+		// Update existing parent entry
+		batch.Query(`UPDATE maplefile_collections_by_parent SET
+			owner_id = ?, state = ?
+			WHERE parent_id = ? AND created_at = ? AND collection_id = ?`,
+			collection.OwnerID, collection.State,
+			newParentID, collection.CreatedAt, collection.ID)
+	}
+
+	// 4. Update ancestor hierarchy
+	oldAncestorEntries := impl.buildAncestorDepthEntries(collection.ID, existing.AncestorIDs)
+	for _, entry := range oldAncestorEntries {
+		batch.Query(`DELETE FROM maplefile_collections_by_ancestor
+			WHERE ancestor_id = ? AND depth = ? AND collection_id = ?`,
+			entry.AncestorID, entry.Depth, entry.CollectionID)
+	}
+
+	newAncestorEntries := impl.buildAncestorDepthEntries(collection.ID, collection.AncestorIDs)
+	for _, entry := range newAncestorEntries {
+		batch.Query(`INSERT INTO maplefile_collections_by_ancestor
+			(ancestor_id, depth, collection_id, state)
+			VALUES (?, ?, ?, ?)`,
+			entry.AncestorID, entry.Depth, entry.CollectionID, collection.State)
+	}
+
+	// 5. Replace all members (delete old, insert new)
 	batch.Query(`DELETE FROM maplefile_collection_members WHERE collection_id = ?`, collection.ID)
 
-	batch.Query(`DELETE FROM maplefile_collections_by_user
-		WHERE collection_id = ? AND access_type = 'member'`, collection.ID)
+	// Delete old member access entries
+	for _, oldMember := range existing.Members {
+		batch.Query(`DELETE FROM maplefile_collections_by_user
+			WHERE user_id = ? AND collection_id = ?`,
+			oldMember.RecipientID, collection.ID)
+	}
 
-	// 4. Insert updated members with all CollectionMembership fields
+	// Insert new members
 	for _, member := range collection.Members {
+		// Ensure member has an ID
+		if !impl.isValidUUID(member.ID) {
+			member.ID = gocql.TimeUUID()
+		}
+
 		batch.Query(`INSERT INTO maplefile_collection_members
 			(collection_id, recipient_id, member_id, recipient_email, granted_by_id,
 			 encrypted_collection_key, permission_level, created_at,
@@ -78,10 +142,10 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 			member.IsInherited, member.InheritedFromID)
 
 		batch.Query(`INSERT INTO maplefile_collections_by_user
-			(user_id, collection_id, access_type, permission_level, modified_at, state, parent_id, created_at)
-			VALUES (?, ?, 'member', ?, ?, ?, ?, ?)`,
+			(user_id, collection_id, access_type, permission_level, modified_at, state)
+			VALUES (?, ?, 'member', ?, ?, ?)`,
 			member.RecipientID, collection.ID, member.PermissionLevel,
-			collection.ModifiedAt, collection.State, collection.ParentID, collection.CreatedAt)
+			collection.ModifiedAt, collection.State)
 	}
 
 	// Execute batch

@@ -4,6 +4,7 @@ package collection
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/gocql/gocql"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
@@ -23,6 +24,16 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 
 	if collection == nil {
 		return fmt.Errorf("collection not found")
+	}
+
+	// Ensure member has an ID
+	if !impl.isValidUUID(membership.ID) {
+		membership.ID = gocql.TimeUUID()
+	}
+
+	// Set creation time if not set
+	if membership.CreatedAt.IsZero() {
+		membership.CreatedAt = time.Now()
 	}
 
 	// Check if member already exists
@@ -148,6 +159,9 @@ func (impl *collectionRepositoryImpl) AddMemberToHierarchy(ctx context.Context, 
 	inheritedMembership.InheritedFromID = rootID
 
 	for _, descendant := range descendants {
+		// Generate new ID for each inherited membership
+		inheritedMembership.ID = gocql.TimeUUID()
+
 		if err := impl.AddMember(ctx, descendant.ID, &inheritedMembership); err != nil {
 			impl.Logger.Warn("failed to add inherited member to descendant",
 				zap.String("descendant_id", descendant.ID.String()),

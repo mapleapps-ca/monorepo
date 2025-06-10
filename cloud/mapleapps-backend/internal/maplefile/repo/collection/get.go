@@ -39,7 +39,6 @@ func (impl *collectionRepositoryImpl) getBaseCollection(ctx context.Context, id 
 		state                                                string
 	)
 
-	// Query the simplified main table with ALL Collection struct fields (except Members)
 	query := `SELECT id, owner_id, encrypted_name, collection_type, encrypted_collection_key,
 		parent_id, ancestor_ids, created_at, created_by_user_id, modified_at,
 		modified_by_user_id, version, state, tombstone_version, tombstone_expiry
@@ -73,35 +72,23 @@ func (impl *collectionRepositoryImpl) getBaseCollection(ctx context.Context, id 
 		return nil, fmt.Errorf("failed to deserialize encrypted collection key: %w", err)
 	}
 
-	// Build Collection struct with ALL fields from database
 	collection := &dom_collection.Collection{
-		// Identifiers
-		ID:      id,
-		OwnerID: ownerID,
-
-		// Encryption and Content Details
+		ID:                     id,
+		OwnerID:                ownerID,
 		EncryptedName:          encryptedName,
 		CollectionType:         collectionType,
 		EncryptedCollectionKey: encryptedKey,
-
-		// Sharing - Members will be populated separately
-		Members: []dom_collection.CollectionMembership{}, // Will be populated by caller
-
-		// Hierarchical structure fields
-		ParentID:    parentID,
-		AncestorIDs: ancestorIDs,
-
-		// Ownership, timestamps and conflict resolution
-		CreatedAt:        createdAt,
-		CreatedByUserID:  createdByUserID,
-		ModifiedAt:       modifiedAt,
-		ModifiedByUserID: modifiedByUserID,
-		Version:          version,
-
-		// State management
-		State:            state,
-		TombstoneVersion: tombstoneVersion,
-		TombstoneExpiry:  tombstoneExpiry,
+		Members:                []dom_collection.CollectionMembership{}, // Will be populated separately
+		ParentID:               parentID,
+		AncestorIDs:            ancestorIDs,
+		CreatedAt:              createdAt,
+		CreatedByUserID:        createdByUserID,
+		ModifiedAt:             modifiedAt,
+		ModifiedByUserID:       modifiedByUserID,
+		Version:                version,
+		State:                  state,
+		TombstoneVersion:       tombstoneVersion,
+		TombstoneExpiry:        tombstoneExpiry,
 	}
 
 	return collection, nil
@@ -129,9 +116,8 @@ func (impl *collectionRepositoryImpl) getCollectionMembers(ctx context.Context, 
 		&encryptedCollectionKey, &permissionLevel, &createdAt,
 		&isInherited, &inheritedFromID) {
 
-		// Build complete CollectionMembership struct
 		member := dom_collection.CollectionMembership{
-			ID:                     memberID, // Use stored member ID
+			ID:                     memberID,
 			CollectionID:           collectionID,
 			RecipientID:            recipientID,
 			RecipientEmail:         recipientEmail,
@@ -146,6 +132,28 @@ func (impl *collectionRepositoryImpl) getCollectionMembers(ctx context.Context, 
 	}
 
 	return members, iter.Close()
+}
+
+func (impl *collectionRepositoryImpl) loadMultipleCollectionsWithMembers(ctx context.Context, collectionIDs []gocql.UUID) ([]*dom_collection.Collection, error) {
+	if len(collectionIDs) == 0 {
+		return []*dom_collection.Collection{}, nil
+	}
+
+	var collections []*dom_collection.Collection
+	for _, id := range collectionIDs {
+		collection, err := impl.loadCollectionWithMembers(ctx, id, true)
+		if err != nil {
+			impl.Logger.Warn("failed to load collection",
+				zap.String("collection_id", id.String()),
+				zap.Error(err))
+			continue
+		}
+		if collection != nil {
+			collections = append(collections, collection)
+		}
+	}
+
+	return collections, nil
 }
 
 func (impl *collectionRepositoryImpl) Get(ctx context.Context, id gocql.UUID) (*dom_collection.Collection, error) {
@@ -196,22 +204,14 @@ func (impl *collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.C
 	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
 }
 
+// OPTIMIZED: No more ALLOW FILTERING - direct partition access
 func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID gocql.UUID) ([]*dom_collection.Collection, error) {
-	// Get the parent to find its owner
-	parent, err := impl.Get(ctx, parentID)
-	if err != nil {
-		return nil, err
-	}
-	if parent == nil {
-		return []*dom_collection.Collection{}, nil
-	}
-
 	var collectionIDs []gocql.UUID
 
-	query := `SELECT collection_id FROM maplefile_collections_by_user
-		WHERE user_id = ? AND access_type = 'owner' AND parent_id = ? AND state = ? ALLOW FILTERING`
+	query := `SELECT collection_id FROM maplefile_collections_by_parent
+		WHERE parent_id = ? AND state = ?`
 
-	iter := impl.Session.Query(query, parent.OwnerID, parentID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
+	iter := impl.Session.Query(query, parentID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
 
 	var collectionID gocql.UUID
 	for iter.Scan(&collectionID) {
@@ -225,14 +225,17 @@ func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID
 	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
 }
 
+// OPTIMIZED: No more ALLOW FILTERING - direct partition access
 func (impl *collectionRepositoryImpl) FindRootCollections(ctx context.Context, ownerID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
-	// Use ALLOW FILTERING for parent_id = null check
-	query := `SELECT collection_id FROM maplefile_collections_by_user
-		WHERE user_id = ? AND access_type = 'owner' AND state = ? AND parent_id = null ALLOW FILTERING`
+	// Use null UUID to represent root collections
+	nullParentID := impl.nullParentUUID()
 
-	iter := impl.Session.Query(query, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
+	query := `SELECT collection_id FROM maplefile_collections_by_parent
+		WHERE parent_id = ? AND owner_id = ? AND state = ?`
+
+	iter := impl.Session.Query(query, nullParentID, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
 
 	var collectionID gocql.UUID
 	for iter.Scan(&collectionID) {
@@ -246,57 +249,23 @@ func (impl *collectionRepositoryImpl) FindRootCollections(ctx context.Context, o
 	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
 }
 
+// OPTIMIZED: No more recursive queries - single efficient query
 func (impl *collectionRepositoryImpl) FindDescendants(ctx context.Context, collectionID gocql.UUID) ([]*dom_collection.Collection, error) {
-	// For descendants, we need to query based on ancestor_ids containing this collection
-	// This is more complex with the simplified schema, might need to traverse hierarchically
-	// For now, implement a basic version that gets direct children recursively
+	var descendantIDs []gocql.UUID
 
-	return impl.findDescendantsRecursive(ctx, collectionID)
-}
+	query := `SELECT collection_id FROM maplefile_collections_by_ancestor
+		WHERE ancestor_id = ? AND state = ?`
 
-func (impl *collectionRepositoryImpl) findDescendantsRecursive(ctx context.Context, parentID gocql.UUID) ([]*dom_collection.Collection, error) {
-	// Get direct children
-	children, err := impl.FindByParent(ctx, parentID)
-	if err != nil {
-		return nil, err
+	iter := impl.Session.Query(query, collectionID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
+
+	var descendantID gocql.UUID
+	for iter.Scan(&descendantID) {
+		descendantIDs = append(descendantIDs, descendantID)
 	}
 
-	var allDescendants []*dom_collection.Collection
-	allDescendants = append(allDescendants, children...)
-
-	// Get descendants of each child
-	for _, child := range children {
-		childDescendants, err := impl.findDescendantsRecursive(ctx, child.ID)
-		if err != nil {
-			impl.Logger.Warn("failed to get descendants of child",
-				zap.String("child_id", child.ID.String()),
-				zap.Error(err))
-			continue
-		}
-		allDescendants = append(allDescendants, childDescendants...)
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to find descendants: %w", err)
 	}
 
-	return allDescendants, nil
-}
-
-func (impl *collectionRepositoryImpl) loadMultipleCollectionsWithMembers(ctx context.Context, collectionIDs []gocql.UUID) ([]*dom_collection.Collection, error) {
-	if len(collectionIDs) == 0 {
-		return []*dom_collection.Collection{}, nil
-	}
-
-	var collections []*dom_collection.Collection
-	for _, id := range collectionIDs {
-		collection, err := impl.loadCollectionWithMembers(ctx, id, true)
-		if err != nil {
-			impl.Logger.Warn("failed to load collection",
-				zap.String("collection_id", id.String()),
-				zap.Error(err))
-			continue
-		}
-		if collection != nil {
-			collections = append(collections, collection)
-		}
-	}
-
-	return collections, nil
+	return impl.loadMultipleCollectionsWithMembers(ctx, descendantIDs)
 }

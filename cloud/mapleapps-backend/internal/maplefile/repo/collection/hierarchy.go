@@ -32,6 +32,6 @@ func (impl *collectionRepositoryImpl) MoveCollection(
 	collection.ModifiedAt = time.Now()
 	collection.Version++
 
-	// Single update call handles all the complexity with the simplified schema
+	// Single update call handles all the complexity
 	return impl.Update(ctx, collection)
 }

@@ -1,3 +1,4 @@
+// cloud/mapleapps-backend/internal/maplefile/repo/collection/delete.go
 package collection
 
 import (
@@ -54,7 +55,24 @@ func (impl *collectionRepositoryImpl) HardDelete(ctx context.Context, id gocql.U
 	// 2. Delete from user access table
 	batch.Query(`DELETE FROM maplefile_collections_by_user WHERE collection_id = ?`, id)
 
-	// 3. Delete from members table
+	// 3. Delete from parent index
+	parentID := collection.ParentID
+	if !impl.isValidUUID(parentID) {
+		parentID = impl.nullParentUUID()
+	}
+	batch.Query(`DELETE FROM maplefile_collections_by_parent
+		WHERE parent_id = ? AND created_at = ? AND collection_id = ?`,
+		parentID, collection.CreatedAt, id)
+
+	// 4. Delete from ancestor hierarchy
+	ancestorEntries := impl.buildAncestorDepthEntries(id, collection.AncestorIDs)
+	for _, entry := range ancestorEntries {
+		batch.Query(`DELETE FROM maplefile_collections_by_ancestor
+			WHERE ancestor_id = ? AND depth = ? AND collection_id = ?`,
+			entry.AncestorID, entry.Depth, entry.CollectionID)
+	}
+
+	// 5. Delete from members table
 	batch.Query(`DELETE FROM maplefile_collection_members WHERE collection_id = ?`, id)
 
 	// Execute batch

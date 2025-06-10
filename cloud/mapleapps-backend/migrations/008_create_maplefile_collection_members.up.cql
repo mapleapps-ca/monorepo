@@ -1,8 +1,7 @@
--- Normalized members table - stores individual CollectionMembership records
 CREATE TABLE IF NOT EXISTS mapleapps.maplefile_collection_members (
     collection_id UUID,
     recipient_id UUID,
-    member_id UUID, -- CollectionMembership.ID
+    member_id UUID,
     recipient_email TEXT,
     granted_by_id UUID,
     encrypted_collection_key BLOB,

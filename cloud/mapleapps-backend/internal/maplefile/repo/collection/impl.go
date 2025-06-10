@@ -26,7 +26,7 @@ func NewRepository(appCfg *config.Configuration, session *gocql.Session, loggerp
 	}
 }
 
-// Helper functions for simplified JSON serialization (only ancestor_ids and encrypted_collection_key now)
+// Helper functions for JSON serialization
 func (impl *collectionRepositoryImpl) serializeAncestorIDs(ancestorIDs []gocql.UUID) (string, error) {
 	if len(ancestorIDs) == 0 {
 		return "[]", nil
@@ -82,4 +82,31 @@ func (impl *collectionRepositoryImpl) hasPermission(userPermission, requiredPerm
 	}
 
 	return userLevel >= requiredLevel
+}
+
+// Helper to generate null UUID for root collections
+func (impl *collectionRepositoryImpl) nullParentUUID() gocql.UUID {
+	return gocql.UUID{} // All zeros represents null parent
+}
+
+// Helper to build ancestor depth entries for hierarchy table
+func (impl *collectionRepositoryImpl) buildAncestorDepthEntries(collectionID gocql.UUID, ancestorIDs []gocql.UUID) []ancestorDepthEntry {
+	var entries []ancestorDepthEntry
+
+	for i, ancestorID := range ancestorIDs {
+		depth := i + 1 // Depth starts at 1 for direct parent
+		entries = append(entries, ancestorDepthEntry{
+			AncestorID:   ancestorID,
+			Depth:        depth,
+			CollectionID: collectionID,
+		})
+	}
+
+	return entries
+}
+
+type ancestorDepthEntry struct {
+	AncestorID   gocql.UUID
+	Depth        int
+	CollectionID gocql.UUID
 }

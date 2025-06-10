@@ -52,7 +52,7 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 
 	batch := impl.Session.NewBatch(gocql.LoggedBatch)
 
-	// 1. Insert into main table (ALL Collection struct fields except Members)
+	// 1. Insert into main table
 	batch.Query(`INSERT INTO maplefile_collections_by_id
 		(id, owner_id, encrypted_name, collection_type, encrypted_collection_key,
 		 parent_id, ancestor_ids, created_at, created_by_user_id,
@@ -64,15 +64,39 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 		collection.ModifiedByUserID, collection.Version, collection.State,
 		collection.TombstoneVersion, collection.TombstoneExpiry)
 
-	// 2. Insert owner access into simplified user table
+	// 2. Insert owner access
 	batch.Query(`INSERT INTO maplefile_collections_by_user
-		(user_id, collection_id, access_type, modified_at, state, parent_id, created_at)
-		VALUES (?, ?, 'owner', ?, ?, ?, ?)`,
-		collection.OwnerID, collection.ID, collection.ModifiedAt,
-		collection.State, collection.ParentID, collection.CreatedAt)
+		(user_id, collection_id, access_type, modified_at, state)
+		VALUES (?, ?, 'owner', ?, ?)`,
+		collection.OwnerID, collection.ID, collection.ModifiedAt, collection.State)
 
-	// 3. Insert members into normalized table
+	// 3. Insert into parent index
+	parentID := collection.ParentID
+	if !impl.isValidUUID(parentID) {
+		parentID = impl.nullParentUUID() // Use null UUID for root collections
+	}
+
+	batch.Query(`INSERT INTO maplefile_collections_by_parent
+		(parent_id, created_at, collection_id, owner_id, state)
+		VALUES (?, ?, ?, ?, ?)`,
+		parentID, collection.CreatedAt, collection.ID, collection.OwnerID, collection.State)
+
+	// 4. Insert into ancestor hierarchy table
+	ancestorEntries := impl.buildAncestorDepthEntries(collection.ID, collection.AncestorIDs)
+	for _, entry := range ancestorEntries {
+		batch.Query(`INSERT INTO maplefile_collections_by_ancestor
+			(ancestor_id, depth, collection_id, state)
+			VALUES (?, ?, ?, ?)`,
+			entry.AncestorID, entry.Depth, entry.CollectionID, collection.State)
+	}
+
+	// 5. Insert members into normalized table
 	for _, member := range collection.Members {
+		// Ensure member has an ID
+		if !impl.isValidUUID(member.ID) {
+			member.ID = gocql.TimeUUID()
+		}
+
 		batch.Query(`INSERT INTO maplefile_collection_members
 			(collection_id, recipient_id, member_id, recipient_email, granted_by_id,
 			 encrypted_collection_key, permission_level, created_at,
@@ -85,10 +109,10 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 
 		// Add member access
 		batch.Query(`INSERT INTO maplefile_collections_by_user
-			(user_id, collection_id, access_type, permission_level, modified_at, state, parent_id, created_at)
-			VALUES (?, ?, 'member', ?, ?, ?, ?, ?)`,
+			(user_id, collection_id, access_type, permission_level, modified_at, state)
+			VALUES (?, ?, 'member', ?, ?, ?)`,
 			member.RecipientID, collection.ID, member.PermissionLevel,
-			collection.ModifiedAt, collection.State, collection.ParentID, collection.CreatedAt)
+			collection.ModifiedAt, collection.State)
 	}
 
 	// Execute batch
