@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/repo/collection/delete.go
+// cloud/mapleapps-backend/internal/maplefile/repo/collection/archive.go
 package collection
 
 import (
@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
-
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 

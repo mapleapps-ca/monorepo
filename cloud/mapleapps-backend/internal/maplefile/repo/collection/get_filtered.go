@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/repo/collection/get_filtered.go
+// cloud/mapleapps-backend/internal/maplefile/repo/collection/get_filtered.go
 package collection
 
 import (

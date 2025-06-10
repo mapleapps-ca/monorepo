@@ -65,10 +65,10 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 		collection.TombstoneVersion, collection.TombstoneExpiry)
 
 	// 2. Insert owner access
-	batch.Query(`INSERT INTO maplefile_collections_by_user
-		(user_id, collection_id, access_type, modified_at, state)
-		VALUES (?, ?, 'owner', ?, ?)`,
-		collection.OwnerID, collection.ID, collection.ModifiedAt, collection.State)
+	batch.Query(`INSERT INTO maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
+		(user_id, modified_at, collection_id, access_type, permission_level, state)
+		VALUES (?, ?, ?, 'owner', ?, ?)`,
+		collection.OwnerID, collection.ModifiedAt, collection.ID, nil, collection.State)
 
 	// 3. Insert into parent index
 	parentID := collection.ParentID
@@ -76,7 +76,7 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 		parentID = impl.nullParentUUID() // Use null UUID for root collections
 	}
 
-	batch.Query(`INSERT INTO maplefile_collections_by_parent
+	batch.Query(`INSERT INTO maplefile_collections_by_parent_id_with_asc_created_at_and_asc_collection_id
 		(parent_id, created_at, collection_id, owner_id, state)
 		VALUES (?, ?, ?, ?, ?)`,
 		parentID, collection.CreatedAt, collection.ID, collection.OwnerID, collection.State)
@@ -84,7 +84,7 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 	// 4. Insert into ancestor hierarchy table
 	ancestorEntries := impl.buildAncestorDepthEntries(collection.ID, collection.AncestorIDs)
 	for _, entry := range ancestorEntries {
-		batch.Query(`INSERT INTO maplefile_collections_by_ancestor
+		batch.Query(`INSERT INTO maplefile_collections_by_ancestor_id_with_asc_depth_and_asc_collection_id
 			(ancestor_id, depth, collection_id, state)
 			VALUES (?, ?, ?, ?)`,
 			entry.AncestorID, entry.Depth, entry.CollectionID, collection.State)
@@ -97,7 +97,7 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 			member.ID = gocql.TimeUUID()
 		}
 
-		batch.Query(`INSERT INTO maplefile_collection_members
+		batch.Query(`INSERT INTO maplefile_collection_members_by_collection_id_and_recipient_id
 			(collection_id, recipient_id, member_id, recipient_email, granted_by_id,
 			 encrypted_collection_key, permission_level, created_at,
 			 is_inherited, inherited_from_id)
@@ -108,11 +108,10 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 			member.IsInherited, member.InheritedFromID)
 
 		// Add member access
-		batch.Query(`INSERT INTO maplefile_collections_by_user
-			(user_id, collection_id, access_type, permission_level, modified_at, state)
-			VALUES (?, ?, 'member', ?, ?, ?)`,
-			member.RecipientID, collection.ID, member.PermissionLevel,
-			collection.ModifiedAt, collection.State)
+		batch.Query(`INSERT INTO maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
+			(user_id, modified_at, collection_id, access_type, permission_level, state)
+			VALUES (?, ?, ?, 'member', ?, ?)`,
+			member.RecipientID, collection.ModifiedAt, collection.ID, member.PermissionLevel, collection.State)
 	}
 
 	// Execute batch

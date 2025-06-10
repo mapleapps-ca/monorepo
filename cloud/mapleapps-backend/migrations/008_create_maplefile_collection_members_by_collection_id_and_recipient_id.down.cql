@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS mapleapps.maplefile_collection_members_by_collection_id_and_recipient_id;

@@ -24,8 +24,8 @@ func (impl *collectionRepositoryImpl) CheckIfExistsByID(ctx context.Context, id 
 func (impl *collectionRepositoryImpl) IsCollectionOwner(ctx context.Context, collectionID, userID gocql.UUID) (bool, error) {
 	var accessType string
 
-	query := `SELECT access_type FROM maplefile_collections_by_user
-		WHERE user_id = ? AND collection_id = ?`
+	query := `SELECT access_type FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
+		WHERE user_id = ? AND collection_id = ? LIMIT 1 ALLOW FILTERING`
 
 	err := impl.Session.Query(query, userID, collectionID).WithContext(ctx).Scan(&accessType)
 	if err != nil {
@@ -41,8 +41,8 @@ func (impl *collectionRepositoryImpl) IsCollectionOwner(ctx context.Context, col
 func (impl *collectionRepositoryImpl) CheckAccess(ctx context.Context, collectionID, userID gocql.UUID, requiredPermission string) (bool, error) {
 	var accessType, permissionLevel string
 
-	query := `SELECT access_type, permission_level FROM maplefile_collections_by_user
-		WHERE user_id = ? AND collection_id = ?`
+	query := `SELECT access_type, permission_level FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
+		WHERE user_id = ? AND collection_id = ? LIMIT 1 ALLOW FILTERING`
 
 	err := impl.Session.Query(query, userID, collectionID).WithContext(ctx).Scan(&accessType, &permissionLevel)
 	if err != nil {
@@ -64,8 +64,8 @@ func (impl *collectionRepositoryImpl) CheckAccess(ctx context.Context, collectio
 func (impl *collectionRepositoryImpl) GetUserPermissionLevel(ctx context.Context, collectionID, userID gocql.UUID) (string, error) {
 	var accessType, permissionLevel string
 
-	query := `SELECT access_type, permission_level FROM maplefile_collections_by_user
-		WHERE user_id = ? AND collection_id = ?`
+	query := `SELECT access_type, permission_level FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
+		WHERE user_id = ? AND collection_id = ? LIMIT 1 ALLOW FILTERING`
 
 	err := impl.Session.Query(query, userID, collectionID).WithContext(ctx).Scan(&accessType, &permissionLevel)
 	if err != nil {

@@ -121,7 +121,7 @@ func (impl *collectionRepositoryImpl) GetCollectionMembership(ctx context.Contex
 	query := `SELECT recipient_id, member_id, recipient_email, granted_by_id,
 		encrypted_collection_key, permission_level, created_at,
 		is_inherited, inherited_from_id
-		FROM maplefile_collection_members
+		FROM maplefile_collection_members_by_collection_id_and_recipient_id
 		WHERE collection_id = ? AND recipient_id = ?`
 
 	err := impl.Session.Query(query, collectionID, recipientID).WithContext(ctx).Scan(

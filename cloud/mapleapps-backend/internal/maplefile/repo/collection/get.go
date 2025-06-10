@@ -100,7 +100,7 @@ func (impl *collectionRepositoryImpl) getCollectionMembers(ctx context.Context, 
 	query := `SELECT recipient_id, member_id, recipient_email, granted_by_id,
 		encrypted_collection_key, permission_level, created_at,
 		is_inherited, inherited_from_id
-		FROM maplefile_collection_members WHERE collection_id = ?`
+		FROM maplefile_collection_members_by_collection_id_and_recipient_id WHERE collection_id = ?`
 
 	iter := impl.Session.Query(query, collectionID).WithContext(ctx).Iter()
 
@@ -167,7 +167,7 @@ func (impl *collectionRepositoryImpl) GetWithAnyState(ctx context.Context, id go
 func (impl *collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
-	query := `SELECT collection_id FROM maplefile_collections_by_user
+	query := `SELECT collection_id FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 		WHERE user_id = ? AND access_type = 'owner' AND state = ?`
 
 	iter := impl.Session.Query(query, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
@@ -187,7 +187,7 @@ func (impl *collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerI
 func (impl *collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
-	query := `SELECT collection_id FROM maplefile_collections_by_user
+	query := `SELECT collection_id FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 		WHERE user_id = ? AND access_type = 'member' AND state = ?`
 
 	iter := impl.Session.Query(query, userID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
@@ -208,7 +208,7 @@ func (impl *collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.C
 func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
-	query := `SELECT collection_id FROM maplefile_collections_by_parent
+	query := `SELECT collection_id FROM maplefile_collections_by_parent_id_with_asc_created_at_and_asc_collection_id
 		WHERE parent_id = ? AND state = ?`
 
 	iter := impl.Session.Query(query, parentID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
@@ -225,14 +225,14 @@ func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID
 	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
 }
 
-// OPTIMIZED: No more ALLOW FILTERING - direct partition access
+// OPTIMIZED: No more ALLOW FILTERING - direct partition access for root collections
 func (impl *collectionRepositoryImpl) FindRootCollections(ctx context.Context, ownerID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
 	// Use null UUID to represent root collections
 	nullParentID := impl.nullParentUUID()
 
-	query := `SELECT collection_id FROM maplefile_collections_by_parent
+	query := `SELECT collection_id FROM maplefile_collections_by_parent_id_with_asc_created_at_and_asc_collection_id
 		WHERE parent_id = ? AND owner_id = ? AND state = ?`
 
 	iter := impl.Session.Query(query, nullParentID, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
@@ -253,7 +253,7 @@ func (impl *collectionRepositoryImpl) FindRootCollections(ctx context.Context, o
 func (impl *collectionRepositoryImpl) FindDescendants(ctx context.Context, collectionID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var descendantIDs []gocql.UUID
 
-	query := `SELECT collection_id FROM maplefile_collections_by_ancestor
+	query := `SELECT collection_id FROM maplefile_collections_by_ancestor_id_with_asc_depth_and_asc_collection_id
 		WHERE ancestor_id = ? AND state = ?`
 
 	iter := impl.Session.Query(query, collectionID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
