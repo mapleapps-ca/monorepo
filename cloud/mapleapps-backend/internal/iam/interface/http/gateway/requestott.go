@@ -74,6 +74,7 @@ func (h *GatewayRequestLoginOTTHTTPHandler) unmarshalRequest(
 	requestData.Email = strings.ReplaceAll(requestData.Email, " ", "")
 
 	h.logger.Debug("successfully decoded json payload api request",
+		zap.Any("requestData:", requestData),
 		zap.String("api", "/iam/api/v1/request-login-ott"))
 
 	return &requestData, nil

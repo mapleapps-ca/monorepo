@@ -75,6 +75,7 @@ func (h *GatewayVerifyLoginOTTHTTPHandler) unmarshalRequest(
 	requestData.OTT = strings.TrimSpace(requestData.OTT)
 
 	h.logger.Debug("successfully decoded json payload api request",
+		zap.Any("requestData:", requestData),
 		zap.String("api", "/iam/api/v1/verify-login-ott"))
 
 	return &requestData, nil

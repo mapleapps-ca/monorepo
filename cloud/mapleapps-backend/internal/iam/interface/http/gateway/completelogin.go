@@ -74,6 +74,7 @@ func (h *GatewayCompleteLoginHTTPHandler) unmarshalRequest(
 	requestData.Email = strings.ReplaceAll(requestData.Email, " ", "")
 
 	h.logger.Debug("successfully decoded json payload api request",
+		zap.Any("requestData:", requestData),
 		zap.String("api", "/iam/api/v1/complete-login"))
 
 	return &requestData, nil

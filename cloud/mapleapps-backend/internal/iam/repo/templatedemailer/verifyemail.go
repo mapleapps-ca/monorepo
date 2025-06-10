@@ -49,7 +49,7 @@ func (impl *templatedEmailer) SendMapleFileModuleUserVerificationEmail(ctx conte
 	if err := impl.maplefileEmailer.Send(ctx, impl.maplefileEmailer.GetSenderEmail(), "Activate your MapleFile Account", email, body); err != nil {
 		return fmt.Errorf("sending maplefile user verification error: %w", err)
 	}
-	log.Println("success in sending maplefile user verification email")
+	log.Printf("success in sending maplefile user verification email: %v\n", verificationCode)
 	return nil
 }
 
@@ -80,6 +80,6 @@ func (impl *templatedEmailer) SendPaperCloudModuleUserVerificationEmail(ctx cont
 	if err := impl.papercloudEmailer.Send(ctx, impl.papercloudEmailer.GetSenderEmail(), "Activate your PaperCloud Account", email, body); err != nil {
 		return fmt.Errorf("sending papercloud user verification error: %w", err)
 	}
-	log.Println("success in sending papercloud user verification email")
+	log.Printf("success in sending papercloud user verification email: %v\n", verificationCode)
 	return nil
 }
