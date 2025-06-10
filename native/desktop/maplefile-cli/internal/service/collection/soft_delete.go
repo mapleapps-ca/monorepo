@@ -4,9 +4,9 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
@@ -14,10 +14,10 @@ import (
 
 // SoftDeleteService defines the interface for soft deleting local collections
 type SoftDeleteService interface {
-	SoftDelete(ctx context.Context, id string) error
-	SoftDeleteWithChildren(ctx context.Context, id string) error
-	Archive(ctx context.Context, id string) error
-	Restore(ctx context.Context, id string) error
+	SoftDelete(ctx context.Context, id gocql.UUID) error
+	SoftDeleteWithChildren(ctx context.Context, id gocql.UUID) error
+	Archive(ctx context.Context, id gocql.UUID) error
+	Restore(ctx context.Context, id gocql.UUID) error
 }
 
 // softDeleteService implements the SoftDeleteService interface
@@ -45,31 +45,26 @@ func NewSoftDeleteService(
 }
 
 // SoftDelete marks a collection as deleted by updating its state
-func (s *softDeleteService) SoftDelete(ctx context.Context, id string) error {
+func (s *softDeleteService) SoftDelete(ctx context.Context, id gocql.UUID) error {
 	// Validate input
-	if id == "" {
+	if id.String() == "" {
 		s.logger.Error("❌ collection ID is required")
 		return errors.NewAppError("collection ID is required", nil)
 	}
 
-	// Convert ID string to ObjectID
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		s.logger.Error("❌ invalid collection ID format", zap.String("id", id), zap.Error(err))
-		return errors.NewAppError("invalid collection ID format", err)
-	}
-
 	// Get the collection to validate it exists and check current state
-	existingCollection, err := s.getUseCase.Execute(ctx, objectID)
+	existingCollection, err := s.getUseCase.Execute(ctx, id)
 	if err != nil {
-		s.logger.Error("❌ failed to get collection for soft delete", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to get collection for soft delete",
+			zap.String("id", id.String()),
+			zap.Error(err))
 		return err
 	}
 
 	// Check if state transition is valid
 	if err := collection.IsValidStateTransition(existingCollection.State, collection.CollectionStateDeleted); err != nil {
 		s.logger.Error("⚠️ invalid state transition for soft delete",
-			zap.String("id", id),
+			zap.String("id", id.String()),
 			zap.String("currentState", existingCollection.State),
 			zap.Error(err))
 		return errors.NewAppError("cannot delete collection in current state", err)
@@ -78,18 +73,20 @@ func (s *softDeleteService) SoftDelete(ctx context.Context, id string) error {
 	// Update collection state to deleted
 	newState := collection.CollectionStateDeleted
 	updateInput := uc.UpdateCollectionInput{
-		ID:    objectID,
+		ID:    id,
 		State: &newState,
 	}
 
 	_, err = s.updateUseCase.Execute(ctx, updateInput)
 	if err != nil {
-		s.logger.Error("❌ failed to soft delete collection", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to soft delete collection",
+			zap.String("id", id.String()),
+			zap.Error(err))
 		return err
 	}
 
 	s.logger.Info("✅ collection soft deleted successfully",
-		zap.String("id", id),
+		zap.String("id", id.String()),
 		zap.String("previousState", existingCollection.State),
 		zap.String("newState", collection.CollectionStateDeleted))
 
@@ -97,32 +94,25 @@ func (s *softDeleteService) SoftDelete(ctx context.Context, id string) error {
 }
 
 // SoftDeleteWithChildren soft deletes a collection and all its children
-func (s *softDeleteService) SoftDeleteWithChildren(ctx context.Context, id string) error {
+func (s *softDeleteService) SoftDeleteWithChildren(ctx context.Context, id gocql.UUID) error {
 	// Validate input
-	if id == "" {
+	if id.String() == "" {
 		s.logger.Error("❌ collection ID is required")
 		return errors.NewAppError("collection ID is required", nil)
 	}
 
-	// Convert ID string to ObjectID
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		s.logger.Error("❌ invalid collection ID format", zap.String("id", id), zap.Error(err))
-		return errors.NewAppError("invalid collection ID format", err)
-	}
-
 	// Get all children of this collection
-	children, err := s.listUseCase.ListByParent(ctx, objectID)
+	children, err := s.listUseCase.ListByParent(ctx, id)
 	if err != nil {
 		return errors.NewAppError("failed to list child collections", err)
 	}
 
 	// Soft delete each child recursively
 	for _, child := range children {
-		err = s.SoftDeleteWithChildren(ctx, child.ID.String())
+		err = s.SoftDeleteWithChildren(ctx, child.ID)
 		if err != nil {
 			s.logger.Error("❌ failed to soft delete child collection",
-				zap.String("parentID", id),
+				zap.String("parentID", id.String()),
 				zap.String("childID", child.ID.String()),
 				zap.Error(err))
 			return err
@@ -134,31 +124,26 @@ func (s *softDeleteService) SoftDeleteWithChildren(ctx context.Context, id strin
 }
 
 // Archive marks a collection as archived
-func (s *softDeleteService) Archive(ctx context.Context, id string) error {
+func (s *softDeleteService) Archive(ctx context.Context, id gocql.UUID) error {
 	// Validate input
-	if id == "" {
+	if id.String() == "" {
 		s.logger.Error("❌ collection ID is required")
 		return errors.NewAppError("collection ID is required", nil)
 	}
 
-	// Convert ID string to ObjectID
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		s.logger.Error("❌ invalid collection ID format", zap.String("id", id), zap.Error(err))
-		return errors.NewAppError("invalid collection ID format", err)
-	}
-
 	// Get the collection to validate it exists and check current state
-	existingCollection, err := s.getUseCase.Execute(ctx, objectID)
+	existingCollection, err := s.getUseCase.Execute(ctx, id)
 	if err != nil {
-		s.logger.Error("❌ failed to get collection for archive", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to get collection for archive",
+			zap.String("id", id.String()),
+			zap.Error(err))
 		return err
 	}
 
 	// Check if state transition is valid
 	if err := collection.IsValidStateTransition(existingCollection.State, collection.CollectionStateArchived); err != nil {
 		s.logger.Error("⚠️ invalid state transition for archive",
-			zap.String("id", id),
+			zap.String("id", id.String()),
 			zap.String("currentState", existingCollection.State),
 			zap.Error(err))
 		return errors.NewAppError("cannot archive collection in current state", err)
@@ -167,18 +152,20 @@ func (s *softDeleteService) Archive(ctx context.Context, id string) error {
 	// Update collection state to archived
 	newState := collection.CollectionStateArchived
 	updateInput := uc.UpdateCollectionInput{
-		ID:    objectID,
+		ID:    id,
 		State: &newState,
 	}
 
 	_, err = s.updateUseCase.Execute(ctx, updateInput)
 	if err != nil {
-		s.logger.Error("❌ failed to archive collection", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to archive collection",
+			zap.String("id", id.String()),
+			zap.Error(err))
 		return err
 	}
 
 	s.logger.Info("✅ collection archived successfully",
-		zap.String("id", id),
+		zap.String("id", id.String()),
 		zap.String("previousState", existingCollection.State),
 		zap.String("newState", collection.CollectionStateArchived))
 
@@ -186,31 +173,26 @@ func (s *softDeleteService) Archive(ctx context.Context, id string) error {
 }
 
 // Restore marks a deleted or archived collection as active
-func (s *softDeleteService) Restore(ctx context.Context, id string) error {
+func (s *softDeleteService) Restore(ctx context.Context, id gocql.UUID) error {
 	// Validate input
-	if id == "" {
+	if id.String() == "" {
 		s.logger.Error("❌ collection ID is required")
 		return errors.NewAppError("collection ID is required", nil)
 	}
 
-	// Convert ID string to ObjectID
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		s.logger.Error("❌ invalid collection ID format", zap.String("id", id), zap.Error(err))
-		return errors.NewAppError("invalid collection ID format", err)
-	}
-
 	// Get the collection to validate it exists and check current state
-	existingCollection, err := s.getUseCase.Execute(ctx, objectID)
+	existingCollection, err := s.getUseCase.Execute(ctx, id)
 	if err != nil {
-		s.logger.Error("❌ failed to get collection for restore", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to get collection for restore",
+			zap.String("id", id.String()),
+			zap.Error(err))
 		return err
 	}
 
 	// Check if state transition is valid
 	if err := collection.IsValidStateTransition(existingCollection.State, collection.CollectionStateActive); err != nil {
 		s.logger.Error("⚠️ invalid state transition for restore",
-			zap.String("id", id),
+			zap.String("id", id.String()),
 			zap.String("currentState", existingCollection.State),
 			zap.Error(err))
 		return errors.NewAppError("cannot restore collection from current state", err)
@@ -219,18 +201,20 @@ func (s *softDeleteService) Restore(ctx context.Context, id string) error {
 	// Update collection state to active
 	newState := collection.CollectionStateActive
 	updateInput := uc.UpdateCollectionInput{
-		ID:    objectID,
+		ID:    id,
 		State: &newState,
 	}
 
 	_, err = s.updateUseCase.Execute(ctx, updateInput)
 	if err != nil {
-		s.logger.Error("❌ failed to restore collection", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to restore collection",
+			zap.String("id", id.String()),
+			zap.Error(err))
 		return err
 	}
 
 	s.logger.Info("✅ collection restored successfully",
-		zap.String("id", id),
+		zap.String("id", id.String()),
 		zap.String("previousState", existingCollection.State),
 		zap.String("newState", collection.CollectionStateActive))
 

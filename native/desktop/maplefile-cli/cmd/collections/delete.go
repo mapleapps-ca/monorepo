@@ -3,8 +3,10 @@ package collections
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -79,19 +81,23 @@ Examples:
 				}
 			}
 
-			// Execute operation
-			var err error
+			// Convert string ID to gocql.TimeUUID
+			// Note: This variable is named collectionObjectID but now holds a gocql.TimeUUID
+			collectionObjectID, err := gocql.ParseUUID(collectionID)
+			if err != nil {
+				log.Fatalf("invalid collection ID format (expected UUID): %v\n", err)
+			}
 
 			if archive {
-				fmt.Printf("📦 Archiving collection: %s\n", collectionID)
-				err = softDeleteService.Archive(cmd.Context(), collectionID)
+				fmt.Printf("📦 Archiving collection: %s\n", collectionObjectID.String())
+				err = softDeleteService.Archive(cmd.Context(), collectionObjectID)
 			} else {
 				if withChildren {
-					fmt.Printf("🗑️ Soft deleting collection and children: %s\n", collectionID)
-					err = softDeleteService.SoftDeleteWithChildren(cmd.Context(), collectionID)
+					fmt.Printf("🗑️ Soft deleting collection and children: %s\n", collectionObjectID.String())
+					err = softDeleteService.SoftDeleteWithChildren(cmd.Context(), collectionObjectID)
 				} else {
-					fmt.Printf("🗑️ Soft deleting collection: %s\n", collectionID)
-					err = softDeleteService.SoftDelete(cmd.Context(), collectionID)
+					fmt.Printf("🗑️ Soft deleting collection: %s\n", collectionObjectID.String())
+					err = softDeleteService.SoftDelete(cmd.Context(), collectionObjectID)
 				}
 			}
 
@@ -175,10 +181,16 @@ Examples:
 				}
 			}
 
-			fmt.Printf("🔄 Restoring collection: %s\n", collectionID)
-
-			err := softDeleteService.Restore(cmd.Context(), collectionID)
+			// Convert string ID to gocql.TimeUUID
+			// Note: This variable is named collectionObjectID but now holds a gocql.TimeUUID
+			collectionObjectID, err := gocql.ParseUUID(collectionID)
 			if err != nil {
+				log.Fatalf("invalid collection ID format (expected UUID): %v\n", err)
+			}
+
+			fmt.Printf("🔄 Restoring collection: %s\n", collectionObjectID.String())
+
+			if err := softDeleteService.Restore(cmd.Context(), collectionObjectID); err != nil {
 				fmt.Printf("🐞 Error restoring collection: %v\n", err)
 				if strings.Contains(err.Error(), "invalid state transition") {
 					fmt.Printf("💡 The collection may already be active.\n")
@@ -189,15 +201,15 @@ Examples:
 			}
 
 			fmt.Printf("✅ Successfully restored collection!\n")
-			fmt.Printf("🆔 Collection ID: %s\n", collectionID)
+			fmt.Printf("🆔 Collection ID: %s\n", collectionObjectID.String())
 			fmt.Printf("📊 Status: Active\n")
 
 			fmt.Printf("\n💡 Next steps:\n")
 			fmt.Printf("   • View collection: maplefile-cli collections list\n")
-			fmt.Printf("   • Add files: maplefile-cli files add PATH --collection %s\n", collectionID)
+			fmt.Printf("   • Add files: maplefile-cli files add PATH --collection %s\n", collectionObjectID.String())
 
 			logger.Info("Collection restored successfully",
-				zap.String("collectionID", collectionID))
+				zap.String("collectionID", collectionObjectID.String()))
 		},
 	}
 

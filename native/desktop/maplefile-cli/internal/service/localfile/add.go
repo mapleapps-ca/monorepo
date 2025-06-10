@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
@@ -21,7 +21,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
-	sprimitive "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/mongodb"
 )
 
 // LocalFileAddInput represents the input for adding a local file
@@ -48,7 +47,6 @@ type LocalFileAddService interface {
 type localFileAddService struct {
 	logger                      *zap.Logger
 	configService               config.ConfigService
-	primitiveIDObjectGenerator  sprimitive.SecurePrimitiveObjectIDGenerator
 	readFileUseCase             localfile.ReadFileUseCase
 	checkFileExistsUseCase      localfile.CheckFileExistsUseCase
 	getFileInfoUseCase          localfile.GetFileInfoUseCase
@@ -68,7 +66,6 @@ type localFileAddService struct {
 func NewLocalFileAddService(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	primitiveIDObjectGenerator sprimitive.SecurePrimitiveObjectIDGenerator,
 	readFileUseCase localfile.ReadFileUseCase,
 	checkFileExistsUseCase localfile.CheckFileExistsUseCase,
 	getFileInfoUseCase localfile.GetFileInfoUseCase,
@@ -87,7 +84,6 @@ func NewLocalFileAddService(
 	return &localFileAddService{
 		logger:                      logger,
 		configService:               configService,
-		primitiveIDObjectGenerator:  primitiveIDObjectGenerator,
 		readFileUseCase:             readFileUseCase,
 		checkFileExistsUseCase:      checkFileExistsUseCase,
 		getFileInfoUseCase:          getFileInfoUseCase,
@@ -240,7 +236,7 @@ func (s *localFileAddService) Add(ctx context.Context, input *LocalFileAddInput,
 	}
 
 	// Generate unique file ID and create destination path
-	fileID := s.primitiveIDObjectGenerator.GenerateValidObjectID()
+	fileID := gocql.TimeUUID()
 	destFileName := fileID.String() + fileExtension
 	destFilePath := s.pathUtilsUseCase.Join(ctx, collectionDir, destFileName)
 

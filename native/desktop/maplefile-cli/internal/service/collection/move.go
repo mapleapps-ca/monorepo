@@ -4,9 +4,9 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
@@ -59,14 +59,14 @@ func (s *moveService) Move(ctx context.Context, input MoveInput) (*MoveOutput, e
 		return nil, errors.NewAppError("new parent ID is required", nil)
 	}
 
-	// Convert ID strings to ObjectIDs
-	objectID, err := primitive.ObjectIDFromHex(input.ID)
+	// Convert ID strings
+	objectID, err := gocql.ParseUUID(input.ID)
 	if err != nil {
 		s.logger.Error("❌ invalid collection ID format", zap.String("id", input.ID), zap.Error(err))
 		return nil, errors.NewAppError("invalid collection ID format", err)
 	}
 
-	newParentObjectID, err := primitive.ObjectIDFromHex(input.NewParentID)
+	newParentObjectID, err := gocql.ParseUUID(input.NewParentID)
 	if err != nil {
 		s.logger.Error("❌ invalid new parent ID format", zap.String("newParentID", input.NewParentID), zap.Error(err))
 		return nil, errors.NewAppError("invalid new parent ID format", err)

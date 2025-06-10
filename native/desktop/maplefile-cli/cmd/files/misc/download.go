@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
@@ -62,7 +62,7 @@ Examples:
 			}
 
 			// Convert to ObjectID
-			fileObjectID, err := primitive.ObjectIDFromHex(fileID)
+			fileObjectID, err := gocql.ParseUUID(fileID)
 			if err != nil {
 				fmt.Printf("❌ Error: Invalid file ID format: %v\n", err)
 				return

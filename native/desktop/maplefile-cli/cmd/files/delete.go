@@ -7,7 +7,6 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
@@ -73,7 +72,7 @@ Examples:
 			var fileObjectID gocql.UUID
 			var err error
 			if localOnly || (!localOnly && !cloudOnly) {
-				fileObjectID, err = primitive.ObjectIDFromHex(fileID)
+				fileObjectID, err = gocql.ParseUUID(fileID)
 				if err != nil {
 					fmt.Printf("❌ Error: Invalid file ID format: %v\n", err)
 					return
@@ -145,7 +144,7 @@ Examples:
 				fmt.Printf("☁️ Deleting cloud copy: %s\n", fileID)
 
 				input := &filesyncer.CloudOnlyDeleteInput{
-					FileID:       fileID,
+					FileID:       fileObjectID,
 					UserPassword: password,
 				}
 
@@ -174,7 +173,7 @@ Examples:
 				// First delete from cloud
 				fmt.Printf("Step 1/2: Deleting from cloud...\n")
 				cloudInput := &filesyncer.CloudOnlyDeleteInput{
-					FileID:       fileID,
+					FileID:       fileObjectID,
 					UserPassword: password,
 				}
 

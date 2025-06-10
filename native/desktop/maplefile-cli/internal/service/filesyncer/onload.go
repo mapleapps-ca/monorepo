@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/gocql/gocql"
@@ -22,8 +21,8 @@ import (
 
 // OnloadInput represents the input for onloading a cloud-only file
 type OnloadInput struct {
-	FileID       string `json:"file_id"`
-	UserPassword string `json:"user_password"`
+	FileID       gocql.UUID `json:"file_id"`
+	UserPassword string     `json:"user_password"`
 }
 
 // OnloadOutput represents the result of onloading a cloud-only file
@@ -77,7 +76,7 @@ func NewOnloadService(
 // Onload handles the onloading of a cloud-only file to local storage
 func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*OnloadOutput, error) {
 	s.logger.Info("🔍 DEBUG: Starting onload process",
-		zap.String("fileID", input.FileID))
+		zap.String("fileID", input.FileID.String()))
 
 	//
 	// STEP 1: Validate inputs
@@ -86,7 +85,7 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 		s.logger.Error("❌ input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
-	if input.FileID == "" {
+	if input.FileID.String() == "" {
 		s.logger.Error("❌ file ID is required")
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
@@ -98,30 +97,24 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	//
 	// STEP 2: Convert file ID string to ObjectID
 	//
-	fileObjectID, err := primitive.ObjectIDFromHex(input.FileID)
-	if err != nil {
-		s.logger.Error("❌ invalid file ID format",
-			zap.String("fileID", input.FileID),
-			zap.Error(err))
-		return nil, errors.NewAppError("invalid file ID format", err)
-	}
+	// Skip
 
 	//
 	// STEP 3: Get the file and validate it's cloud-only
 	//
 	s.logger.Debug("🔍 Getting file for onload operation",
-		zap.String("fileID", input.FileID))
+		zap.String("fileID", input.FileID.String()))
 
-	file, err := s.getFileUseCase.Execute(ctx, fileObjectID)
+	file, err := s.getFileUseCase.Execute(ctx, input.FileID)
 	if err != nil {
 		s.logger.Error("❌ failed to get file",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to get file", err)
 	}
 
 	if file == nil {
-		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID))
+		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID.String()))
 		return nil, errors.NewAppError("file not found", nil)
 	}
 
@@ -130,7 +123,7 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	// Only work with cloud-only files
 	if file.SyncStatus != dom_file.SyncStatusCloudOnly {
 		s.logger.Error("❌ file is not cloud-only",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Any("syncStatus", file.SyncStatus))
 		return nil, errors.NewAppError(
 			fmt.Sprintf("file is not cloud-only (current status: %v)", file.SyncStatus),
@@ -141,19 +134,19 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	// STEP 4: Download and decrypt file using the download service
 	//
 	s.logger.Info("⬇️ Downloading and decrypting file from cloud",
-		zap.String("fileID", input.FileID))
+		zap.String("fileID", input.FileID.String()))
 
 	urlDuration := 1 * time.Hour // Default duration for download URLs
-	downloadResult, err := s.downloadService.DownloadAndDecryptFile(ctx, fileObjectID, input.UserPassword, urlDuration)
+	downloadResult, err := s.downloadService.DownloadAndDecryptFile(ctx, input.FileID, input.UserPassword, urlDuration)
 	if err != nil {
 		s.logger.Error("❌ failed to download and decrypt file",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to download and decrypt file", err)
 	}
 
 	s.logger.Info("✅ Successfully downloaded and decrypted file",
-		zap.String("fileID", input.FileID),
+		zap.String("fileID", input.FileID.String()),
 		zap.String("fileName", downloadResult.DecryptedMetadata.Name),
 		zap.String("name", downloadResult.DecryptedMetadata.Name),
 		zap.String("mimeType", downloadResult.DecryptedMetadata.MimeType),
@@ -166,7 +159,7 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	decryptedPath, err := s.saveDecryptedFileWithDebug(ctx, file, downloadResult.DecryptedData, downloadResult.DecryptedMetadata)
 	if err != nil {
 		s.logger.Error("❌ failed to save decrypted file",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to save decrypted file", err)
 	}
@@ -178,11 +171,11 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 		thumbnailPath, err := s.saveThumbnail(ctx, file, downloadResult.ThumbnailData, downloadResult.DecryptedMetadata.Name)
 		if err != nil {
 			s.logger.Warn("⚠️ Failed to save thumbnail, continuing without it",
-				zap.String("fileID", input.FileID),
+				zap.String("fileID", input.FileID.String()),
 				zap.Error(err))
 		} else {
 			s.logger.Debug("✅ Successfully saved thumbnail",
-				zap.String("fileID", input.FileID),
+				zap.String("fileID", input.FileID.String()),
 				zap.String("thumbnailPath", thumbnailPath))
 		}
 	}
@@ -210,19 +203,19 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 	_, err = s.updateFileUseCase.Execute(ctx, updateInput)
 	if err != nil {
 		s.logger.Error("❌ failed to update file sync status during onload",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to update file sync status during onload", err)
 	}
 
 	s.logger.Info("✨ Successfully onloaded file",
-		zap.String("fileID", input.FileID),
+		zap.String("fileID", input.FileID.String()),
 		zap.String("decryptedPath", decryptedPath),
 		zap.Any("previousStatus", previousStatus),
 		zap.Any("newStatus", newStatus))
 
 	return &OnloadOutput{
-		FileID:         fileObjectID,
+		FileID:         input.FileID,
 		PreviousStatus: previousStatus,
 		NewStatus:      newStatus,
 		DecryptedPath:  decryptedPath,

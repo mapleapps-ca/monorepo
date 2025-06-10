@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
@@ -274,7 +274,7 @@ func (s *synchronizedCollectionSharingService) updateLocalCollectionWithNewMembe
 
 	// Create new membership
 	newMember := &collection.CollectionMembership{
-		ID:                     primitive.NewObjectID(), // Generate new membership ID
+		ID:                     gocql.TimeUUID(), // Generate new membership ID
 		CollectionID:           input.CollectionID,
 		RecipientID:            publicLookupResponse.UserID,
 		RecipientEmail:         input.RecipientEmail,
@@ -283,7 +283,7 @@ func (s *synchronizedCollectionSharingService) updateLocalCollectionWithNewMembe
 		PermissionLevel:        input.PermissionLevel,
 		CreatedAt:              time.Now(),
 		IsInherited:            false,
-		InheritedFromID:        primitive.NilObjectID,
+		// InheritedFromID:
 	}
 
 	// Check if member already exists (shouldn't happen, but be defensive)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -41,12 +42,19 @@ Examples:
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			if collectionID != "" {
-				// List files in specific collection
-				input := &localfile.ListInput{
-					CollectionID: collectionID,
+				// Convert collection ID
+				collectionObjectID, err := gocql.ParseUUID(collectionID)
+				if err != nil {
+					fmt.Printf("❌ Error: Invalid collection ID format: %v\n", err)
+					return
 				}
 
-				fmt.Printf("📂 Listing files in collection: %s\n\n", collectionID)
+				// List files in specific collection
+				input := &localfile.ListInput{
+					CollectionID: collectionObjectID,
+				}
+
+				fmt.Printf("📂 Listing files in collection: %s\n\n", collectionObjectID.String())
 
 				output, err := listService.ListByCollection(cmd.Context(), input)
 				if err != nil {

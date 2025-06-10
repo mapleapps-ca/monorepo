@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
@@ -42,7 +42,7 @@ func debugE2EECmd(
 				return
 			}
 
-			fileObjectID, err := primitive.ObjectIDFromHex(fileID)
+			fileObjectID, err := gocql.ParseUUID(fileID)
 			if err != nil {
 				fmt.Printf("❌ Error: Invalid file ID format: %v\n", err)
 				return

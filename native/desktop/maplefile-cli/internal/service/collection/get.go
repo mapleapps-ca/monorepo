@@ -4,7 +4,7 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
@@ -19,8 +19,8 @@ type GetOutput struct {
 
 // GetService defines the interface for getting local collections
 type GetService interface {
-	Get(ctx context.Context, id string) (*GetOutput, error)
-	GetPath(ctx context.Context, id string) ([]*collection.Collection, error)
+	Get(ctx context.Context, id gocql.UUID) (*GetOutput, error)
+	GetPath(ctx context.Context, id gocql.UUID) ([]*collection.Collection, error)
 }
 
 // getService implements the GetService interface
@@ -45,24 +45,19 @@ func NewGetService(
 }
 
 // Get retrieves a local collection by ID
-func (s *getService) Get(ctx context.Context, id string) (*GetOutput, error) {
+func (s *getService) Get(ctx context.Context, id gocql.UUID) (*GetOutput, error) {
 	// Validate input
-	if id == "" {
+	if id.String() == "" {
 		s.logger.Error("❌ collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
-	// Convert ID string to ObjectID
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		s.logger.Error("❌ invalid collection ID format", zap.String("id", id), zap.Error(err))
-		return nil, errors.NewAppError("invalid collection ID format", err)
-	}
-
 	// Call the use case to get the collection
-	collection, err := s.useCase.Execute(ctx, objectID)
+	collection, err := s.useCase.Execute(ctx, id)
 	if err != nil {
-		s.logger.Error("❌ failed to get local collection", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to get local collection",
+			zap.String("id", id.String()),
+			zap.Error(err))
 		return nil, err
 	}
 
@@ -72,24 +67,19 @@ func (s *getService) Get(ctx context.Context, id string) (*GetOutput, error) {
 }
 
 // GetPath retrieves the full path (ancestors) of a collection
-func (s *getService) GetPath(ctx context.Context, id string) ([]*collection.Collection, error) {
+func (s *getService) GetPath(ctx context.Context, id gocql.UUID) ([]*collection.Collection, error) {
 	// Validate input
-	if id == "" {
+	if id.String() == "" {
 		s.logger.Error("❌ collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
-	// Convert ID string to ObjectID
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		s.logger.Error("❌ invalid collection ID format", zap.String("id", id), zap.Error(err))
-		return nil, errors.NewAppError("invalid collection ID format", err)
-	}
-
 	// Call the use case to get the path
-	path, err := s.pathUseCase.Execute(ctx, objectID)
+	path, err := s.pathUseCase.Execute(ctx, id)
 	if err != nil {
-		s.logger.Error("❌ failed to get collection path", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to get collection path",
+			zap.String("id", id.String()),
+			zap.Error(err))
 		return nil, err
 	}
 

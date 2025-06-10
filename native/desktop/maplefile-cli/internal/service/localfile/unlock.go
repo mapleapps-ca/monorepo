@@ -5,10 +5,9 @@ import (
 	"context"
 	"os"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
@@ -22,9 +21,9 @@ import (
 
 // UnlockInput represents the input for unlocking a file
 type UnlockInput struct {
-	FileID      string `json:"file_id"`
-	Password    string `json:"password"`
-	StorageMode string `json:"storage_mode"` // "decrypted_only" or "hybrid"
+	FileID      gocql.UUID `json:"file_id"`
+	Password    string     `json:"password"`
+	StorageMode string     `json:"storage_mode"` // "decrypted_only" or "hybrid"
 }
 
 // UnlockOutput represents the result of unlocking a file
@@ -88,7 +87,7 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 		s.logger.Error("❌ input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
-	if input.FileID == "" {
+	if input.FileID.String() == "" {
 		s.logger.Error("❌ file ID is required")
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
@@ -107,30 +106,24 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 	//
 	// STEP 2: Convert file ID string to ObjectID
 	//
-	fileObjectID, err := primitive.ObjectIDFromHex(input.FileID)
-	if err != nil {
-		s.logger.Error("❌ invalid file ID format",
-			zap.String("fileID", input.FileID),
-			zap.Error(err))
-		return nil, errors.NewAppError("invalid file ID format", err)
-	}
+	// Skip
 
 	//
 	// STEP 3: Get file, user, and collection for E2EE operations
 	//
 	s.logger.Debug("🔍 Getting file for unlock operation",
-		zap.String("fileID", input.FileID))
+		zap.String("fileID", input.FileID.String()))
 
-	file, err := s.getFileUseCase.Execute(ctx, fileObjectID)
+	file, err := s.getFileUseCase.Execute(ctx, input.FileID)
 	if err != nil {
 		s.logger.Error("❌ failed to get file",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to get file", err)
 	}
 
 	if file == nil {
-		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID))
+		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID.String()))
 		return nil, errors.NewAppError("file not found", nil)
 	}
 
@@ -160,7 +153,7 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 	//
 	if file.SyncStatus == dom_file.SyncStatusCloudOnly {
 		s.logger.Error("❌ cannot unlock cloud-only file",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Any("syncStatus", file.SyncStatus))
 		return nil, errors.NewAppError("cannot unlock a cloud-only file. Use 'filesync onload' first.", nil)
 	}
@@ -168,10 +161,10 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 	// Check if already in desired mode
 	if file.StorageMode == input.StorageMode {
 		s.logger.Info("ℹ️ file is already in desired storage mode",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.String("storageMode", input.StorageMode))
 		return &UnlockOutput{
-			FileID:         fileObjectID,
+			FileID:         input.FileID,
 			PreviousMode:   previousMode,
 			NewMode:        input.StorageMode,
 			PreviousStatus: previousStatus,
@@ -185,13 +178,13 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 	//
 	if file.EncryptedFilePath == "" {
 		s.logger.Error("❌ no encrypted file path available",
-			zap.String("fileID", input.FileID))
+			zap.String("fileID", input.FileID.String()))
 		return nil, errors.NewAppError("no encrypted file available to unlock", nil)
 	}
 
 	if _, err := os.Stat(file.EncryptedFilePath); os.IsNotExist(err) {
 		s.logger.Error("❌ encrypted file does not exist",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.String("encryptedPath", file.EncryptedFilePath))
 		return nil, errors.NewAppError("encrypted file does not exist on disk", nil)
 	}
@@ -217,7 +210,7 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 	// STEP 7: Decrypting file content for unlocking using crypto service
 	//
 	s.logger.Info("🔐 Decrypting file content for unlocking using crypto service",
-		zap.String("fileID", input.FileID))
+		zap.String("fileID", input.FileID.String()))
 
 	// Read encrypted file content
 	encryptedData, err := os.ReadFile(file.EncryptedFilePath)
@@ -246,7 +239,7 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 	}
 
 	s.logger.Debug("💾 Successfully saved decrypted file using crypto service",
-		zap.String("fileID", input.FileID),
+		zap.String("fileID", input.FileID.String()),
 		zap.String("decryptedPath", decryptedPath))
 
 	//
@@ -255,19 +248,19 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 	var deletedPath string
 	if input.StorageMode == dom_file.StorageModeDecryptedOnly {
 		s.logger.Info("🗑️ Deleting encrypted file for decrypted-only mode",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.String("encryptedPath", file.EncryptedFilePath))
 
 		if err := s.deleteFileUseCase.Execute(ctx, file.EncryptedFilePath); err != nil {
 			s.logger.Warn("⚠️ Failed to delete encrypted file",
-				zap.String("fileID", input.FileID),
+				zap.String("fileID", input.FileID.String()),
 				zap.String("encryptedPath", file.EncryptedFilePath),
 				zap.Error(err))
 			// Continue anyway, we'll still update the storage mode
 		} else {
 			deletedPath = file.EncryptedFilePath
 			s.logger.Debug("🗑️ Successfully deleted encrypted file",
-				zap.String("fileID", input.FileID),
+				zap.String("fileID", input.FileID.String()),
 				zap.String("encryptedPath", file.EncryptedFilePath))
 		}
 	}
@@ -292,13 +285,13 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 	_, err = s.updateFileUseCase.Execute(ctx, updateInput)
 	if err != nil {
 		s.logger.Error("❌ failed to update file storage mode during unlock",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to update file storage mode during unlock", err)
 	}
 
 	s.logger.Info("✅ Successfully unlocked file using E2EE crypto services",
-		zap.String("fileID", input.FileID),
+		zap.String("fileID", input.FileID.String()),
 		zap.String("previousMode", previousMode),
 		zap.String("newMode", input.StorageMode))
 
@@ -310,7 +303,7 @@ func (s *unlockService) Unlock(ctx context.Context, input *UnlockInput) (*Unlock
 	}
 
 	return &UnlockOutput{
-		FileID:         fileObjectID,
+		FileID:         input.FileID,
 		PreviousMode:   previousMode,
 		NewMode:        input.StorageMode,
 		PreviousStatus: previousStatus,

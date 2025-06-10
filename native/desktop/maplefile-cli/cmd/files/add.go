@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
@@ -73,7 +73,7 @@ Examples:
 			}
 
 			// Convert collection ID
-			collectionObjectID, err := primitive.ObjectIDFromHex(collectionID)
+			collectionObjectID, err := gocql.ParseUUID(collectionID)
 			if err != nil {
 				fmt.Printf("❌ Error: Invalid collection ID format: %v\n", err)
 				return
@@ -105,7 +105,7 @@ Examples:
 			input := &localfile.LocalFileAddInput{
 				FilePath:     filePath,
 				CollectionID: collectionObjectID,
-				OwnerID:      primitive.NewObjectID(), // Service will use authenticated user ID
+				OwnerID:      gocql.TimeUUID(), // Service will use authenticated user ID
 				Name:         name,
 				StorageMode:  storageMode,
 			}

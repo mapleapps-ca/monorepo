@@ -4,9 +4,11 @@ package collections
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -64,6 +66,11 @@ Examples:
 			var err error
 			var filterDescription string
 
+			parenObjectID, err := gocql.ParseUUID(parentID)
+			if err != nil {
+				log.Fatalf("invalid parent ID format (expected UUID): %v\n", err)
+			}
+
 			// Determine which listing method to use
 			if showModified {
 				filterDescription = "locally modified collections"
@@ -87,8 +94,8 @@ Examples:
 					return
 				}
 			} else if parentID != "" {
-				filterDescription = fmt.Sprintf("sub-collections under parent %s", parentID)
-				output, err = listService.ListByParent(ctx, parentID)
+				filterDescription = fmt.Sprintf("sub-collections under parent %s", parenObjectID.String())
+				output, err = listService.ListByParent(ctx, parenObjectID)
 			} else {
 				filterDescription = "root collections"
 				output, err = listService.ListRoots(ctx)
@@ -185,7 +192,7 @@ func displayDetailedList(collections []*collection.Collection) {
 		fmt.Printf("📊 State: %s\n", coll.State)
 		fmt.Printf("🔄 Sync Status: %s\n", getSyncStatusString(coll.SyncStatus))
 
-		if !coll.ParentID.String() == "" {
+		if !(coll.ParentID.String() == "") {
 			fmt.Printf("📂 Parent ID: %s\n", coll.ParentID.String())
 		} else {
 			fmt.Printf("📊 Level: Root collection\n")

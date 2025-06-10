@@ -6,8 +6,8 @@ import (
 	"log"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
@@ -38,7 +38,7 @@ Examples:
 				return
 			}
 
-			fileIDObj, err := primitive.ObjectIDFromHex(fileID)
+			fileIDObj, err := gocql.ParseUUID(fileID)
 			if err != nil {
 				log.Fatalf("Failed converting string-to-object-id: %v\n", err)
 			}

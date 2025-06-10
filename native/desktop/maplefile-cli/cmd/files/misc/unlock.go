@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -54,6 +55,11 @@ Examples:
 				fmt.Println("Use --file-id flag to specify the file to unlock.")
 				return
 			}
+			fid, err := gocql.ParseUUID(fileID)
+			if err != nil {
+				fmt.Println("❌ Error: File ID not correct format.")
+				return
+			}
 
 			if password == "" {
 				fmt.Println("❌ Error: Password is required for E2EE operations.")
@@ -74,13 +80,13 @@ Examples:
 
 			// Create service input
 			input := &localfile.UnlockInput{
-				FileID:      fileID,
+				FileID:      fid,
 				Password:    password,
 				StorageMode: storageMode,
 			}
 
 			// Execute unlock operation
-			fmt.Printf("🔓 Unlocking file: %s\n", fileID)
+			fmt.Printf("🔓 Unlocking file: %s\n", fid.String())
 			if storageMode == dom_file.StorageModeHybrid {
 				fmt.Println("🔄 Switching to hybrid mode (keeping both encrypted and decrypted versions)...")
 			} else {

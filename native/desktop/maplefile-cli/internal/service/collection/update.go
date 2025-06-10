@@ -4,9 +4,9 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
@@ -17,10 +17,10 @@ import (
 
 // UpdateInput represents the input for updating a local collection
 type UpdateInput struct {
-	ID             string  `json:"id"`
-	Name           *string `json:"name,omitempty"`
-	CollectionType *string `json:"collection_type,omitempty"`
-	UserPassword   string  `json:"user_password,omitempty"`
+	ID             gocql.UUID `json:"id"`
+	Name           *string    `json:"name,omitempty"`
+	CollectionType *string    `json:"collection_type,omitempty"`
+	UserPassword   string     `json:"user_password,omitempty"`
 }
 
 // UpdateOutput represents the result of updating a local collection
@@ -66,16 +66,9 @@ func NewUpdateService(
 // Update updates a local collection using proper E2EE
 func (s *updateService) Update(ctx context.Context, input UpdateInput) (*UpdateOutput, error) {
 	// Validate inputs
-	if input.ID == "" {
+	if input.ID.String() == "" {
 		s.logger.Error("❌ collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
-	}
-
-	// Convert ID string to ObjectID
-	objectID, err := primitive.ObjectIDFromHex(input.ID)
-	if err != nil {
-		s.logger.Error("❌ invalid collection ID format", zap.String("id", input.ID), zap.Error(err))
-		return nil, errors.NewAppError("invalid collection ID format", err)
 	}
 
 	// Validate collection type if provided
@@ -88,7 +81,7 @@ func (s *updateService) Update(ctx context.Context, input UpdateInput) (*UpdateO
 
 	// Prepare the use case input
 	useCaseInput := uc.UpdateCollectionInput{
-		ID: objectID,
+		ID: input.ID,
 	}
 
 	// Proper E2EE encryption instead of base64 encoding
@@ -108,7 +101,7 @@ func (s *updateService) Update(ctx context.Context, input UpdateInput) (*UpdateO
 		}
 
 		// Get collection for E2EE operations
-		currentCollection, err := s.getUseCase.Execute(ctx, objectID)
+		currentCollection, err := s.getUseCase.Execute(ctx, input.ID)
 		if err != nil {
 			return nil, errors.NewAppError("failed to get collection for E2EE", err)
 		}
@@ -145,11 +138,14 @@ func (s *updateService) Update(ctx context.Context, input UpdateInput) (*UpdateO
 	// Call the use case to update the collection
 	collection, err := s.updateUseCase.Execute(ctx, useCaseInput)
 	if err != nil {
-		s.logger.Error("❌ failed to update local collection", zap.String("id", input.ID), zap.Error(err))
+		s.logger.Error("❌ failed to update local collection",
+			zap.String("id", input.ID.String()),
+			zap.Error(err))
 		return nil, err
 	}
 
-	s.logger.Info("✅ Successfully updated collection using E2EE crypto service", zap.String("id", input.ID))
+	s.logger.Info("✅ Successfully updated collection using E2EE crypto service",
+		zap.String("id", input.ID.String()))
 
 	return &UpdateOutput{
 		Collection: collection,

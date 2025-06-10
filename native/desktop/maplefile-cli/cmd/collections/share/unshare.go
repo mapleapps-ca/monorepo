@@ -3,8 +3,10 @@ package share
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -43,6 +45,13 @@ Examples:
 				return
 			}
 
+			// Convert string ID to gocql.TimeUUID
+			// Note: This variable is named collectionObjectID but now holds a gocql.TimeUUID
+			collectionObjectID, err := gocql.ParseUUID(collectionID)
+			if err != nil {
+				log.Fatalf("invalid collection ID format (expected UUID): %v\n", err)
+			}
+
 			if recipientEmail == "" {
 				fmt.Println("🐞 Error: Recipient email is required.")
 				fmt.Println("Use --email flag to specify the email address of the user to remove.")
@@ -51,14 +60,13 @@ Examples:
 
 			// Create service input
 			input := &collectionsharing.RemoveMemberInput{
-				CollectionID:          collectionID,
+				CollectionID:          collectionObjectID,
 				RecipientEmail:        recipientEmail,
 				RemoveFromDescendants: removeFromDescendants,
 			}
 
 			// Execute remove operation
-			_, err := removeMemberService.Execute(cmd.Context(), input)
-			if err != nil {
+			if _, err := removeMemberService.Execute(cmd.Context(), input); err != nil {
 				fmt.Printf("🐞 Error removing collection member: %v\n", err)
 				if strings.Contains(err.Error(), "permission") {
 					fmt.Printf("❌ Error: You don't have permission to remove members from this collection.\n")

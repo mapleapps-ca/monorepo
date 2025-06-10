@@ -4,10 +4,9 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 )
@@ -39,19 +38,22 @@ func NewDeleteService(
 // Delete deletes a local collection by ID
 func (s *deleteService) Delete(ctx context.Context, id gocql.UUID) error {
 	// Validate input
-	if id == "" {
+	if id.String() == "" {
 		s.logger.Error("❌ collection ID is required")
 		return errors.NewAppError("collection ID is required", nil)
 	}
 
 	// Call the use case to delete the collection
-	err = s.deleteUseCase.Execute(ctx, id)
+	err := s.deleteUseCase.Execute(ctx, id)
 	if err != nil {
-		s.logger.Error("❌ failed to delete local collection", zap.String("id", id), zap.Error(err))
+		s.logger.Error("❌ failed to delete local collection",
+			zap.String("id", id.String()),
+			zap.Error(err))
 		return err
 	}
 
-	s.logger.Info("✅ local collection deleted successfully", zap.String("id", id))
+	s.logger.Info("✅ local collection deleted successfully",
+		zap.String("id", id.String()))
 	return nil
 }
 
@@ -63,20 +65,15 @@ func (s *deleteService) DeleteWithChildren(ctx context.Context, id gocql.UUID) e
 		return errors.NewAppError("collection ID is required", nil)
 	}
 
-	// Convert ID string to ObjectID
-	objectID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		s.logger.Error("❌ invalid collection ID format", zap.String("id", id), zap.Error(err))
-		return errors.NewAppError("invalid collection ID format", err)
-	}
-
 	// Call the use case to delete the collection with children
-	err = s.deleteUseCase.DeleteWithChildren(ctx, objectID)
-	if err != nil {
-		s.logger.Error("❌ failed to delete local collection with children", zap.String("id", id), zap.Error(err))
+
+	if err := s.deleteUseCase.DeleteWithChildren(ctx, id); err != nil {
+		s.logger.Error("❌ failed to delete local collection with children",
+			zap.String("id", id.String()), zap.Error(err))
 		return err
 	}
 
-	s.logger.Info("✅ local collection and its children deleted successfully", zap.String("id", id))
+	s.logger.Info("✅ local collection and its children deleted successfully",
+		zap.String("id", id.String()))
 	return nil
 }

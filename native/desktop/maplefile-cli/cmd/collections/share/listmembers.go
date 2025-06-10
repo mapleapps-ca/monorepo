@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -43,8 +44,15 @@ Examples:
 				return
 			}
 
+			cid, err := gocql.ParseUUID(collectionID)
+			if err != nil {
+				fmt.Println("🐞 Error: Parsing collection ID.")
+				fmt.Println(err)
+				return
+			}
+
 			// Execute get members operation
-			members, err := getMembersService.Execute(cmd.Context(), collectionID)
+			members, err := getMembersService.Execute(cmd.Context(), cid)
 			if err != nil {
 				fmt.Printf("🐞 Error getting collection members: %v\n", err)
 				if strings.Contains(err.Error(), "not found") {

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/gocql/gocql"
@@ -17,8 +16,8 @@ import (
 
 // CloudOnlyDeleteInput represents the input for deleting a file from cloud
 type CloudOnlyDeleteInput struct {
-	FileID       string `json:"file_id"`
-	UserPassword string `json:"user_password"`
+	FileID       gocql.UUID `json:"file_id"`
+	UserPassword string     `json:"user_password"`
 }
 
 // CloudOnlyDeleteOutput represents the result of deleting a file from cloud
@@ -68,7 +67,7 @@ func (s *cloudOnlyDeleteService) DeleteFromCloud(ctx context.Context, input *Clo
 		s.logger.Error("❌ input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
-	if input.FileID == "" {
+	if input.FileID.String() == "" {
 		s.logger.Error("❌ file ID is required")
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
@@ -80,30 +79,24 @@ func (s *cloudOnlyDeleteService) DeleteFromCloud(ctx context.Context, input *Clo
 	//
 	// STEP 2: Convert file ID string to ObjectID
 	//
-	fileObjectID, err := primitive.ObjectIDFromHex(input.FileID)
-	if err != nil {
-		s.logger.Error("❌ invalid file ID format",
-			zap.String("fileID", input.FileID),
-			zap.Error(err))
-		return nil, errors.NewAppError("invalid file ID format", err)
-	}
+	// Skip
 
 	//
 	// STEP 3: Get the file to check its current sync status
 	//
 	s.logger.Debug("🔍 Getting file for cloud delete operation",
-		zap.String("fileID", input.FileID))
+		zap.String("fileID", input.FileID.String()))
 
-	file, err := s.getFileUseCase.Execute(ctx, fileObjectID)
+	file, err := s.getFileUseCase.Execute(ctx, input.FileID)
 	if err != nil {
 		s.logger.Error("❌ failed to get file",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to get file", err)
 	}
 
 	if file == nil {
-		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID))
+		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID.String()))
 		return nil, errors.NewAppError("file not found", nil)
 	}
 
@@ -113,34 +106,34 @@ func (s *cloudOnlyDeleteService) DeleteFromCloud(ctx context.Context, input *Clo
 	// STEP 4: Validate file sync status and provide detailed feedback
 	//
 	s.logger.Info("ℹ️ Checking file sync status for cloud deletion",
-		zap.String("fileID", input.FileID),
+		zap.String("fileID", input.FileID.String()),
 		zap.Any("currentSyncStatus", file.SyncStatus),
 		zap.String("fileName", file.Name))
 
 	switch file.SyncStatus {
 	case dom_file.SyncStatusLocalOnly:
 		s.logger.Warn("⚠️ File is local-only, cannot delete from cloud",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.String("fileName", file.Name),
 			zap.Any("syncStatus", file.SyncStatus))
 		return nil, errors.NewAppError(fmt.Sprintf("file '%s' is local-only and does not exist in cloud storage", file.Name), nil)
 
 	case dom_file.SyncStatusModifiedLocally:
 		s.logger.Warn("⚠️ File has local modifications, deletion from cloud may cause data loss",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.String("fileName", file.Name),
 			zap.Any("syncStatus", file.SyncStatus))
 		// Continue with deletion but log warning
 
 	case dom_file.SyncStatusSynced, dom_file.SyncStatusCloudOnly:
 		s.logger.Info("✅ File is eligible for cloud deletion",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.String("fileName", file.Name),
 			zap.Any("syncStatus", file.SyncStatus))
 
 	default:
 		s.logger.Error("❌ unknown sync status",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.String("fileName", file.Name),
 			zap.Any("syncStatus", file.SyncStatus))
 		return nil, errors.NewAppError(fmt.Sprintf("unknown sync status for file '%s': %v", file.Name, file.SyncStatus), nil)
@@ -150,14 +143,13 @@ func (s *cloudOnlyDeleteService) DeleteFromCloud(ctx context.Context, input *Clo
 	// STEP 5: Delete file from cloud backend
 	//
 	s.logger.Info("☁️ Deleting file from cloud backend",
-		zap.String("fileID", input.FileID),
+		zap.String("fileID", input.FileID.String()),
 		zap.Any("previousStatus", previousStatus))
 
-	err = s.fileDTORepo.DeleteByIDFromCloud(ctx, fileObjectID)
+	err = s.fileDTORepo.DeleteByIDFromCloud(ctx, input.FileID)
 	if err != nil {
 		s.logger.Error("❌ failed to delete file from cloud",
-			zap.String("fileID", input.FileID),
-			zap.String("fileObjectID", fileObjectID.String()),
+			zap.String("fileID", input.FileID.String()),
 			zap.Any("fileSyncStatus", file.SyncStatus),
 			zap.Error(err))
 
@@ -183,18 +175,18 @@ func (s *cloudOnlyDeleteService) DeleteFromCloud(ctx context.Context, input *Clo
 	_, err = s.updateFileUseCase.Execute(ctx, updateInput)
 	if err != nil {
 		s.logger.Error("❌ failed to update file sync status after cloud deletion",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to update file sync status after cloud deletion", err)
 	}
 
 	s.logger.Info("🎉 Successfully deleted file from cloud and updated sync status",
-		zap.String("fileID", input.FileID),
+		zap.String("fileID", input.FileID.String()),
 		zap.Any("previousStatus", previousStatus),
 		zap.Any("newStatus", newStatus))
 
 	return &CloudOnlyDeleteOutput{
-		FileID:         fileObjectID,
+		FileID:         input.FileID,
 		PreviousStatus: previousStatus,
 		NewStatus:      newStatus,
 		Action:         "cloud_deleted",

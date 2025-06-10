@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -39,6 +40,13 @@ Examples:
 				return
 			}
 
+			// Convert to ObjectID
+			fileObjectID, err := gocql.ParseUUID(fileID)
+			if err != nil {
+				fmt.Printf("❌ Error: Invalid file ID format: %v\n", err)
+				return
+			}
+
 			if password == "" {
 				fmt.Println("❌ Error: Password is required for E2EE operations.")
 				fmt.Println("Use --password flag to specify your account password.")
@@ -47,7 +55,7 @@ Examples:
 
 			// Create service input
 			input := &filesyncer.OffloadInput{
-				FileID:       fileID,
+				FileID:       fileObjectID,
 				UserPassword: password,
 			}
 

@@ -6,8 +6,8 @@ import (
 	"log"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
@@ -94,10 +94,11 @@ Sync strategies:
 				return
 			}
 
-			// Convert string ID to ObjectID
-			collectionObjectID, err := primitive.ObjectIDFromHex(collectionID)
+			// Convert string ID to gocql.TimeUUID
+			// Note: This variable is named collectionObjectID but now holds a gocql.TimeUUID
+			collectionObjectID, err := gocql.ParseUUID(collectionID)
 			if err != nil {
-				log.Fatalf("invalid collection ID format: %v\n", err)
+				log.Fatalf("invalid collection ID format (expected UUID): %v\n", err)
 			}
 
 			//

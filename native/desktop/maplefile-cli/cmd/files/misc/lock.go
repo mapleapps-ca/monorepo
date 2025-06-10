@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -44,6 +45,11 @@ Examples:
 				fmt.Println("Use --file-id flag to specify the file to lock.")
 				return
 			}
+			fid, err := gocql.ParseUUID(fileID)
+			if err != nil {
+				fmt.Println("❌ Error: File ID not correct format.")
+				return
+			}
 
 			if password == "" {
 				fmt.Println("❌ Error: Password is required for E2EE operations.")
@@ -53,7 +59,7 @@ Examples:
 
 			// Create service input
 			input := &localfile.LockInput{
-				FileID:   fileID,
+				FileID:   fid,
 				Password: password,
 			}
 

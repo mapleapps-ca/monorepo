@@ -4,9 +4,9 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
@@ -21,7 +21,7 @@ type ListOutput struct {
 // ListService defines the interface for listing local collections
 type ListService interface {
 	ListRoots(ctx context.Context) (*ListOutput, error)
-	ListByParent(ctx context.Context, parentID string) (*ListOutput, error)
+	ListByParent(ctx context.Context, parentID gocql.UUID) (*ListOutput, error)
 	ListModifiedLocally(ctx context.Context) (*ListOutput, error)
 }
 
@@ -59,24 +59,19 @@ func (s *listService) ListRoots(ctx context.Context) (*ListOutput, error) {
 }
 
 // ListByParent lists local collections under a specific parent
-func (s *listService) ListByParent(ctx context.Context, parentID string) (*ListOutput, error) {
+func (s *listService) ListByParent(ctx context.Context, parentID gocql.UUID) (*ListOutput, error) {
 	// Validate input
-	if parentID == "" {
+	if parentID.String() == "" {
 		s.logger.Error("❌ parent ID is required")
 		return nil, errors.NewAppError("parent ID is required", nil)
 	}
 
-	// Convert parent ID string to ObjectID
-	parentObjectID, err := primitive.ObjectIDFromHex(parentID)
-	if err != nil {
-		s.logger.Error("❌ invalid parent ID format", zap.String("parentID", parentID), zap.Error(err))
-		return nil, errors.NewAppError("invalid parent ID format", err)
-	}
-
 	// Call the use case to list collections by parent
-	collections, err := s.listUseCase.ListByParent(ctx, parentObjectID)
+	collections, err := s.listUseCase.ListByParent(ctx, parentID)
 	if err != nil {
-		s.logger.Error("❌ failed to list collections by parent", zap.String("parentID", parentID), zap.Error(err))
+		s.logger.Error("❌ failed to list collections by parent",
+			zap.String("parentID", parentID.String()),
+			zap.Error(err))
 		return nil, err
 	}
 

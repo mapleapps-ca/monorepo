@@ -4,18 +4,18 @@ package collectionsharing
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectionsharingdto"
 )
 
 // RemoveMemberInput represents input for removing a member at the service level
 type RemoveMemberInput struct {
-	CollectionID          string `json:"collection_id"`
-	RecipientEmail        string `json:"recipient_email"`
-	RemoveFromDescendants bool   `json:"remove_from_descendants"`
+	CollectionID          gocql.UUID `json:"collection_id"`
+	RecipientEmail        string     `json:"recipient_email"`
+	RemoveFromDescendants bool       `json:"remove_from_descendants"`
 }
 
 // RemoveMemberOutput represents the output from removing a member
@@ -52,7 +52,7 @@ func (s *collectionSharingRemoveMembersServiceImpl) Execute(ctx context.Context,
 		s.logger.Error("❌ Input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
-	if input.CollectionID == "" {
+	if input.CollectionID.String() == "" {
 		s.logger.Error("❌ Collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
@@ -62,11 +62,7 @@ func (s *collectionSharingRemoveMembersServiceImpl) Execute(ctx context.Context,
 	}
 
 	// Convert string ID to ObjectID
-	collectionObjectID, err := primitive.ObjectIDFromHex(input.CollectionID)
-	if err != nil {
-		s.logger.Error("❌ Invalid collection ID format", zap.String("id", input.CollectionID), zap.Error(err))
-		return nil, errors.NewAppError("invalid collection ID format", err)
-	}
+	collectionObjectID := input.CollectionID
 
 	// Create use case input
 	useCaseInput := &uc.RemoveMemberInput{
@@ -79,14 +75,14 @@ func (s *collectionSharingRemoveMembersServiceImpl) Execute(ctx context.Context,
 	response, err := s.removeMemberUseCase.Execute(ctx, useCaseInput)
 	if err != nil {
 		s.logger.Error("❌ Failed to remove collection member",
-			zap.String("collectionID", input.CollectionID),
+			zap.String("collectionID", input.CollectionID.String()),
 			zap.String("recipientEmail", input.RecipientEmail),
 			zap.Error(err))
 		return nil, err
 	}
 
 	s.logger.Info("✅ Successfully removed collection member",
-		zap.String("collectionID", input.CollectionID),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.String("recipientEmail", input.RecipientEmail))
 
 	return &RemoveMemberOutput{

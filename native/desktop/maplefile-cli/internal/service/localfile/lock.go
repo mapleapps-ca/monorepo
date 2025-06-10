@@ -5,10 +5,9 @@ import (
 	"context"
 	"os"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	svc_collectioncrypto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
@@ -22,8 +21,8 @@ import (
 
 // LockInput represents the input for locking a file (keeping only encrypted version)
 type LockInput struct {
-	FileID   string `json:"file_id"`
-	Password string `json:"password"`
+	FileID   gocql.UUID `json:"file_id"`
+	Password string     `json:"password"`
 }
 
 // LockOutput represents the result of locking a file
@@ -90,7 +89,7 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 		s.logger.Error("❌ input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
-	if input.FileID == "" {
+	if input.FileID.String() == "" {
 		s.logger.Error("❌ file ID is required")
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
@@ -102,30 +101,24 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	//
 	// STEP 2: Convert file ID string to ObjectID
 	//
-	fileObjectID, err := primitive.ObjectIDFromHex(input.FileID)
-	if err != nil {
-		s.logger.Error("❌ invalid file ID format",
-			zap.String("fileID", input.FileID),
-			zap.Error(err))
-		return nil, errors.NewAppError("invalid file ID format", err)
-	}
+	// Skip
 
 	//
 	// STEP 3: Get file, user, and collection for E2EE operations
 	//
 	s.logger.Debug("🔍 Getting file for lock operation",
-		zap.String("fileID", input.FileID))
+		zap.String("fileID", input.FileID.String()))
 
-	file, err := s.getFileUseCase.Execute(ctx, fileObjectID)
+	file, err := s.getFileUseCase.Execute(ctx, input.FileID)
 	if err != nil {
 		s.logger.Error("❌ failed to get file",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to get file", err)
 	}
 
 	if file == nil {
-		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID))
+		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID.String()))
 		return nil, errors.NewAppError("file not found", nil)
 	}
 
@@ -155,16 +148,16 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	//
 	if file.SyncStatus == dom_file.SyncStatusCloudOnly {
 		s.logger.Error("❌ cannot lock cloud-only file",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Any("syncStatus", file.SyncStatus))
 		return nil, errors.NewAppError("cannot lock a cloud-only file. File must have local decrypted version.", nil)
 	}
 
 	if file.StorageMode == dom_file.StorageModeEncryptedOnly {
 		s.logger.Info("✅ file is already locked (encrypted-only)",
-			zap.String("fileID", input.FileID))
+			zap.String("fileID", input.FileID.String()))
 		return &LockOutput{
-			FileID:         fileObjectID,
+			FileID:         input.FileID,
 			PreviousMode:   previousMode,
 			NewMode:        dom_file.StorageModeEncryptedOnly,
 			PreviousStatus: previousStatus,
@@ -178,13 +171,13 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	//
 	if file.FilePath == "" {
 		s.logger.Error("❌ no decrypted file path available",
-			zap.String("fileID", input.FileID))
+			zap.String("fileID", input.FileID.String()))
 		return nil, errors.NewAppError("no decrypted file available to lock", nil)
 	}
 
 	if _, err := os.Stat(file.FilePath); os.IsNotExist(err) {
 		s.logger.Error("❌ decrypted file does not exist",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.String("filePath", file.FilePath))
 		return nil, errors.NewAppError("decrypted file does not exist on disk", nil)
 	}
@@ -210,7 +203,7 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	// STEP 7: Encrypting file content for locking using crypto service
 	//
 	s.logger.Info("🔒 Encrypting file content for locking using crypto service",
-		zap.String("fileID", input.FileID))
+		zap.String("fileID", input.FileID.String()))
 
 	// Read file content
 	fileContent, err := os.ReadFile(file.FilePath)
@@ -236,7 +229,7 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	}
 
 	s.logger.Debug("✅ Successfully saved encrypted file using crypto service",
-		zap.String("fileID", input.FileID),
+		zap.String("fileID", input.FileID.String()),
 		zap.String("encryptedPath", encryptedPath))
 
 	//
@@ -244,19 +237,19 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	//
 	var deletedPath string
 	s.logger.Info("🗑️ Deleting decrypted file for lock operation",
-		zap.String("fileID", input.FileID),
+		zap.String("fileID", input.FileID.String()),
 		zap.String("filePath", file.FilePath))
 
 	if err := s.deleteFileUseCase.Execute(ctx, file.FilePath); err != nil {
 		s.logger.Warn("⚠️ Failed to delete decrypted file",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.String("filePath", file.FilePath),
 			zap.Error(err))
 		// Continue anyway, we'll still update the storage mode
 	} else {
 		deletedPath = file.FilePath
 		s.logger.Debug("✅ Successfully deleted decrypted file",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.String("filePath", file.FilePath))
 	}
 
@@ -279,18 +272,18 @@ func (s *lockService) Lock(ctx context.Context, input *LockInput) (*LockOutput, 
 	_, err = s.updateFileUseCase.Execute(ctx, updateInput)
 	if err != nil {
 		s.logger.Error("❌ failed to update file storage mode during lock",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to update file storage mode during lock", err)
 	}
 
 	s.logger.Info("🎉 Successfully locked file using E2EE crypto services",
-		zap.String("fileID", input.FileID),
+		zap.String("fileID", input.FileID.String()),
 		zap.String("previousMode", previousMode),
 		zap.String("newMode", newMode))
 
 	return &LockOutput{
-		FileID:         fileObjectID,
+		FileID:         input.FileID,
 		PreviousMode:   previousMode,
 		NewMode:        newMode,
 		PreviousStatus: previousStatus,

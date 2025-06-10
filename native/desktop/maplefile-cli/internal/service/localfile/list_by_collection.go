@@ -4,7 +4,7 @@ package localfile
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
@@ -14,7 +14,7 @@ import (
 
 // ListInput represents the input for listing files by collection
 type ListInput struct {
-	CollectionID string `json:"collection_id"`
+	CollectionID gocql.UUID `json:"collection_id"`
 }
 
 // ListOutput represents the result of listing files by collection
@@ -55,7 +55,7 @@ func (s *listService) ListByCollection(ctx context.Context, input *ListInput) (*
 		s.logger.Error("❌ Input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
-	if input.CollectionID == "" {
+	if input.CollectionID.String() == "" {
 		s.logger.Error("❌ Collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
@@ -63,24 +63,18 @@ func (s *listService) ListByCollection(ctx context.Context, input *ListInput) (*
 	//
 	// STEP 2: Convert collection ID string to ObjectID
 	//
-	collectionObjectID, err := primitive.ObjectIDFromHex(input.CollectionID)
-	if err != nil {
-		s.logger.Error("❌ Invalid collection ID format",
-			zap.String("collectionID", input.CollectionID),
-			zap.Error(err))
-		return nil, errors.NewAppError("invalid collection ID format", err)
-	}
+	//skip
 
 	//
 	// STEP 3: Execute the use case to list files by collection
 	//
 	s.logger.Debug("🔍 Listing files by collection",
-		zap.String("collectionID", input.CollectionID))
+		zap.String("collectionID", input.CollectionID.String()))
 
-	files, err := s.listFilesByCollectionUseCase.Execute(ctx, collectionObjectID)
+	files, err := s.listFilesByCollectionUseCase.Execute(ctx, input.CollectionID)
 	if err != nil {
 		s.logger.Error("❌ Failed to list files by collection",
-			zap.String("collectionID", input.CollectionID),
+			zap.String("collectionID", input.CollectionID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to list files by collection", err)
 	}
@@ -89,7 +83,7 @@ func (s *listService) ListByCollection(ctx context.Context, input *ListInput) (*
 	// STEP 4: Return structured output
 	//
 	s.logger.Info("✅ Successfully listed files by collection",
-		zap.String("collectionID", input.CollectionID),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.Int("fileCount", len(files)))
 
 	return &ListOutput{

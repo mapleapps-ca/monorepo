@@ -7,7 +7,6 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/spf13/cobra"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
@@ -71,12 +70,7 @@ Examples:
 			var isSubCollection bool
 
 			if parentID != "" {
-				var err error
-				parentObjectID, err = primitive.ObjectIDFromHex(parentID)
-				if err != nil {
-					fmt.Printf("🐞 Error: Invalid parent ID format: %v\n", err)
-					return
-				}
+				parentObjectID = gocql.TimeUUID()
 				isSubCollection = true
 			}
 
@@ -84,7 +78,7 @@ Examples:
 			input := &collection.CreateInput{
 				Name:           name,
 				CollectionType: collectionType,
-				OwnerID:        primitive.NewObjectID(), // Service will use authenticated user ID
+				OwnerID:        gocql.TimeUUID(), // Service will use authenticated user ID
 			}
 
 			if isSubCollection {
@@ -124,7 +118,7 @@ Examples:
 			fmt.Printf("📋 Collection Details:\n")
 			fmt.Printf("  📁 Name: %s\n", displayName)
 			fmt.Printf("  🏷️  Type: %s\n", output.Collection.CollectionType)
-			fmt.Printf("  🆔 ID: %s\n", output.Collection.ID.String())
+			fmt.Printf("  🆔 ID: %s\n", output.Collection.ID.String)
 
 			if isSubCollection {
 				fmt.Printf("  📂 Parent ID: %s\n", output.Collection.ParentID.String())

@@ -5,10 +5,9 @@ import (
 	"context"
 	"os"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/fileupload"
@@ -19,8 +18,8 @@ import (
 
 // OffloadInput represents the input for offloading a local file
 type OffloadInput struct {
-	FileID       string `json:"file_id"`
-	UserPassword string `json:"user_password"`
+	FileID       gocql.UUID `json:"file_id"`
+	UserPassword string     `json:"user_password"`
 }
 
 // OffloadOutput represents the result of offloading a local file
@@ -74,7 +73,7 @@ func (s *offloadService) Offload(ctx context.Context, input *OffloadInput) (*Off
 		s.logger.Error("❌ input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
-	if input.FileID == "" {
+	if input.FileID.String() == "" {
 		s.logger.Error("❌ file ID is required")
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
@@ -86,30 +85,24 @@ func (s *offloadService) Offload(ctx context.Context, input *OffloadInput) (*Off
 	//
 	// STEP 2: Convert file ID string to ObjectID
 	//
-	fileObjectID, err := primitive.ObjectIDFromHex(input.FileID)
-	if err != nil {
-		s.logger.Error("❌ invalid file ID format",
-			zap.String("fileID", input.FileID),
-			zap.Error(err))
-		return nil, errors.NewAppError("invalid file ID format", err)
-	}
+	// Skip
 
 	//
 	// STEP 3: Get the file to check its current sync status
 	//
 	s.logger.Debug("🔍 Getting file for offload operation",
-		zap.String("fileID", input.FileID))
+		zap.String("fileID", input.FileID.String()))
 
-	file, err := s.getFileUseCase.Execute(ctx, fileObjectID)
+	file, err := s.getFileUseCase.Execute(ctx, input.FileID)
 	if err != nil {
 		s.logger.Error("❌ failed to get file",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Error(err))
 		return nil, errors.NewAppError("failed to get file", err)
 	}
 
 	if file == nil {
-		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID))
+		s.logger.Error("❌ file not found", zap.String("fileID", input.FileID.String()))
 		return nil, errors.NewAppError("file not found", nil)
 	}
 
@@ -129,9 +122,9 @@ func (s *offloadService) Offload(ctx context.Context, input *OffloadInput) (*Off
 
 	case dom_file.SyncStatusCloudOnly:
 		// File is already offloaded
-		s.logger.Info("ℹ️ File is already offloaded", zap.String("fileID", input.FileID))
+		s.logger.Info("ℹ️ File is already offloaded", zap.String("fileID", input.FileID.String()))
 		return &OffloadOutput{
-			FileID:         fileObjectID,
+			FileID:         input.FileID,
 			Action:         "no_action",
 			PreviousStatus: previousStatus,
 			NewStatus:      dom_file.SyncStatusCloudOnly,
@@ -140,7 +133,7 @@ func (s *offloadService) Offload(ctx context.Context, input *OffloadInput) (*Off
 
 	default:
 		s.logger.Error("❌ unknown sync status",
-			zap.String("fileID", input.FileID),
+			zap.String("fileID", input.FileID.String()),
 			zap.Any("syncStatus", file.SyncStatus))
 		return nil, errors.NewAppError("unknown sync status", nil)
 	}
@@ -153,7 +146,8 @@ func (s *offloadService) handleUploadAndOffload(
 	userPassword string,
 	previousStatus dom_file.SyncStatus,
 ) (*OffloadOutput, error) {
-	s.logger.Info("✨ Uploading file before offload", zap.String("fileID", file.ID.String()))
+	s.logger.Info("✨ Uploading file before offload",
+		zap.String("fileID", file.ID.String()))
 
 	// Upload the file first
 	uploadResult, err := s.fileUploadService.Execute(ctx, file.ID, userPassword)
