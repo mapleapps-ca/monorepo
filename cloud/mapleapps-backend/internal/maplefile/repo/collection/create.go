@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/repo/collection/create.go
+// cloud/mapleapps-backend/internal/maplefile/repo/collection/create.go
 package collection
 
 import (
@@ -13,7 +13,6 @@ import (
 )
 
 func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *dom_collection.Collection) error {
-	// Validate collection
 	if collection == nil {
 		return fmt.Errorf("collection cannot be nil")
 	}
@@ -41,11 +40,6 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 	}
 
 	// Serialize complex fields
-	membersJSON, err := impl.serializeMembers(collection.Members)
-	if err != nil {
-		return fmt.Errorf("failed to serialize members: %w", err)
-	}
-
 	ancestorIDsJSON, err := impl.serializeAncestorIDs(collection.AncestorIDs)
 	if err != nil {
 		return fmt.Errorf("failed to serialize ancestor IDs: %w", err)
@@ -56,52 +50,45 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 		return fmt.Errorf("failed to serialize encrypted collection key: %w", err)
 	}
 
-	// Use batch for consistency across multiple tables
 	batch := impl.Session.NewBatch(gocql.LoggedBatch)
 
-	// 1. Insert into main table
-	batch.Query(`INSERT INTO maplefile_collections_by_id
+	// 1. Insert into main table (ALL Collection struct fields except Members)
+	batch.Query(`INSERT INTO maplefile_collections_by_id_simplified
 		(id, owner_id, encrypted_name, collection_type, encrypted_collection_key,
-		 members, parent_id, ancestor_ids, created_at, created_by_user_id,
+		 parent_id, ancestor_ids, created_at, created_by_user_id,
 		 modified_at, modified_by_user_id, version, state, tombstone_version, tombstone_expiry)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		collection.ID, collection.OwnerID, collection.EncryptedName, collection.CollectionType,
-		encryptedKeyJSON, membersJSON, collection.ParentID, ancestorIDsJSON,
+		encryptedKeyJSON, collection.ParentID, ancestorIDsJSON,
 		collection.CreatedAt, collection.CreatedByUserID, collection.ModifiedAt,
 		collection.ModifiedByUserID, collection.Version, collection.State,
 		collection.TombstoneVersion, collection.TombstoneExpiry)
 
-	// 2. Insert into owner index
-	batch.Query(`INSERT INTO maplefile_collections_by_owner_id_with_desc_modified_at_and_asc_id
-		(owner_id, modified_at, collection_id, state, parent_id, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		collection.OwnerID, collection.ModifiedAt, collection.ID, collection.State,
-		collection.ParentID, collection.CreatedAt)
+	// 2. Insert owner access into simplified user table
+	batch.Query(`INSERT INTO maplefile_collections_by_user_simplified
+		(user_id, collection_id, access_type, modified_at, state, parent_id, created_at)
+		VALUES (?, ?, 'owner', ?, ?, ?, ?)`,
+		collection.OwnerID, collection.ID, collection.ModifiedAt,
+		collection.State, collection.ParentID, collection.CreatedAt)
 
-	// 3. Insert into parent index (if has parent)
-	if impl.isValidUUID(collection.ParentID) {
-		batch.Query(`INSERT INTO maplefile_collections_by_parent_id_with_asc_created_at_and_asc_id
-			(parent_id, created_at, collection_id, state)
-			VALUES (?, ?, ?, ?)`,
-			collection.ParentID, collection.CreatedAt, collection.ID, collection.State)
-	}
-
-	// 4. Insert into ancestor depth index
-	ancestorEntries := impl.buildAncestorDepthEntries(collection.ID, collection.AncestorIDs)
-	for _, entry := range ancestorEntries {
-		batch.Query(`INSERT INTO maplefile_collections_by_ancestor_id_with_asc_depth_and_asc_collection_id
-			(ancestor_id, depth, collection_id, state)
-			VALUES (?, ?, ?, ?)`,
-			entry.AncestorID, entry.Depth, entry.CollectionID, collection.State)
-	}
-
-	// 5. Insert membership entries
+	// 3. Insert members into normalized table
 	for _, member := range collection.Members {
-		batch.Query(`INSERT INTO maplefile_collections_by_recipient_id_and_collection_id
-			(recipient_id, collection_id, permission_level, granted_at, modified_at)
-			VALUES (?, ?, ?, ?, ?)`,
+		batch.Query(`INSERT INTO maplefile_collection_members
+			(collection_id, recipient_id, member_id, recipient_email, granted_by_id,
+			 encrypted_collection_key, permission_level, created_at,
+			 is_inherited, inherited_from_id)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			collection.ID, member.RecipientID, member.ID, member.RecipientEmail,
+			member.GrantedByID, member.EncryptedCollectionKey,
+			member.PermissionLevel, member.CreatedAt,
+			member.IsInherited, member.InheritedFromID)
+
+		// Add member access
+		batch.Query(`INSERT INTO maplefile_collections_by_user_simplified
+			(user_id, collection_id, access_type, permission_level, modified_at, state, parent_id, created_at)
+			VALUES (?, ?, 'member', ?, ?, ?, ?, ?)`,
 			member.RecipientID, collection.ID, member.PermissionLevel,
-			member.CreatedAt, collection.ModifiedAt)
+			collection.ModifiedAt, collection.State, collection.ParentID, collection.CreatedAt)
 	}
 
 	// Execute batch

@@ -1,1 +1,0 @@
-DROP TABLE IF EXISTS mapleapps.maplefile_collections_by_ancestor_id_with_asc_depth_and_asc_collection_id;

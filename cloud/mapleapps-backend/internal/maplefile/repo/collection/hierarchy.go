@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
-	"go.uber.org/zap"
 
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
@@ -19,7 +18,7 @@ func (impl *collectionRepositoryImpl) MoveCollection(
 	updatedAncestors []gocql.UUID,
 	updatedPathSegments []string,
 ) error {
-	// Get the collection to move
+	// Get the collection
 	collection, err := impl.Get(ctx, collectionID)
 	if err != nil {
 		return fmt.Errorf("failed to get collection: %w", err)
@@ -29,62 +28,14 @@ func (impl *collectionRepositoryImpl) MoveCollection(
 		return fmt.Errorf("collection not found")
 	}
 
-	// Update collection hierarchy information
-	oldParentID := collection.ParentID
-	oldAncestorIDs := collection.AncestorIDs
-
+	// Update hierarchy information
 	collection.ParentID = newParentID
 	collection.AncestorIDs = updatedAncestors
 	collection.ModifiedAt = time.Now()
 	collection.Version++
 
-	// Get all descendants that need to be updated
-	descendants, err := impl.FindDescendants(ctx, collectionID)
-	if err != nil {
-		return fmt.Errorf("failed to find descendants: %w", err)
-	}
-
-	batch := impl.Session.NewBatch(gocql.LoggedBatch)
-
-	// 1. Update the moved collection
-	if err := impl.updateCollectionInBatch(batch, collection, oldParentID, oldAncestorIDs); err != nil {
-		return fmt.Errorf("failed to update moved collection: %w", err)
-	}
-
-	// 2. Update all descendants with new ancestor paths
-	for _, descendant := range descendants {
-		// Calculate new ancestor IDs for descendant
-		newDescendantAncestors := append(updatedAncestors, collectionID)
-
-		// Add intermediate ancestors between collection and descendant
-		relativePath := impl.getRelativePath(collectionID, descendant.AncestorIDs)
-		newDescendantAncestors = append(newDescendantAncestors, relativePath...)
-
-		oldDescendantAncestors := descendant.AncestorIDs
-		descendant.AncestorIDs = newDescendantAncestors
-		descendant.ModifiedAt = time.Now()
-		descendant.Version++
-
-		if err := impl.updateCollectionInBatch(batch, descendant, descendant.ParentID, oldDescendantAncestors); err != nil {
-			return fmt.Errorf("failed to update descendant %s: %w", descendant.ID.String(), err)
-		}
-	}
-
-	// Execute the batch
-	if err := impl.Session.ExecuteBatch(batch.WithContext(ctx)); err != nil {
-		impl.Logger.Error("failed to move collection hierarchy",
-			zap.String("collection_id", collectionID.String()),
-			zap.String("new_parent_id", newParentID.String()),
-			zap.Error(err))
-		return fmt.Errorf("failed to move collection hierarchy: %w", err)
-	}
-
-	impl.Logger.Info("collection moved successfully",
-		zap.String("collection_id", collectionID.String()),
-		zap.String("old_parent_id", oldParentID.String()),
-		zap.String("new_parent_id", newParentID.String()))
-
-	return nil
+	// Single update call handles all the complexity
+	return impl.Update(ctx, collection)
 }
 
 // Helper method to update collection in batch with proper index management

@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/repo/collection/share.go
+// cloud/mapleapps-backend/internal/maplefile/repo/collection/share.go
 package collection
 
 import (
@@ -15,7 +15,7 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 		return fmt.Errorf("membership cannot be nil")
 	}
 
-	// Get the collection to update its members
+	// Load collection, update members, and save
 	collection, err := impl.Get(ctx, collectionID)
 	if err != nil {
 		return fmt.Errorf("failed to get collection: %w", err)
@@ -30,17 +30,20 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 		if existingMember.RecipientID == membership.RecipientID {
 			// Update existing member
 			collection.Members[i] = *membership
+			collection.Version++
 			return impl.Update(ctx, collection)
 		}
 	}
 
 	// Add new member
 	collection.Members = append(collection.Members, *membership)
+	collection.Version++
+
 	return impl.Update(ctx, collection)
 }
 
 func (impl *collectionRepositoryImpl) RemoveMember(ctx context.Context, collectionID, recipientID gocql.UUID) error {
-	// Get the collection to update its members
+	// Load collection, remove member, and save
 	collection, err := impl.Get(ctx, collectionID)
 	if err != nil {
 		return fmt.Errorf("failed to get collection: %w", err)
@@ -67,11 +70,13 @@ func (impl *collectionRepositoryImpl) RemoveMember(ctx context.Context, collecti
 	}
 
 	collection.Members = updatedMembers
+	collection.Version++
+
 	return impl.Update(ctx, collection)
 }
 
 func (impl *collectionRepositoryImpl) UpdateMemberPermission(ctx context.Context, collectionID, recipientID gocql.UUID, newPermission string) error {
-	// Get the collection to update member permission
+	// Load collection, update member permission, and save
 	collection, err := impl.Get(ctx, collectionID)
 	if err != nil {
 		return fmt.Errorf("failed to get collection: %w", err)
@@ -95,27 +100,34 @@ func (impl *collectionRepositoryImpl) UpdateMemberPermission(ctx context.Context
 		return fmt.Errorf("member not found in collection")
 	}
 
+	collection.Version++
 	return impl.Update(ctx, collection)
 }
 
 func (impl *collectionRepositoryImpl) GetCollectionMembership(ctx context.Context, collectionID, recipientID gocql.UUID) (*dom_collection.CollectionMembership, error) {
-	collection, err := impl.Get(ctx, collectionID)
+	var membership dom_collection.CollectionMembership
+
+	query := `SELECT recipient_id, member_id, recipient_email, granted_by_id,
+		encrypted_collection_key, permission_level, created_at,
+		is_inherited, inherited_from_id
+		FROM maplefile_collection_members
+		WHERE collection_id = ? AND recipient_id = ?`
+
+	err := impl.Session.Query(query, collectionID, recipientID).WithContext(ctx).Scan(
+		&membership.RecipientID, &membership.ID, &membership.RecipientEmail, &membership.GrantedByID,
+		&membership.EncryptedCollectionKey, &membership.PermissionLevel,
+		&membership.CreatedAt, &membership.IsInherited, &membership.InheritedFromID)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to get collection: %w", err)
-	}
-
-	if collection == nil {
-		return nil, nil
-	}
-
-	// Find member in collection
-	for _, member := range collection.Members {
-		if member.RecipientID == recipientID {
-			return &member, nil
+		if err == gocql.ErrNotFound {
+			return nil, nil
 		}
+		return nil, err
 	}
 
-	return nil, nil // Member not found
+	membership.CollectionID = collectionID
+
+	return &membership, nil
 }
 
 func (impl *collectionRepositoryImpl) AddMemberToHierarchy(ctx context.Context, rootID gocql.UUID, membership *dom_collection.CollectionMembership) error {

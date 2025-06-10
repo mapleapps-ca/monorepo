@@ -20,8 +20,8 @@ func (impl *collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context,
 	if cursor == nil {
 		// Initial sync - get all collections for user
 		query = `SELECT collection_id, modified_at FROM
-			maplefile_collections_by_owner_id_with_desc_modified_at_and_asc_id
-			WHERE owner_id = ? LIMIT ?`
+    maplefile_collections_by_user_simplified
+    WHERE user_id = ? AND access_type = 'owner' AND (modified_at, collection_id) > (?, ?) LIMIT ?`
 		args = []any{userID, limit}
 	} else {
 		// Incremental sync - get collections modified after cursor
@@ -89,7 +89,7 @@ func (impl *collectionRepositoryImpl) getCollectionSyncItem(ctx context.Context,
 	)
 
 	query := `SELECT id, version, modified_at, state, parent_id, tombstone_version, tombstone_expiry
-		FROM maplefile_collections_by_id WHERE id = ?`
+    FROM maplefile_collections_by_id_simplified WHERE id = ?`
 
 	err := impl.Session.Query(query, collectionID).WithContext(ctx).Scan(
 		&id, &version, &modifiedAt, &state, &parentID, &tombstoneVersion, &tombstoneExpiry)
