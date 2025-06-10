@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/archive.go
+// cloud/mapleapps-backend/internal/maplefile/usecase/collection/archive.go
 package collection
 
 import (
@@ -47,35 +47,8 @@ func (uc *archiveCollectionUseCaseImpl) Execute(ctx context.Context, id gocql.UU
 	}
 
 	//
-	// STEP 2: Get current collection to validate state transition.
+	// STEP 2: Archive collection using repository method.
 	//
 
-	collection, err := uc.repo.GetWithAnyState(ctx, id)
-	if err != nil {
-		return err
-	}
-	if collection == nil {
-		return httperror.NewForNotFoundWithSingleField("message", "Collection not found")
-	}
-
-	//
-	// STEP 3: Validate state transition.
-	//
-
-	err = dom_collection.IsValidStateTransition(collection.State, dom_collection.CollectionStateArchived)
-	if err != nil {
-		uc.logger.Warn("Invalid state transition for collection archival",
-			zap.Any("collection_id", id),
-			zap.String("current_state", collection.State),
-			zap.String("target_state", dom_collection.CollectionStateArchived),
-			zap.Error(err))
-		return httperror.NewForBadRequestWithSingleField("state", err.Error())
-	}
-
-	//
-	// STEP 4: Update state to archived.
-	//
-
-	collection.State = dom_collection.CollectionStateArchived
-	return uc.repo.Update(ctx, collection)
+	return uc.repo.Archive(ctx, id)
 }

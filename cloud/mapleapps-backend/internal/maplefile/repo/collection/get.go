@@ -278,3 +278,25 @@ func (impl *collectionRepositoryImpl) findDescendantsRecursive(ctx context.Conte
 
 	return allDescendants, nil
 }
+
+func (impl *collectionRepositoryImpl) loadMultipleCollectionsWithMembers(ctx context.Context, collectionIDs []gocql.UUID) ([]*dom_collection.Collection, error) {
+	if len(collectionIDs) == 0 {
+		return []*dom_collection.Collection{}, nil
+	}
+
+	var collections []*dom_collection.Collection
+	for _, id := range collectionIDs {
+		collection, err := impl.loadCollectionWithMembers(ctx, id, true)
+		if err != nil {
+			impl.Logger.Warn("failed to load collection",
+				zap.String("collection_id", id.String()),
+				zap.Error(err))
+			continue
+		}
+		if collection != nil {
+			collections = append(collections, collection)
+		}
+	}
+
+	return collections, nil
+}

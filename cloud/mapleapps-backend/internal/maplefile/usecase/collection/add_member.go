@@ -43,6 +43,11 @@ func (uc *addCollectionMemberUseCaseImpl) Execute(ctx context.Context, collectio
 	if membership == nil {
 		e["membership"] = "Membership details are required"
 	} else {
+		// Generate member ID if not provided
+		if membership.ID.String() == "" || membership.ID.String() == "00000000-0000-0000-0000-000000000000" {
+			membership.ID = gocql.TimeUUID()
+		}
+
 		if membership.RecipientID.String() == "" {
 			e["recipient_id"] = "Recipient ID is required"
 		}
