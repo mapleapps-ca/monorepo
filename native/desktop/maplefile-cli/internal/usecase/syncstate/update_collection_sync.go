@@ -51,13 +51,13 @@ func (uc *updateCollectionSyncUseCase) Execute(ctx context.Context, input *Updat
 		return errors.NewAppError("update collection sync input is required", nil)
 	}
 
-	if input.LastCollectionSync.IsZero() {
+	if input.LastCollectionSync.String() == "" {
 		return errors.NewAppError("last collection sync time is required", nil)
 	}
 
 	uc.logger.Debug("Updating collection sync state",
 		zap.Time("lastCollectionSync", input.LastCollectionSync),
-		zap.String("lastCollectionID", input.LastCollectionID.Hex()))
+		zap.String("lastCollectionID", input.LastCollectionID.String()))
 
 	// Get current sync state
 	currentState, err := uc.getSyncStateUseCase.Execute(ctx)

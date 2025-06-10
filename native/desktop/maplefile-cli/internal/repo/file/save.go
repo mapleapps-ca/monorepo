@@ -23,7 +23,7 @@ func (r *fileRepository) Save(ctx context.Context, file *dom_file.File) error {
 	}
 
 	// Generate key for this file using the ID
-	key := r.generateKey(file.ID.Hex())
+	key := r.generateKey(file.ID.String())
 
 	// Save to database
 	if err := r.dbClient.Set(key, fileBytes); err != nil {
@@ -34,7 +34,7 @@ func (r *fileRepository) Save(ctx context.Context, file *dom_file.File) error {
 	}
 
 	r.logger.Debug("Successfully saved file to local storage",
-		zap.String("fileID", file.ID.Hex()),
+		zap.String("fileID", file.ID.String()),
 		zap.String("fileName", file.Name))
 	return nil
 }

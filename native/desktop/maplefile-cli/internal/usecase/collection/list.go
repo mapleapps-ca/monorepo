@@ -4,7 +4,6 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"github.com/gocql/gocql"
@@ -89,10 +88,8 @@ func (uc *listCollectionsUseCase) ListRootsByState(
 	}
 
 	// Create a filter for root collections with specific state
-	emptyID := primitive.NilObjectID
 	filter := collection.CollectionFilter{
-		ParentID: &emptyID,
-		State:    &state,
+		State: &state,
 	}
 
 	// Call the main execution method
@@ -114,14 +111,14 @@ func (uc *listCollectionsUseCase) ListByParentAndState(
 	state string,
 ) ([]*collection.Collection, error) {
 	// Validate inputs
-	if parentID.IsZero() {
+	if parentID.String() == "" {
 		return nil, errors.NewAppError("parent ID is required", nil)
 	}
 
 	// Validate state
 	if err := collection.ValidateState(state); err != nil {
 		uc.logger.Error("Invalid state provided for listing by parent",
-			zap.String("parentID", parentID.Hex()),
+			zap.String("parentID", parentID.String()),
 			zap.String("state", state),
 			zap.Error(err))
 		return nil, errors.NewAppError("invalid state", err)

@@ -60,13 +60,13 @@ func (uc *createCollectionUseCase) Execute(ctx context.Context, data *collection
 	if data.State == "" {
 		data.State = collection.GetDefaultState()
 		uc.logger.Debug("Setting default state for collection",
-			zap.String("collectionID", data.ID.Hex()),
+			zap.String("collectionID", data.ID.String()),
 			zap.String("state", data.State))
 	} else {
 		// Validate the provided state
 		if err := collection.ValidateState(data.State); err != nil {
 			uc.logger.Error("Invalid collection state provided",
-				zap.String("collectionID", data.ID.Hex()),
+				zap.String("collectionID", data.ID.String()),
 				zap.String("state", data.State),
 				zap.Error(err))
 			return errors.NewAppError("invalid collection state", err)
@@ -80,7 +80,7 @@ func (uc *createCollectionUseCase) Execute(ctx context.Context, data *collection
 	}
 
 	uc.logger.Info("Collection created successfully",
-		zap.String("collectionID", data.ID.Hex()),
+		zap.String("collectionID", data.ID.String()),
 		zap.String("name", data.Name),
 		zap.String("state", data.State),
 		zap.String("type", data.CollectionType))

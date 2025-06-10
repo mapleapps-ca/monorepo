@@ -43,10 +43,10 @@ func (uc *createFilesUseCase) Execute(ctx context.Context, data []*dom_file.File
 	// Validate each file using the same logic as single file creation
 	for i, fileData := range data {
 		// Validate without actually creating (we'll use CreateMany for efficiency)
-		if fileData.CollectionID.IsZero() {
+		if fileData.CollectionID.String() == "" {
 			return errors.NewAppError(fmt.Sprintf("collection ID is required for file at index %d", i), nil)
 		}
-		if fileData.OwnerID.IsZero() {
+		if fileData.OwnerID.String() == "" {
 			return errors.NewAppError(fmt.Sprintf("owner ID is required for file at index %d", i), nil)
 		}
 		if fileData.EncryptedMetadata == "" {

@@ -50,7 +50,7 @@ func (uc *deleteFilesUseCase) Execute(
 
 	// Validate all IDs
 	for i, id := range ids {
-		if id.IsZero() {
+		if id.String() == "" {
 			return errors.NewAppError(fmt.Sprintf("file ID at index %d is invalid", i), nil)
 		}
 	}
@@ -70,7 +70,7 @@ func (uc *deleteFilesUseCase) DeleteByCollection(
 	collectionID gocql.UUID,
 ) error {
 	// Validate inputs
-	if collectionID.IsZero() {
+	if collectionID.String() == "" {
 		return errors.NewAppError("collection ID is required", nil)
 	}
 

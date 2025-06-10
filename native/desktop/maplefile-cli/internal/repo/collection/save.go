@@ -23,7 +23,7 @@ func (r *collectionRepository) Save(ctx context.Context, collection *collection.
 	}
 
 	// Generate key for this collection using the ID
-	key := r.generateKey(collection.ID.Hex())
+	key := r.generateKey(collection.ID.String())
 
 	// Save to database
 	if err := r.dbClient.Set(key, collBytes); err != nil {

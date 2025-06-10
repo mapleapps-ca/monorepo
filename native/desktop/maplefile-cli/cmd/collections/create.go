@@ -124,10 +124,10 @@ Examples:
 			fmt.Printf("📋 Collection Details:\n")
 			fmt.Printf("  📁 Name: %s\n", displayName)
 			fmt.Printf("  🏷️  Type: %s\n", output.Collection.CollectionType)
-			fmt.Printf("  🆔 ID: %s\n", output.Collection.ID.Hex())
+			fmt.Printf("  🆔 ID: %s\n", output.Collection.ID.String())
 
 			if isSubCollection {
-				fmt.Printf("  📂 Parent ID: %s\n", output.Collection.ParentID.Hex())
+				fmt.Printf("  📂 Parent ID: %s\n", output.Collection.ParentID.String())
 			}
 
 			fmt.Printf("  📅 Created: %s\n", output.Collection.CreatedAt.Format("2006-01-02 15:04:05"))
@@ -135,15 +135,15 @@ Examples:
 
 			// Next steps
 			fmt.Printf("\n💡 Next steps:\n")
-			fmt.Printf("   • Add files: maplefile-cli files add PATH --collection %s --password PASSWORD\n", output.Collection.ID.Hex())
+			fmt.Printf("   • Add files: maplefile-cli files add PATH --collection %s --password PASSWORD\n", output.Collection.ID.String())
 			fmt.Printf("   • List collections: maplefile-cli collections list\n")
 			if !isSubCollection {
-				fmt.Printf("   • Create sub-collection: maplefile-cli collections create 'Sub Name' --parent %s --password PASSWORD\n", output.Collection.ID.Hex())
+				fmt.Printf("   • Create sub-collection: maplefile-cli collections create 'Sub Name' --parent %s --password PASSWORD\n", output.Collection.ID.String())
 			}
 
 			logger.Info("Collection created successfully",
 				zap.String("name", name),
-				zap.String("id", output.Collection.ID.Hex()),
+				zap.String("id", output.Collection.ID.String()),
 				zap.String("type", collectionType),
 				zap.Bool("isSubCollection", isSubCollection))
 		},

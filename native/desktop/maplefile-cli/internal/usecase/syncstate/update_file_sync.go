@@ -51,13 +51,13 @@ func (uc *updateFileSyncUseCase) Execute(ctx context.Context, input *UpdateFileS
 		return errors.NewAppError("update file sync input is required", nil)
 	}
 
-	if input.LastFileSync.IsZero() {
+	if input.LastFileSync.String() == "" {
 		return errors.NewAppError("last file sync time is required", nil)
 	}
 
 	uc.logger.Debug("Updating file sync state",
 		zap.Time("lastFileSync", input.LastFileSync),
-		zap.String("lastFileID", input.LastFileID.Hex()))
+		zap.String("lastFileID", input.LastFileID.String()))
 
 	// Get current sync state
 	currentState, err := uc.getSyncStateUseCase.Execute(ctx)

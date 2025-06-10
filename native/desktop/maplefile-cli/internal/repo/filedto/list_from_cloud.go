@@ -36,7 +36,7 @@ func (r *fileDTORepository) ListFromCloud(ctx context.Context, filter filedto.Fi
 	var requestURL string
 	if filter.CollectionID != nil {
 		// List files by collection
-		requestURL = fmt.Sprintf("%s/maplefile/api/v1/collections/%s/files", serverURL, filter.CollectionID.Hex())
+		requestURL = fmt.Sprintf("%s/maplefile/api/v1/collections/%s/files", serverURL, filter.CollectionID.String())
 	} else {
 		// This would require a general file listing endpoint, which doesn't seem to exist in the backend
 		// For now, we'll return an error requesting a collection filter
@@ -99,7 +99,7 @@ func (r *fileDTORepository) ListFromCloud(ctx context.Context, filter filedto.Fi
 
 	r.logger.Info("✅ Successfully listed files from cloud",
 		zap.Int("count", len(filesResponse.Files)),
-		zap.String("collectionID", filter.CollectionID.Hex()))
+		zap.String("collectionID", filter.CollectionID.String()))
 
 	return filesResponse.Files, nil
 }

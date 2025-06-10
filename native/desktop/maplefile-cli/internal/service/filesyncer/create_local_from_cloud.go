@@ -64,7 +64,7 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	//
 	e := make(map[string]string)
 
-	if cloudFileID.IsZero() {
+	if cloudFileID.String() == "" {
 		e["cloudFileID"] = "Cloud file ID is required"
 	}
 	if password == "" {
@@ -95,7 +95,7 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	//
 	if cloudFileDTO.State == "deleted" {
 		s.logger.Debug("⏭️ Skipping local file creation from the cloud because it has been deleted",
-			zap.String("id", cloudFileDTO.ID.Hex()))
+			zap.String("id", cloudFileDTO.ID.String()))
 		return nil, nil
 	}
 
@@ -176,13 +176,13 @@ func (s *createLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	// Execute the use case to create the local file record
 	if err := s.createFileUseCase.Execute(ctx, newFile); err != nil {
 		s.logger.Error("❌ Failed to create new (local) file from the cloud",
-			zap.String("id", cloudFileDTO.ID.Hex()),
+			zap.String("id", cloudFileDTO.ID.String()),
 			zap.Error(err))
 		return nil, err
 	}
 
 	s.logger.Debug("✅ Successfully created local file from cloud",
-		zap.String("id", newFile.ID.Hex()),
+		zap.String("id", newFile.ID.String()),
 		zap.String("state", newFile.State))
 
 	return newFile, nil

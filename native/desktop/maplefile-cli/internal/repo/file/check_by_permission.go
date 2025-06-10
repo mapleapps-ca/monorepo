@@ -10,21 +10,21 @@ import (
 
 func (r *fileRepository) CheckIfUserHasAccess(ctx context.Context, fileID gocql.UUID, userID gocql.UUID) (bool, error) {
 	r.logger.Debug("Checking user access to file",
-		zap.String("fileID", fileID.Hex()),
-		zap.String("userID", userID.Hex()))
+		zap.String("fileID", fileID.String()),
+		zap.String("userID", userID.String()))
 
 	// Get the file first
 	file, err := r.Get(ctx, fileID)
 	if err != nil {
 		r.logger.Error("Failed to get file for permission check",
-			zap.String("fileID", fileID.Hex()),
+			zap.String("fileID", fileID.String()),
 			zap.Error(err))
 		return false, err
 	}
 
 	// File doesn't exist
 	if file == nil {
-		r.logger.Warn("File not found for permission check", zap.String("fileID", fileID.Hex()))
+		r.logger.Warn("File not found for permission check", zap.String("fileID", fileID.String()))
 		return false, nil
 	}
 
@@ -32,8 +32,8 @@ func (r *fileRepository) CheckIfUserHasAccess(ctx context.Context, fileID gocql.
 	hasAccess := file.OwnerID == userID
 
 	r.logger.Debug("User access check completed",
-		zap.String("fileID", fileID.Hex()),
-		zap.String("userID", userID.Hex()),
+		zap.String("fileID", fileID.String()),
+		zap.String("userID", userID.String()),
 		zap.Bool("hasAccess", hasAccess))
 
 	return hasAccess, nil

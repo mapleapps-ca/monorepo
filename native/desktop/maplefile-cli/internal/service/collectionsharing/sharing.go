@@ -6,9 +6,9 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectionsharingdto"
@@ -24,9 +24,9 @@ import (
 // ShareCollectionInput represents input for sharing a collection at the service level
 type ShareCollectionInput struct {
 	CollectionID         gocql.UUID `json:"collection_id"`
-	RecipientEmail       string             `json:"recipient_email"`
-	PermissionLevel      string             `json:"permission_level"`
-	ShareWithDescendants bool               `json:"share_with_descendants"`
+	RecipientEmail       string     `json:"recipient_email"`
+	PermissionLevel      string     `json:"permission_level"`
+	ShareWithDescendants bool       `json:"share_with_descendants"`
 }
 
 // ShareCollectionOutput represents the output from sharing a collection
@@ -44,9 +44,9 @@ type CollectionSharingService interface {
 
 // Batch sharing input for multiple recipients
 type BatchShareCollectionInput struct {
-	CollectionID         gocql.UUID `json:"collection_id"`
-	Recipients           []RecipientInfo    `json:"recipients"`
-	ShareWithDescendants bool               `json:"share_with_descendants"`
+	CollectionID         gocql.UUID      `json:"collection_id"`
+	Recipients           []RecipientInfo `json:"recipients"`
+	ShareWithDescendants bool            `json:"share_with_descendants"`
 }
 
 type RecipientInfo struct {
@@ -107,7 +107,7 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 		s.logger.Error("❌ Input is required")
 		return nil, errors.NewAppError("input is required", nil)
 	}
-	if input.CollectionID.IsZero() {
+	if input.CollectionID.String() == "" {
 		s.logger.Error("❌ Collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
@@ -160,7 +160,7 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 	}
 
 	s.logger.Debug("✅ Successfully encrypted collection key using extended crypto service",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.String("recipientEmail", input.RecipientEmail))
 
 	//
@@ -182,7 +182,7 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 	}
 
 	s.logger.Info("✅ Successfully shared collection using extended crypto service",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.String("recipientEmail", input.RecipientEmail),
 		zap.String("permissionLevel", input.PermissionLevel))
 
@@ -196,7 +196,7 @@ func (s *collectionSharingService) Execute(ctx context.Context, input *ShareColl
 // Batch sharing using extended crypto service efficiency
 func (s *collectionSharingService) ExecuteBatchSharing(ctx context.Context, input *BatchShareCollectionInput, userPassword string) (*BatchShareCollectionOutput, error) {
 	s.logger.Info("🚀 Starting batch collection sharing using extended crypto service",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.Int("recipientCount", len(input.Recipients)))
 
 	// STEP 1: Validate inputs
@@ -252,7 +252,7 @@ func (s *collectionSharingService) ExecuteBatchSharing(ctx context.Context, inpu
 		cryptoRecipients = append(cryptoRecipients, svc_collectioncrypto.SharingRecipient{
 			Email:     recipient.Email,
 			PublicKey: publicKeyBytes,
-			UserID:    publicLookupResponse.UserID.Hex(),
+			UserID:    publicLookupResponse.UserID.String(),
 		})
 		recipientMap[recipient.Email] = recipient
 	}
@@ -271,7 +271,7 @@ func (s *collectionSharingService) ExecuteBatchSharing(ctx context.Context, inpu
 	}
 
 	s.logger.Info("✅ Successfully batch encrypted collection keys using extended crypto service",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.Int("successfulRecipients", len(encryptedKeys)))
 
 	// STEP 5: Submit individual share requests to cloud
@@ -322,7 +322,7 @@ func (s *collectionSharingService) ExecuteBatchSharing(ctx context.Context, inpu
 	output.Message = fmt.Sprintf("Successfully shared with %d of %d recipients", successCount, len(input.Recipients))
 
 	s.logger.Info("✅ Completed batch collection sharing using extended crypto service",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.Int("successfulShares", successCount),
 		zap.Int("totalRecipients", len(input.Recipients)))
 

@@ -18,13 +18,13 @@ func (s *collectionDecryptionService) ExecuteDecryptMultipleCollectionKeys(
 	password string,
 ) (map[string][]byte, error) {
 	s.logger.Debug("🔐 Starting batch collection key decryption",
-		zap.String("userID", user.ID.Hex()),
+		zap.String("userID", user.ID.String()),
 		zap.Int("collectionCount", len(collections)))
 
 	// Decrypt master key once for efficiency
 	keyEncryptionKey, err := crypto.DeriveKeyFromPassword(password, user.PasswordSalt)
 	if err != nil {
-		return nil, NewCryptoError("derive_key", err, user.ID.Hex())
+		return nil, NewCryptoError("derive_key", err, user.ID.String())
 	}
 	defer crypto.ClearBytes(keyEncryptionKey)
 
@@ -34,7 +34,7 @@ func (s *collectionDecryptionService) ExecuteDecryptMultipleCollectionKeys(
 		keyEncryptionKey,
 	)
 	if err != nil {
-		return nil, NewCryptoError("decrypt_master_key", err, user.ID.Hex())
+		return nil, NewCryptoError("decrypt_master_key", err, user.ID.String())
 	}
 	defer crypto.ClearBytes(masterKey)
 
@@ -43,7 +43,7 @@ func (s *collectionDecryptionService) ExecuteDecryptMultipleCollectionKeys(
 	for _, collection := range collections {
 		if collection.EncryptedCollectionKey == nil {
 			s.logger.Warn("⚠️ Skipping collection with no encrypted key",
-				zap.String("collectionID", collection.ID.Hex()))
+				zap.String("collectionID", collection.ID.String()))
 			continue
 		}
 
@@ -54,16 +54,16 @@ func (s *collectionDecryptionService) ExecuteDecryptMultipleCollectionKeys(
 		)
 		if err != nil {
 			s.logger.Warn("⚠️ Failed to decrypt collection key",
-				zap.String("collectionID", collection.ID.Hex()),
+				zap.String("collectionID", collection.ID.String()),
 				zap.Error(err))
 			continue
 		}
 
-		results[collection.ID.Hex()] = collectionKey
+		results[collection.ID.String()] = collectionKey
 	}
 
 	s.logger.Debug("✅ Successfully completed batch collection key decryption",
-		zap.String("userID", user.ID.Hex()),
+		zap.String("userID", user.ID.String()),
 		zap.Int("successfulDecryptions", len(results)))
 
 	return results, nil

@@ -4,29 +4,29 @@ package file
 import (
 	"context"
 
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 )
 
 func (r *fileRepository) SwapIDs(ctx context.Context, oldID gocql.UUID, newID gocql.UUID) error {
 	r.logger.Debug("Swapping file IDs",
-		zap.String("oldID", oldID.Hex()),
-		zap.String("newID", newID.Hex()))
+		zap.String("oldID", oldID.String()),
+		zap.String("newID", newID.String()))
 
 	// Step 1: Validate inputs
-	if oldID.IsZero() {
+	if oldID.String() == "" {
 		r.logger.Error("Old ID cannot be zero")
 		return errors.NewAppError("old ID cannot be zero", nil)
 	}
-	if newID.IsZero() {
+	if newID.String() == "" {
 		r.logger.Error("New ID cannot be zero")
 		return errors.NewAppError("new ID cannot be zero", nil)
 	}
 	if oldID == newID {
 		r.logger.Error("Old ID and new ID cannot be the same",
-			zap.String("ID", oldID.Hex()))
+			zap.String("ID", oldID.String()))
 		return errors.NewAppError("old ID and new ID cannot be the same", nil)
 	}
 
@@ -34,13 +34,13 @@ func (r *fileRepository) SwapIDs(ctx context.Context, oldID gocql.UUID, newID go
 	oldExists, err := r.CheckIfExistsByID(ctx, oldID)
 	if err != nil {
 		r.logger.Error("Failed to check if old record exists",
-			zap.String("oldID", oldID.Hex()),
+			zap.String("oldID", oldID.String()),
 			zap.Error(err))
 		return errors.NewAppError("failed to check if old record exists", err)
 	}
 	if !oldExists {
 		r.logger.Error("Old record does not exist",
-			zap.String("oldID", oldID.Hex()))
+			zap.String("oldID", oldID.String()))
 		return errors.NewAppError("old record does not exist", nil)
 	}
 
@@ -48,13 +48,13 @@ func (r *fileRepository) SwapIDs(ctx context.Context, oldID gocql.UUID, newID go
 	newExists, err := r.CheckIfExistsByID(ctx, newID)
 	if err != nil {
 		r.logger.Error("Failed to check if new record exists",
-			zap.String("newID", newID.Hex()),
+			zap.String("newID", newID.String()),
 			zap.Error(err))
 		return errors.NewAppError("failed to check if new record exists", err)
 	}
 	if newExists {
 		r.logger.Error("New record already exists - cannot swap to existing ID",
-			zap.String("newID", newID.Hex()))
+			zap.String("newID", newID.String()))
 		return errors.NewAppError("new record already exists", nil)
 	}
 
@@ -62,13 +62,13 @@ func (r *fileRepository) SwapIDs(ctx context.Context, oldID gocql.UUID, newID go
 	oldFile, err := r.Get(ctx, oldID)
 	if err != nil {
 		r.logger.Error("Failed to get old record",
-			zap.String("oldID", oldID.Hex()),
+			zap.String("oldID", oldID.String()),
 			zap.Error(err))
 		return errors.NewAppError("failed to get old record", err)
 	}
 	if oldFile == nil {
 		r.logger.Error("Old record not found despite existence check passing",
-			zap.String("oldID", oldID.Hex()))
+			zap.String("oldID", oldID.String()))
 		return errors.NewAppError("old record not found", nil)
 	}
 
@@ -86,7 +86,7 @@ func (r *fileRepository) SwapIDs(ctx context.Context, oldID gocql.UUID, newID go
 	if err := r.Delete(ctx, oldID); err != nil {
 		r.DiscardTransaction()
 		r.logger.Error("Failed to delete old record during ID swap",
-			zap.String("oldID", oldID.Hex()),
+			zap.String("oldID", oldID.String()),
 			zap.Error(err))
 		return errors.NewAppError("failed to delete old record", err)
 	}
@@ -95,7 +95,7 @@ func (r *fileRepository) SwapIDs(ctx context.Context, oldID gocql.UUID, newID go
 	if err := r.Create(ctx, &newFile); err != nil {
 		r.DiscardTransaction()
 		r.logger.Error("Failed to create new record during ID swap",
-			zap.String("newID", newID.Hex()),
+			zap.String("newID", newID.String()),
 			zap.Error(err))
 		return errors.NewAppError("failed to create new record", err)
 	}
@@ -107,8 +107,8 @@ func (r *fileRepository) SwapIDs(ctx context.Context, oldID gocql.UUID, newID go
 	}
 
 	r.logger.Info("Successfully swapped file IDs",
-		zap.String("oldID", oldID.Hex()),
-		zap.String("newID", newID.Hex()),
+		zap.String("oldID", oldID.String()),
+		zap.String("newID", newID.String()),
 		zap.String("fileName", newFile.Name))
 
 	return nil

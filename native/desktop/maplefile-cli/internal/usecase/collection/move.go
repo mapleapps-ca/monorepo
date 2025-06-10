@@ -50,11 +50,11 @@ func (uc *moveCollectionUseCase) Execute(
 	input MoveCollectionInput,
 ) (*collection.Collection, error) {
 	// Validate inputs
-	if input.ID.IsZero() {
+	if input.ID.String() == "" {
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
-	if input.NewParentID.IsZero() {
+	if input.NewParentID.String() == "" {
 		return nil, errors.NewAppError("new parent ID is required", nil)
 	}
 

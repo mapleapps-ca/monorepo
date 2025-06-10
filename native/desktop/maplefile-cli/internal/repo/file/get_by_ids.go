@@ -4,9 +4,9 @@ package file
 import (
 	"context"
 
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
@@ -24,7 +24,7 @@ func (r *fileRepository) GetByIDs(ctx context.Context, ids []gocql.UUID) ([]*dom
 		file, err := r.Get(ctx, id)
 		if err != nil {
 			r.logger.Error("Failed to get file by ID",
-				zap.String("fileID", id.Hex()),
+				zap.String("fileID", id.String()),
 				zap.Error(err))
 			return nil, err
 		}

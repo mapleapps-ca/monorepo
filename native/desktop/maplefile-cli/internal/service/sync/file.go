@@ -105,11 +105,11 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 	}
 	s.logger.Debug("✅ Successfully retrieved sync state for files",
 		zap.Time("lastFileSync", syncStateOutput.SyncState.LastFileSync),
-		zap.String("lastFileID", syncStateOutput.SyncState.LastFileID.Hex())) // Convert ObjectID to string for logging
+		zap.String("lastFileID", syncStateOutput.SyncState.LastFileID.String())) // Convert ObjectID to string for logging
 
 	// Build the sync cursor based on the retrieved sync state
 	var currentSyncCursor *dom_syncdto.SyncCursorDTO
-	if !syncStateOutput.SyncState.LastFileSync.IsZero() {
+	if !(syncStateOutput.SyncState.LastFileSync.String() == "") {
 		// If a previous sync state exists, use it to create the cursor
 		currentSyncCursor = &dom_syncdto.SyncCursorDTO{
 			LastModified: syncStateOutput.SyncState.LastFileSync,
@@ -117,7 +117,7 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 		}
 		s.logger.Debug("➡️ Using existing cursor for file sync",
 			zap.Time("lastModified", currentSyncCursor.LastModified),
-			zap.String("lastID", currentSyncCursor.LastID.Hex())) // Convert ObjectID to string for logging
+			zap.String("lastID", currentSyncCursor.LastID.String())) // Convert ObjectID to string for logging
 	} else {
 		// If no previous sync state exists, start syncing from the beginning (nil cursor)
 		s.logger.Debug("✨ No previous sync state found for files, starting from beginning")
@@ -173,11 +173,11 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 		for _, cloudFile := range batch.Files {
 			// Log detailed information about the file being analyzed
 			s.logger.Debug("🔍 Beginning to analyze file for syncing...",
-				zap.String("id", cloudFile.ID.Hex()),
+				zap.String("id", cloudFile.ID.String()),
 				zap.Uint64("version", cloudFile.Version),
 				zap.Time("modified_at", cloudFile.ModifiedAt),
 				zap.String("state", cloudFile.State),
-				zap.String("collection_id", cloudFile.CollectionID.Hex()),
+				zap.String("collection_id", cloudFile.CollectionID.String()),
 				zap.Uint64("tombstone_version", cloudFile.TombstoneVersion),
 				zap.Time("tombstone_expiry", cloudFile.TombstoneExpiry),
 			)
@@ -191,9 +191,9 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 			if err != nil {
 				// Log error if lookup fails but continue processing other items
 				s.logger.Error("❌ Failed to get local file",
-					zap.String("id", cloudFile.ID.Hex()),
+					zap.String("id", cloudFile.ID.String()),
 					zap.Error(err))
-				fileSyncResult.Errors = append(fileSyncResult.Errors, "failed to get local file "+cloudFile.ID.Hex()+": "+err.Error())
+				fileSyncResult.Errors = append(fileSyncResult.Errors, "failed to get local file "+cloudFile.ID.String()+": "+err.Error())
 				continue // Skip processing this file if local lookup fails
 			}
 
@@ -204,21 +204,21 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 			if existingLocalFile == nil {
 				// For debugging purposes, log the details of the file being analyzed
 				s.logger.Debug("👻 No local file found.",
-					zap.String("id", cloudFile.ID.Hex()))
+					zap.String("id", cloudFile.ID.String()))
 
 				// Make sure the cloud file hasn't been deleted.
 				if cloudFile.TombstoneVersion > 0 || cloudFile.State == "deleted" {
 					s.logger.Debug("🚫 Skipping local file creation from the cloud because it has been marked for deletion in the cloud",
-						zap.String("id", cloudFile.ID.Hex()))
+						zap.String("id", cloudFile.ID.String()))
 					continue // Go to the next item in the loop and do not continue in this function.
 				}
 
 				localFile, err := s.createLocalFileFromCloudFileService.Execute(ctx, cloudFile.ID, input.Password)
 				if err != nil {
 					s.logger.Error("❌ Failed to get cloud file and create it locally",
-						zap.String("id", cloudFile.ID.Hex()),
+						zap.String("id", cloudFile.ID.String()),
 						zap.Error(err))
-					fileSyncResult.Errors = append(fileSyncResult.Errors, "failed to create local file from cloud "+cloudFile.ID.Hex()+": "+err.Error())
+					fileSyncResult.Errors = append(fileSyncResult.Errors, "failed to create local file from cloud "+cloudFile.ID.String()+": "+err.Error())
 					continue // Skip processing this file if local create fails
 				}
 
@@ -236,15 +236,15 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 			if cloudFile.TombstoneVersion > existingLocalFile.Version || cloudFile.State == "deleted" {
 				if err := s.deleteFileUseCase.Execute(ctx, existingLocalFile.ID); err != nil {
 					s.logger.Error("❌ Failed to delete local file",
-						zap.String("file_id", existingLocalFile.ID.Hex()),
+						zap.String("file_id", existingLocalFile.ID.String()),
 						zap.Uint64("local_version", existingLocalFile.Version),
 						zap.Uint64("cloud_version", cloudFile.Version),
 						zap.Error(err))
-					fileSyncResult.Errors = append(fileSyncResult.Errors, "failed to delete local file "+existingLocalFile.ID.Hex()+": "+err.Error())
+					fileSyncResult.Errors = append(fileSyncResult.Errors, "failed to delete local file "+existingLocalFile.ID.String()+": "+err.Error())
 					continue
 				}
 				s.logger.Debug("🗑️ Local file is marked as deleted",
-					zap.String("file_id", existingLocalFile.ID.Hex()),
+					zap.String("file_id", existingLocalFile.ID.String()),
 					zap.Uint64("local_version", existingLocalFile.Version),
 					zap.Uint64("cloud_version", cloudFile.Version))
 				fileSyncResult.FilesDeleted++
@@ -255,12 +255,12 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 			// CASE 3: If the local file exists, check if it needs to be updated.
 			//
 			s.logger.Debug("🔄 Local file found, update if changes detected.",
-				zap.String("id", cloudFile.ID.Hex()))
+				zap.String("id", cloudFile.ID.String()))
 
 			// Local file is already same or newest version compared with the cloud file.
 			if existingLocalFile.Version >= cloudFile.Version {
 				s.logger.Debug("✅ Local file is already same or newest version compared with the cloud file",
-					zap.String("file_id", cloudFile.ID.Hex()),
+					zap.String("file_id", cloudFile.ID.String()),
 					zap.Uint64("local_version", existingLocalFile.Version),
 					zap.Uint64("cloud_version", cloudFile.Version),
 				)
@@ -270,9 +270,9 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 			localFile, err := s.updateLocalFileFromCloudFileService.Execute(ctx, cloudFile.ID, input.Password)
 			if err != nil {
 				s.logger.Error("❌ Failed to get cloud file and save/delete it locally",
-					zap.String("id", cloudFile.ID.Hex()),
+					zap.String("id", cloudFile.ID.String()),
 					zap.Error(err))
-				fileSyncResult.Errors = append(fileSyncResult.Errors, "failed to update local file from cloud "+cloudFile.ID.Hex()+": "+err.Error())
+				fileSyncResult.Errors = append(fileSyncResult.Errors, "failed to update local file from cloud "+cloudFile.ID.String()+": "+err.Error())
 				continue // Skip processing this file if local update fails
 			}
 
@@ -292,7 +292,7 @@ func (s *syncFileService) Execute(ctx context.Context, input *SyncFilesInput) (*
 		}
 		s.logger.Debug("💾 Attempting to save sync state for files",
 			zap.Time("lastFileSync", *saveInput.LastFileSync),
-			zap.String("lastFileID", saveInput.LastFileID.Hex())) // Convert ObjectID to string for logging
+			zap.String("lastFileID", saveInput.LastFileID.String())) // Convert ObjectID to string for logging
 
 		_, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
 		if err != nil {

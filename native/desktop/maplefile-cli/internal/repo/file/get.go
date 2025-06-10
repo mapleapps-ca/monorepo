@@ -4,16 +4,16 @@ package file
 import (
 	"context"
 
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 func (r *fileRepository) Get(ctx context.Context, id gocql.UUID) (*dom_file.File, error) {
 	// Generate key for this file
-	key := r.generateKey(id.Hex())
+	key := r.generateKey(id.String())
 
 	// Get from database
 	fileBytes, err := r.dbClient.Get(key)

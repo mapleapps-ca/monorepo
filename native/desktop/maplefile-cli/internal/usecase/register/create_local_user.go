@@ -5,8 +5,7 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
+	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 )
@@ -62,7 +61,7 @@ func (uc *createLocalUserUseCase) Execute(ctx context.Context, input CreateLocal
 		KeyRotationPolicy:                 nil,
 
 		// --- The rest of the stuff... ---
-		ID:               primitive.NewObjectID(),
+		ID:               gocql.TimeUUID(),
 		Email:            input.Email,
 		FirstName:        input.FirstName,
 		LastName:         input.LastName,

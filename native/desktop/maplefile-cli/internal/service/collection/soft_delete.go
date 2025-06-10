@@ -119,11 +119,11 @@ func (s *softDeleteService) SoftDeleteWithChildren(ctx context.Context, id strin
 
 	// Soft delete each child recursively
 	for _, child := range children {
-		err = s.SoftDeleteWithChildren(ctx, child.ID.Hex())
+		err = s.SoftDeleteWithChildren(ctx, child.ID.String())
 		if err != nil {
 			s.logger.Error("❌ failed to soft delete child collection",
 				zap.String("parentID", id),
-				zap.String("childID", child.ID.Hex()),
+				zap.String("childID", child.ID.String()),
 				zap.Error(err))
 			return err
 		}

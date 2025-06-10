@@ -71,12 +71,12 @@ Examples:
 					i+1, member.RecipientEmail, member.PermissionLevel)
 
 				if verbose {
-					fmt.Printf("   Member ID: %s\n", member.ID.Hex())
-					fmt.Printf("   Recipient ID: %s\n", member.RecipientID.Hex())
-					fmt.Printf("   Granted By: %s\n", member.GrantedByID.Hex())
+					fmt.Printf("   Member ID: %s\n", member.ID.String())
+					fmt.Printf("   Recipient ID: %s\n", member.RecipientID.String())
+					fmt.Printf("   Granted By: %s\n", member.GrantedByID.String())
 					fmt.Printf("   Is Inherited: %t\n", member.IsInherited)
-					if member.IsInherited && !member.InheritedFromID.IsZero() {
-						fmt.Printf("   Inherited From: %s\n", member.InheritedFromID.Hex())
+					if member.IsInherited && !(member.InheritedFromID.String() == "") {
+						fmt.Printf("   Inherited From: %s\n", member.InheritedFromID.String())
 					}
 					fmt.Printf("   Created: %s\n", member.CreatedAt.Format("2006-01-02 15:04:05"))
 					fmt.Println()

@@ -4,15 +4,15 @@ package collection
 import (
 	"context"
 
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 )
 
 func (r *collectionRepository) Delete(ctx context.Context, id gocql.UUID) error {
 	// Generate key for this collection
-	key := r.generateKey(id.Hex())
+	key := r.generateKey(id.String())
 
 	// Delete from database
 	if err := r.dbClient.Delete(key); err != nil {

@@ -19,7 +19,7 @@ func (r *fileRepository) DeleteMany(ctx context.Context, ids []gocql.UUID) error
 	for _, id := range ids {
 		if err := r.Delete(ctx, id); err != nil {
 			r.logger.Error("Failed to delete file during batch delete",
-				zap.String("fileID", id.Hex()),
+				zap.String("fileID", id.String()),
 				zap.Error(err))
 			return err
 		}

@@ -107,7 +107,7 @@ Examples:
 
 			// Display success information
 			fmt.Printf("\n✅ File successfully unlocked!\n")
-			fmt.Printf("🆔 File ID: %s\n", output.FileID.Hex())
+			fmt.Printf("🆔 File ID: %s\n", output.FileID.String())
 			fmt.Printf("📊 Storage Mode: %s → %s\n", output.PreviousMode, output.NewMode)
 
 			if output.DeletedPath != "" {

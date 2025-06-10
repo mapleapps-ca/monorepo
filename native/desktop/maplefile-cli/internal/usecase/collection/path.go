@@ -40,7 +40,7 @@ func (uc *getCollectionPathUseCase) Execute(
 	id gocql.UUID,
 ) ([]*collection.Collection, error) {
 	// Validate inputs
-	if id.IsZero() {
+	if id.String() == "" {
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
@@ -58,7 +58,7 @@ func (uc *getCollectionPathUseCase) Execute(
 		path = append([]*collection.Collection{current}, path...)
 
 		// If this is a root collection, we're done
-		if current.ParentID.IsZero() {
+		if current.ParentID.String() == "" {
 			break
 		}
 

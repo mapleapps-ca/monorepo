@@ -78,7 +78,7 @@ Examples:
 
 			// Display success information
 			fmt.Printf("\n✅ File successfully onloaded!\n")
-			fmt.Printf("🆔 File ID: %s\n", output.FileID.Hex())
+			fmt.Printf("🆔 File ID: %s\n", output.FileID.String())
 			fmt.Printf("📊 Status: %v → %v\n", output.PreviousStatus, output.NewStatus)
 			fmt.Printf("💾 Local Path: %s\n", output.DecryptedPath)
 			fmt.Printf("📏 Downloaded Size: %d bytes\n", output.DownloadedSize)

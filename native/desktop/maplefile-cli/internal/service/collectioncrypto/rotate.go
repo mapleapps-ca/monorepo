@@ -20,7 +20,7 @@ func (s *collectionEncryptionService) RotateCollectionKey(
 	rotationReason string,
 ) (*keys.EncryptedCollectionKey, error) {
 	s.logger.Info("🔄 Starting collection key rotation",
-		zap.String("collectionID", collection.ID.Hex()),
+		zap.String("collectionID", collection.ID.String()),
 		zap.String("reason", rotationReason))
 
 	// Implementation would:

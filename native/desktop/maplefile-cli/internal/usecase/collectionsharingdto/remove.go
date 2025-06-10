@@ -55,7 +55,7 @@ func NewRemoveMemberUseCase(
 // Execute removes a member from a collection
 func (uc *removeMemberUseCase) Execute(ctx context.Context, input *RemoveMemberInput) (*collectionsharingdto.RemoveMemberResponseDTO, error) {
 	// Validate inputs
-	if input.CollectionID.IsZero() {
+	if input.CollectionID.String() == "" {
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 	if input.RecipientEmail == "" {
@@ -84,7 +84,7 @@ func (uc *removeMemberUseCase) Execute(ctx context.Context, input *RemoveMemberI
 
 	// Debug: Let's see exactly what user we got and from where
 	uc.logger.Debug("🔍 Current user authentication details",
-		zap.String("retrievedUserID", currentUser.ID.Hex()),
+		zap.String("retrievedUserID", currentUser.ID.String()),
 		zap.String("retrievedUserEmail", currentUser.Email),
 		zap.String("retrievedUserName", currentUser.Name))
 
@@ -94,9 +94,9 @@ func (uc *removeMemberUseCase) Execute(ctx context.Context, input *RemoveMemberI
 
 	// Debug logging for permission check
 	uc.logger.Debug("🔍 Permission check details",
-		zap.String("currentUserID", currentUser.ID.Hex()),
+		zap.String("currentUserID", currentUser.ID.String()),
 		zap.String("currentUserEmail", currentUser.Email),
-		zap.String("collectionOwnerID", coll.OwnerID.Hex()),
+		zap.String("collectionOwnerID", coll.OwnerID.String()),
 		zap.Int("memberCount", len(coll.Members)))
 
 	// Get recipient user information first to determine what we're trying to do
@@ -113,15 +113,15 @@ func (uc *removeMemberUseCase) Execute(ctx context.Context, input *RemoveMemberI
 	isSelfRemoval := recipientUser.ID == currentUser.ID
 	uc.logger.Debug("🔍 Self-removal check",
 		zap.Bool("isSelfRemoval", isSelfRemoval),
-		zap.String("recipientUserID", recipientUser.ID.Hex()),
-		zap.String("currentUserID", currentUser.ID.Hex()))
+		zap.String("recipientUserID", recipientUser.ID.String()),
+		zap.String("currentUserID", currentUser.ID.String()))
 
 	// Check if current user has permission to remove members
 	canRemove := coll.OwnerID == currentUser.ID
 	uc.logger.Debug("🔍 Owner check",
 		zap.Bool("isOwner", canRemove),
-		zap.String("collectionOwnerID", coll.OwnerID.Hex()),
-		zap.String("currentUserID", currentUser.ID.Hex()))
+		zap.String("collectionOwnerID", coll.OwnerID.String()),
+		zap.String("currentUserID", currentUser.ID.String()))
 
 	if !canRemove {
 		// Check if user is an admin member
@@ -129,7 +129,7 @@ func (uc *removeMemberUseCase) Execute(ctx context.Context, input *RemoveMemberI
 		for i, member := range coll.Members {
 			uc.logger.Debug("🔍 Checking member",
 				zap.Int("memberIndex", i),
-				zap.String("memberRecipientID", member.RecipientID.Hex()),
+				zap.String("memberRecipientID", member.RecipientID.String()),
 				zap.String("memberEmail", member.RecipientEmail),
 				zap.String("memberPermissionLevel", member.PermissionLevel),
 				zap.String("expectedAdminLevel", collectionsharingdto.CollectionDTOPermissionAdmin),
@@ -159,14 +159,14 @@ func (uc *removeMemberUseCase) Execute(ctx context.Context, input *RemoveMemberI
 	if !canRemove {
 		if isSelfRemoval {
 			uc.logger.Error("🚫 Self-removal denied - user is not a member of this collection",
-				zap.String("currentUserID", currentUser.ID.Hex()),
+				zap.String("currentUserID", currentUser.ID.String()),
 				zap.String("currentUserEmail", currentUser.Email))
 			return nil, errors.NewAppError("you are not a member of this collection", nil)
 		} else {
 			uc.logger.Error("🚫 Permission denied for remove operation",
-				zap.String("currentUserID", currentUser.ID.Hex()),
+				zap.String("currentUserID", currentUser.ID.String()),
 				zap.String("currentUserEmail", currentUser.Email),
-				zap.String("collectionOwnerID", coll.OwnerID.Hex()),
+				zap.String("collectionOwnerID", coll.OwnerID.String()),
 				zap.Bool("isOwner", coll.OwnerID == currentUser.ID),
 				zap.Int("totalMembers", len(coll.Members)))
 
@@ -174,7 +174,7 @@ func (uc *removeMemberUseCase) Execute(ctx context.Context, input *RemoveMemberI
 			for i, member := range coll.Members {
 				uc.logger.Debug("🔍 Collection member details",
 					zap.Int("index", i),
-					zap.String("recipientID", member.RecipientID.Hex()),
+					zap.String("recipientID", member.RecipientID.String()),
 					zap.String("recipientEmail", member.RecipientEmail),
 					zap.String("permissionLevel", member.PermissionLevel))
 			}
@@ -215,7 +215,7 @@ func (uc *removeMemberUseCase) Execute(ctx context.Context, input *RemoveMemberI
 	}
 
 	uc.logger.Info("✅ Successfully removed collection member",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.String("recipientEmail", input.RecipientEmail))
 
 	return response, nil

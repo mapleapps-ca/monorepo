@@ -40,11 +40,11 @@ func (uc *checkFileAccessUseCase) Execute(
 	userID gocql.UUID,
 ) (bool, error) {
 	// Validate inputs
-	if fileID.IsZero() {
+	if fileID.String() == "" {
 		return false, errors.NewAppError("file ID is required", nil)
 	}
 
-	if userID.IsZero() {
+	if userID.String() == "" {
 		return false, errors.NewAppError("user ID is required", nil)
 	}
 

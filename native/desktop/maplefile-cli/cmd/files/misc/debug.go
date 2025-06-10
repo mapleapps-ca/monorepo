@@ -61,7 +61,7 @@ func debugE2EECmd(
 				fmt.Println("❌ File not found")
 				return
 			}
-			fmt.Printf("✅ File found: %s (Collection: %s)\n", file.Name, file.CollectionID.Hex())
+			fmt.Printf("✅ File found: %s (Collection: %s)\n", file.Name, file.CollectionID.String())
 
 			// Step 2: Get user
 			fmt.Println("\n👤 Step 2: Getting logged in user...")

@@ -163,7 +163,7 @@ Examples:
 				}
 
 				fmt.Printf("✅ Successfully deleted cloud copy!\n")
-				fmt.Printf("🆔 File ID: %s\n", output.FileID.Hex())
+				fmt.Printf("🆔 File ID: %s\n", output.FileID.String())
 				fmt.Printf("📊 Status: %v → %v\n", output.PreviousStatus, output.NewStatus)
 				fmt.Printf("📱 Local copy remains available\n")
 

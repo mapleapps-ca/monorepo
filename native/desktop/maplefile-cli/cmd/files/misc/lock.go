@@ -83,7 +83,7 @@ Examples:
 
 			// Display success information
 			fmt.Printf("\n✅ File successfully locked!\n")
-			fmt.Printf("🆔 File ID: %s\n", output.FileID.Hex())
+			fmt.Printf("🆔 File ID: %s\n", output.FileID.String())
 			fmt.Printf("📊 Storage Mode: %s → %s\n", output.PreviousMode, output.NewMode)
 			fmt.Printf("🗑️  Deleted: %s\n", getPathDisplayName(output.DeletedPath))
 			fmt.Printf("💾 Remaining: %s\n", getPathDisplayName(output.RemainingPath))

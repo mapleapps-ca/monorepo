@@ -32,7 +32,7 @@ func (r *collectionSharingDTORepository) RemoveMemberInCloud(ctx context.Context
 
 	// Prepare request body according to API spec
 	requestBody := map[string]interface{}{
-		"recipient_id":            request.RecipientID.Hex(),
+		"recipient_id":            request.RecipientID.String(),
 		"remove_from_descendants": request.RemoveFromDescendants,
 	}
 
@@ -44,7 +44,7 @@ func (r *collectionSharingDTORepository) RemoveMemberInCloud(ctx context.Context
 	}
 
 	// Create HTTP request
-	removeURL := fmt.Sprintf("%s/maplefile/api/v1/collections/%s/members", serverURL, request.CollectionID.Hex())
+	removeURL := fmt.Sprintf("%s/maplefile/api/v1/collections/%s/members", serverURL, request.CollectionID.String())
 	r.logger.Info("➡️ Making HTTP request to remove collection member",
 		zap.String("method", "DELETE"),
 		zap.String("url", removeURL))
@@ -96,8 +96,8 @@ func (r *collectionSharingDTORepository) RemoveMemberInCloud(ctx context.Context
 	}
 
 	r.logger.Info("✅ Successfully removed collection member",
-		zap.String("collectionID", request.CollectionID.Hex()),
-		zap.String("recipientID", request.RecipientID.Hex()))
+		zap.String("collectionID", request.CollectionID.String()),
+		zap.String("recipientID", request.RecipientID.String()))
 
 	return &response, nil
 }

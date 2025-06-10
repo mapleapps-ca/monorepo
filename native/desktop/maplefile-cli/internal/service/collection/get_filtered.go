@@ -127,7 +127,7 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 		localCollection, err := s.convertAndDecryptCollection(ctx, cloudCollection, userData, userPassword)
 		if err != nil {
 			s.logger.Warn("⚠️ failed to decrypt owned collection, skipping",
-				zap.String("collection_id", cloudCollection.ID.Hex()),
+				zap.String("collection_id", cloudCollection.ID.String()),
 				zap.Error(err))
 			continue
 		}
@@ -139,7 +139,7 @@ func (s *getFilteredService) GetFiltered(ctx context.Context, input *GetFiltered
 		localCollection, err := s.convertAndDecryptCollection(ctx, cloudCollection, userData, userPassword)
 		if err != nil {
 			s.logger.Warn("⚠️ failed to decrypt shared collection, skipping",
-				zap.String("collection_id", cloudCollection.ID.Hex()),
+				zap.String("collection_id", cloudCollection.ID.String()),
 				zap.Error(err))
 			continue
 		}

@@ -48,10 +48,10 @@ func NewShareCollectionUseCase(
 // Execute shares a collection with another user
 func (uc *shareCollectionUseCase) Execute(ctx context.Context, input *ShareCollectionInputDTO, userPassword string) (*collectionsharingdto.ShareCollectionResponseDTO, error) {
 	// Validate inputs
-	if input.CollectionID.IsZero() {
+	if input.CollectionID.String() == "" {
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
-	if input.RecipientID.IsZero() {
+	if input.RecipientID.String() == "" {
 		return nil, errors.NewAppError("recipient ID is required", nil)
 	}
 	if input.RecipientEmail == "" {
@@ -88,7 +88,7 @@ func (uc *shareCollectionUseCase) Execute(ctx context.Context, input *ShareColle
 	}
 
 	uc.logger.Info("✅ Successfully shared collection",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.String("recipientEmail", input.RecipientEmail),
 		zap.String("permissionLevel", input.PermissionLevel))
 

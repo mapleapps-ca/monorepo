@@ -11,10 +11,10 @@ import (
 )
 
 func (r *fileRepository) Delete(ctx context.Context, id gocql.UUID) error {
-	r.logger.Debug("Deleting file from local storage", zap.String("fileID", id.Hex()))
+	r.logger.Debug("Deleting file from local storage", zap.String("fileID", id.String()))
 
 	// Generate key for this file
-	key := r.generateKey(id.Hex())
+	key := r.generateKey(id.String())
 
 	// Delete from database
 	if err := r.dbClient.Delete(key); err != nil {
@@ -24,6 +24,6 @@ func (r *fileRepository) Delete(ctx context.Context, id gocql.UUID) error {
 		return errors.NewAppError("failed to delete file from local storage", err)
 	}
 
-	r.logger.Info("Successfully deleted file from local storage", zap.String("fileID", id.Hex()))
+	r.logger.Info("Successfully deleted file from local storage", zap.String("fileID", id.String()))
 	return nil
 }

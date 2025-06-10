@@ -53,7 +53,7 @@ func (s *updateLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	//
 	e := make(map[string]string)
 
-	if cloudFileID.IsZero() {
+	if cloudFileID.String() == "" {
 		e["cloudFileID"] = "Cloud file ID is required"
 	}
 	if password == "" {
@@ -86,7 +86,7 @@ func (s *updateLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 
 	if !hasLocalContent {
 		s.logger.Debug("⏭️ Skipping file update - user only has metadata (SyncStatusCloudOnly), no local file content",
-			zap.String("file_id", cloudFileID.Hex()),
+			zap.String("file_id", cloudFileID.String()),
 			zap.Any("sync_status", localFile.SyncStatus),
 			zap.String("file_path", localFile.FilePath),
 			zap.String("encrypted_file_path", localFile.EncryptedFilePath))
@@ -96,7 +96,7 @@ func (s *updateLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	}
 
 	s.logger.Debug("✅ User has local file content, proceeding with full update",
-		zap.String("file_id", cloudFileID.Hex()),
+		zap.String("file_id", cloudFileID.String()),
 		zap.Any("sync_status", localFile.SyncStatus))
 
 	//
@@ -118,7 +118,7 @@ func (s *updateLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	//
 	if localFile.Version >= cloudFileDTO.Version {
 		s.logger.Debug("✅ Local file is already same or newest version compared with the cloud file",
-			zap.String("file_id", cloudFileID.Hex()),
+			zap.String("file_id", cloudFileID.String()),
 			zap.Uint64("local_version", localFile.Version),
 			zap.Uint64("cloud_version", cloudFileDTO.Version))
 		return nil, nil
@@ -128,14 +128,14 @@ func (s *updateLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	if cloudFileDTO.State == "deleted" {
 		if err := s.deleteFileUseCase.Execute(ctx, localFile.ID); err != nil {
 			s.logger.Error("❌ Failed to delete local file",
-				zap.String("file_id", cloudFileID.Hex()),
+				zap.String("file_id", cloudFileID.String()),
 				zap.Uint64("local_version", localFile.Version),
 				zap.Uint64("cloud_version", cloudFileDTO.Version),
 				zap.Error(err))
 			return nil, err
 		}
 		s.logger.Debug("🗑️ Local file is marked as deleted",
-			zap.String("file_id", cloudFileID.Hex()),
+			zap.String("file_id", cloudFileID.String()),
 			zap.Uint64("local_version", localFile.Version),
 			zap.Uint64("cloud_version", cloudFileDTO.Version))
 		return nil, nil
@@ -188,13 +188,13 @@ func (s *updateLocalFileFromCloudFileService) Execute(ctx context.Context, cloud
 	updatedFile, err := s.updateFileUseCase.Execute(ctx, updateInput)
 	if err != nil {
 		s.logger.Error("❌ Failed to update local file from cloud",
-			zap.String("id", cloudFileDTO.ID.Hex()),
+			zap.String("id", cloudFileDTO.ID.String()),
 			zap.Error(err))
 		return nil, err
 	}
 
 	s.logger.Debug("✅ Local file is updated with full content",
-		zap.String("id", cloudFileID.Hex()),
+		zap.String("id", cloudFileID.String()),
 		zap.Uint64("old_version", localFile.Version),
 		zap.Uint64("new_version", cloudFileDTO.Version))
 
@@ -225,20 +225,20 @@ func (s *updateLocalFileFromCloudFileService) updateMetadataOnly(ctx context.Con
 	if err != nil {
 		// If we can't get metadata, just return the local file as-is
 		s.logger.Warn("⚠️ Failed to get cloud metadata for metadata-only update, keeping local file as-is",
-			zap.String("file_id", cloudFileID.Hex()),
+			zap.String("file_id", cloudFileID.String()),
 			zap.Error(err))
 		return localFile, nil
 	}
 	if cloudFileDTO == nil {
 		s.logger.Debug("ℹ️ Cloud file not found for metadata-only update",
-			zap.String("file_id", cloudFileID.Hex()))
+			zap.String("file_id", cloudFileID.String()))
 		return localFile, nil
 	}
 
 	// Check if metadata update is needed
 	if localFile.Version >= cloudFileDTO.Version {
 		s.logger.Debug("✅ Local file metadata is already up to date",
-			zap.String("file_id", cloudFileID.Hex()),
+			zap.String("file_id", cloudFileID.String()),
 			zap.Uint64("local_version", localFile.Version),
 			zap.Uint64("cloud_version", cloudFileDTO.Version))
 		return localFile, nil
@@ -248,12 +248,12 @@ func (s *updateLocalFileFromCloudFileService) updateMetadataOnly(ctx context.Con
 	if cloudFileDTO.State == "deleted" {
 		if err := s.deleteFileUseCase.Execute(ctx, localFile.ID); err != nil {
 			s.logger.Error("❌ Failed to delete local file during metadata-only update",
-				zap.String("file_id", cloudFileID.Hex()),
+				zap.String("file_id", cloudFileID.String()),
 				zap.Error(err))
 			return nil, err
 		}
 		s.logger.Debug("🗑️ Local file metadata marked as deleted",
-			zap.String("file_id", cloudFileID.Hex()))
+			zap.String("file_id", cloudFileID.String()))
 		return nil, nil
 	}
 
@@ -276,13 +276,13 @@ func (s *updateLocalFileFromCloudFileService) updateMetadataOnly(ctx context.Con
 	updatedFile, err := s.updateFileUseCase.Execute(ctx, updateInput)
 	if err != nil {
 		s.logger.Error("❌ Failed to update local file metadata",
-			zap.String("id", cloudFileDTO.ID.Hex()),
+			zap.String("id", cloudFileDTO.ID.String()),
 			zap.Error(err))
 		return nil, err
 	}
 
 	s.logger.Debug("✅ Local file metadata updated (content not downloaded)",
-		zap.String("id", cloudFileID.Hex()),
+		zap.String("id", cloudFileID.String()),
 		zap.Uint64("old_version", localFile.Version),
 		zap.Uint64("new_version", cloudFileDTO.Version),
 		zap.Any("sync_status", localFile.SyncStatus))

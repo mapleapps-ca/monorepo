@@ -4,7 +4,7 @@ package collection
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
@@ -13,7 +13,7 @@ import (
 
 func (r *collectionRepository) GetByID(ctx context.Context, id gocql.UUID) (*collection.Collection, error) {
 	// Generate key for this collection
-	key := r.generateKey(id.Hex())
+	key := r.generateKey(id.String())
 
 	// Get from database
 	collBytes, err := r.dbClient.Get(key)

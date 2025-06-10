@@ -47,17 +47,17 @@ func (uc *buildSyncCursorUseCase) Execute(ctx context.Context, input *BuildSyncC
 		return nil, errors.NewAppError("build sync cursor input is required", nil)
 	}
 
-	if input.LastModified.IsZero() {
+	if input.LastModified.String() == "" {
 		return nil, errors.NewAppError("last modified time is required", nil)
 	}
 
-	if input.LastID.IsZero() {
+	if input.LastID.String() == "" {
 		return nil, errors.NewAppError("last ID is required", nil)
 	}
 
 	uc.logger.Debug("Building sync cursor",
 		zap.Time("lastModified", input.LastModified),
-		zap.String("lastID", input.LastID.Hex()))
+		zap.String("lastID", input.LastID.String()))
 
 	cursor := &syncdto.SyncCursorDTO{
 		LastModified: input.LastModified,
@@ -75,16 +75,16 @@ func (uc *buildSyncCursorUseCase) FromCollectionSyncItem(ctx context.Context, it
 		return nil, errors.NewAppError("collection sync item is required", nil)
 	}
 
-	if item.ModifiedAt.IsZero() {
+	if item.ModifiedAt.String() == "" {
 		return nil, errors.NewAppError("collection modified time is required", nil)
 	}
 
-	if item.ID.IsZero() {
+	if item.ID.String() == "" {
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
 	uc.logger.Debug("Building sync cursor from collection sync item",
-		zap.String("collectionID", item.ID.Hex()),
+		zap.String("collectionID", item.ID.String()),
 		zap.Time("modifiedAt", item.ModifiedAt))
 
 	input := &BuildSyncCursorInput{
@@ -102,16 +102,16 @@ func (uc *buildSyncCursorUseCase) FromFileSyncItem(ctx context.Context, item *sy
 		return nil, errors.NewAppError("file sync item is required", nil)
 	}
 
-	if item.ModifiedAt.IsZero() {
+	if item.ModifiedAt.String() == "" {
 		return nil, errors.NewAppError("file modified time is required", nil)
 	}
 
-	if item.ID.IsZero() {
+	if item.ID.String() == "" {
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
 
 	uc.logger.Debug("Building sync cursor from file sync item",
-		zap.String("fileID", item.ID.Hex()),
+		zap.String("fileID", item.ID.String()),
 		zap.Time("modifiedAt", item.ModifiedAt))
 
 	input := &BuildSyncCursorInput{

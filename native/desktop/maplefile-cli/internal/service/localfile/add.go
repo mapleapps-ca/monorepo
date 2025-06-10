@@ -117,11 +117,11 @@ func (s *localFileAddService) Add(ctx context.Context, input *LocalFileAddInput,
 		s.logger.Error("❌ File path is required")
 		return nil, errors.NewAppError("file path is required", nil)
 	}
-	if input.CollectionID.IsZero() {
+	if input.CollectionID.String() == "" {
 		s.logger.Error("❌ Collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
-	if input.OwnerID.IsZero() {
+	if input.OwnerID.String() == "" {
 		s.logger.Error("❌ Owner ID is required")
 		return nil, errors.NewAppError("owner ID is required", nil)
 	}
@@ -216,7 +216,7 @@ func (s *localFileAddService) Add(ctx context.Context, input *LocalFileAddInput,
 	}
 
 	// Create collection-specific subdirectory
-	collectionDir := s.pathUtilsUseCase.Join(ctx, binDir, input.CollectionID.Hex())
+	collectionDir := s.pathUtilsUseCase.Join(ctx, binDir, input.CollectionID.String())
 	if err := s.createDirectoryUseCase.ExecuteAll(ctx, collectionDir); err != nil {
 		s.logger.Error("❌ Failed to create collection directory", zap.String("collectionDir", collectionDir), zap.Error(err))
 		return nil, errors.NewAppError("failed to create collection directory", err)
@@ -241,7 +241,7 @@ func (s *localFileAddService) Add(ctx context.Context, input *LocalFileAddInput,
 
 	// Generate unique file ID and create destination path
 	fileID := s.primitiveIDObjectGenerator.GenerateValidObjectID()
-	destFileName := fileID.Hex() + fileExtension
+	destFileName := fileID.String() + fileExtension
 	destFilePath := s.pathUtilsUseCase.Join(ctx, collectionDir, destFileName)
 
 	//
@@ -361,12 +361,12 @@ func (s *localFileAddService) Add(ctx context.Context, input *LocalFileAddInput,
 	// STEP 9: Save file record to database
 	//
 	if err := s.createFileUseCase.Execute(ctx, domainFile); err != nil {
-		s.logger.Error("❌ Failed to create file record", zap.String("fileID", fileID.Hex()), zap.Error(err))
+		s.logger.Error("❌ Failed to create file record", zap.String("fileID", fileID.String()), zap.Error(err))
 		return nil, errors.NewAppError("failed to create file record", err)
 	}
 
 	s.logger.Info("✅ Successfully added E2EE file using crypto services",
-		zap.String("fileID", fileID.Hex()),
+		zap.String("fileID", fileID.String()),
 		zap.String("fileName", fileName),
 		zap.String("copiedPath", destFilePath))
 

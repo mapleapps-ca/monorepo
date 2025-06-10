@@ -43,7 +43,7 @@ func (uc *getCollectionFromCloudUseCase) Execute(ctx context.Context, collection
 
 	e := make(map[string]string)
 
-	if collectionID.IsZero() {
+	if collectionID.String() == "" {
 		e["collection_id"] = "Collection ID is required"
 	}
 	// If any errors were found, return bad request error

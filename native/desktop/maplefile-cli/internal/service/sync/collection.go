@@ -122,11 +122,11 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 	}
 	s.logger.Debug("✅ Successfully retrieved sync state for collections",
 		zap.Time("lastCollectionSync", syncStateOutput.SyncState.LastCollectionSync),
-		zap.String("lastCollectionID", syncStateOutput.SyncState.LastCollectionID.Hex())) // Convert ObjectID to string for logging
+		zap.String("lastCollectionID", syncStateOutput.SyncState.LastCollectionID.String())) // Convert ObjectID to string for logging
 
 	// Build the sync cursor based on the retrieved sync state
 	var currentSyncCursor *dom_syncdto.SyncCursorDTO
-	if !syncStateOutput.SyncState.LastCollectionSync.IsZero() {
+	if !(syncStateOutput.SyncState.LastCollectionSync.String() == "") {
 		// If a previous sync state exists, use it to create the cursor
 		currentSyncCursor = &dom_syncdto.SyncCursorDTO{
 			LastModified: syncStateOutput.SyncState.LastCollectionSync,
@@ -134,7 +134,7 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 		}
 		s.logger.Debug("➡️ Using existing cursor for collection sync",
 			zap.Time("lastModified", currentSyncCursor.LastModified),
-			zap.String("lastID", currentSyncCursor.LastID.Hex())) // Convert ObjectID to string for logging
+			zap.String("lastID", currentSyncCursor.LastID.String())) // Convert ObjectID to string for logging
 	} else {
 		// If no previous sync state exists, start syncing from the beginning (nil cursor)
 		s.logger.Debug("✨ No previous sync state found for collections, starting from beginning")
@@ -182,7 +182,7 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 		for _, cloudCollection := range batch.Collections {
 			// Log detailed information about the collection being analyzed
 			s.logger.Debug("🔍 Beginning to analyze collection for syncing...",
-				zap.String("id", cloudCollection.ID.Hex()),
+				zap.String("id", cloudCollection.ID.String()),
 				zap.Uint64("version", cloudCollection.Version),
 				zap.Time("modified_at", cloudCollection.ModifiedAt),
 				zap.String("state", cloudCollection.State),
@@ -200,7 +200,7 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 			if err != nil {
 				// Log error if lookup fails but continue processing other items
 				s.logger.Error("❌ Failed to get local collection",
-					zap.String("id", cloudCollection.ID.Hex()),
+					zap.String("id", cloudCollection.ID.String()),
 					zap.Error(err))
 				// Depending on error type, might need to handle specifically (e.g., not found vs actual DB error)
 				continue // Skip processing this collection if local lookup fails
@@ -213,19 +213,19 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 			if existingLocalCollection == nil {
 				// For debugging purposes, log the details of the collection being analyzed
 				s.logger.Debug("👻 No local collection found.",
-					zap.String("id", cloudCollection.ID.Hex()))
+					zap.String("id", cloudCollection.ID.String()))
 
 				// Make sure the cloud collection hasn't been deleted.
 				if cloudCollection.TombstoneVersion > 0 {
 					s.logger.Debug("🚫 Skipping local collection creation from the cloud because it has been marked for deletion in the cloud",
-						zap.String("id", cloudCollection.ID.Hex()))
+						zap.String("id", cloudCollection.ID.String()))
 					continue // Go to the next item in the loop and do not continue in this function.
 				}
 
 				localCollection, err := s.createLocalCollectionFromCloudCollectionService.Execute(ctx, cloudCollection.ID, input.Password)
 				if err != nil {
 					s.logger.Error("❌ Failed to get cloud collection and create it locally",
-						zap.String("id", cloudCollection.ID.Hex()),
+						zap.String("id", cloudCollection.ID.String()),
 						zap.Error(err))
 					// Depending on error type, might need to handle specifically (e.g., not found vs actual DB error)
 					continue // Skip processing this collection if local create fails
@@ -245,14 +245,14 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 			if cloudCollection.TombstoneVersion > existingLocalCollection.Version || cloudCollection.State == "deleted" {
 				if err := s.deleteCollectionUseCase.Execute(ctx, existingLocalCollection.ID); err != nil {
 					s.logger.Error("❌ Failed to delete local collection",
-						zap.String("collection_id", existingLocalCollection.ID.Hex()),
+						zap.String("collection_id", existingLocalCollection.ID.String()),
 						zap.Uint64("local_version", existingLocalCollection.Version),
 						zap.Uint64("cloud_version", cloudCollection.Version),
 						zap.Error(err))
 					return nil, err
 				}
 				s.logger.Debug("🗑️ Local collection is marked as deleted",
-					zap.String("collection_id", existingLocalCollection.ID.Hex()),
+					zap.String("collection_id", existingLocalCollection.ID.String()),
 					zap.Uint64("local_version", existingLocalCollection.Version),
 					zap.Uint64("cloud_version", cloudCollection.Version))
 				collectionSyncResult.CollectionsDeleted++
@@ -263,12 +263,12 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 			// CASE 3: If the local collection exists, check if it needs to be updated or deleted.
 			//
 			s.logger.Debug("🔄 Local collection found, update if changes detected.",
-				zap.String("id", cloudCollection.ID.Hex()))
+				zap.String("id", cloudCollection.ID.String()))
 
 			// Local collection is already same or newest version compared with the cloud collection.
 			if existingLocalCollection.Version >= cloudCollection.Version {
 				s.logger.Debug("✅ Local collection is already same or newest version compared with the cloud collection",
-					zap.String("collection_id", cloudCollection.ID.Hex()),
+					zap.String("collection_id", cloudCollection.ID.String()),
 					zap.Uint64("local_version", existingLocalCollection.Version),
 					zap.Uint64("cloud_version", cloudCollection.Version),
 				)
@@ -278,7 +278,7 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 			localCollection, err := s.updateLocalCollectionFromCloudCollectionService.Execute(ctx, cloudCollection.ID, input.Password)
 			if err != nil {
 				s.logger.Error("❌ Failed to get cloud collection and save/delete it locally",
-					zap.String("id", cloudCollection.ID.Hex()),
+					zap.String("id", cloudCollection.ID.String()),
 					zap.Error(err))
 				// Depending on error type, might need to handle specifically (e.g., not found vs actual DB error)
 				continue // Skip processing this collection if local create fails
@@ -300,7 +300,7 @@ func (s *syncCollectionService) Execute(ctx context.Context, input *SyncCollecti
 		}
 		s.logger.Debug("💾 Attempting to save sync state for collections",
 			zap.Time("lastCollectionSync", *saveInput.LastCollectionSync),
-			zap.String("lastCollectionID", saveInput.LastCollectionID.Hex())) // Convert ObjectID to string for logging
+			zap.String("lastCollectionID", saveInput.LastCollectionID.String())) // Convert ObjectID to string for logging
 
 		_, err = s.syncStateSaveService.SaveSyncState(ctx, saveInput)
 		if err != nil {

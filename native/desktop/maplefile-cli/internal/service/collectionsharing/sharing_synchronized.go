@@ -75,7 +75,7 @@ func (s *synchronizedCollectionSharingService) ExecuteWithSync(
 	userPassword string,
 ) (*ShareCollectionOutput, error) {
 	s.logger.Info("🔄 Starting synchronized collection sharing using crypto service",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.String("recipientEmail", input.RecipientEmail),
 		zap.String("permissionLevel", input.PermissionLevel))
 
@@ -90,7 +90,7 @@ func (s *synchronizedCollectionSharingService) ExecuteWithSync(
 	}
 
 	s.logger.Info("✅ Successfully shared collection in cloud using crypto service",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.Int("membershipsCreated", shareOutput.MembershipsCreated))
 
 	//
@@ -99,17 +99,17 @@ func (s *synchronizedCollectionSharingService) ExecuteWithSync(
 
 	if err := s.updateLocalCollectionWithNewMember(ctx, input, userPassword); err != nil {
 		s.logger.Error("⚠️ Failed to update local collection after sharing",
-			zap.String("collectionID", input.CollectionID.Hex()),
+			zap.String("collectionID", input.CollectionID.String()),
 			zap.Error(err))
 
 		// Don't fail the entire operation since cloud sharing succeeded
 		// But warn the user about potential sync issues
 		s.logger.Warn("🚨 Collection shared successfully in cloud, but local sync failed. "+
 			"Local collection may be out of sync. Consider running a manual sync.",
-			zap.String("collectionID", input.CollectionID.Hex()))
+			zap.String("collectionID", input.CollectionID.String()))
 	} else {
 		s.logger.Info("✅ Successfully synchronized local collection with new member using crypto service",
-			zap.String("collectionID", input.CollectionID.Hex()),
+			zap.String("collectionID", input.CollectionID.String()),
 			zap.String("recipientEmail", input.RecipientEmail))
 	}
 
@@ -126,7 +126,7 @@ func (s *synchronizedCollectionSharingService) executeCloudSharing(
 	if input == nil {
 		return nil, errors.NewAppError("input is required", nil)
 	}
-	if input.CollectionID.IsZero() {
+	if input.CollectionID.String() == "" {
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 	if input.RecipientEmail == "" {
@@ -208,7 +208,7 @@ func (s *synchronizedCollectionSharingService) executeCloudSharing(
 	}
 
 	s.logger.Debug("🔍 Sharing request details using crypto service",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.String("recipientEmail", input.RecipientEmail),
 		zap.Int("encryptedKeyLength", len(encryptedCollectionKey.ToBoxSealBytes())))
 
@@ -231,7 +231,7 @@ func (s *synchronizedCollectionSharingService) updateLocalCollectionWithNewMembe
 	userPassword string,
 ) error {
 	s.logger.Debug("🔄 Updating local collection with new member using crypto service",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.String("recipientEmail", input.RecipientEmail))
 
 	// Get the current local collection
@@ -290,7 +290,7 @@ func (s *synchronizedCollectionSharingService) updateLocalCollectionWithNewMembe
 	for _, existingMember := range localCollection.Members {
 		if existingMember.RecipientID == publicLookupResponse.UserID {
 			s.logger.Warn("Member already exists in local collection, skipping local update",
-				zap.String("collectionID", input.CollectionID.Hex()),
+				zap.String("collectionID", input.CollectionID.String()),
 				zap.String("recipientEmail", input.RecipientEmail))
 			return nil
 		}
@@ -308,7 +308,7 @@ func (s *synchronizedCollectionSharingService) updateLocalCollectionWithNewMembe
 	}
 
 	s.logger.Info("✅ Successfully added new member to local collection using crypto service",
-		zap.String("collectionID", input.CollectionID.Hex()),
+		zap.String("collectionID", input.CollectionID.String()),
 		zap.String("newMemberEmail", input.RecipientEmail),
 		zap.String("permissionLevel", input.PermissionLevel),
 		zap.Int("totalMembers", len(localCollection.Members)))

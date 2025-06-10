@@ -233,7 +233,7 @@ func (s *onloadService) Onload(ctx context.Context, input *OnloadInput) (*Onload
 
 // saveDecryptedFile saves the decrypted file content to local storage
 func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.File, decryptedData []byte, metadata *svc_filedownload.DecryptedFileMetadata) (string, error) {
-	s.logger.Debug("💾 Saving decrypted file locally", zap.String("fileID", file.ID.Hex()))
+	s.logger.Debug("💾 Saving decrypted file locally", zap.String("fileID", file.ID.String()))
 
 	// Get app data directory
 	appDataDir, err := s.configService.GetAppDataDirPath(ctx)
@@ -244,7 +244,7 @@ func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.Fi
 	// Create files storage directory structure
 	filesDir := s.pathUtilsUseCase.Join(ctx, appDataDir, "files")
 	binDir := s.pathUtilsUseCase.Join(ctx, filesDir, "bin")
-	collectionDir := s.pathUtilsUseCase.Join(ctx, binDir, file.CollectionID.Hex())
+	collectionDir := s.pathUtilsUseCase.Join(ctx, binDir, file.CollectionID.String())
 
 	// Create directories if they don't exist
 	if err := s.createDirectoryUseCase.ExecuteAll(ctx, collectionDir); err != nil {
@@ -254,7 +254,7 @@ func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.Fi
 	// Enhanced file extension determination
 	fileExtension := s.determineFileExtension(metadata, file.MimeType)
 
-	destFileName := file.ID.Hex() + fileExtension
+	destFileName := file.ID.String() + fileExtension
 	destFilePath := s.pathUtilsUseCase.Join(ctx, collectionDir, destFileName)
 
 	// Write the decrypted file
@@ -264,7 +264,7 @@ func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.Fi
 	}
 
 	s.logger.Debug("✅ Successfully saved decrypted file",
-		zap.String("fileID", file.ID.Hex()),
+		zap.String("fileID", file.ID.String()),
 		zap.String("filePath", destFilePath),
 		zap.String("extension", fileExtension),
 		zap.Int("size", len(decryptedData)))
@@ -274,7 +274,7 @@ func (s *onloadService) saveDecryptedFile(ctx context.Context, file *dom_file.Fi
 
 // saveThumbnail saves the decrypted thumbnail to local storage
 func (s *onloadService) saveThumbnail(ctx context.Context, file *dom_file.File, thumbnailData []byte, originalFileName string) (string, error) {
-	s.logger.Debug("🖼️ Saving thumbnail locally", zap.String("fileID", file.ID.Hex()))
+	s.logger.Debug("🖼️ Saving thumbnail locally", zap.String("fileID", file.ID.String()))
 
 	// Get app data directory
 	appDataDir, err := s.configService.GetAppDataDirPath(ctx)
@@ -285,7 +285,7 @@ func (s *onloadService) saveThumbnail(ctx context.Context, file *dom_file.File, 
 	// Create files storage directory structure
 	filesDir := s.pathUtilsUseCase.Join(ctx, appDataDir, "files")
 	binDir := s.pathUtilsUseCase.Join(ctx, filesDir, "bin")
-	collectionDir := s.pathUtilsUseCase.Join(ctx, binDir, file.CollectionID.Hex())
+	collectionDir := s.pathUtilsUseCase.Join(ctx, binDir, file.CollectionID.String())
 
 	// Create directories if they don't exist
 	if err := s.createDirectoryUseCase.ExecuteAll(ctx, collectionDir); err != nil {
@@ -293,7 +293,7 @@ func (s *onloadService) saveThumbnail(ctx context.Context, file *dom_file.File, 
 	}
 
 	// Generate thumbnail file name
-	thumbnailFileName := file.ID.Hex() + "_thumbnail.jpg"
+	thumbnailFileName := file.ID.String() + "_thumbnail.jpg"
 	thumbnailPath := s.pathUtilsUseCase.Join(ctx, collectionDir, thumbnailFileName)
 
 	// Write the thumbnail
@@ -303,7 +303,7 @@ func (s *onloadService) saveThumbnail(ctx context.Context, file *dom_file.File, 
 	}
 
 	s.logger.Debug("✅ Successfully saved thumbnail",
-		zap.String("fileID", file.ID.Hex()),
+		zap.String("fileID", file.ID.String()),
 		zap.String("thumbnailPath", thumbnailPath),
 		zap.Int("size", len(thumbnailData)))
 
@@ -351,7 +351,7 @@ func (s *onloadService) determineFileExtension(metadata *svc_filedownload.Decryp
 // Enhanced saveDecryptedFile with extensive debugging
 func (s *onloadService) saveDecryptedFileWithDebug(ctx context.Context, file *dom_file.File, decryptedData []byte, metadata *svc_filedownload.DecryptedFileMetadata) (string, error) {
 	s.logger.Info("💾 DEBUG: Starting saveDecryptedFile",
-		zap.String("fileID", file.ID.Hex()),
+		zap.String("fileID", file.ID.String()),
 		zap.String("fileMimeType", file.MimeType),
 		zap.String("fileName", file.Name))
 
@@ -374,7 +374,7 @@ func (s *onloadService) saveDecryptedFileWithDebug(ctx context.Context, file *do
 	// Create files storage directory structure
 	filesDir := s.pathUtilsUseCase.Join(ctx, appDataDir, "files")
 	binDir := s.pathUtilsUseCase.Join(ctx, filesDir, "bin")
-	collectionDir := s.pathUtilsUseCase.Join(ctx, binDir, file.CollectionID.Hex())
+	collectionDir := s.pathUtilsUseCase.Join(ctx, binDir, file.CollectionID.String())
 
 	// Create directories if they don't exist
 	if err := s.createDirectoryUseCase.ExecuteAll(ctx, collectionDir); err != nil {
@@ -385,14 +385,14 @@ func (s *onloadService) saveDecryptedFileWithDebug(ctx context.Context, file *do
 	fileExtension := s.determineFileExtensionWithDebug(metadata, file.MimeType)
 
 	s.logger.Info("🔍 DEBUG: Final extension determination",
-		zap.String("fileID", file.ID.Hex()),
+		zap.String("fileID", file.ID.String()),
 		zap.String("finalExtension", fileExtension))
 
-	destFileName := file.ID.Hex() + fileExtension
+	destFileName := file.ID.String() + fileExtension
 	destFilePath := s.pathUtilsUseCase.Join(ctx, collectionDir, destFileName)
 
 	s.logger.Info("🔍 DEBUG: File paths",
-		zap.String("fileID", file.ID.Hex()),
+		zap.String("fileID", file.ID.String()),
 		zap.String("destFileName", destFileName),
 		zap.String("destFilePath", destFilePath))
 
@@ -403,7 +403,7 @@ func (s *onloadService) saveDecryptedFileWithDebug(ctx context.Context, file *do
 	}
 
 	s.logger.Info("✅ Successfully saved decrypted file with extension",
-		zap.String("fileID", file.ID.Hex()),
+		zap.String("fileID", file.ID.String()),
 		zap.String("filePath", destFilePath),
 		zap.String("extension", fileExtension),
 		zap.Int("size", len(decryptedData)))

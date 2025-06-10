@@ -154,14 +154,14 @@ func (s *logoutService) deleteAllLocalFiles(ctx context.Context) error {
 
 	for _, coll := range collections {
 		s.logger.Debug("🔍 Processing files in collection",
-			zap.String("collectionID", coll.ID.Hex()),
+			zap.String("collectionID", coll.ID.String()),
 			zap.String("collectionName", coll.Name))
 
 		// Get all files in this collection
 		files, err := s.listFilesByCollectionUseCase.Execute(ctx, coll.ID)
 		if err != nil {
 			s.logger.Warn("⚠️  Failed to list files in collection, continuing",
-				zap.String("collectionID", coll.ID.Hex()),
+				zap.String("collectionID", coll.ID.String()),
 				zap.Error(err))
 			continue
 		}
@@ -170,7 +170,7 @@ func (s *logoutService) deleteAllLocalFiles(ctx context.Context) error {
 
 		for _, file := range files {
 			s.logger.Debug("🗑️  Deleting file",
-				zap.String("fileID", file.ID.Hex()),
+				zap.String("fileID", file.ID.String()),
 				zap.String("fileName", file.Name))
 
 			// Delete file data from disk (if it exists)
@@ -214,7 +214,7 @@ func (s *logoutService) deleteAllLocalFiles(ctx context.Context) error {
 			// Delete file metadata from database
 			if err := s.deleteFileUseCase.Execute(ctx, file.ID); err != nil {
 				s.logger.Warn("⚠️  Failed to delete file metadata, continuing",
-					zap.String("fileID", file.ID.Hex()),
+					zap.String("fileID", file.ID.String()),
 					zap.Error(err))
 			} else {
 				deletedMetadataCount++
@@ -245,12 +245,12 @@ func (s *logoutService) deleteAllLocalCollections(ctx context.Context) error {
 
 	for _, coll := range collections {
 		s.logger.Debug("🗑️  Deleting collection",
-			zap.String("collectionID", coll.ID.Hex()),
+			zap.String("collectionID", coll.ID.String()),
 			zap.String("collectionName", coll.Name))
 
 		if err := s.deleteCollectionUseCase.Execute(ctx, coll.ID); err != nil {
 			s.logger.Warn("⚠️  Failed to delete collection, continuing",
-				zap.String("collectionID", coll.ID.Hex()),
+				zap.String("collectionID", coll.ID.String()),
 				zap.Error(err))
 		} else {
 			deletedCount++

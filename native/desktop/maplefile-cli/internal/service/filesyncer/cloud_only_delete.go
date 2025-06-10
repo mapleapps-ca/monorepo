@@ -157,7 +157,7 @@ func (s *cloudOnlyDeleteService) DeleteFromCloud(ctx context.Context, input *Clo
 	if err != nil {
 		s.logger.Error("❌ failed to delete file from cloud",
 			zap.String("fileID", input.FileID),
-			zap.String("fileObjectID", fileObjectID.Hex()),
+			zap.String("fileObjectID", fileObjectID.String()),
 			zap.Any("fileSyncStatus", file.SyncStatus),
 			zap.Error(err))
 

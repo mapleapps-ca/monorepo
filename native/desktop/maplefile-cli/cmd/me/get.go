@@ -76,7 +76,7 @@ Examples:
 
 			if verbose {
 				fmt.Printf("\nAdditional Information:\n")
-				fmt.Printf("User ID: %s\n", profile.ID.Hex())
+				fmt.Printf("User ID: %s\n", profile.ID.String())
 				fmt.Printf("Role: %d\n", profile.Role)
 				fmt.Printf("Status: %d\n", profile.Status)
 				fmt.Printf("Lexical Name: %s\n", profile.LexicalName)

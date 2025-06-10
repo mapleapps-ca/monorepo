@@ -37,10 +37,10 @@ func NewSwapIDsUseCase(
 // Execute swaps IDs of a local file
 func (uc *swapIDsUseCase) Execute(ctx context.Context, oldID gocql.UUID, newID gocql.UUID) error {
 	// Validate inputs
-	if oldID.IsZero() {
+	if oldID.String() == "" {
 		return errors.NewAppError("file old ID is required", nil)
 	}
-	if newID.IsZero() {
+	if newID.String() == "" {
 		return errors.NewAppError("file new ID is required", nil)
 	}
 

@@ -119,7 +119,7 @@ func displaySimpleFileList(files []*dom_file.File) {
 		}
 
 		fmt.Printf("%-8s %-30s %-12s %-15s %s\n",
-			status, name, size, syncStr, file.ID.Hex())
+			status, name, size, syncStr, file.ID.String())
 	}
 }
 
@@ -130,7 +130,7 @@ func displayDetailedFileList(files []*dom_file.File) {
 			fmt.Println(strings.Repeat("-", 50))
 		}
 
-		fmt.Printf("🆔 ID: %s\n", file.ID.Hex())
+		fmt.Printf("🆔 ID: %s\n", file.ID.String())
 		fmt.Printf("📄 Name: %s\n", file.Name)
 		fmt.Printf("📏 Size: %s (%d bytes)\n", formatFileSize(file.FileSize), file.FileSize)
 		fmt.Printf("🏷️  MIME Type: %s\n", file.MimeType)

@@ -70,7 +70,7 @@ func (uc *updateFileUseCase) Execute(
 	input UpdateFileInput,
 ) (*dom_file.File, error) {
 	// Validate inputs
-	if input.ID.IsZero() {
+	if input.ID.String() == "" {
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
 

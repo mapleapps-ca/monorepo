@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
@@ -65,13 +65,13 @@ func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, id gocql
 	}
 
 	// Defensive programming
-	if id.IsZero() {
+	if id.String() == "" {
 		r.logger.Error("🚨 id is required")
 		return nil, errors.NewAppError("id is required", nil)
 	}
 
 	// Create HTTP request
-	fetchURL := fmt.Sprintf("%s/maplefile/api/v1/collections/%s", serverURL, id.Hex())
+	fetchURL := fmt.Sprintf("%s/maplefile/api/v1/collections/%s", serverURL, id.String())
 	req, err := http.NewRequestWithContext(ctx, "GET", fetchURL, nil)
 	if err != nil {
 		r.logger.Error("🚨 Failed to create HTTP request", zap.String("url", fetchURL), zap.Error(err))
@@ -193,12 +193,12 @@ func (r *collectionDTORepository) GetFromCloudByID(ctx context.Context, id gocql
 		}
 		r.logger.Debug("🔍 Member details from API",
 			zap.Int("memberIndex", i),
-			zap.String("memberID", member.ID.Hex()),
+			zap.String("memberID", member.ID.String()),
 			zap.String("recipientEmail", member.RecipientEmail),
 			zap.Int("encryptedKeyLength", encryptedKeyLength))
 	}
 
 	r.logger.Info("✨ Successfully fetched collection from cloud server",
-		zap.String("collectionID", id.Hex()))
+		zap.String("collectionID", id.String()))
 	return response, nil
 }

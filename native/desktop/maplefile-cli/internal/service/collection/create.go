@@ -5,9 +5,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	dom_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
@@ -19,7 +19,6 @@ import (
 	uc_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
-	sprimitive "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/mongodb"
 )
 
 // CreateInput represents the input for creating a local collection
@@ -44,7 +43,6 @@ type CreateService interface {
 type createService struct {
 	logger                         *zap.Logger
 	configService                  config.ConfigService
-	primitiveIDObjectGenerator     sprimitive.SecurePrimitiveObjectIDGenerator
 	transactionManager             dom_tx.Manager
 	getUserByIsLoggedInUseCase     uc_user.GetByIsLoggedInUseCase
 	collectionEncryptionService    svc_collectioncrypto.CollectionEncryptionService
@@ -57,7 +55,6 @@ type createService struct {
 func NewCreateService(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	primitiveIDObjectGenerator sprimitive.SecurePrimitiveObjectIDGenerator,
 	transactionManager dom_tx.Manager,
 	getUserByIsLoggedInUseCase uc_user.GetByIsLoggedInUseCase,
 	collectionEncryptionService svc_collectioncrypto.CollectionEncryptionService,
@@ -69,7 +66,6 @@ func NewCreateService(
 	return &createService{
 		logger:                         logger,
 		configService:                  configService,
-		primitiveIDObjectGenerator:     primitiveIDObjectGenerator,
 		transactionManager:             transactionManager,
 		getUserByIsLoggedInUseCase:     getUserByIsLoggedInUseCase,
 		collectionEncryptionService:    collectionEncryptionService,
@@ -94,7 +90,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 		s.logger.Error("❌ Collection name is required", zap.Any("input", input))
 		return nil, errors.NewAppError("collection name is required", nil)
 	}
-	if input.OwnerID.IsZero() {
+	if input.OwnerID.String() == "" {
 		s.logger.Error("❌ Owner ID is required", zap.Any("input", input))
 		return nil, errors.NewAppError("owner ID is required", nil)
 	}
@@ -172,7 +168,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 
 	// Generate client-side a ID which is cryptographically secure, cross-platform, and
 	// designed for distributed systems.
-	collectionID := s.primitiveIDObjectGenerator.GenerateValidObjectID()
+	collectionID := gocql.TimeUUID()
 
 	// Create collection with properly encrypted data and default state
 	collectionDTO := &dom_collectiondto.CollectionDTO{
@@ -246,7 +242,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	}
 
 	s.logger.Info("✅ Successfully created E2EE collection",
-		zap.String("collectionID", collectionCloudID.Hex()),
+		zap.String("collectionID", collectionCloudID.String()),
 		zap.String("name", input.Name),
 		zap.String("state", col.State))
 

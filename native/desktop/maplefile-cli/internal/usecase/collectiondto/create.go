@@ -47,7 +47,7 @@ func (uc *createCollectionInCloudUseCase) Execute(ctx context.Context, dto *coll
 		e["dto"] = "DTO is required"
 	} else {
 		// Validate required fields
-		if dto.OwnerID.IsZero() {
+		if dto.OwnerID.String() == "" {
 			e["owner_id"] = "OwnerID is required"
 		}
 		if dto.EncryptedName == "" {
@@ -56,10 +56,10 @@ func (uc *createCollectionInCloudUseCase) Execute(ctx context.Context, dto *coll
 		if dto.CollectionType == "" {
 			e["collection_type"] = "Collection type is required"
 		}
-		if dto.CreatedAt.IsZero() {
+		if dto.CreatedAt.String() == "" {
 			e["created_at"] = "CreatedAt is required"
 		}
-		if dto.ModifiedAt.IsZero() {
+		if dto.ModifiedAt.String() == "" {
 			e["modified_at"] = "ModifiedAt is required"
 		}
 		if dto.EncryptedCollectionKey == nil {

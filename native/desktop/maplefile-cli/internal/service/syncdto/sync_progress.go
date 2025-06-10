@@ -229,7 +229,7 @@ func (s *syncProgressService) GetAllFiles(ctx context.Context, input *SyncProgre
 		if response.NextCursor != nil {
 			output.FinalCursor = response.NextCursor
 			s.logger.Debug("📍 Captured cursor from response",
-				zap.String("lastID", response.NextCursor.LastID.Hex()),
+				zap.String("lastID", response.NextCursor.LastID.String()),
 				zap.Time("lastModified", response.NextCursor.LastModified),
 				zap.Bool("hasMore", response.HasMore))
 		} else if len(response.Files) > 0 {
@@ -240,7 +240,7 @@ func (s *syncProgressService) GetAllFiles(ctx context.Context, input *SyncProgre
 				LastID:       lastItem.ID,
 			}
 			s.logger.Debug("📍 Built cursor from last item",
-				zap.String("lastID", lastItem.ID.Hex()),
+				zap.String("lastID", lastItem.ID.String()),
 				zap.Time("lastModified", lastItem.ModifiedAt))
 		}
 
@@ -284,7 +284,7 @@ func (s *syncProgressService) GetAllFiles(ctx context.Context, input *SyncProgre
 func (s *syncProgressService) GetIncrementalSync(ctx context.Context, lastModified time.Time, lastID gocql.UUID, syncType string) (*SyncProgressOutput, error) {
 	s.logger.Info("✨ Starting incremental sync",
 		zap.Time("last_modified", lastModified),
-		zap.String("last_id", lastID.Hex()),
+		zap.String("last_id", lastID.String()),
 		zap.String("sync_type", syncType))
 
 	cursor := &syncdto.SyncCursorDTO{

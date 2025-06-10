@@ -74,7 +74,7 @@ func NewCollectionEncryptionService(
 // Existing methods remain unchanged...
 func (s *collectionEncryptionService) ExecuteForCreateCollectionKeyAndEncryptWithMasterKey(ctx context.Context, user *dom_user.User, password string) (*dom_keys.EncryptedCollectionKey, []byte, error) {
 	s.logger.Debug("🔑 Starting E2EE key chain Encryption",
-		zap.String("userID", user.ID.Hex()),
+		zap.String("userID", user.ID.String()),
 	)
 
 	// Derive keyEncryptionKey from password
@@ -145,7 +145,7 @@ func (s *collectionEncryptionService) EncryptCollectionKeyForSharing(
 	userPassword string,
 ) (*keys.EncryptedCollectionKey, error) {
 	s.logger.Info("🔐 Starting complete E2EE collection sharing encryption",
-		zap.String("collectionID", collection.ID.Hex()),
+		zap.String("collectionID", collection.ID.String()),
 		zap.Int("recipientPublicKeyLength", len(recipientPublicKey)))
 
 	// STEP 1: Validate recipient public key
@@ -178,7 +178,7 @@ func (s *collectionEncryptionService) EncryptCollectionKeyForSharing(
 	}
 
 	s.logger.Info("✅ Successfully encrypted collection key for sharing using complete E2EE chain",
-		zap.String("collectionID", collection.ID.Hex()),
+		zap.String("collectionID", collection.ID.String()),
 		zap.Int("encryptedKeyLength", len(encryptedCollectionKey.ToBoxSealBytes())))
 
 	return encryptedCollectionKey, nil
@@ -193,7 +193,7 @@ func (s *collectionEncryptionService) EncryptCollectionKeyForMultipleRecipients(
 	userPassword string,
 ) (map[string]*keys.EncryptedCollectionKey, error) {
 	s.logger.Info("🔐 Starting batch collection sharing encryption",
-		zap.String("collectionID", collection.ID.Hex()),
+		zap.String("collectionID", collection.ID.String()),
 		zap.Int("recipientCount", len(recipients)))
 
 	if len(recipients) == 0 {
@@ -263,7 +263,7 @@ func (s *collectionEncryptionService) EncryptCollectionKeyForMultipleRecipients(
 	errorCount := len(errors)
 
 	s.logger.Info("✅ Completed batch collection sharing encryption",
-		zap.String("collectionID", collection.ID.Hex()),
+		zap.String("collectionID", collection.ID.String()),
 		zap.Int("successfulRecipients", successCount),
 		zap.Int("failedRecipients", errorCount),
 		zap.Int("totalRecipients", len(recipients)))

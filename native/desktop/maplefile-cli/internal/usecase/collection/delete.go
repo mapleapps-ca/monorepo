@@ -44,7 +44,7 @@ func (uc *deleteCollectionUseCase) Execute(
 	id gocql.UUID,
 ) error {
 	// Validate inputs
-	if id.IsZero() {
+	if id.String() == "" {
 		return errors.NewAppError("collection ID is required", nil)
 	}
 
@@ -63,7 +63,7 @@ func (uc *deleteCollectionUseCase) DeleteWithChildren(
 	id gocql.UUID,
 ) error {
 	// Validate inputs
-	if id.IsZero() {
+	if id.String() == "" {
 		return errors.NewAppError("collection ID is required", nil)
 	}
 

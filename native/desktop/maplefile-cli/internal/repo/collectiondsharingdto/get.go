@@ -10,10 +10,11 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	"go.uber.org/zap"
+
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collectiondto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/keys"
-	"go.uber.org/zap"
 )
 
 // GetCollectionWithMembersFromCloud retrieves collection information including member list
@@ -32,7 +33,7 @@ func (r *collectionSharingDTORepository) GetCollectionWithMembersFromCloud(ctx c
 	}
 
 	// Create HTTP request - this uses the existing get collection endpoint which includes members
-	getURL := fmt.Sprintf("%s/maplefile/api/v1/collections/%s", serverURL, collectionID.Hex())
+	getURL := fmt.Sprintf("%s/maplefile/api/v1/collections/%s", serverURL, collectionID.String())
 	req, err := http.NewRequestWithContext(ctx, "GET", getURL, nil)
 	if err != nil {
 		r.logger.Error("❌ Failed to create HTTP request", zap.String("url", getURL), zap.Error(err))
@@ -132,7 +133,7 @@ func (r *collectionSharingDTORepository) GetCollectionWithMembersFromCloud(ctx c
 	}
 
 	r.logger.Info("✅ Successfully retrieved collection with members",
-		zap.String("collectionID", collectionID.Hex()),
+		zap.String("collectionID", collectionID.String()),
 		zap.Int("memberCount", len(domainCollection.Members)))
 
 	return domainCollection, nil

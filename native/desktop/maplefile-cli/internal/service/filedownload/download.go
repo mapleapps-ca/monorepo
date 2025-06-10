@@ -85,12 +85,12 @@ func NewDownloadService(
 }
 
 func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID gocql.UUID, userPassword string, urlDuration time.Duration) (*DownloadResult, error) {
-	s.logger.Info("👇 Starting E2EE file download and decryption", zap.String("fileID", fileID.Hex()))
+	s.logger.Info("👇 Starting E2EE file download and decryption", zap.String("fileID", fileID.String()))
 
 	//
 	// Step 1: Validate inputs
 	//
-	if fileID.IsZero() {
+	if fileID.String() == "" {
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
 	if userPassword == "" {
@@ -234,7 +234,7 @@ func (s *downloadService) DownloadAndDecryptFile(ctx context.Context, fileID goc
 	}
 
 	s.logger.Info("✅ Successfully completed E2EE file download and decryption",
-		zap.String("fileID", fileID.Hex()),
+		zap.String("fileID", fileID.String()),
 		zap.String("fileName", resultMetadata.Name),
 		zap.Int64("originalSize", result.OriginalSize))
 

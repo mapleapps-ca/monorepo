@@ -39,10 +39,10 @@ func (uc *getCollectionUseCase) Execute(
 	ctx context.Context,
 	id gocql.UUID,
 ) (*collection.Collection, error) {
-	uc.logger.Debug("🔎 Attempting to get collection by ID", zap.String("collection_id", id.Hex()))
+	uc.logger.Debug("🔎 Attempting to get collection by ID", zap.String("collection_id", id.String()))
 
 	// Validate inputs
-	if id.IsZero() {
+	if id.String() == "" {
 		uc.logger.Error("🚫 collection ID is required")
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
@@ -50,15 +50,15 @@ func (uc *getCollectionUseCase) Execute(
 	// Get the collection from the repository
 	collection, err := uc.repository.GetByID(ctx, id)
 	if err != nil {
-		uc.logger.Error("💾🔥 failed to get local collection from repository", zap.Error(err), zap.String("collection_id", id.Hex()))
+		uc.logger.Error("💾🔥 failed to get local collection from repository", zap.Error(err), zap.String("collection_id", id.String()))
 		return nil, errors.NewAppError("failed to get local collection", err)
 	}
 
 	if collection == nil {
-		uc.logger.Debug("🔍🚫 local collection not found", zap.String("collection_id", id.Hex()))
+		uc.logger.Debug("🔍🚫 local collection not found", zap.String("collection_id", id.String()))
 		return nil, nil
 	}
 
-	uc.logger.Info("✅ Successfully retrieved collection", zap.String("collection_id", id.Hex()))
+	uc.logger.Info("✅ Successfully retrieved collection", zap.String("collection_id", id.String()))
 	return collection, nil
 }

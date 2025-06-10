@@ -46,7 +46,7 @@ func (uc *getFilesByIDsUseCase) Execute(
 
 	// Validate all IDs
 	for i, id := range ids {
-		if id.IsZero() {
+		if id.String() == "" {
 			return nil, errors.NewAppError(fmt.Sprintf("file ID at index %d is invalid", i), nil)
 		}
 	}

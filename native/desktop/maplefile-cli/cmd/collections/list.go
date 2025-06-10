@@ -163,7 +163,7 @@ func displaySimpleList(collections []*collection.Collection) {
 		}
 
 		fmt.Printf("%-8s %-30s %-12s %-15s %s\n",
-			typeIcon, name, state, syncStatus, coll.ID.Hex())
+			typeIcon, name, state, syncStatus, coll.ID.String())
 	}
 }
 
@@ -179,14 +179,14 @@ func displayDetailedList(collections []*collection.Collection) {
 			displayName = "[Encrypted]"
 		}
 
-		fmt.Printf("🆔 ID: %s\n", coll.ID.Hex())
+		fmt.Printf("🆔 ID: %s\n", coll.ID.String())
 		fmt.Printf("📁 Name: %s\n", displayName)
 		fmt.Printf("🏷️  Type: %s %s\n", getCollectionTypeIcon(coll.CollectionType), coll.CollectionType)
 		fmt.Printf("📊 State: %s\n", coll.State)
 		fmt.Printf("🔄 Sync Status: %s\n", getSyncStatusString(coll.SyncStatus))
 
-		if !coll.ParentID.IsZero() {
-			fmt.Printf("📂 Parent ID: %s\n", coll.ParentID.Hex())
+		if !coll.ParentID.String() == "" {
+			fmt.Printf("📂 Parent ID: %s\n", coll.ParentID.String())
 		} else {
 			fmt.Printf("📊 Level: Root collection\n")
 		}

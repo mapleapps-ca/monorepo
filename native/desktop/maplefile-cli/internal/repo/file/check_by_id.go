@@ -4,17 +4,17 @@ package file
 import (
 	"context"
 
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
-	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 )
 
 func (r *fileRepository) CheckIfExistsByID(ctx context.Context, id gocql.UUID) (bool, error) {
-	r.logger.Debug("Checking if file exists by ID", zap.String("fileID", id.Hex()))
+	r.logger.Debug("Checking if file exists by ID", zap.String("fileID", id.String()))
 
 	// Generate key for this file
-	key := r.generateKey(id.Hex())
+	key := r.generateKey(id.String())
 
 	// Get from database
 	fileBytes, err := r.dbClient.Get(key)
@@ -28,7 +28,7 @@ func (r *fileRepository) CheckIfExistsByID(ctx context.Context, id gocql.UUID) (
 	// File exists if we got non-nil data
 	exists := fileBytes != nil
 	r.logger.Debug("File existence check completed",
-		zap.String("fileID", id.Hex()),
+		zap.String("fileID", id.String()),
 		zap.Bool("exists", exists))
 
 	return exists, nil

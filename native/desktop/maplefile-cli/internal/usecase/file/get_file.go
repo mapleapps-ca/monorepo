@@ -40,7 +40,7 @@ func (uc *getFileUseCase) Execute(
 	id gocql.UUID,
 ) (*file.File, error) {
 	// Validate inputs
-	if id.IsZero() {
+	if id.String() == "" {
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
 

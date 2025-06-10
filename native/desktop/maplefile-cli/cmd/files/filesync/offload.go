@@ -66,13 +66,13 @@ Examples:
 
 			// Display success information
 			fmt.Printf("\n✅ File successfully offloaded!\n")
-			fmt.Printf("🆔 File ID: %s\n", output.FileID.Hex())
+			fmt.Printf("🆔 File ID: %s\n", output.FileID.String())
 			fmt.Printf("🔄 Action: %s\n", output.Action)
 			fmt.Printf("📊 Status: %v → %v\n", output.PreviousStatus, output.NewStatus)
 			fmt.Printf("💬 Message: %s\n", output.Message)
 
 			if output.UploadResult != nil && output.UploadResult.Success {
-				fmt.Printf("🆔 File ID: %s\n", output.UploadResult.FileID.Hex())
+				fmt.Printf("🆔 File ID: %s\n", output.UploadResult.FileID.String())
 				fmt.Printf("📏 Uploaded Size: %d bytes\n", output.UploadResult.FileSizeBytes)
 			}
 

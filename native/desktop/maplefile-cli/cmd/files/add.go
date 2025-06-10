@@ -124,7 +124,7 @@ Examples:
 			}
 
 			fmt.Printf("✅ File added locally!\n")
-			fmt.Printf("🆔 File ID: %s\n", output.File.ID.Hex())
+			fmt.Printf("🆔 File ID: %s\n", output.File.ID.String())
 			fmt.Printf("📁 Name: %s\n", output.File.Name)
 			fmt.Printf("📏 Size: %s\n", formatFileSize(output.File.FileSize))
 			fmt.Printf("🔐 Storage Mode: %s\n", output.File.StorageMode)
@@ -136,7 +136,7 @@ Examples:
 				uploadResult, err := uploadService.Execute(ctx, output.File.ID, password)
 				if err != nil {
 					fmt.Printf("⚠️  File added locally but upload failed: %v\n", err)
-					fmt.Printf("💡 Upload later with: maplefile-cli files upload %s --password PASSWORD\n", output.File.ID.Hex())
+					fmt.Printf("💡 Upload later with: maplefile-cli files upload %s --password PASSWORD\n", output.File.ID.String())
 					return
 				}
 
@@ -152,20 +152,20 @@ Examples:
 				}
 			} else {
 				fmt.Printf("\n📱 File stored locally only (--local-only specified)\n")
-				fmt.Printf("💡 Upload later with: maplefile-cli files upload %s --password PASSWORD\n", output.File.ID.Hex())
+				fmt.Printf("💡 Upload later with: maplefile-cli files upload %s --password PASSWORD\n", output.File.ID.String())
 			}
 
 			// Show next steps
 			fmt.Printf("\n🎉 File successfully added to MapleFile!\n")
 			fmt.Printf("💡 Next steps:\n")
 			fmt.Printf("   • View files: maplefile-cli files list --collection %s\n", collectionID)
-			fmt.Printf("   • Download file: maplefile-cli files get %s\n", output.File.ID.Hex())
+			fmt.Printf("   • Download file: maplefile-cli files get %s\n", output.File.ID.String())
 			if !localOnly {
 				fmt.Printf("   • Share collection: maplefile-cli collections share %s --email user@example.com\n", collectionID)
 			}
 
 			logger.Info("File added successfully",
-				zap.String("fileID", output.File.ID.Hex()),
+				zap.String("fileID", output.File.ID.String()),
 				zap.String("name", output.File.Name),
 				zap.String("collectionID", collectionID),
 				zap.Bool("uploaded", !localOnly))

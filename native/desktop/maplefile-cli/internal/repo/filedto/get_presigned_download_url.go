@@ -20,10 +20,10 @@ import (
 // GetPresignedDownloadURLFromCloud generates presigned download URLs for an existing file
 func (r *fileDTORepository) GetPresignedDownloadURLFromCloud(ctx context.Context, fileID gocql.UUID, request *filedto.GetPresignedDownloadURLRequest) (*filedto.GetPresignedDownloadURLResponse, error) {
 	r.logger.Debug("🐛 Getting presigned download URL",
-		zap.String("fileID", fileID.Hex()),
+		zap.String("fileID", fileID.String()),
 		zap.Duration("urlDuration", request.URLDuration))
 
-	if fileID.IsZero() {
+	if fileID.String() == "" {
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
 
@@ -56,7 +56,7 @@ func (r *fileDTORepository) GetPresignedDownloadURLFromCloud(ctx context.Context
 	}
 
 	// Create HTTP request
-	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/download-url", serverURL, fileID.Hex())
+	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/download-url", serverURL, fileID.String())
 	r.logger.Debug("🌐 Making HTTP request", zap.String("url", requestURL))
 
 	req, err := http.NewRequestWithContext(ctx, "POST", requestURL, bytes.NewBuffer(jsonData))
@@ -99,7 +99,7 @@ func (r *fileDTORepository) GetPresignedDownloadURLFromCloud(ctx context.Context
 	}
 
 	r.logger.Info("🎉 Successfully obtained presigned download URLs",
-		zap.String("fileID", fileID.Hex()),
+		zap.String("fileID", fileID.String()),
 		zap.Time("urlExpiration", response.DownloadURLExpirationTime))
 
 	return &response, nil

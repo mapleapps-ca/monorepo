@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
@@ -22,10 +22,10 @@ func (r *fileRepository) CreateMany(ctx context.Context, files []*dom_file.File)
 	// Set IDs and timestamps for all files
 	now := time.Now()
 	for _, file := range files {
-		if file.ID.IsZero() {
-			file.ID = primitive.NewObjectID()
+		if file.ID.String() == "" {
+			file.ID = gocql.TimeUUID()
 		}
-		if file.CreatedAt.IsZero() {
+		if file.CreatedAt.String() == "" {
 			file.CreatedAt = now
 		}
 		file.ModifiedAt = now
@@ -35,7 +35,7 @@ func (r *fileRepository) CreateMany(ctx context.Context, files []*dom_file.File)
 	for _, file := range files {
 		if err := r.Save(ctx, file); err != nil {
 			r.logger.Error("Failed to save file during batch create",
-				zap.String("fileID", file.ID.Hex()),
+				zap.String("fileID", file.ID.String()),
 				zap.Error(err))
 			return errors.NewAppError("failed to save file during batch create", err)
 		}

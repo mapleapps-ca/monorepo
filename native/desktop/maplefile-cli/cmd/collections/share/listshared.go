@@ -54,10 +54,10 @@ Examples:
 				displayName := "[Encrypted]"
 
 				fmt.Printf("%d. %s (ID: %s, Type: %s)\n",
-					i+1, displayName, coll.ID.Hex(), coll.CollectionType)
+					i+1, displayName, coll.ID.String(), coll.CollectionType)
 
 				if verbose {
-					fmt.Printf("   Owner ID: %s\n", coll.OwnerID.Hex())
+					fmt.Printf("   Owner ID: %s\n", coll.OwnerID.String())
 					fmt.Printf("   Created: %s\n", coll.CreatedAt.Format("2006-01-02 15:04:05"))
 					fmt.Printf("   Modified: %s\n", coll.ModifiedAt.Format("2006-01-02 15:04:05"))
 					fmt.Println()

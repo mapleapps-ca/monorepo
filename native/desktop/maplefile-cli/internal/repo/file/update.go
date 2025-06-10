@@ -11,7 +11,7 @@ import (
 
 func (r *fileRepository) Update(ctx context.Context, file *dom_file.File) error {
 	r.logger.Debug("💾 Updating file in local storage",
-		zap.String("fileID", file.ID.Hex()),
+		zap.String("fileID", file.ID.String()),
 		zap.String("fileName", file.Name))
 
 	// Use the save method which handles serialization and storage

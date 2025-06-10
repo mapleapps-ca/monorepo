@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
@@ -19,11 +19,11 @@ import (
 // CompleteFileUploadInCloud completes the file upload process and transitions the file to active state
 func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileID gocql.UUID, request *filedto.CompleteFileUploadRequest) (*filedto.CompleteFileUploadResponse, error) {
 	r.logger.Debug("🐛 Completing file upload",
-		zap.String("fileID", fileID.Hex()),
+		zap.String("fileID", fileID.String()),
 		zap.Int64("actualFileSize", request.ActualFileSizeInBytes),
 		zap.Bool("uploadConfirmed", request.UploadConfirmed))
 
-	if fileID.IsZero() {
+	if fileID.String() == "" {
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
 
@@ -46,13 +46,13 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 	}
 
 	// Create HTTP request
-	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/complete", serverURL, fileID.Hex())
+	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s/complete", serverURL, fileID.String())
 	r.logger.Debug("🔬 Making HTTP request", zap.String("url", requestURL))
 
 	req, err := http.NewRequestWithContext(ctx, "POST", requestURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		r.logger.Debug("❌ failed to create HTTP request",
-			zap.String("fileID", fileID.Hex()),
+			zap.String("fileID", fileID.String()),
 			zap.Error(err),
 		)
 		return nil, errors.NewAppError("failed to create HTTP request", err)
@@ -66,7 +66,7 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		r.logger.Debug("❌ failed to connect to server",
-			zap.String("fileID", fileID.Hex()),
+			zap.String("fileID", fileID.String()),
 			zap.Error(err),
 		)
 		return nil, errors.NewAppError("failed to connect to server", err)
@@ -77,7 +77,7 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		r.logger.Debug("❌ failed to read response",
-			zap.String("fileID", fileID.Hex()),
+			zap.String("fileID", fileID.String()),
 			zap.Error(err),
 		)
 		return nil, errors.NewAppError("failed to read response", err)
@@ -89,14 +89,14 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 		if err := json.Unmarshal(body, &errorResponse); err == nil {
 			if errMsg, ok := errorResponse["message"].(string); ok {
 				r.logger.Debug("⚠️ server error",
-					zap.String("fileID", fileID.Hex()),
+					zap.String("fileID", fileID.String()),
 					zap.String("error", errMsg),
 				)
 				return nil, errors.NewAppError(fmt.Sprintf("server error: %s", errMsg), nil)
 			}
 		}
 		r.logger.Debug("⚠️ server returned error status",
-			zap.String("fileID", fileID.Hex()),
+			zap.String("fileID", fileID.String()),
 			zap.Error(err),
 		)
 		return nil, errors.NewAppError(fmt.Sprintf("server returned error status: %s | message: %s", resp.Status, string(body)), nil)
@@ -106,14 +106,14 @@ func (r *fileDTORepository) CompleteFileUploadInCloud(ctx context.Context, fileI
 	var response filedto.CompleteFileUploadResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		r.logger.Debug("❌ failed to parse response",
-			zap.String("fileID", fileID.Hex()),
+			zap.String("fileID", fileID.String()),
 			zap.Error(err),
 		)
 		return nil, errors.NewAppError("failed to parse response", err)
 	}
 
 	r.logger.Info("✅ Successfully completed file upload",
-		zap.String("fileID", fileID.Hex()),
+		zap.String("fileID", fileID.String()),
 		zap.Int64("actualFileSize", response.ActualFileSize),
 		zap.Bool("uploadVerified", response.UploadVerified))
 

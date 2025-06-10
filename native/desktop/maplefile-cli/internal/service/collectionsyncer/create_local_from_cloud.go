@@ -57,7 +57,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 	e := make(map[string]string)
 
-	if cloudCollectionID.IsZero() {
+	if cloudCollectionID.String() == "" {
 		e["cloudCollectionID"] = "Cloud ID is required"
 	}
 	if password == "" {
@@ -98,8 +98,8 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	}
 
 	uc.logger.Debug("🔍 Cloud collection DTO debugging",
-		zap.String("cloudCollectionID", cloudCollectionDTO.ID.Hex()),
-		zap.String("cloudCollectionOwnerID", cloudCollectionDTO.OwnerID.Hex()),
+		zap.String("cloudCollectionID", cloudCollectionDTO.ID.String()),
+		zap.String("cloudCollectionOwnerID", cloudCollectionDTO.OwnerID.String()),
 		zap.String("cloudCollectionEncryptedName", cloudCollectionDTO.EncryptedName),
 		zap.String("cloudCollectionType", cloudCollectionDTO.CollectionType),
 		zap.String("cloudCollectionState", cloudCollectionDTO.State),
@@ -113,8 +113,8 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 		}
 		uc.logger.Debug("🔍 Cloud collection member DTO",
 			zap.Int("memberIndex", i),
-			zap.String("memberID", memberDTO.ID.Hex()),
-			zap.String("recipientID", memberDTO.RecipientID.Hex()),
+			zap.String("memberID", memberDTO.ID.String()),
+			zap.String("recipientID", memberDTO.RecipientID.String()),
 			zap.String("recipientEmail", memberDTO.RecipientEmail),
 			zap.String("permissionLevel", memberDTO.PermissionLevel),
 			zap.Bool("isInherited", memberDTO.IsInherited),
@@ -123,7 +123,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 	// ENHANCED DEBUGGING: Log current user info for comparison
 	uc.logger.Debug("🔍 Current user info for comparison",
-		zap.String("currentUserID", user.ID.Hex()),
+		zap.String("currentUserID", user.ID.String()),
 		zap.String("currentUserEmail", user.Email),
 		zap.String("currentUserName", user.Name))
 
@@ -134,7 +134,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	// Make sure the cloud collection hasn't been deleted.
 	if cloudCollectionDTO.TombstoneVersion > 0 {
 		uc.logger.Debug("⏭️ Skipping local collection creation from the cloud because it has been deleted",
-			zap.String("id", cloudCollectionDTO.ID.Hex()))
+			zap.String("id", cloudCollectionDTO.ID.String()))
 		return nil, nil
 	}
 
@@ -153,7 +153,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	if err != nil {
 		// ENHANCED HANDLING: Instead of failing completely, create the collection with encrypted name
 		uc.logger.Warn("⚠️ Failed to decrypt collection key, creating collection with encrypted name only",
-			zap.String("collectionID", cloudCollectionDTO.ID.Hex()),
+			zap.String("collectionID", cloudCollectionDTO.ID.String()),
 			zap.Error(err))
 
 		// Set a placeholder name to indicate encryption issue
@@ -164,22 +164,22 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 
 		// DEBUGGING: Log the issue for investigation
 		uc.logger.Error("🚨 SYNC ISSUE: Collection accessible in sync but not decryptable",
-			zap.String("collectionID", cloudCollectionDTO.ID.Hex()),
-			zap.String("collectionOwnerID", cloudCollectionDTO.OwnerID.Hex()),
-			zap.String("currentUserID", user.ID.Hex()),
+			zap.String("collectionID", cloudCollectionDTO.ID.String()),
+			zap.String("collectionOwnerID", cloudCollectionDTO.OwnerID.String()),
+			zap.String("currentUserID", user.ID.String()),
 			zap.Int("membersCount", len(cloudCollectionDTO.Members)),
 			zap.String("suggestedAction", "Check backend API membership data for this collection"))
 
 		// Execute the use case to create the local collection record with limited data
 		if err := uc.localRepository.Create(ctx, newCollection); err != nil {
 			uc.logger.Error("🚨 Failed to create new (local) collection from the cloud even with fallback",
-				zap.String("id", cloudCollectionDTO.ID.Hex()),
+				zap.String("id", cloudCollectionDTO.ID.String()),
 				zap.Error(err))
 			return nil, err
 		}
 
 		uc.logger.Info("⚠️ Created collection with limited access",
-			zap.String("id", newCollection.ID.Hex()),
+			zap.String("id", newCollection.ID.String()),
 			zap.String("name", newCollection.Name))
 
 		return newCollection, nil
@@ -201,7 +201,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	newCollection.Name = collectionName
 
 	uc.logger.Debug("🔍 Mapped local collection",
-		zap.String("id", newCollection.ID.Hex()),
+		zap.String("id", newCollection.ID.String()),
 		zap.String("state", newCollection.State),
 		zap.String("name", newCollection.Name), // This might be empty!
 		zap.Any("parent_id", newCollection.ParentID),
@@ -210,7 +210,7 @@ func (uc *createLocalCollectionFromCloudCollectionService) Execute(ctx context.C
 	// Execute the use case to create the local collection record.
 	if err := uc.localRepository.Create(ctx, newCollection); err != nil {
 		uc.logger.Error("🚨 Failed to create new (local) collection from the cloud",
-			zap.String("id", cloudCollectionDTO.ID.Hex()),
+			zap.String("id", cloudCollectionDTO.ID.String()),
 			zap.Error(err))
 		return nil, err
 	}

@@ -37,8 +37,8 @@ func (r *collectionRepository) List(ctx context.Context, filter dom_collection.C
 		// Filter by parentID if specified
 		if filter.ParentID != nil {
 			// For root collections (parentID is nil), we check for zero ObjectID
-			if filter.ParentID.IsZero() {
-				if !collection.ParentID.IsZero() {
+			if filter.ParentID.String() == "" {
+				if !(collection.ParentID.String() == "") {
 					return nil // Skip, not a root collection
 				}
 			} else if collection.ParentID != *filter.ParentID {
@@ -68,20 +68,20 @@ func (r *collectionRepository) List(ctx context.Context, filter dom_collection.C
 			// Set default state for collections that don't have state set
 			collection.State = dom_collection.GetDefaultState()
 			r.logger.Warn("Collection found without state, setting default",
-				zap.String("collectionID", collection.ID.Hex()),
+				zap.String("collectionID", collection.ID.String()),
 				zap.String("defaultState", collection.State))
 
 			// Update the collection in storage with the default state
 			if err := r.Save(ctx, collection); err != nil {
 				r.logger.Error("Failed to update collection with default state",
-					zap.String("collectionID", collection.ID.Hex()),
+					zap.String("collectionID", collection.ID.String()),
 					zap.Error(err))
 			}
 		} else {
 			// Validate existing state
 			if err := dom_collection.ValidateState(collection.State); err != nil {
 				r.logger.Error("Collection has invalid state, skipping",
-					zap.String("collectionID", collection.ID.Hex()),
+					zap.String("collectionID", collection.ID.String()),
 					zap.String("invalidState", collection.State),
 					zap.Error(err))
 				return nil // Skip collections with invalid state
@@ -96,13 +96,13 @@ func (r *collectionRepository) List(ctx context.Context, filter dom_collection.C
 			// switch *filter.SyncStatus {
 			// case dom_collection.SyncStatusLocalOnly:
 			// 	// Consider it local-only if it's modified locally and has never been synced
-			// 	matches = collection.IsModifiedLocally && collection.LastSyncedAt.IsZero()
+			// 	matches = collection.IsModifiedLocally && collection.LastSyncedAt.String() == ""
 			// case dom_collection.SyncStatusModifiedLocally:
 			// 	// Modified locally but has been synced before
-			// 	matches = collection.IsModifiedLocally && !collection.LastSyncedAt.IsZero()
+			// 	matches = collection.IsModifiedLocally && !collection.LastSyncedAt.String() == ""
 			// case dom_collection.SyncStatusSynced:
 			// 	// Not modified locally and has been synced
-			// 	matches = !collection.IsModifiedLocally && !collection.LastSyncedAt.IsZero()
+			// 	matches = !collection.IsModifiedLocally && !collection.LastSyncedAt.String() == ""
 			// }
 
 			if !matches {

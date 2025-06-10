@@ -40,7 +40,7 @@ func (uc *checkFileExistsUseCase) Execute(
 	id gocql.UUID,
 ) (bool, error) {
 	// Validate inputs
-	if id.IsZero() {
+	if id.String() == "" {
 		return false, errors.NewAppError("file ID is required", nil)
 	}
 

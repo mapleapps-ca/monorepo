@@ -108,7 +108,7 @@ func (s *saveService) SaveSyncState(ctx context.Context, input *SaveInput) (*Sav
 func (s *saveService) UpdateCollectionSync(ctx context.Context, timestamp time.Time, lastID gocql.UUID) (*SaveOutput, error) {
 	s.logger.Debug("🔄 Updating collection sync state",
 		zap.Time("timestamp", timestamp),
-		zap.String("lastID", lastID.Hex()))
+		zap.String("lastID", lastID.String()))
 
 	input := &SaveInput{
 		LastCollectionSync: &timestamp,
@@ -122,7 +122,7 @@ func (s *saveService) UpdateCollectionSync(ctx context.Context, timestamp time.T
 func (s *saveService) UpdateFileSync(ctx context.Context, timestamp time.Time, lastID gocql.UUID) (*SaveOutput, error) {
 	s.logger.Debug("🔄 Updating file sync state",
 		zap.Time("timestamp", timestamp),
-		zap.String("lastID", lastID.Hex()))
+		zap.String("lastID", lastID.String()))
 
 	input := &SaveInput{
 		LastFileSync: &timestamp,

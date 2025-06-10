@@ -46,9 +46,9 @@ func NewCollectionDecryptionService(
 
 func (s *collectionDecryptionService) ExecuteDecryptCollectionKeyChain(ctx context.Context, user *dom_user.User, collection *dom_collection.Collection, password string) ([]byte, error) {
 	s.logger.Debug("🔑 Starting E2EE key chain decryption",
-		zap.String("userID", user.ID.Hex()),
-		zap.String("collectionID", collection.ID.Hex()),
-		zap.String("collectionOwnerID", collection.OwnerID.Hex()))
+		zap.String("userID", user.ID.String()),
+		zap.String("collectionID", collection.ID.String()),
+		zap.String("collectionOwnerID", collection.OwnerID.String()))
 
 	// STEP 1: Derive keyEncryptionKey from password
 	s.logger.Debug("🧠 Step 1: Deriving key encryption key from password")
@@ -64,8 +64,8 @@ func (s *collectionDecryptionService) ExecuteDecryptCollectionKeyChain(ctx conte
 	isOwner := collection.OwnerID == user.ID
 	s.logger.Debug("🔍 Checking user role",
 		zap.Bool("isOwner", isOwner),
-		zap.String("userID", user.ID.Hex()),
-		zap.String("ownerID", collection.OwnerID.Hex()))
+		zap.String("userID", user.ID.String()),
+		zap.String("ownerID", collection.OwnerID.String()))
 
 	if isOwner {
 		// SCENARIO A: User is the owner - decrypt with master key
@@ -97,7 +97,7 @@ func (s *collectionDecryptionService) decryptAsOwner(ctx context.Context, user *
 	if err != nil {
 		s.logger.Error("❌ Failed to decrypt master key - this usually means incorrect password",
 			zap.Error(err),
-			zap.String("userID", user.ID.Hex()))
+			zap.String("userID", user.ID.String()))
 		return nil, fmt.Errorf("failed to decrypt master key - incorrect password?: %w", err)
 	}
 	defer crypto.ClearBytes(masterKey)
@@ -106,7 +106,7 @@ func (s *collectionDecryptionService) decryptAsOwner(ctx context.Context, user *
 	// STEP 3: Decrypt collectionKey with masterKey (ChaCha20-Poly1305)
 	s.logger.Debug("🧠 Step 3: Decrypting collection key with master key")
 	if collection.EncryptedCollectionKey == nil {
-		s.logger.Error("❌ Collection has no encrypted key", zap.String("collectionID", collection.ID.Hex()))
+		s.logger.Error("❌ Collection has no encrypted key", zap.String("collectionID", collection.ID.String()))
 		return nil, errors.NewAppError("collection has no encrypted key", nil)
 	}
 
@@ -137,9 +137,9 @@ func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user 
 
 	// ENHANCED DEBUGGING: Log all collection details
 	s.logger.Debug("🔍 Collection debugging info",
-		zap.String("collectionID", collection.ID.Hex()),
-		zap.String("collectionOwnerID", collection.OwnerID.Hex()),
-		zap.String("currentUserID", user.ID.Hex()),
+		zap.String("collectionID", collection.ID.String()),
+		zap.String("collectionOwnerID", collection.OwnerID.String()),
+		zap.String("currentUserID", user.ID.String()),
 		zap.Int("totalMembers", len(collection.Members)),
 		zap.String("collectionName", collection.Name), // This might show if decryption worked
 		zap.String("encryptedName", collection.EncryptedName))
@@ -152,8 +152,8 @@ func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user 
 		}
 		s.logger.Debug("🔍 Collection member details",
 			zap.Int("memberIndex", i),
-			zap.String("memberID", member.ID.Hex()),
-			zap.String("recipientID", member.RecipientID.Hex()),
+			zap.String("memberID", member.ID.String()),
+			zap.String("recipientID", member.RecipientID.String()),
 			zap.String("recipientEmail", member.RecipientEmail),
 			zap.String("permissionLevel", member.PermissionLevel),
 			zap.Bool("isInherited", member.IsInherited),
@@ -165,14 +165,14 @@ func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user 
 	var userMembership *dom_collection.CollectionMembership
 	for _, member := range collection.Members {
 		s.logger.Debug("🔍 Trying to match users membership record ",
-			zap.String("recipientID", member.RecipientID.Hex()),
-			zap.String("user.ID", user.ID.Hex()),
+			zap.String("recipientID", member.RecipientID.String()),
+			zap.String("user.ID", user.ID.String()),
 		)
 		if member.RecipientID == user.ID {
 			userMembership = member
 			s.logger.Debug("✅ Matched users membership record!",
-				zap.String("recipientID", member.RecipientID.Hex()),
-				zap.String("user.ID", user.ID.Hex()),
+				zap.String("recipientID", member.RecipientID.String()),
+				zap.String("user.ID", user.ID.String()),
 				zap.Any("recipientEncryptedCollectionKey", member.EncryptedCollectionKey),
 			)
 			break
@@ -181,21 +181,21 @@ func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user 
 
 	if userMembership == nil {
 		s.logger.Error("❌ User is not a member of this collection",
-			zap.String("userID", user.ID.Hex()),
-			zap.String("collectionID", collection.ID.Hex()),
+			zap.String("userID", user.ID.String()),
+			zap.String("collectionID", collection.ID.String()),
 			zap.String("userEmail", user.Email), // Add user email for easier debugging
 			zap.Int("totalMembers", len(collection.Members)))
 
 		// ENHANCED DEBUGGING: Log what we expected vs what we got
 		s.logger.Error("🚨 DEBUGGING: Expected user not found in members",
-			zap.String("expectedUserID", user.ID.Hex()),
+			zap.String("expectedUserID", user.ID.String()),
 			zap.String("expectedUserEmail", user.Email))
 
 		return nil, fmt.Errorf("user is not a member of this collection")
 	}
 
 	s.logger.Debug("✅ Found user membership record",
-		zap.String("membershipID", userMembership.ID.Hex()),
+		zap.String("membershipID", userMembership.ID.String()),
 		zap.String("permissionLevel", userMembership.PermissionLevel),
 		zap.Any("encryptedCollectionKey", userMembership.EncryptedCollectionKey))
 
@@ -209,7 +209,7 @@ func (s *collectionDecryptionService) decryptAsMember(ctx context.Context, user 
 	encryptedKeyBytes := userMembership.EncryptedCollectionKey.ToBoxSealBytes()
 	if len(encryptedKeyBytes) == 0 {
 		s.logger.Error("❌ Member has no encrypted collection key bytes",
-			zap.String("membershipID", userMembership.ID.Hex()))
+			zap.String("membershipID", userMembership.ID.String()))
 		return nil, fmt.Errorf("member has no encrypted collection key bytes")
 	}
 

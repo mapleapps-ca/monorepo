@@ -16,9 +16,9 @@ import (
 
 // DeleteByIDFromCloud deletes a FileDTO by its unique identifier from the cloud service
 func (r *fileDTORepository) DeleteByIDFromCloud(ctx context.Context, id gocql.UUID) error {
-	r.logger.Debug("⚙️ Deleting file from cloud", zap.String("fileID", id.Hex()))
+	r.logger.Debug("⚙️ Deleting file from cloud", zap.String("fileID", id.String()))
 
-	if id.IsZero() {
+	if id.String() == "" {
 		return errors.NewAppError("file ID is required", nil)
 	}
 
@@ -35,7 +35,7 @@ func (r *fileDTORepository) DeleteByIDFromCloud(ctx context.Context, id gocql.UU
 	}
 
 	// Create HTTP request
-	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s", serverURL, id.Hex())
+	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s", serverURL, id.String())
 	r.logger.Debug("⚙️ Making HTTP request", zap.String("url", requestURL))
 
 	req, err := http.NewRequestWithContext(ctx, "DELETE", requestURL, nil)
@@ -62,7 +62,7 @@ func (r *fileDTORepository) DeleteByIDFromCloud(ctx context.Context, id gocql.UU
 	// Check for error status codes
 	if resp.StatusCode == http.StatusNotFound {
 		r.logger.Warn("⚠️ File not found in cloud",
-			zap.String("fileID", id.Hex()),
+			zap.String("fileID", id.String()),
 			zap.String("responseBody", string(body)))
 		return errors.NewAppError("file not found in cloud", nil)
 	}
@@ -72,19 +72,19 @@ func (r *fileDTORepository) DeleteByIDFromCloud(ctx context.Context, id gocql.UU
 		if err := json.Unmarshal(body, &errorResponse); err == nil {
 			if errMsg, ok := errorResponse["message"].(string); ok {
 				r.logger.Error("❌ Server error during file deletion",
-					zap.String("fileID", id.Hex()),
+					zap.String("fileID", id.String()),
 					zap.String("serverError", errMsg),
 					zap.Int("statusCode", resp.StatusCode))
 				return errors.NewAppError(fmt.Sprintf("server error: %s", errMsg), nil)
 			}
 		}
 		r.logger.Error("❌ Unexpected server response during file deletion",
-			zap.String("fileID", id.Hex()),
+			zap.String("fileID", id.String()),
 			zap.Int("statusCode", resp.StatusCode),
 			zap.String("responseBody", string(body)))
 		return errors.NewAppError(fmt.Sprintf("server returned error status: %s", resp.Status), nil)
 	}
 
-	r.logger.Info("✅ Successfully deleted file from cloud", zap.String("fileID", id.Hex()))
+	r.logger.Info("✅ Successfully deleted file from cloud", zap.String("fileID", id.String()))
 	return nil
 }

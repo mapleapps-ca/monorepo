@@ -42,7 +42,7 @@ func (uc *getPresignedDownloadURLUseCase) Execute(
 	urlDuration time.Duration,
 ) (*filedto.GetPresignedDownloadURLResponse, error) {
 	// Validate inputs
-	if fileID.IsZero() {
+	if fileID.String() == "" {
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
 

@@ -40,7 +40,7 @@ func (uc *deleteFileUseCase) Execute(
 	id gocql.UUID,
 ) error {
 	// Validate inputs
-	if id.IsZero() {
+	if id.String() == "" {
 		return errors.NewAppError("file ID is required", nil)
 	}
 

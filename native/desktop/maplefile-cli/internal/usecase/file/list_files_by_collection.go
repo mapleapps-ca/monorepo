@@ -40,7 +40,7 @@ func (uc *listFilesByCollectionUseCase) Execute(
 	collectionID gocql.UUID,
 ) ([]*dom_file.File, error) {
 	// Validate inputs
-	if collectionID.IsZero() {
+	if collectionID.String() == "" {
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 

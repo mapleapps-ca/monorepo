@@ -38,7 +38,7 @@ func (r *collectionSharingDTORepository) ShareCollectionInCloud(ctx context.Cont
 
 	// Prepare request body according to API spec
 	requestBody := map[string]interface{}{
-		"recipient_id":             request.RecipientID.Hex(),
+		"recipient_id":             request.RecipientID.String(),
 		"recipient_email":          request.RecipientEmail,
 		"permission_level":         request.PermissionLevel,
 		"encrypted_collection_key": encryptedKeyBytes, // Send as bytes
@@ -57,7 +57,7 @@ func (r *collectionSharingDTORepository) ShareCollectionInCloud(ctx context.Cont
 	}
 
 	// Create HTTP request
-	shareURL := fmt.Sprintf("%s/maplefile/api/v1/collections/%s/share", serverURL, request.CollectionID.Hex())
+	shareURL := fmt.Sprintf("%s/maplefile/api/v1/collections/%s/share", serverURL, request.CollectionID.String())
 	r.logger.Info("➡️ Making HTTP request to share collection",
 		zap.String("method", "POST"),
 		zap.String("url", shareURL),
@@ -110,7 +110,7 @@ func (r *collectionSharingDTORepository) ShareCollectionInCloud(ctx context.Cont
 	}
 
 	r.logger.Info("✅ Successfully shared collection",
-		zap.String("collectionID", request.CollectionID.Hex()),
+		zap.String("collectionID", request.CollectionID.String()),
 		zap.String("recipient", request.RecipientEmail),
 		zap.String("permission", request.PermissionLevel))
 

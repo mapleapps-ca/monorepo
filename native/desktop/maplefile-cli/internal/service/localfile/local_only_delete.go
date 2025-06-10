@@ -61,7 +61,7 @@ func (s *localOnlyDeleteService) Execute(ctx context.Context, input *LocalOnlyDe
 		s.logger.Error("❌ input is required")
 		return errors.NewAppError("input is required", nil)
 	}
-	if input.ID.IsZero() {
+	if input.ID.String() == "" {
 		s.logger.Error("❌ ID is required")
 		return errors.NewAppError("ID is required", nil)
 	}

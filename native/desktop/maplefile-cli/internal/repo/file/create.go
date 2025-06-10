@@ -5,20 +5,20 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/gocql/gocql"
 
 	dom_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
 )
 
 func (r *fileRepository) Create(ctx context.Context, file *dom_file.File) error {
 	// Ensure file has an ID
-	if file.ID.IsZero() {
-		file.ID = primitive.NewObjectID()
+	if file.ID.String() == "" {
+		file.ID = gocql.TimeUUID()
 	}
 
 	// Set timestamps
 	now := time.Now()
-	if file.CreatedAt.IsZero() {
+	if file.CreatedAt.String() == "" {
 		file.CreatedAt = now
 	}
 	file.ModifiedAt = now

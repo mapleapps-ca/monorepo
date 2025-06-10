@@ -17,9 +17,9 @@ import (
 
 // DownloadByIDFromCloud downloads a FileDTO by its unique identifier from the cloud service
 func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id gocql.UUID) (*filedto.FileDTO, error) {
-	r.logger.Debug("⬇️ Downloading file metadata from cloud", zap.String("fileID", id.Hex()))
+	r.logger.Debug("⬇️ Downloading file metadata from cloud", zap.String("fileID", id.String()))
 
-	if id.IsZero() {
+	if id.String() == "" {
 		return nil, errors.NewAppError("file ID is required", nil)
 	}
 
@@ -36,7 +36,7 @@ func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id gocql.
 	}
 
 	// Create HTTP request
-	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s", serverURL, id.Hex())
+	requestURL := fmt.Sprintf("%s/maplefile/api/v1/files/%s", serverURL, id.String())
 	r.logger.Debug("🌐 Making HTTP request", zap.String("url", requestURL))
 
 	req, err := http.NewRequestWithContext(ctx, "GET", requestURL, nil)
@@ -79,10 +79,10 @@ func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id gocql.
 	var fileDTO *filedto.FileDTO
 
 	// First, try parsing as direct FileDTO (most likely case)
-	if err := json.Unmarshal(body, &fileDTO); err == nil && fileDTO != nil && !fileDTO.ID.IsZero() {
+	if err := json.Unmarshal(body, &fileDTO); err == nil && fileDTO != nil && !(fileDTO.ID.String() == "") {
 		r.logger.Info("✅ Successfully downloaded file metadata from cloud (direct format)",
-			zap.String("fileID", id.Hex()),
-			zap.String("collectionID", fileDTO.CollectionID.Hex()))
+			zap.String("fileID", id.String()),
+			zap.String("collectionID", fileDTO.CollectionID.String()))
 		return fileDTO, nil
 	}
 
@@ -92,14 +92,14 @@ func (r *fileDTORepository) DownloadByIDFromCloud(ctx context.Context, id gocql.
 	}
 	if err := json.Unmarshal(body, &fileResponse); err == nil && fileResponse.File != nil {
 		r.logger.Info("✅ Successfully downloaded file metadata from cloud (wrapped format)",
-			zap.String("fileID", id.Hex()),
-			zap.String("collectionID", fileResponse.File.CollectionID.Hex()))
+			zap.String("fileID", id.String()),
+			zap.String("collectionID", fileResponse.File.CollectionID.String()))
 		return fileResponse.File, nil
 	}
 
 	// If both parsing attempts fail, log the raw response for debugging
 	r.logger.Error("❌ Failed to parse file response in any expected format",
-		zap.String("fileID", id.Hex()),
+		zap.String("fileID", id.String()),
 		zap.String("rawResponse", string(body)))
 
 	return nil, errors.NewAppError("failed to parse file response - unexpected format", nil)

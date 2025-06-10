@@ -53,7 +53,7 @@ func (uc *updateCollectionUseCase) Execute(
 	input UpdateCollectionInput,
 ) (*dom_collection.Collection, error) {
 	// Validate inputs
-	if input.ID.IsZero() {
+	if input.ID.String() == "" {
 		return nil, errors.NewAppError("collection ID is required", nil)
 	}
 
@@ -89,7 +89,7 @@ func (uc *updateCollectionUseCase) Execute(
 		// Validate the new state
 		if err := dom_collection.ValidateState(newState); err != nil {
 			uc.logger.Error("Invalid state provided in update",
-				zap.String("collectionID", input.ID.Hex()),
+				zap.String("collectionID", input.ID.String()),
 				zap.String("newState", newState),
 				zap.Error(err))
 			return nil, errors.NewAppError("invalid collection state", err)
@@ -99,7 +99,7 @@ func (uc *updateCollectionUseCase) Execute(
 		if originalState != newState {
 			if err := dom_collection.IsValidStateTransition(originalState, newState); err != nil {
 				uc.logger.Error("Invalid state transition attempted",
-					zap.String("collectionID", input.ID.Hex()),
+					zap.String("collectionID", input.ID.String()),
 					zap.String("fromState", originalState),
 					zap.String("toState", newState),
 					zap.Error(err))
@@ -107,7 +107,7 @@ func (uc *updateCollectionUseCase) Execute(
 			}
 
 			uc.logger.Info("Collection state transition",
-				zap.String("collectionID", input.ID.Hex()),
+				zap.String("collectionID", input.ID.String()),
 				zap.String("fromState", originalState),
 				zap.String("toState", newState))
 		}
@@ -126,7 +126,7 @@ func (uc *updateCollectionUseCase) Execute(
 	}
 
 	uc.logger.Info("Collection updated successfully",
-		zap.String("collectionID", input.ID.Hex()),
+		zap.String("collectionID", input.ID.String()),
 		zap.String("state", collection.State))
 
 	return collection, nil

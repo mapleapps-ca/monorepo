@@ -103,7 +103,7 @@ Examples:
 			} else {
 				fmt.Printf("\n✅ File successfully deleted from cloud!\n")
 			}
-			fmt.Printf("🆔 File ID: %s\n", output.FileID.Hex())
+			fmt.Printf("🆔 File ID: %s\n", output.FileID.String())
 			fmt.Printf("🔄 Action: %s\n", output.Action)
 			fmt.Printf("📊 Status: %v → %v\n", output.PreviousStatus, output.NewStatus)
 			fmt.Printf("💬 Message: %s\n", output.Message)

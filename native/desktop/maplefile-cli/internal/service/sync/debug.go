@@ -136,7 +136,7 @@ func (s *syncDebugService) checkSyncState(ctx context.Context, output *DebugSync
 		return
 	}
 
-	if syncStateOutput.SyncState.LastCollectionSync.IsZero() {
+	if syncStateOutput.SyncState.LastCollectionSync.String() == "" {
 		output.SyncStateStatus = "Never synced"
 		output.Recommendations = append(output.Recommendations, "This is your first sync - it may take longer than usual")
 	} else {

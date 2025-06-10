@@ -37,14 +37,14 @@ func NewCreateFileUseCase(
 // Execute creates a new local file
 func (uc *createFileUseCase) Execute(ctx context.Context, data *file.File) error {
 	// Validate inputs
-	if data.ID.IsZero() {
+	if data.ID.String() == "" {
 		return errors.NewAppError("ID is required", nil)
 	}
-	if data.CollectionID.IsZero() {
+	if data.CollectionID.String() == "" {
 		return errors.NewAppError("collection ID is required", nil)
 	}
 
-	if data.OwnerID.IsZero() {
+	if data.OwnerID.String() == "" {
 		return errors.NewAppError("owner ID is required", nil)
 	}
 
