@@ -37,7 +37,7 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 	batch := impl.Session.NewBatch(gocql.LoggedBatch)
 
 	// 1. Update main collection table with ALL Collection struct fields (except Members)
-	batch.Query(`UPDATE maplefile_collections_by_id_simplified SET
+	batch.Query(`UPDATE maplefile_collections_by_id SET
 		owner_id = ?, encrypted_name = ?, collection_type = ?, encrypted_collection_key = ?,
 		parent_id = ?, ancestor_ids = ?, created_at = ?, created_by_user_id = ?,
 		modified_at = ?, modified_by_user_id = ?, version = ?, state = ?,
@@ -49,11 +49,11 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		collection.TombstoneVersion, collection.TombstoneExpiry, collection.ID)
 
 	// 2. Update owner access entry
-	batch.Query(`DELETE FROM maplefile_collections_by_user_simplified
+	batch.Query(`DELETE FROM maplefile_collections_by_user
 		WHERE user_id = ? AND collection_id = ? AND access_type = 'owner'`,
 		collection.OwnerID, collection.ID)
 
-	batch.Query(`INSERT INTO maplefile_collections_by_user_simplified
+	batch.Query(`INSERT INTO maplefile_collections_by_user
 		(user_id, collection_id, access_type, modified_at, state, parent_id, created_at)
 		VALUES (?, ?, 'owner', ?, ?, ?, ?)`,
 		collection.OwnerID, collection.ID, collection.ModifiedAt,
@@ -62,7 +62,7 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 	// 3. Replace all members (delete old, insert new)
 	batch.Query(`DELETE FROM maplefile_collection_members WHERE collection_id = ?`, collection.ID)
 
-	batch.Query(`DELETE FROM maplefile_collections_by_user_simplified
+	batch.Query(`DELETE FROM maplefile_collections_by_user
 		WHERE collection_id = ? AND access_type = 'member'`, collection.ID)
 
 	// 4. Insert updated members with all CollectionMembership fields
@@ -77,7 +77,7 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 			member.PermissionLevel, member.CreatedAt,
 			member.IsInherited, member.InheritedFromID)
 
-		batch.Query(`INSERT INTO maplefile_collections_by_user_simplified
+		batch.Query(`INSERT INTO maplefile_collections_by_user
 			(user_id, collection_id, access_type, permission_level, modified_at, state, parent_id, created_at)
 			VALUES (?, ?, 'member', ?, ?, ?, ?, ?)`,
 			member.RecipientID, collection.ID, member.PermissionLevel,

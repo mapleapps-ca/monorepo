@@ -1,5 +1,5 @@
 -- Main collections table with ALL Collection struct fields
-CREATE TABLE IF NOT EXISTS mapleapps.maplefile_collections_by_id_simplified (
+CREATE TABLE IF NOT EXISTS mapleapps.maplefile_collections_by_id (
     -- Identifiers
     id UUID PRIMARY KEY,
     owner_id UUID,

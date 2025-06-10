@@ -12,7 +12,7 @@ import (
 func (impl *collectionRepositoryImpl) CheckIfExistsByID(ctx context.Context, id gocql.UUID) (bool, error) {
 	var count int
 
-	query := `SELECT COUNT(*) FROM maplefile_collections_by_id_simplified WHERE id = ?`
+	query := `SELECT COUNT(*) FROM maplefile_collections_by_id WHERE id = ?`
 
 	if err := impl.Session.Query(query, id).WithContext(ctx).Scan(&count); err != nil {
 		return false, fmt.Errorf("failed to check collection existence: %w", err)
@@ -24,7 +24,7 @@ func (impl *collectionRepositoryImpl) CheckIfExistsByID(ctx context.Context, id 
 func (impl *collectionRepositoryImpl) IsCollectionOwner(ctx context.Context, collectionID, userID gocql.UUID) (bool, error) {
 	var accessType string
 
-	query := `SELECT access_type FROM maplefile_collections_by_user_simplified
+	query := `SELECT access_type FROM maplefile_collections_by_user
 		WHERE user_id = ? AND collection_id = ?`
 
 	err := impl.Session.Query(query, userID, collectionID).WithContext(ctx).Scan(&accessType)
@@ -41,7 +41,7 @@ func (impl *collectionRepositoryImpl) IsCollectionOwner(ctx context.Context, col
 func (impl *collectionRepositoryImpl) CheckAccess(ctx context.Context, collectionID, userID gocql.UUID, requiredPermission string) (bool, error) {
 	var accessType, permissionLevel string
 
-	query := `SELECT access_type, permission_level FROM maplefile_collections_by_user_simplified
+	query := `SELECT access_type, permission_level FROM maplefile_collections_by_user
 		WHERE user_id = ? AND collection_id = ?`
 
 	err := impl.Session.Query(query, userID, collectionID).WithContext(ctx).Scan(&accessType, &permissionLevel)
@@ -64,7 +64,7 @@ func (impl *collectionRepositoryImpl) CheckAccess(ctx context.Context, collectio
 func (impl *collectionRepositoryImpl) GetUserPermissionLevel(ctx context.Context, collectionID, userID gocql.UUID) (string, error) {
 	var accessType, permissionLevel string
 
-	query := `SELECT access_type, permission_level FROM maplefile_collections_by_user_simplified
+	query := `SELECT access_type, permission_level FROM maplefile_collections_by_user
 		WHERE user_id = ? AND collection_id = ?`
 
 	err := impl.Session.Query(query, userID, collectionID).WithContext(ctx).Scan(&accessType, &permissionLevel)

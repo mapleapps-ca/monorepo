@@ -53,7 +53,7 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 	batch := impl.Session.NewBatch(gocql.LoggedBatch)
 
 	// 1. Insert into main table (ALL Collection struct fields except Members)
-	batch.Query(`INSERT INTO maplefile_collections_by_id_simplified
+	batch.Query(`INSERT INTO maplefile_collections_by_id
 		(id, owner_id, encrypted_name, collection_type, encrypted_collection_key,
 		 parent_id, ancestor_ids, created_at, created_by_user_id,
 		 modified_at, modified_by_user_id, version, state, tombstone_version, tombstone_expiry)
@@ -65,7 +65,7 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 		collection.TombstoneVersion, collection.TombstoneExpiry)
 
 	// 2. Insert owner access into simplified user table
-	batch.Query(`INSERT INTO maplefile_collections_by_user_simplified
+	batch.Query(`INSERT INTO maplefile_collections_by_user
 		(user_id, collection_id, access_type, modified_at, state, parent_id, created_at)
 		VALUES (?, ?, 'owner', ?, ?, ?, ?)`,
 		collection.OwnerID, collection.ID, collection.ModifiedAt,
@@ -84,7 +84,7 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 			member.IsInherited, member.InheritedFromID)
 
 		// Add member access
-		batch.Query(`INSERT INTO maplefile_collections_by_user_simplified
+		batch.Query(`INSERT INTO maplefile_collections_by_user
 			(user_id, collection_id, access_type, permission_level, modified_at, state, parent_id, created_at)
 			VALUES (?, ?, 'member', ?, ?, ?, ?, ?)`,
 			member.RecipientID, collection.ID, member.PermissionLevel,

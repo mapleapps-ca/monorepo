@@ -1,5 +1,5 @@
 -- Unified user access table (replaces multiple existing tables)
-CREATE TABLE IF NOT EXISTS mapleapps.maplefile_collections_by_user_simplified (
+CREATE TABLE IF NOT EXISTS mapleapps.maplefile_collections_by_user (
     user_id UUID,
     collection_id UUID,
     access_type TEXT, -- 'owner' or 'member'

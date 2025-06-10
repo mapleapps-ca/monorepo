@@ -49,10 +49,10 @@ func (impl *collectionRepositoryImpl) HardDelete(ctx context.Context, id gocql.U
 	batch := impl.Session.NewBatch(gocql.LoggedBatch)
 
 	// 1. Delete from main table
-	batch.Query(`DELETE FROM maplefile_collections_by_id_simplified WHERE id = ?`, id)
+	batch.Query(`DELETE FROM maplefile_collections_by_id WHERE id = ?`, id)
 
 	// 2. Delete from user access table
-	batch.Query(`DELETE FROM maplefile_collections_by_user_simplified WHERE collection_id = ?`, id)
+	batch.Query(`DELETE FROM maplefile_collections_by_user WHERE collection_id = ?`, id)
 
 	// 3. Delete from members table
 	batch.Query(`DELETE FROM maplefile_collection_members WHERE collection_id = ?`, id)

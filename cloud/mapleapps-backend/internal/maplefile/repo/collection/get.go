@@ -43,7 +43,7 @@ func (impl *collectionRepositoryImpl) getBaseCollection(ctx context.Context, id 
 	query := `SELECT id, owner_id, encrypted_name, collection_type, encrypted_collection_key,
 		parent_id, ancestor_ids, created_at, created_by_user_id, modified_at,
 		modified_by_user_id, version, state, tombstone_version, tombstone_expiry
-		FROM maplefile_collections_by_id_simplified WHERE id = ?`
+		FROM maplefile_collections_by_id WHERE id = ?`
 
 	err := impl.Session.Query(query, id).WithContext(ctx).Scan(
 		&id, &ownerID, &encryptedName, &collectionType, &encryptedKeyJSON,
@@ -159,7 +159,7 @@ func (impl *collectionRepositoryImpl) GetWithAnyState(ctx context.Context, id go
 func (impl *collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
-	query := `SELECT collection_id FROM maplefile_collections_by_user_simplified
+	query := `SELECT collection_id FROM maplefile_collections_by_user
 		WHERE user_id = ? AND access_type = 'owner' AND state = ?`
 
 	iter := impl.Session.Query(query, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
@@ -179,7 +179,7 @@ func (impl *collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerI
 func (impl *collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
-	query := `SELECT collection_id FROM maplefile_collections_by_user_simplified
+	query := `SELECT collection_id FROM maplefile_collections_by_user
 		WHERE user_id = ? AND access_type = 'member' AND state = ?`
 
 	iter := impl.Session.Query(query, userID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
@@ -208,7 +208,7 @@ func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID
 
 	var collectionIDs []gocql.UUID
 
-	query := `SELECT collection_id FROM maplefile_collections_by_user_simplified
+	query := `SELECT collection_id FROM maplefile_collections_by_user
 		WHERE user_id = ? AND access_type = 'owner' AND parent_id = ? AND state = ? ALLOW FILTERING`
 
 	iter := impl.Session.Query(query, parent.OwnerID, parentID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
@@ -229,7 +229,7 @@ func (impl *collectionRepositoryImpl) FindRootCollections(ctx context.Context, o
 	var collectionIDs []gocql.UUID
 
 	// Use ALLOW FILTERING for parent_id = null check
-	query := `SELECT collection_id FROM maplefile_collections_by_user_simplified
+	query := `SELECT collection_id FROM maplefile_collections_by_user
 		WHERE user_id = ? AND access_type = 'owner' AND state = ? AND parent_id = null ALLOW FILTERING`
 
 	iter := impl.Session.Query(query, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
