@@ -68,7 +68,7 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		VALUES (?, ?, ?, 'owner', ?, ?)`,
 		collection.OwnerID, collection.ModifiedAt, collection.ID, nil, collection.State)
 
-	// 3. Update parent index if parent changed
+	// 3. Update original parent index if parent changed
 	oldParentID := existing.ParentID
 	if !impl.isValidUUID(oldParentID) {
 		oldParentID = impl.nullParentUUID()
@@ -79,24 +79,42 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		newParentID = impl.nullParentUUID()
 	}
 
-	if oldParentID != newParentID {
-		// Remove from old parent
+	if oldParentID != newParentID || existing.OwnerID != collection.OwnerID {
+		// Remove from old parent in original table
 		batch.Query(`DELETE FROM maplefile_collections_by_parent_id_with_asc_created_at_and_asc_collection_id
 			WHERE parent_id = ? AND created_at = ? AND collection_id = ?`,
 			oldParentID, collection.CreatedAt, collection.ID)
 
-		// Add to new parent
+		// Add to new parent in original table
 		batch.Query(`INSERT INTO maplefile_collections_by_parent_id_with_asc_created_at_and_asc_collection_id
 			(parent_id, created_at, collection_id, owner_id, state)
 			VALUES (?, ?, ?, ?, ?)`,
 			newParentID, collection.CreatedAt, collection.ID, collection.OwnerID, collection.State)
+
+		// Remove from old parent+owner in composite table
+		batch.Query(`DELETE FROM maplefile_collections_by_parent_and_owner_id_with_asc_created_at_and_asc_collection_id
+			WHERE parent_id = ? AND owner_id = ? AND created_at = ? AND collection_id = ?`,
+			oldParentID, existing.OwnerID, collection.CreatedAt, collection.ID)
+
+		// Add to new parent+owner in composite table
+		batch.Query(`INSERT INTO maplefile_collections_by_parent_and_owner_id_with_asc_created_at_and_asc_collection_id
+			(parent_id, owner_id, created_at, collection_id, state)
+			VALUES (?, ?, ?, ?, ?)`,
+			newParentID, collection.OwnerID, collection.CreatedAt, collection.ID, collection.State)
 	} else {
-		// Update existing parent entry
+		// Update existing parent entry in original table
 		batch.Query(`UPDATE maplefile_collections_by_parent_id_with_asc_created_at_and_asc_collection_id SET
 			owner_id = ?, state = ?
 			WHERE parent_id = ? AND created_at = ? AND collection_id = ?`,
 			collection.OwnerID, collection.State,
 			newParentID, collection.CreatedAt, collection.ID)
+
+		// Update existing parent entry in composite table
+		batch.Query(`UPDATE maplefile_collections_by_parent_and_owner_id_with_asc_created_at_and_asc_collection_id SET
+			state = ?
+			WHERE parent_id = ? AND owner_id = ? AND created_at = ? AND collection_id = ?`,
+			collection.State,
+			newParentID, collection.OwnerID, collection.CreatedAt, collection.ID)
 	}
 
 	// 4. Update ancestor hierarchy

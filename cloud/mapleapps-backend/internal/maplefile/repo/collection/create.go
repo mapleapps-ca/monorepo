@@ -70,7 +70,7 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 		VALUES (?, ?, ?, 'owner', ?, ?)`,
 		collection.OwnerID, collection.ModifiedAt, collection.ID, nil, collection.State)
 
-	// 3. Insert into parent index
+	// 3. Insert into original parent index (still needed for cross-owner parent-child queries)
 	parentID := collection.ParentID
 	if !impl.isValidUUID(parentID) {
 		parentID = impl.nullParentUUID() // Use null UUID for root collections
@@ -81,7 +81,13 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 		VALUES (?, ?, ?, ?, ?)`,
 		parentID, collection.CreatedAt, collection.ID, collection.OwnerID, collection.State)
 
-	// 4. Insert into ancestor hierarchy table
+	// 4. NEW: Insert into composite partition key table for optimized root collection queries
+	batch.Query(`INSERT INTO maplefile_collections_by_parent_and_owner_id_with_asc_created_at_and_asc_collection_id
+		(parent_id, owner_id, created_at, collection_id, state)
+		VALUES (?, ?, ?, ?, ?)`,
+		parentID, collection.OwnerID, collection.CreatedAt, collection.ID, collection.State)
+
+	// 5. Insert into ancestor hierarchy table
 	ancestorEntries := impl.buildAncestorDepthEntries(collection.ID, collection.AncestorIDs)
 	for _, entry := range ancestorEntries {
 		batch.Query(`INSERT INTO maplefile_collections_by_ancestor_id_with_asc_depth_and_asc_collection_id
@@ -90,7 +96,7 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 			entry.AncestorID, entry.Depth, entry.CollectionID, collection.State)
 	}
 
-	// 5. Insert members into normalized table
+	// 6. Insert members into normalized table
 	for _, member := range collection.Members {
 		// Ensure member has an ID
 		if !impl.isValidUUID(member.ID) {

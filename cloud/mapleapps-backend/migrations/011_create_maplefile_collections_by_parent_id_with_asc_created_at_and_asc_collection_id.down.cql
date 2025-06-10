@@ -1,1 +1,0 @@
-DROP TABLE IF EXISTS mapleapps.maplefile_collections_by_parent_id_with_asc_created_at_and_asc_collection_id;

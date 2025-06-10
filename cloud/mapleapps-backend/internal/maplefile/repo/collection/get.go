@@ -204,10 +204,11 @@ func (impl *collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.C
 	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
 }
 
-// OPTIMIZED: No more ALLOW FILTERING - direct partition access
+// UPDATED: Now uses composite partition key table for better performance
 func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
+	// Still use the original table for parent-child relationships since we need to query across all owners
 	query := `SELECT collection_id FROM maplefile_collections_by_parent_id_with_asc_created_at_and_asc_collection_id
 		WHERE parent_id = ? AND state = ?`
 
@@ -225,14 +226,14 @@ func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID
 	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
 }
 
-// OPTIMIZED: No more ALLOW FILTERING - direct partition access for root collections
+// UPDATED: Now uses composite partition key for optimal performance - NO MORE ALLOW FILTERING!
 func (impl *collectionRepositoryImpl) FindRootCollections(ctx context.Context, ownerID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
-	// Use null UUID to represent root collections
+	// Use the new composite partition key table for root collections
 	nullParentID := impl.nullParentUUID()
 
-	query := `SELECT collection_id FROM maplefile_collections_by_parent_id_with_asc_created_at_and_asc_collection_id
+	query := `SELECT collection_id FROM maplefile_collections_by_parent_and_owner_id_with_asc_created_at_and_asc_collection_id
 		WHERE parent_id = ? AND owner_id = ? AND state = ?`
 
 	iter := impl.Session.Query(query, nullParentID, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()

@@ -64,7 +64,7 @@ func (impl *collectionRepositoryImpl) HardDelete(ctx context.Context, id gocql.U
 			member.RecipientID, collection.ModifiedAt, id)
 	}
 
-	// 4. Delete from parent index
+	// 4. Delete from original parent index
 	parentID := collection.ParentID
 	if !impl.isValidUUID(parentID) {
 		parentID = impl.nullParentUUID()
@@ -73,7 +73,12 @@ func (impl *collectionRepositoryImpl) HardDelete(ctx context.Context, id gocql.U
 		WHERE parent_id = ? AND created_at = ? AND collection_id = ?`,
 		parentID, collection.CreatedAt, id)
 
-	// 5. Delete from ancestor hierarchy
+	// 5. NEW: Delete from composite partition key table
+	batch.Query(`DELETE FROM maplefile_collections_by_parent_and_owner_id_with_asc_created_at_and_asc_collection_id
+		WHERE parent_id = ? AND owner_id = ? AND created_at = ? AND collection_id = ?`,
+		parentID, collection.OwnerID, collection.CreatedAt, id)
+
+	// 6. Delete from ancestor hierarchy
 	ancestorEntries := impl.buildAncestorDepthEntries(id, collection.AncestorIDs)
 	for _, entry := range ancestorEntries {
 		batch.Query(`DELETE FROM maplefile_collections_by_ancestor_id_with_asc_depth_and_asc_collection_id
@@ -81,7 +86,7 @@ func (impl *collectionRepositoryImpl) HardDelete(ctx context.Context, id gocql.U
 			entry.AncestorID, entry.Depth, entry.CollectionID)
 	}
 
-	// 6. Delete from members table
+	// 7. Delete from members table
 	batch.Query(`DELETE FROM maplefile_collection_members_by_collection_id_and_recipient_id WHERE collection_id = ?`, id)
 
 	// Execute batch
