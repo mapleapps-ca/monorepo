@@ -66,11 +66,6 @@ Examples:
 			var err error
 			var filterDescription string
 
-			parenObjectID, err := gocql.ParseUUID(parentID)
-			if err != nil {
-				log.Fatalf("invalid parent ID format (expected UUID): %v\n", err)
-			}
-
 			// Determine which listing method to use
 			if showModified {
 				filterDescription = "locally modified collections"
@@ -94,6 +89,11 @@ Examples:
 					return
 				}
 			} else if parentID != "" {
+				parenObjectID, err := gocql.ParseUUID(parentID)
+				if err != nil {
+					log.Fatalf("invalid parent ID `%v` with format (expected UUID): %v %v\n", parentID, err)
+				}
+
 				filterDescription = fmt.Sprintf("sub-collections under parent %s", parenObjectID.String())
 				output, err = listService.ListByParent(ctx, parenObjectID)
 			} else {
