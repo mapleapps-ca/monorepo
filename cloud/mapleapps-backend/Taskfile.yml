@@ -4,12 +4,12 @@ tasks:
   dev:
     desc: Start the backend in developer mode
     cmds:
-      - docker-compose -p mapleapps_backend -f dev.docker-compose.yml up --watch
+      - docker-compose -p mapleapps_backend -f docker-compose.dev.yml up --watch
 
   end:
     desc: Stop the backend in developer mode
     cmds:
-      - docker-compose -p mapleapps_backend -f dev.docker-compose.yml down
+      - docker-compose -p mapleapps_backend -f docker-compose.dev.yml down
 
   console:
     desc: Open console in (developer mode) running backend

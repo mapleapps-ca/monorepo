@@ -7,7 +7,7 @@
 # This is docker-compose is used for developers only.
 #
 # ------------------------------------------------------------------------------
-# $ docker-compose -p mapleapps_backend -f dev.docker-compose.yml up --watch  #
+# $ docker-compose -p mapleapps_backend -f docker-compose.dev.yml up --watch  #
 # ------------------------------------------------------------------------------
 #
 

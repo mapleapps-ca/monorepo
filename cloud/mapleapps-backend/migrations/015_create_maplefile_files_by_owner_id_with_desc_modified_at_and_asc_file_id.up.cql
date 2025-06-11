@@ -1,4 +1,4 @@
-REATE TABLE IF NOT EXISTS mapleapps.maplefile_files_by_owner_id_with_desc_modified_at_and_asc_file_id (
+CREATE TABLE IF NOT EXISTS mapleapps.maplefile_files_by_owner_id_with_desc_modified_at_and_asc_file_id (
     owner_id UUID,
     modified_at TIMESTAMP,
     file_id UUID,

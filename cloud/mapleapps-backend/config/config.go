@@ -1,3 +1,4 @@
+// github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/config.go
 package config
 
 import (
@@ -14,6 +15,8 @@ type Configuration struct {
 	AWS               AWSConfig
 	MapleFileMailgun  MailgunConfig
 	PaperCloudMailgun MailgunConfig
+	Observability     ObservabilityConfig
+	Logging           LoggingConfig
 }
 
 type CacheConf struct {
@@ -29,6 +32,8 @@ type AppConfig struct {
 	GeoLiteDBPath            string
 	BannedCountries          []string
 	BetaAccessCode           string
+	Environment              string
+	Version                  string
 }
 
 type DatabaseConfig struct {
@@ -63,6 +68,24 @@ type AWSConfig struct {
 	BucketName string
 }
 
+// ObservabilityConfig contains configuration for health checks and metrics
+type ObservabilityConfig struct {
+	Enabled              bool
+	Port                 string
+	HealthCheckTimeout   time.Duration
+	MetricsEnabled       bool
+	HealthChecksEnabled  bool
+	DetailedHealthChecks bool
+}
+
+// LoggingConfig contains logging configuration
+type LoggingConfig struct {
+	Level            string
+	Format           string // json or console
+	EnableStacktrace bool
+	EnableCaller     bool
+}
+
 func NewProvider() *Configuration {
 	var c Configuration
 
@@ -79,6 +102,14 @@ func NewProvider() *Configuration {
 	c.App.GeoLiteDBPath = getEnv("BACKEND_APP_GEOLITE_DB_PATH", false)
 	c.App.BannedCountries = getStringsArrEnv("BACKEND_APP_BANNED_COUNTRIES", false)
 	c.App.BetaAccessCode = getEnv("BACKEND_APP_BETA_ACCESS_CODE", false)
+	c.App.Environment = getEnv("ENVIRONMENT", false)
+	if c.App.Environment == "" {
+		c.App.Environment = "development"
+	}
+	c.App.Version = getEnv("SERVICE_VERSION", false)
+	if c.App.Version == "" {
+		c.App.Version = "1.0.0"
+	}
 
 	// --- Database section ---
 	c.DB = DatabaseConfig{
@@ -104,6 +135,40 @@ func NewProvider() *Configuration {
 	c.AWS.Endpoint = getEnv("BACKEND_AWS_ENDPOINT", true)
 	c.AWS.Region = getEnv("BACKEND_AWS_REGION", true)
 	c.AWS.BucketName = getEnv("BACKEND_AWS_BUCKET_NAME", true)
+
+	// --- Observability ---
+	c.Observability.Enabled = getEnvBool("BACKEND_OBSERVABILITY_ENABLED", false, true)
+	c.Observability.Port = getEnv("BACKEND_OBSERVABILITY_PORT", false)
+	if c.Observability.Port == "" {
+		c.Observability.Port = "8080"
+	}
+	c.Observability.HealthCheckTimeout = getEnvDuration("BACKEND_HEALTH_CHECK_TIMEOUT", false)
+	if c.Observability.HealthCheckTimeout == 0 {
+		c.Observability.HealthCheckTimeout = 30 * time.Second
+	}
+	c.Observability.MetricsEnabled = getEnvBool("BACKEND_METRICS_ENABLED", false, true)
+	c.Observability.HealthChecksEnabled = getEnvBool("BACKEND_HEALTH_CHECKS_ENABLED", false, true)
+	c.Observability.DetailedHealthChecks = getEnvBool("BACKEND_DETAILED_HEALTH_CHECKS", false, false)
+
+	// --- Logging ---
+	c.Logging.Level = getEnv("LOG_LEVEL", false)
+	if c.Logging.Level == "" {
+		if c.App.Environment == "production" {
+			c.Logging.Level = "info"
+		} else {
+			c.Logging.Level = "debug"
+		}
+	}
+	c.Logging.Format = getEnv("LOG_FORMAT", false)
+	if c.Logging.Format == "" {
+		if c.App.Environment == "production" {
+			c.Logging.Format = "json"
+		} else {
+			c.Logging.Format = "console"
+		}
+	}
+	c.Logging.EnableStacktrace = getEnvBool("LOG_ENABLE_STACKTRACE", false, c.App.Environment != "production")
+	c.Logging.EnableCaller = getEnvBool("LOG_ENABLE_CALLER", false, true)
 
 	//
 	// --------- MapleFile ------------
