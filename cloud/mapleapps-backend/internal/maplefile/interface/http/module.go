@@ -7,10 +7,9 @@ import (
 	unifiedhttp "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/manifold/interface/http"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/collection"
 	commonhttp "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/common"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/me"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/middleware"
-	// "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/file"
-	// "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/me"
 )
 
 func Module() fx.Option {
@@ -52,21 +51,21 @@ func Module() fx.Option {
 			// Sync handlers
 			unifiedhttp.AsRoute(collection.NewCollectionSyncHTTPHandler),
 
-			// // // File handlers
-			// // unifiedhttp.AsRoute(file.NewSoftDeleteFileHTTPHandler),
-			// // unifiedhttp.AsRoute(file.NewDeleteMultipleFilesHTTPHandler),
-			// // unifiedhttp.AsRoute(file.NewGetFileHTTPHandler),
-			// // unifiedhttp.AsRoute(file.NewListFilesByCollectionHTTPHandler),
-			// // unifiedhttp.AsRoute(file.NewUpdateFileHTTPHandler),
-			// // unifiedhttp.AsRoute(file.NewCreatePendingFileHTTPHandler),
-			// // unifiedhttp.AsRoute(file.NewCompleteFileUploadHTTPHandler),
-			// // unifiedhttp.AsRoute(file.NewGetPresignedUploadURLHTTPHandler),
-			// // unifiedhttp.AsRoute(file.NewGetPresignedDownloadURLHTTPHandler),
-			// // unifiedhttp.AsRoute(file.NewArchiveFileHTTPHandler),
-			// // unifiedhttp.AsRoute(file.NewRestoreFileHTTPHandler),
+			// File handlers
+			unifiedhttp.AsRoute(file.NewSoftDeleteFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewDeleteMultipleFilesHTTPHandler),
+			unifiedhttp.AsRoute(file.NewGetFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewListFilesByCollectionHTTPHandler),
+			unifiedhttp.AsRoute(file.NewUpdateFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewCreatePendingFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewCompleteFileUploadHTTPHandler),
+			unifiedhttp.AsRoute(file.NewGetPresignedUploadURLHTTPHandler),
+			unifiedhttp.AsRoute(file.NewGetPresignedDownloadURLHTTPHandler),
+			unifiedhttp.AsRoute(file.NewArchiveFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewRestoreFileHTTPHandler),
 
-			// // // Sync handlers
-			// // unifiedhttp.AsRoute(file.NewFileSyncHTTPHandler),
+			// Sync handlers
+			unifiedhttp.AsRoute(file.NewFileSyncHTTPHandler),
 		),
 	)
 }
