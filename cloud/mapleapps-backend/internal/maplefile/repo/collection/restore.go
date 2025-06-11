@@ -11,7 +11,7 @@ import (
 )
 
 func (impl *collectionRepositoryImpl) Restore(ctx context.Context, id gocql.UUID) error {
-	collection, err := impl.GetWithAnyState(ctx, id)
+	collection, err := impl.Get(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to get collection for restore: %w", err)
 	}

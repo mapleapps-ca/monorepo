@@ -12,7 +12,6 @@ type CollectionRepository interface {
 	// Collection CRUD operations
 	Create(ctx context.Context, collection *Collection) error
 	Get(ctx context.Context, id gocql.UUID) (*Collection, error)
-	GetWithAnyState(ctx context.Context, id gocql.UUID) (*Collection, error)
 	Update(ctx context.Context, collection *Collection) error
 	SoftDelete(ctx context.Context, id gocql.UUID) error // Now soft delete
 	HardDelete(ctx context.Context, id gocql.UUID) error

@@ -12,9 +12,9 @@ import (
 )
 
 // Core helper methods for loading collections with members
-func (impl *collectionRepositoryImpl) loadCollectionWithMembers(ctx context.Context, collectionID gocql.UUID, stateAware bool) (*dom_collection.Collection, error) {
+func (impl *collectionRepositoryImpl) loadCollectionWithMembers(ctx context.Context, collectionID gocql.UUID) (*dom_collection.Collection, error) {
 	// 1. Load base collection
-	collection, err := impl.getBaseCollection(ctx, collectionID, stateAware)
+	collection, err := impl.getBaseCollection(ctx, collectionID)
 	if err != nil || collection == nil {
 		return collection, err
 	}
@@ -29,7 +29,7 @@ func (impl *collectionRepositoryImpl) loadCollectionWithMembers(ctx context.Cont
 	return collection, nil
 }
 
-func (impl *collectionRepositoryImpl) getBaseCollection(ctx context.Context, id gocql.UUID, stateAware bool) (*dom_collection.Collection, error) {
+func (impl *collectionRepositoryImpl) getBaseCollection(ctx context.Context, id gocql.UUID) (*dom_collection.Collection, error) {
 	var (
 		encryptedName, collectionType, encryptedKeyJSON      string
 		ancestorIDsJSON                                      string
@@ -54,11 +54,6 @@ func (impl *collectionRepositoryImpl) getBaseCollection(ctx context.Context, id 
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get collection: %w", err)
-	}
-
-	// Apply state filtering if state-aware mode is enabled
-	if stateAware && state != dom_collection.CollectionStateActive {
-		return nil, nil
 	}
 
 	// Deserialize complex fields
@@ -141,7 +136,7 @@ func (impl *collectionRepositoryImpl) loadMultipleCollectionsWithMembers(ctx con
 
 	var collections []*dom_collection.Collection
 	for _, id := range collectionIDs {
-		collection, err := impl.loadCollectionWithMembers(ctx, id, true)
+		collection, err := impl.loadCollectionWithMembers(ctx, id)
 		if err != nil {
 			impl.Logger.Warn("failed to load collection",
 				zap.String("collection_id", id.String()),
@@ -157,11 +152,7 @@ func (impl *collectionRepositoryImpl) loadMultipleCollectionsWithMembers(ctx con
 }
 
 func (impl *collectionRepositoryImpl) Get(ctx context.Context, id gocql.UUID) (*dom_collection.Collection, error) {
-	return impl.loadCollectionWithMembers(ctx, id, true) // state-aware
-}
-
-func (impl *collectionRepositoryImpl) GetWithAnyState(ctx context.Context, id gocql.UUID) (*dom_collection.Collection, error) {
-	return impl.loadCollectionWithMembers(ctx, id, false) // state-agnostic
+	return impl.loadCollectionWithMembers(ctx, id)
 }
 
 // OPTIMIZED: Now uses the access-type-specific table for maximum efficiency
@@ -170,9 +161,9 @@ func (impl *collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerI
 	var collectionIDs []gocql.UUID
 
 	query := `SELECT collection_id FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
-		WHERE user_id = ? AND access_type = 'owner' AND state = ?`
+		WHERE user_id = ? AND access_type = 'owner'`
 
-	iter := impl.Session.Query(query, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
+	iter := impl.Session.Query(query, ownerID).WithContext(ctx).Iter()
 
 	var collectionID gocql.UUID
 	for iter.Scan(&collectionID) {
@@ -180,6 +171,10 @@ func (impl *collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerI
 	}
 
 	if err := iter.Close(); err != nil {
+		impl.Logger.Error("failed to get collections",
+			zap.Any("user_id", ownerID),
+			zap.Error(err),
+		)
 		return nil, fmt.Errorf("failed to get collections by owner: %w", err)
 	}
 
@@ -195,9 +190,9 @@ func (impl *collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.C
 	var collectionIDs []gocql.UUID
 
 	query := `SELECT collection_id FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
-		WHERE user_id = ? AND access_type = 'member' AND state = ?`
+		WHERE user_id = ? AND access_type = 'member'`
 
-	iter := impl.Session.Query(query, userID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
+	iter := impl.Session.Query(query, userID).WithContext(ctx).Iter()
 
 	var collectionID gocql.UUID
 	for iter.Scan(&collectionID) {
@@ -221,9 +216,9 @@ func (impl *collectionRepositoryImpl) GetAllUserCollections(ctx context.Context,
 	var collectionIDs []gocql.UUID
 
 	query := `SELECT collection_id FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
-		WHERE user_id = ? AND state = ?`
+		WHERE user_id = ?`
 
-	iter := impl.Session.Query(query, userID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
+	iter := impl.Session.Query(query, userID).WithContext(ctx).Iter()
 
 	var collectionID gocql.UUID
 	for iter.Scan(&collectionID) {
@@ -247,9 +242,9 @@ func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID
 
 	// Still use the original table for parent-child relationships since we need to query across all owners
 	query := `SELECT collection_id FROM maplefile_collections_by_parent_id_with_asc_created_at_and_asc_collection_id
-		WHERE parent_id = ? AND state = ?`
+		WHERE parent_id = ?`
 
-	iter := impl.Session.Query(query, parentID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
+	iter := impl.Session.Query(query, parentID).WithContext(ctx).Iter()
 
 	var collectionID gocql.UUID
 	for iter.Scan(&collectionID) {
@@ -271,9 +266,9 @@ func (impl *collectionRepositoryImpl) FindRootCollections(ctx context.Context, o
 	nullParentID := impl.nullParentUUID()
 
 	query := `SELECT collection_id FROM maplefile_collections_by_parent_and_owner_id_with_asc_created_at_and_asc_collection_id
-		WHERE parent_id = ? AND owner_id = ? AND state = ?`
+		WHERE parent_id = ? AND owner_id = ?`
 
-	iter := impl.Session.Query(query, nullParentID, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
+	iter := impl.Session.Query(query, nullParentID, ownerID).WithContext(ctx).Iter()
 
 	var collectionID gocql.UUID
 	for iter.Scan(&collectionID) {
@@ -292,9 +287,9 @@ func (impl *collectionRepositoryImpl) FindDescendants(ctx context.Context, colle
 	var descendantIDs []gocql.UUID
 
 	query := `SELECT collection_id FROM maplefile_collections_by_ancestor_id_with_asc_depth_and_asc_collection_id
-		WHERE ancestor_id = ? AND state = ?`
+		WHERE ancestor_id = ?`
 
-	iter := impl.Session.Query(query, collectionID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
+	iter := impl.Session.Query(query, collectionID).WithContext(ctx).Iter()
 
 	var descendantID gocql.UUID
 	for iter.Scan(&descendantID) {

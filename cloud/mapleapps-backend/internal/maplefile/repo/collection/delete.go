@@ -13,7 +13,7 @@ import (
 )
 
 func (impl *collectionRepositoryImpl) SoftDelete(ctx context.Context, id gocql.UUID) error {
-	collection, err := impl.GetWithAnyState(ctx, id)
+	collection, err := impl.Get(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to get collection for soft delete: %w", err)
 	}
@@ -39,7 +39,7 @@ func (impl *collectionRepositoryImpl) SoftDelete(ctx context.Context, id gocql.U
 }
 
 func (impl *collectionRepositoryImpl) HardDelete(ctx context.Context, id gocql.UUID) error {
-	collection, err := impl.GetWithAnyState(ctx, id)
+	collection, err := impl.Get(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to get collection for hard delete: %w", err)
 	}

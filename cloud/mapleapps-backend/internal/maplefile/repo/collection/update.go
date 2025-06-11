@@ -22,7 +22,7 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 
 	// Get existing collection to compare changes
 	// This is crucial for maintaining consistency across multiple table views
-	existing, err := impl.GetWithAnyState(ctx, collection.ID)
+	existing, err := impl.Get(ctx, collection.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get existing collection: %w", err)
 	}

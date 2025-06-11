@@ -72,7 +72,7 @@ func (svc *restoreCollectionServiceImpl) Execute(ctx context.Context, req *Resto
 	//
 	// STEP 3: Retrieve existing collection (including non-active states for restoration)
 	//
-	collection, err := svc.repo.GetWithAnyState(ctx, req.ID)
+	collection, err := svc.repo.Get(ctx, req.ID)
 	if err != nil {
 		svc.logger.Error("Failed to get collection",
 			zap.Any("error", err),
