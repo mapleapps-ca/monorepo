@@ -5,8 +5,8 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/collection"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/me"
-	// "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/file"
 )
 
 func Module() fx.Option {
@@ -43,21 +43,21 @@ func Module() fx.Option {
 			// Collection services - Sync Data
 			collection.NewGetCollectionSyncDataService,
 
-		// // File services
-		// file.NewSoftDeleteFileService,
-		// file.NewDeleteMultipleFilesService,
-		// file.NewGetFileService,
-		// file.NewListFilesByCollectionService,
-		// file.NewUpdateFileService,
-		// file.NewCreatePendingFileService,
-		// file.NewCompleteFileUploadService,
-		// file.NewGetPresignedUploadURLService,
-		// file.NewGetPresignedDownloadURLService,
-		// file.NewListFilesByCreatedByUserIDService,
-		// file.NewListFilesByOwnerIDService,
-		// file.NewArchiveFileService,
-		// file.NewRestoreFileService,
-		// file.NewGetFileSyncDataService,
+			// File services
+			file.NewSoftDeleteFileService,
+			file.NewDeleteMultipleFilesService,
+			file.NewGetFileService,
+			file.NewListFilesByCollectionService,
+			file.NewUpdateFileService,
+			file.NewCreatePendingFileService,
+			file.NewCompleteFileUploadService,
+			file.NewGetPresignedUploadURLService,
+			file.NewGetPresignedDownloadURLService,
+			file.NewListFilesByCreatedByUserIDService,
+			file.NewListFilesByOwnerIDService,
+			file.NewArchiveFileService,
+			file.NewRestoreFileService,
+			file.NewListFileSyncDataService,
 		),
 	)
 }
