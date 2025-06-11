@@ -3,7 +3,6 @@ package pkg
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -11,6 +10,7 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/distributedmutex"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/emailer/mailgun"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/observability"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/blacklist"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/ipcountryblocker"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/jwt"
@@ -24,6 +24,7 @@ import (
 
 func Module() fx.Option {
 	return fx.Options(
+		// Emailer providers with proper naming
 		fx.Provide(
 			fx.Annotate(
 				mailgun.NewMapleFileModuleEmailer,
@@ -34,20 +35,32 @@ func Module() fx.Option {
 				fx.ResultTags(`name:"papercloud-module-emailer"`),
 			),
 		),
+
+		// Core infrastructure providers
 		fx.Provide(
+			// Security components
 			blacklist.NewProvider,
 			distributedmutex.NewAdapter,
 			ipcountryblocker.NewProvider,
 			jwt.NewProvider,
 			password.NewProvider,
+
+			// Database components
 			cassandradb.NewCassandraConnection,
 			cassandradb.NewMigrator,
+
+			// Cache and storage components
 			redis.NewCache,
 			twotiercache.NewTwoTierCache,
 			cassandracache.NewCache,
 			s3.NewProvider,
+
+			// Observability components (depends on infrastructure for health checks)
+			observability.NewHealthChecker,
+			observability.NewMetricsServer,
 		),
-		// Add lifecycle management for Cassandra
+
+		// Lifecycle management for infrastructure components
 		fx.Invoke(runMigrationsAndSetupLifecycle),
 	)
 }
@@ -64,17 +77,17 @@ func runMigrationsAndSetupLifecycle(
 			// Run migrations in background
 			go func() {
 				if err := migrator.Up(); err != nil {
-					fmt.Errorf("Migration failed", zap.Error(err))
+					logger.Error("Migration failed", zap.Error(err))
 				}
 			}()
 			return nil // Return immediately
 		},
 		OnStop: func(ctx context.Context) error {
-			logger.Info("Shutting down Cassandra connection...")
+			logger.Info("Shutting down infrastructure components...")
 			if session != nil {
 				session.Close()
 			}
-			logger.Info("Cassandra connection closed")
+			logger.Info("Infrastructure components shutdown complete")
 			return nil
 		},
 	})

@@ -1,31 +1,34 @@
+// cloud/mapleapps-backend/internal/manifold/interface/http/healthcheck.go
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"go.uber.org/zap"
+
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/observability"
 )
 
-// curl http://localhost:8000/healthcheck
+// GetHealthCheckHTTPHandler provides comprehensive health check endpoint using observability package
 type GetHealthCheckHTTPHandler struct {
-	log *zap.Logger
+	log           *zap.Logger
+	healthChecker *observability.HealthChecker
 }
 
 func NewGetHealthCheckHTTPHandler(
 	log *zap.Logger,
+	healthChecker *observability.HealthChecker,
 ) *GetHealthCheckHTTPHandler {
-	return &GetHealthCheckHTTPHandler{log}
+	return &GetHealthCheckHTTPHandler{
+		log:           log,
+		healthChecker: healthChecker,
+	}
 }
 
-type HealthCheckResponseIDO struct {
-	Status string `json:"status"`
-}
-
+// ServeHTTP handles comprehensive health check requests using the observability system
 func (h *GetHealthCheckHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	response := HealthCheckResponseIDO{Status: "running"}
-	json.NewEncoder(w).Encode(response)
+	// Delegate to the comprehensive health checker from observability package
+	h.healthChecker.HealthHandler()(w, r)
 }
 
 func (*GetHealthCheckHTTPHandler) Pattern() string {

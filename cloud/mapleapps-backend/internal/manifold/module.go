@@ -1,3 +1,4 @@
+// cloud/mapleapps-backend/internal/manifold/module.go
 package manifold
 
 import (
@@ -14,11 +15,18 @@ import (
 
 func Module() fx.Option {
 	return fx.Options(
-		pkg.Module(), // Shared utilities, types, and helpers used across layers
-		commonhttp.Module(),
+		// Step 1: Core infrastructure components (databases, caches, storage)
+		pkg.Module(),
+
+		// Step 2: Domain modules
 		iam.Module(),
 		maplefile.Module(),
-		// papercloud.Module(),// Coming soon
+		// papercloud.Module(), // Coming soon
+
+		// Step 3: HTTP interface layer (depends on observability for handlers)
+		commonhttp.Module(),
+
+		// Step 4: Ensure HTTP server is instantiated
 		fx.Invoke(func(*http.Server) {}),
 	)
 }

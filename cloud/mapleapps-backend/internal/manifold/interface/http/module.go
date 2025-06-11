@@ -9,7 +9,9 @@ import (
 
 func Module() fx.Option {
 	return fx.Options(
-		middleware.Module(), // Include middleware module
+		// Include middleware module
+		middleware.Module(),
+
 		fx.Provide(
 			NewUnifiedHTTPServer,
 			fx.Annotate(
@@ -17,10 +19,17 @@ func Module() fx.Option {
 				fx.ParamTags(`group:"routes"`),
 			),
 		),
+
+		// Register all HTTP routes
 		fx.Provide(
+			// Core application routes
 			AsRoute(NewEchoHandler),
+
+			// Observability routes using pkg/observability components
 			AsRoute(NewGetHealthCheckHTTPHandler),
-			// Add other routes here
+			AsRoute(NewGetReadinessHTTPHandler),
+			AsRoute(NewGetLivenessHTTPHandler),
+			AsRoute(NewGetMetricsHTTPHandler),
 		),
 	)
 }

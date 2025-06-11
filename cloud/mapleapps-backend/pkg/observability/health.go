@@ -394,16 +394,6 @@ func S3HealthCheck(s3Storage s3.S3ObjectStorage, logger *zap.Logger) HealthCheck
 	}
 }
 
-// Module provides observability components for FX
-func Module() fx.Option {
-	return fx.Options(
-		fx.Provide(NewHealthChecker),
-		fx.Provide(NewMetricsServer),
-		fx.Invoke(registerRealHealthChecks),
-		fx.Invoke(startObservabilityServer),
-	)
-}
-
 // registerRealHealthChecks registers health checks for actual infrastructure components
 func registerRealHealthChecks(
 	hc *HealthChecker,
