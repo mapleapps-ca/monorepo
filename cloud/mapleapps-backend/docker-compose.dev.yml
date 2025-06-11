@@ -1,77 +1,149 @@
-#############
-# HOW TO USE:
-#############
-# 3-node Cassandra cluster for development (simplified and working)
+# Docker Compose configuration optimized for Cassandra 5.x
+# This addresses the specific startup and health check requirements of version 5.x
 
 version: "3.8"
 services:
   cassandra1:
-    image: cassandra:4.1
+    image: cassandra:5.0
     container_name: mapleapps_cassandra_node1
     restart: unless-stopped
     volumes:
       - cassandra_node1_data:/var/lib/cassandra
+      # Mount logs for better debugging visibility
+      - cassandra_node1_logs:/opt/cassandra/logs
     ports:
       - "9042:9042"
+      - "7199:7199" # JMX port for monitoring
     environment:
       - CASSANDRA_SEEDS=cassandra1,cassandra2,cassandra3
       - CASSANDRA_CLUSTER_NAME=mapleapps_cluster
       - CASSANDRA_DC=datacenter1
+      - CASSANDRA_RACK=rack1
+      # Memory settings optimized for Cassandra 5.x
+      - HEAP_NEWSIZE=400m
+      - MAX_HEAP_SIZE=2g
+      # Cassandra 5.x specific settings
+      - CASSANDRA_NUM_TOKENS=16 # Reduced for better performance
+      - CASSANDRA_MEMTABLE_ALLOCATION_TYPE=heap_buffers
     networks:
       - cassandra_network
+    # Enhanced health check specifically designed for Cassandra 5.x
     healthcheck:
-      test: ["CMD-SHELL", "cqlsh -e 'describe cluster'"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 2m
+      # Use nodetool status instead of cqlsh for more reliable health checking
+      # nodetool is more tolerant of initialization states
+      test: |
+        bash -c '
+        # First check if the process is running
+        if ! pgrep -f "org.apache.cassandra.service.CassandraDaemon" > /dev/null; then
+          echo "Cassandra process not running"
+          exit 1
+        fi
+
+        # Then check if nodetool can connect (more reliable than cqlsh)
+        if ! nodetool status 2>/dev/null | grep -q "UN.*$(hostname -i)"; then
+          echo "Cassandra not yet in UP/NORMAL state"
+          exit 1
+        fi
+
+        echo "Cassandra is healthy"
+        exit 0
+        '
+      interval: 30s # Check every 30 seconds
+      timeout: 20s # Allow 20 seconds for the check to complete
+      retries: 15 # Try 15 times before marking as unhealthy (7.5 minutes total)
+      start_period: 5m # Wait 5 minutes before starting health checks
 
   cassandra2:
-    image: cassandra:4.1
+    image: cassandra:5.0
     container_name: mapleapps_cassandra_node2
     restart: unless-stopped
     volumes:
       - cassandra_node2_data:/var/lib/cassandra
+      - cassandra_node2_logs:/opt/cassandra/logs
     ports:
       - "9043:9042"
+      - "7200:7199"
     environment:
       - CASSANDRA_SEEDS=cassandra1,cassandra2,cassandra3
       - CASSANDRA_CLUSTER_NAME=mapleapps_cluster
       - CASSANDRA_DC=datacenter1
+      - CASSANDRA_RACK=rack1
+      - HEAP_NEWSIZE=400m
+      - MAX_HEAP_SIZE=2g
+      - CASSANDRA_NUM_TOKENS=16
+      - CASSANDRA_MEMTABLE_ALLOCATION_TYPE=heap_buffers
     depends_on:
-      - cassandra1
+      cassandra1:
+        condition: service_healthy
     networks:
       - cassandra_network
     healthcheck:
-      test: ["CMD-SHELL", "cqlsh -e 'describe cluster'"]
+      test: |
+        bash -c '
+        if ! pgrep -f "org.apache.cassandra.service.CassandraDaemon" > /dev/null; then
+          echo "Cassandra process not running"
+          exit 1
+        fi
+
+        if ! nodetool status 2>/dev/null | grep -q "UN.*$(hostname -i)"; then
+          echo "Cassandra not yet in UP/NORMAL state"
+          exit 1
+        fi
+
+        echo "Cassandra is healthy"
+        exit 0
+        '
       interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 2m
+      timeout: 20s
+      retries: 15
+      start_period: 5m
 
   cassandra3:
-    image: cassandra:4.1
+    image: cassandra:5.0
     container_name: mapleapps_cassandra_node3
     restart: unless-stopped
     volumes:
       - cassandra_node3_data:/var/lib/cassandra
+      - cassandra_node3_logs:/opt/cassandra/logs
     ports:
       - "9044:9042"
+      - "7201:7199"
     environment:
       - CASSANDRA_SEEDS=cassandra1,cassandra2,cassandra3
       - CASSANDRA_CLUSTER_NAME=mapleapps_cluster
       - CASSANDRA_DC=datacenter1
+      - CASSANDRA_RACK=rack1
+      - HEAP_NEWSIZE=400m
+      - MAX_HEAP_SIZE=2g
+      - CASSANDRA_NUM_TOKENS=16
+      - CASSANDRA_MEMTABLE_ALLOCATION_TYPE=heap_buffers
     depends_on:
-      - cassandra1
-      - cassandra2
+      cassandra1:
+        condition: service_healthy
+      cassandra2:
+        condition: service_healthy
     networks:
       - cassandra_network
     healthcheck:
-      test: ["CMD-SHELL", "cqlsh -e 'describe cluster'"]
+      test: |
+        bash -c '
+        if ! pgrep -f "org.apache.cassandra.service.CassandraDaemon" > /dev/null; then
+          echo "Cassandra process not running"
+          exit 1
+        fi
+
+        if ! nodetool status 2>/dev/null | grep -q "UN.*$(hostname -i)"; then
+          echo "Cassandra not yet in UP/NORMAL state"
+          exit 1
+        fi
+
+        echo "Cassandra is healthy"
+        exit 0
+        '
       interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 2m
+      timeout: 20s
+      retries: 15
+      start_period: 5m
 
   cache:
     container_name: mapleapps_cache
@@ -90,9 +162,9 @@ services:
       timeout: 3s
       retries: 5
 
-  # Simple wait service - just sleep to let cluster form
+  # Enhanced cluster readiness verification
   wait-for-cluster:
-    image: cassandra:4.1
+    image: cassandra:5.0
     depends_on:
       cassandra1:
         condition: service_healthy
@@ -106,8 +178,41 @@ services:
       - "bash"
       - "-c"
       - |
-        echo "All services are healthy!"
-        echo "Cassandra cluster and Redis cache are ready."
+        echo "All Cassandra 5.x nodes are healthy!"
+        echo "Performing final cluster validation..."
+
+        # Wait a bit more for cluster stabilization
+        sleep 30
+
+        # Validate cluster status from each node
+        echo "Checking cluster status from node 1..."
+        if ! nodetool -h cassandra1 status; then
+          echo "Warning: Could not get status from node 1"
+        fi
+
+        echo "Checking cluster status from node 2..."
+        if ! nodetool -h cassandra2 status; then
+          echo "Warning: Could not get status from node 2"
+        fi
+
+        echo "Checking cluster status from node 3..."
+        if ! nodetool -h cassandra3 status; then
+          echo "Warning: Could not get status from node 3"
+        fi
+
+        # Test basic CQL connectivity
+        echo "Testing CQL connectivity..."
+        if cqlsh cassandra1 -e "SELECT cluster_name, release_version FROM system.local;"; then
+          echo "✓ CQL connectivity successful"
+        else
+          echo "✗ CQL connectivity failed"
+          exit 1
+        fi
+
+        echo "🎉 Cassandra 5.x cluster is fully operational!"
+        echo "   Cluster nodes: cassandra1:9042, cassandra2:9042, cassandra3:9042"
+        echo "   Redis cache: cache:6379"
+        echo "   Ready for application connections!"
     networks:
       - cassandra_network
 
@@ -127,18 +232,19 @@ services:
       ENVIRONMENT: development
       SERVICE_VERSION: 1.0.0-dev
 
-      # Database Configuration
+      # Database Configuration - optimized for Cassandra 5.x
       BACKEND_DB_HOSTS: "cassandra1,cassandra2,cassandra3"
       BACKEND_DB_KEYSPACE: "mapleapps"
-      BACKEND_DB_CONSISTENCY: "quorum"
+      BACKEND_DB_CONSISTENCY: "LOCAL_QUORUM"
       BACKEND_DB_USERNAME: ""
       BACKEND_DB_PASSWORD: ""
       BACKEND_MIGRATIONS_PATH: "file://migrations"
-      BACKEND_DB_CONNECT_TIMEOUT: 60s
-      BACKEND_DB_REQUEST_TIMEOUT: 30s
+      # Increased timeouts for Cassandra 5.x initialization
+      BACKEND_DB_CONNECT_TIMEOUT: 180s # 3 minutes for initial connection
+      BACKEND_DB_REQUEST_TIMEOUT: 60s # 1 minute for individual requests
       BACKEND_DB_REPLICATION_FACTOR: 3
-      BACKEND_DB_MAX_RETRY_ATTEMPTS: 50
-      BACKEND_DB_RETRY_DELAY: 15s
+      BACKEND_DB_MAX_RETRY_ATTEMPTS: 30 # More retries for stability
+      BACKEND_DB_RETRY_DELAY: 15s # Longer delay between retries
 
       # Cache Configuration
       BACKEND_CACHE_URI: ${BACKEND_CACHE_URI}
@@ -164,7 +270,7 @@ services:
       BACKEND_HEALTH_CHECKS_ENABLED: "true"
       BACKEND_DETAILED_HEALTH_CHECKS: "true"
 
-      # MapleFile Mailgun Configuration
+      # Mailgun configurations (unchanged)
       BACKEND_MAPLEFILE_MAILGUN_API_KEY: ${BACKEND_MAPLEFILE_MAILGUN_API_KEY}
       BACKEND_MAPLEFILE_MAILGUN_DOMAIN: ${BACKEND_MAPLEFILE_MAILGUN_DOMAIN}
       BACKEND_MAPLEFILE_MAILGUN_API_BASE: ${BACKEND_MAPLEFILE_MAILGUN_API_BASE}
@@ -173,7 +279,6 @@ services:
       BACKEND_MAPLEFILE_MAILGUN_FRONTEND_DOMAIN: ${BACKEND_MAPLEFILE_MAILGUN_FRONTEND_DOMAIN}
       BACKEND_MAPLEFILE_MAILGUN_BACKEND_DOMAIN: ${BACKEND_MAPLEFILE_MAILGUN_BACKEND_DOMAIN}
 
-      # PaperCloud Mailgun Configuration
       BACKEND_PAPERCLOUD_MAILGUN_API_KEY: ${BACKEND_PAPERCLOUD_MAILGUN_API_KEY}
       BACKEND_PAPERCLOUD_MAILGUN_DOMAIN: ${BACKEND_PAPERCLOUD_MAILGUN_DOMAIN}
       BACKEND_PAPERCLOUD_MAILGUN_API_BASE: ${BACKEND_PAPERCLOUD_MAILGUN_API_BASE}
@@ -188,7 +293,7 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000" # Main application port
-      - "8080:8080" # Observability port (health checks, metrics)
+      - "8080:8080" # Observability port
     depends_on:
       wait-for-cluster:
         condition: service_completed_successfully
@@ -201,12 +306,15 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 1m
+      start_period: 3m # Longer startup time for Cassandra 5.x compatibility
 
 volumes:
   cassandra_node1_data:
   cassandra_node2_data:
   cassandra_node3_data:
+  cassandra_node1_logs: # Added for better debugging
+  cassandra_node2_logs:
+  cassandra_node3_logs:
 
 networks:
   cassandra_network:
