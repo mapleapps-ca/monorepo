@@ -8,7 +8,7 @@
 version: "3.8"
 services:
   cassandra1:
-    image: cassandra:5.0
+    image: cassandra:5.0.4
     container_name: mapleapps_cassandra_node1
     restart: unless-stopped
     volumes:
@@ -45,7 +45,7 @@ services:
       start_period: 3m
 
   cassandra2:
-    image: cassandra:5.0
+    image: cassandra:5.0.4
     container_name: mapleapps_cassandra_node2
     restart: unless-stopped
     volumes:
@@ -78,7 +78,7 @@ services:
       start_period: 3m
 
   cassandra3:
-    image: cassandra:5.0
+    image: cassandra:5.0.4
     container_name: mapleapps_cassandra_node3
     restart: unless-stopped
     volumes:
@@ -131,7 +131,7 @@ services:
 
   # Updated wait service that focuses on CQL connectivity rather than JMX
   wait-for-cluster:
-    image: cassandra:5.0
+    image: cassandra:5.0.4
     depends_on:
       cassandra1:
         condition: service_healthy
