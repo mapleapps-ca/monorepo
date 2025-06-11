@@ -60,7 +60,7 @@ func Module() fx.Option {
 			filemetadata.NewCheckFileAccessUseCase,
 			filemetadata.NewGetFileMetadataByCreatedByUserIDUseCase,
 			filemetadata.NewGetFileMetadataByOwnerIDUseCase,
-			filemetadata.NewGetFileMetadataSyncDataUseCase,
+			filemetadata.NewListFileMetadataSyncDataUseCase,
 
 			// File Object Storage use cases
 			fileobjectstorage.NewStoreEncryptedDataUseCase,

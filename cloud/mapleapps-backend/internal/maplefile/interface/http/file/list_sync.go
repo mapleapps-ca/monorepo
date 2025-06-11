@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/interface/http/file/sync.go
+// cloud/backend/internal/maplefile/interface/http/file/list_sync.go
 package file
 
 import (
@@ -20,14 +20,14 @@ import (
 type FileSyncHTTPHandler struct {
 	config          *config.Configuration
 	logger          *zap.Logger
-	fileSyncService file_service.GetFileSyncDataService // CHANGED: Use service instead of repository
+	fileSyncService file_service.ListFileSyncDataService // CHANGED: Use service instead of repository
 	middleware      middleware.Middleware
 }
 
 func NewFileSyncHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
-	fileSyncService file_service.GetFileSyncDataService, // CHANGED: Inject service instead of repository
+	fileSyncService file_service.ListFileSyncDataService, // CHANGED: Inject service instead of repository
 	middleware middleware.Middleware,
 ) *FileSyncHTTPHandler {
 	logger = logger.Named("FileSyncHTTPHandler")

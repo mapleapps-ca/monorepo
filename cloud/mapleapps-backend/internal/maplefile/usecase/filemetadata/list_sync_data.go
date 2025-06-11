@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/filemetadata/get_sync_data.go
+// cloud/backend/internal/maplefile/usecase/filemetadata/list_sync_data.go
 package filemetadata
 
 import (
@@ -12,26 +12,26 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
-type GetFileMetadataSyncDataUseCase interface {
+type ListFileMetadataSyncDataUseCase interface {
 	Execute(ctx context.Context, userID gocql.UUID, cursor *dom_file.FileSyncCursor, limit int64, accessibleCollectionIDs []gocql.UUID) (*dom_file.FileSyncResponse, error)
 }
 
-type getFileMetadataSyncDataUseCaseImpl struct {
+type listFileMetadataSyncDataUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
 	repo   dom_file.FileMetadataRepository
 }
 
-func NewGetFileMetadataSyncDataUseCase(
+func NewListFileMetadataSyncDataUseCase(
 	config *config.Configuration,
 	logger *zap.Logger,
 	repo dom_file.FileMetadataRepository,
-) GetFileMetadataSyncDataUseCase {
-	logger = logger.Named("GetFileMetadataSyncDataUseCase")
-	return &getFileMetadataSyncDataUseCaseImpl{config, logger, repo}
+) ListFileMetadataSyncDataUseCase {
+	logger = logger.Named("ListFileMetadataSyncDataUseCase")
+	return &listFileMetadataSyncDataUseCaseImpl{config, logger, repo}
 }
 
-func (uc *getFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, userID gocql.UUID, cursor *dom_file.FileSyncCursor, limit int64, accessibleCollectionIDs []gocql.UUID) (*dom_file.FileSyncResponse, error) {
+func (uc *listFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, userID gocql.UUID, cursor *dom_file.FileSyncCursor, limit int64, accessibleCollectionIDs []gocql.UUID) (*dom_file.FileSyncResponse, error) {
 	//
 	// STEP 1: Validation.
 	//
@@ -44,24 +44,24 @@ func (uc *getFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, userI
 		e["accessible_collections"] = "At least one accessible collection is required"
 	}
 	if len(e) != 0 {
-		uc.logger.Warn("Failed validating get file sync data",
+		uc.logger.Warn("Failed validating list file sync data",
 			zap.Any("error", e))
 		return nil, httperror.NewForBadRequest(&e)
 	}
 
-	uc.logger.Debug("Getting file sync data",
+	uc.logger.Debug("Listing file sync data",
 		zap.String("user_id", userID.String()),
 		zap.Int("accessible_collections_count", len(accessibleCollectionIDs)),
 		zap.Any("cursor", cursor),
 		zap.Int64("limit", limit))
 
 	//
-	// STEP 2: Get file sync data from repository for accessible collections.
+	// STEP 2: List file sync data from repository for accessible collections.
 	//
 
-	result, err := uc.repo.GetSyncData(ctx, userID, cursor, limit, accessibleCollectionIDs)
+	result, err := uc.repo.ListSyncData(ctx, userID, cursor, limit, accessibleCollectionIDs)
 	if err != nil {
-		uc.logger.Error("Failed to get file sync data from repository",
+		uc.logger.Error("Failed to list file sync data from repository",
 			zap.Any("error", err),
 			zap.String("user_id", userID.String()))
 		return nil, err

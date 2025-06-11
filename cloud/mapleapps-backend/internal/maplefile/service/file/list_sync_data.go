@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/service/file/get_sync_data.go
+// cloud/backend/internal/maplefile/service/file/list_sync_data.go
 package file
 
 import (
@@ -15,33 +15,33 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
-type GetFileSyncDataService interface {
+type ListFileSyncDataService interface {
 	Execute(ctx context.Context, cursor *dom_file.FileSyncCursor, limit int64) (*dom_file.FileSyncResponse, error)
 }
 
-type getFileSyncDataServiceImpl struct {
-	config                 *config.Configuration
-	logger                 *zap.Logger
-	getFileSyncDataUseCase uc_filemetadata.GetFileMetadataSyncDataUseCase
-	collectionRepository   dom_collection.CollectionRepository // ADD: Collection repository
+type listFileSyncDataServiceImpl struct {
+	config                  *config.Configuration
+	logger                  *zap.Logger
+	listFileSyncDataUseCase uc_filemetadata.ListFileMetadataSyncDataUseCase
+	collectionRepository    dom_collection.CollectionRepository // ADD: Collection repository
 }
 
-func NewGetFileSyncDataService(
+func NewListFileSyncDataService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	getFileSyncDataUseCase uc_filemetadata.GetFileMetadataSyncDataUseCase,
+	listFileSyncDataUseCase uc_filemetadata.ListFileMetadataSyncDataUseCase,
 	collectionRepository dom_collection.CollectionRepository, // ADD: Collection repository
-) GetFileSyncDataService {
-	logger = logger.Named("GetFileSyncDataService")
-	return &getFileSyncDataServiceImpl{
-		config:                 config,
-		logger:                 logger,
-		getFileSyncDataUseCase: getFileSyncDataUseCase,
-		collectionRepository:   collectionRepository, // ADD: Collection repository
+) ListFileSyncDataService {
+	logger = logger.Named("ListFileSyncDataService")
+	return &listFileSyncDataServiceImpl{
+		config:                  config,
+		logger:                  logger,
+		listFileSyncDataUseCase: listFileSyncDataUseCase,
+		collectionRepository:    collectionRepository, // ADD: Collection repository
 	}
 }
 
-func (svc *getFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom_file.FileSyncCursor, limit int64) (*dom_file.FileSyncResponse, error) {
+func (svc *listFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom_file.FileSyncCursor, limit int64) (*dom_file.FileSyncResponse, error) {
 	//
 	// STEP 1: Get user ID from context
 	//
@@ -106,11 +106,11 @@ func (svc *getFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom_
 	}
 
 	//
-	// STEP 3: Get file sync data for accessible collections
+	// STEP 3: List file sync data for accessible collections
 	//
-	syncData, err := svc.getFileSyncDataUseCase.Execute(ctx, userID, cursor, limit, accessibleCollectionIDs)
+	syncData, err := svc.listFileSyncDataUseCase.Execute(ctx, userID, cursor, limit, accessibleCollectionIDs)
 	if err != nil {
-		svc.logger.Error("Failed to get file sync data",
+		svc.logger.Error("Failed to list file sync data",
 			zap.Any("error", err),
 			zap.String("user_id", userID.String()))
 		return nil, err
