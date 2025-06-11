@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS mapleapps.maplefile_files_by_collection_id_with_desc_modified_at_and_asc_file_id;

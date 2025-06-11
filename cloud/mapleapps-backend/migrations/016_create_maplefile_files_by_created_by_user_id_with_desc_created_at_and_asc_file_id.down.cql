@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS mapleapps.maplefile_files_by_created_by_user_id_with_desc_created_at_and_asc_file_id;
