@@ -21,7 +21,7 @@ func (impl *fileMetadataRepositoryImpl) Update(file *dom_file.File) error {
 	}
 
 	// Get existing file to compare changes
-	existing, err := impl.GetWithAnyState(file.ID)
+	existing, err := impl.Get(file.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get existing file: %w", err)
 	}

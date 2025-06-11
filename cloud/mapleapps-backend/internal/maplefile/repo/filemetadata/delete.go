@@ -12,7 +12,7 @@ import (
 )
 
 func (impl *fileMetadataRepositoryImpl) SoftDelete(id gocql.UUID) error {
-	file, err := impl.GetWithAnyState(id)
+	file, err := impl.Get(id)
 	if err != nil {
 		return fmt.Errorf("failed to get file for soft delete: %w", err)
 	}
@@ -48,7 +48,7 @@ func (impl *fileMetadataRepositoryImpl) SoftDeleteMany(ids []gocql.UUID) error {
 }
 
 func (impl *fileMetadataRepositoryImpl) HardDelete(id gocql.UUID) error {
-	file, err := impl.GetWithAnyState(id)
+	file, err := impl.Get(id)
 	if err != nil {
 		return fmt.Errorf("failed to get file for hard delete: %w", err)
 	}

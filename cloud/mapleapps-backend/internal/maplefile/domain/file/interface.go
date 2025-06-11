@@ -15,10 +15,8 @@ type FileMetadataRepository interface {
 	Create(file *File) error
 	// CreateMany saves multiple File metadata records to the storage.
 	CreateMany(files []*File) error
-	// Get retrieves a single File metadata record by its unique identifier (ID).
+	// Get retrieves a single File metadata record (regardless of its state) by its unique identifier (ID) .
 	Get(id gocql.UUID) (*File, error)
-	// GetWithAnyState retrieves a file regardless of its state (for admin operations)
-	GetWithAnyState(id gocql.UUID) (*File, error)
 	// GetByIDs retrieves multiple File metadata records by their unique identifiers (IDs).
 	GetByIDs(ids []gocql.UUID) ([]*File, error)
 	// GetByCollection retrieves all File metadata records associated with a specific collection ID.

@@ -12,7 +12,6 @@ import (
 
 type GetFileMetadataUseCase interface {
 	Execute(id gocql.UUID) (*dom_file.File, error)
-	ExecuteWithAnyState(id gocql.UUID) (*dom_file.File, error)
 }
 
 type getFileMetadataUseCaseImpl struct {

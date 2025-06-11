@@ -10,7 +10,7 @@ import (
 )
 
 func (impl *fileMetadataRepositoryImpl) Restore(id gocql.UUID) error {
-	file, err := impl.GetWithAnyState(id)
+	file, err := impl.Get(id)
 	if err != nil {
 		return fmt.Errorf("failed to get file for restore: %w", err)
 	}

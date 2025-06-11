@@ -80,7 +80,7 @@ func (svc *restoreFileServiceImpl) Execute(ctx context.Context, req *RestoreFile
 	//
 	// STEP 3: Get file metadata (including any state for restoration)
 	//
-	file, err := svc.getMetadataUseCase.ExecuteWithAnyState(req.FileID)
+	file, err := svc.getMetadataUseCase.Execute(req.FileID)
 	if err != nil {
 		svc.logger.Error("Failed to get file metadata",
 			zap.Any("error", err),

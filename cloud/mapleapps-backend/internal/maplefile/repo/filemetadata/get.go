@@ -13,14 +13,6 @@ import (
 )
 
 func (impl *fileMetadataRepositoryImpl) Get(id gocql.UUID) (*dom_file.File, error) {
-	return impl.getFileByID(id, true) // state-aware
-}
-
-func (impl *fileMetadataRepositoryImpl) GetWithAnyState(id gocql.UUID) (*dom_file.File, error) {
-	return impl.getFileByID(id, false) // state-agnostic
-}
-
-func (impl *fileMetadataRepositoryImpl) getFileByID(id gocql.UUID, stateAware bool) (*dom_file.File, error) {
 	var (
 		collectionID, ownerID, createdByUserID, modifiedByUserID gocql.UUID
 		encryptedMetadata, encryptedKeyJSON, encryptionVersion   string
@@ -51,11 +43,6 @@ func (impl *fileMetadataRepositoryImpl) getFileByID(id gocql.UUID, stateAware bo
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get file: %w", err)
-	}
-
-	// Apply state filtering if state-aware mode is enabled
-	if stateAware && state != dom_file.FileStateActive {
-		return nil, nil
 	}
 
 	// Deserialize encrypted file key
