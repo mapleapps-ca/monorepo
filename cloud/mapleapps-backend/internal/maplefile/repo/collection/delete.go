@@ -34,6 +34,7 @@ func (impl *collectionRepositoryImpl) SoftDelete(ctx context.Context, id gocql.U
 	collection.TombstoneVersion = collection.Version
 	collection.TombstoneExpiry = time.Now().Add(30 * 24 * time.Hour) // 30 days
 
+	// Use the update method to ensure consistency across all tables
 	return impl.Update(ctx, collection)
 }
 
@@ -52,15 +53,29 @@ func (impl *collectionRepositoryImpl) HardDelete(ctx context.Context, id gocql.U
 	// 1. Delete from main table
 	batch.Query(`DELETE FROM maplefile_collections_by_id WHERE id = ?`, id)
 
-	// 2. Delete from user access table (owner)
+	// 2. Delete from BOTH user access tables (owner entries)
+	// This demonstrates the importance of cleaning up all table views during hard deletes
+
+	// Delete owner from original table
 	batch.Query(`DELETE FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 		WHERE user_id = ? AND modified_at = ? AND collection_id = ?`,
 		collection.OwnerID, collection.ModifiedAt, id)
 
-	// 3. Delete member access entries
+	// Delete owner from access-type-specific table
+	batch.Query(`DELETE FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
+		WHERE user_id = ? AND access_type = 'owner' AND modified_at = ? AND collection_id = ?`,
+		collection.OwnerID, collection.ModifiedAt, id)
+
+	// 3. Delete member access entries from BOTH user access tables
 	for _, member := range collection.Members {
+		// Delete from original table
 		batch.Query(`DELETE FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 			WHERE user_id = ? AND modified_at = ? AND collection_id = ?`,
+			member.RecipientID, collection.ModifiedAt, id)
+
+		// Delete from access-type-specific table
+		batch.Query(`DELETE FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
+			WHERE user_id = ? AND access_type = 'member' AND modified_at = ? AND collection_id = ?`,
 			member.RecipientID, collection.ModifiedAt, id)
 	}
 
@@ -73,7 +88,7 @@ func (impl *collectionRepositoryImpl) HardDelete(ctx context.Context, id gocql.U
 		WHERE parent_id = ? AND created_at = ? AND collection_id = ?`,
 		parentID, collection.CreatedAt, id)
 
-	// 5. NEW: Delete from composite partition key table
+	// 5. Delete from composite partition key table
 	batch.Query(`DELETE FROM maplefile_collections_by_parent_and_owner_id_with_asc_created_at_and_asc_collection_id
 		WHERE parent_id = ? AND owner_id = ? AND created_at = ? AND collection_id = ?`,
 		parentID, collection.OwnerID, collection.CreatedAt, id)
@@ -89,16 +104,18 @@ func (impl *collectionRepositoryImpl) HardDelete(ctx context.Context, id gocql.U
 	// 7. Delete from members table
 	batch.Query(`DELETE FROM maplefile_collection_members_by_collection_id_and_recipient_id WHERE collection_id = ?`, id)
 
-	// Execute batch
+	// Execute batch - ensures atomic deletion across all tables
 	if err := impl.Session.ExecuteBatch(batch.WithContext(ctx)); err != nil {
-		impl.Logger.Error("failed to hard delete collection",
+		impl.Logger.Error("failed to hard delete collection from all tables",
 			zap.String("collection_id", id.String()),
 			zap.Error(err))
 		return fmt.Errorf("failed to hard delete collection: %w", err)
 	}
 
-	impl.Logger.Info("collection hard deleted successfully",
-		zap.String("collection_id", id.String()))
+	impl.Logger.Info("collection hard deleted successfully from all tables",
+		zap.String("collection_id", id.String()),
+		zap.String("owner_id", collection.OwnerID.String()),
+		zap.Int("member_count", len(collection.Members)))
 
 	return nil
 }

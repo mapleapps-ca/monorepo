@@ -32,6 +32,7 @@ type CollectionRepository interface {
 
 	// Collection ownership and access queries (now state-aware)
 	CheckIfExistsByID(ctx context.Context, id gocql.UUID) (bool, error)
+	GetAllByUserIDAndAnyType(ctx context.Context, userID gocql.UUID, cursor *CollectionSyncCursor, limit int64) (*CollectionSyncResponse, error)
 	GetAllByUserID(ctx context.Context, ownerID gocql.UUID) ([]*Collection, error)
 	GetCollectionsSharedWithUser(ctx context.Context, userID gocql.UUID) ([]*Collection, error)
 	IsCollectionOwner(ctx context.Context, collectionID, userID gocql.UUID) (bool, error)

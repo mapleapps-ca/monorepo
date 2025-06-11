@@ -64,10 +64,18 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 		collection.ModifiedByUserID, collection.Version, collection.State,
 		collection.TombstoneVersion, collection.TombstoneExpiry)
 
-	// 2. Insert owner access
+	// 2. Insert owner access into BOTH user access tables
+
+	// 2 -> (1 of 2): Original table: supports queries across all access types
 	batch.Query(`INSERT INTO maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 		(user_id, modified_at, collection_id, access_type, permission_level, state)
 		VALUES (?, ?, ?, 'owner', ?, ?)`,
+		collection.OwnerID, collection.ModifiedAt, collection.ID, nil, collection.State)
+
+	// 2 -> (2 of 2): Access-type-specific table for efficient filtering
+	batch.Query(`INSERT INTO maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
+		(user_id, access_type, modified_at, collection_id, permission_level, state)
+		VALUES (?, 'owner', ?, ?, ?, ?)`,
 		collection.OwnerID, collection.ModifiedAt, collection.ID, nil, collection.State)
 
 	// 3. Insert into original parent index (still needed for cross-owner parent-child queries)
@@ -81,7 +89,7 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 		VALUES (?, ?, ?, ?, ?)`,
 		parentID, collection.CreatedAt, collection.ID, collection.OwnerID, collection.State)
 
-	// 4. NEW: Insert into composite partition key table for optimized root collection queries
+	// 4. Insert into composite partition key table for optimized root collection queries
 	batch.Query(`INSERT INTO maplefile_collections_by_parent_and_owner_id_with_asc_created_at_and_asc_collection_id
 		(parent_id, owner_id, created_at, collection_id, state)
 		VALUES (?, ?, ?, ?, ?)`,
@@ -96,13 +104,14 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 			entry.AncestorID, entry.Depth, entry.CollectionID, collection.State)
 	}
 
-	// 6. Insert members into normalized table
+	// 6. Insert members into normalized table AND both user access tables
 	for _, member := range collection.Members {
 		// Ensure member has an ID
 		if !impl.isValidUUID(member.ID) {
 			member.ID = gocql.TimeUUID()
 		}
 
+		// Insert into normalized members table
 		batch.Query(`INSERT INTO maplefile_collection_members_by_collection_id_and_recipient_id
 			(collection_id, recipient_id, member_id, recipient_email, granted_by_id,
 			 encrypted_collection_key, permission_level, created_at,
@@ -113,14 +122,21 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 			member.PermissionLevel, member.CreatedAt,
 			member.IsInherited, member.InheritedFromID)
 
-		// Add member access
+		// Add member access to BOTH user access tables
+		// Original table: supports all-access-types queries
 		batch.Query(`INSERT INTO maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 			(user_id, modified_at, collection_id, access_type, permission_level, state)
 			VALUES (?, ?, ?, 'member', ?, ?)`,
 			member.RecipientID, collection.ModifiedAt, collection.ID, member.PermissionLevel, collection.State)
+
+		// NEW: Access-type-specific table for efficient member queries
+		batch.Query(`INSERT INTO maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
+			(user_id, access_type, modified_at, collection_id, permission_level, state)
+			VALUES (?, 'member', ?, ?, ?, ?)`,
+			member.RecipientID, collection.ModifiedAt, collection.ID, member.PermissionLevel, collection.State)
 	}
 
-	// Execute batch
+	// Execute batch - this ensures all tables are updated atomically
 	if err := impl.Session.ExecuteBatch(batch.WithContext(ctx)); err != nil {
 		impl.Logger.Error("failed to create collection",
 			zap.String("collection_id", collection.ID.String()),
@@ -128,9 +144,10 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 		return fmt.Errorf("failed to create collection: %w", err)
 	}
 
-	impl.Logger.Info("collection created successfully",
+	impl.Logger.Info("collection created successfully in all tables",
 		zap.String("collection_id", collection.ID.String()),
-		zap.String("owner_id", collection.OwnerID.String()))
+		zap.String("owner_id", collection.OwnerID.String()),
+		zap.Int("member_count", len(collection.Members)))
 
 	return nil
 }

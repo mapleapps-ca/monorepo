@@ -21,6 +21,7 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 	}
 
 	// Get existing collection to compare changes
+	// This is crucial for maintaining consistency across multiple table views
 	existing, err := impl.GetWithAnyState(ctx, collection.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get existing collection: %w", err)
@@ -46,7 +47,10 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 
 	batch := impl.Session.NewBatch(gocql.LoggedBatch)
 
+	//
 	// 1. Update main table
+	//
+
 	batch.Query(`UPDATE maplefile_collections_by_id SET
 		owner_id = ?, encrypted_name = ?, collection_type = ?, encrypted_collection_key = ?,
 		parent_id = ?, ancestor_ids = ?, created_at = ?, created_by_user_id = ?,
@@ -58,17 +62,34 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		collection.ModifiedAt, collection.ModifiedByUserID, collection.Version, collection.State,
 		collection.TombstoneVersion, collection.TombstoneExpiry, collection.ID)
 
-	// 2. Update user access - delete old owner entry and insert new one
+	//
+	// 2. Update BOTH user access tables
+	//
+
+	// Delete old owner entry from BOTH tables
 	batch.Query(`DELETE FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 		WHERE user_id = ? AND modified_at = ? AND collection_id = ?`,
 		existing.OwnerID, existing.ModifiedAt, collection.ID)
 
+	batch.Query(`DELETE FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
+		WHERE user_id = ? AND access_type = 'owner' AND modified_at = ? AND collection_id = ?`,
+		existing.OwnerID, existing.ModifiedAt, collection.ID)
+
+	// Insert new owner entry into BOTH tables
 	batch.Query(`INSERT INTO maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 		(user_id, modified_at, collection_id, access_type, permission_level, state)
 		VALUES (?, ?, ?, 'owner', ?, ?)`,
 		collection.OwnerID, collection.ModifiedAt, collection.ID, nil, collection.State)
 
+	batch.Query(`INSERT INTO maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
+		(user_id, access_type, modified_at, collection_id, permission_level, state)
+		VALUES (?, 'owner', ?, ?, ?, ?)`,
+		collection.OwnerID, collection.ModifiedAt, collection.ID, nil, collection.State)
+
+	//
 	// 3. Update original parent index if parent changed
+	//
+
 	oldParentID := existing.ParentID
 	if !impl.isValidUUID(oldParentID) {
 		oldParentID = impl.nullParentUUID()
@@ -117,7 +138,10 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 			newParentID, collection.OwnerID, collection.CreatedAt, collection.ID)
 	}
 
+	//
 	// 4. Update ancestor hierarchy
+	//
+
 	oldAncestorEntries := impl.buildAncestorDepthEntries(collection.ID, existing.AncestorIDs)
 	for _, entry := range oldAncestorEntries {
 		batch.Query(`DELETE FROM maplefile_collections_by_ancestor_id_with_asc_depth_and_asc_collection_id
@@ -133,23 +157,35 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 			entry.AncestorID, entry.Depth, entry.CollectionID, collection.State)
 	}
 
-	// 5. Replace all members (delete old, insert new)
+	//
+	// 5. Replace all members in ALL tables (delete old, insert new)
+	//
+	// This demonstrates the complexity of maintaining consistency across multiple table views
+
+	// Delete from normalized members table
 	batch.Query(`DELETE FROM maplefile_collection_members_by_collection_id_and_recipient_id WHERE collection_id = ?`, collection.ID)
 
-	// Delete old member access entries (need to delete by individual user and timestamp)
+	// Delete old member access entries from BOTH user access tables
 	for _, oldMember := range existing.Members {
+		// Delete from original table
 		batch.Query(`DELETE FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 			WHERE user_id = ? AND modified_at = ? AND collection_id = ?`,
 			oldMember.RecipientID, existing.ModifiedAt, collection.ID)
+
+		// Delete from access-type-specific table
+		batch.Query(`DELETE FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
+			WHERE user_id = ? AND access_type = 'member' AND modified_at = ? AND collection_id = ?`,
+			oldMember.RecipientID, existing.ModifiedAt, collection.ID)
 	}
 
-	// Insert new members
+	// Insert new members into ALL tables
 	for _, member := range collection.Members {
 		// Ensure member has an ID
 		if !impl.isValidUUID(member.ID) {
 			member.ID = gocql.TimeUUID()
 		}
 
+		// Insert into normalized members table
 		batch.Query(`INSERT INTO maplefile_collection_members_by_collection_id_and_recipient_id
 			(collection_id, recipient_id, member_id, recipient_email, granted_by_id,
 			 encrypted_collection_key, permission_level, created_at,
@@ -160,13 +196,21 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 			member.PermissionLevel, member.CreatedAt,
 			member.IsInherited, member.InheritedFromID)
 
+		// Insert into BOTH user access tables
+		// Original table
 		batch.Query(`INSERT INTO maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 			(user_id, modified_at, collection_id, access_type, permission_level, state)
 			VALUES (?, ?, ?, 'member', ?, ?)`,
 			member.RecipientID, collection.ModifiedAt, collection.ID, member.PermissionLevel, collection.State)
+
+		// Access-type-specific table
+		batch.Query(`INSERT INTO maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
+			(user_id, access_type, modified_at, collection_id, permission_level, state)
+			VALUES (?, 'member', ?, ?, ?, ?)`,
+			member.RecipientID, collection.ModifiedAt, collection.ID, member.PermissionLevel, collection.State)
 	}
 
-	// Execute batch
+	// Execute batch - ensures atomicity across all table updates
 	if err := impl.Session.ExecuteBatch(batch.WithContext(ctx)); err != nil {
 		impl.Logger.Error("failed to update collection",
 			zap.String("collection_id", collection.ID.String()),
@@ -174,8 +218,12 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		return fmt.Errorf("failed to update collection: %w", err)
 	}
 
-	impl.Logger.Info("collection updated successfully",
-		zap.String("collection_id", collection.ID.String()))
+	impl.Logger.Info("collection updated successfully in all tables",
+		zap.String("collection_id", collection.ID.String()),
+		zap.String("old_owner", existing.OwnerID.String()),
+		zap.String("new_owner", collection.OwnerID.String()),
+		zap.Int("old_member_count", len(existing.Members)),
+		zap.Int("new_member_count", len(collection.Members)))
 
 	return nil
 }

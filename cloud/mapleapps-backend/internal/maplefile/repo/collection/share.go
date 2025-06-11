@@ -40,6 +40,12 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 	for i, existingMember := range collection.Members {
 		if existingMember.RecipientID == membership.RecipientID {
 			// Update existing member
+			impl.Logger.Info("updating existing collection member",
+				zap.String("collection_id", collectionID.String()),
+				zap.String("recipient_id", membership.RecipientID.String()),
+				zap.String("old_permission", existingMember.PermissionLevel),
+				zap.String("new_permission", membership.PermissionLevel))
+
 			collection.Members[i] = *membership
 			collection.Version++
 			return impl.Update(ctx, collection)
@@ -47,6 +53,11 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 	}
 
 	// Add new member
+	impl.Logger.Info("adding new collection member",
+		zap.String("collection_id", collectionID.String()),
+		zap.String("recipient_id", membership.RecipientID.String()),
+		zap.String("permission_level", membership.PermissionLevel))
+
 	collection.Members = append(collection.Members, *membership)
 	collection.Version++
 

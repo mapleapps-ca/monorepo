@@ -164,10 +164,12 @@ func (impl *collectionRepositoryImpl) GetWithAnyState(ctx context.Context, id go
 	return impl.loadCollectionWithMembers(ctx, id, false) // state-agnostic
 }
 
+// OPTIMIZED: Now uses the access-type-specific table for maximum efficiency
+// This demonstrates how our dual-table approach makes previously expensive queries fast
 func (impl *collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
-	query := `SELECT collection_id FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
+	query := `SELECT collection_id FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
 		WHERE user_id = ? AND access_type = 'owner' AND state = ?`
 
 	iter := impl.Session.Query(query, ownerID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
@@ -181,13 +183,18 @@ func (impl *collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerI
 		return nil, fmt.Errorf("failed to get collections by owner: %w", err)
 	}
 
+	impl.Logger.Debug("retrieved owned collections efficiently",
+		zap.String("owner_id", ownerID.String()),
+		zap.Int("collection_count", len(collectionIDs)))
+
 	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
 }
 
+// OPTIMIZED: Also benefits from the access-type-specific table
 func (impl *collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
-	query := `SELECT collection_id FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
+	query := `SELECT collection_id FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
 		WHERE user_id = ? AND access_type = 'member' AND state = ?`
 
 	iter := impl.Session.Query(query, userID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
@@ -201,10 +208,40 @@ func (impl *collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.C
 		return nil, fmt.Errorf("failed to get shared collections: %w", err)
 	}
 
+	impl.Logger.Debug("retrieved shared collections efficiently",
+		zap.String("user_id", userID.String()),
+		zap.Int("collection_count", len(collectionIDs)))
+
 	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
 }
 
-// UPDATED: Now uses composite partition key table for better performance
+// NEW METHOD: Demonstrates querying across all access types when needed
+// This shows when you might use the original table instead of the access-type-specific one
+func (impl *collectionRepositoryImpl) GetAllUserCollections(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
+	var collectionIDs []gocql.UUID
+
+	query := `SELECT collection_id FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
+		WHERE user_id = ? AND state = ?`
+
+	iter := impl.Session.Query(query, userID, dom_collection.CollectionStateActive).WithContext(ctx).Iter()
+
+	var collectionID gocql.UUID
+	for iter.Scan(&collectionID) {
+		collectionIDs = append(collectionIDs, collectionID)
+	}
+
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to get all user collections: %w", err)
+	}
+
+	impl.Logger.Debug("retrieved all user collections efficiently",
+		zap.String("user_id", userID.String()),
+		zap.Int("collection_count", len(collectionIDs)))
+
+	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+}
+
+// Unchanged: Still uses composite partition key table for better performance
 func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
@@ -226,11 +263,11 @@ func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID
 	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
 }
 
-// UPDATED: Now uses composite partition key for optimal performance - NO MORE ALLOW FILTERING!
+// OPTIMIZED: Uses composite partition key for optimal performance - NO MORE ALLOW FILTERING!
 func (impl *collectionRepositoryImpl) FindRootCollections(ctx context.Context, ownerID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
-	// Use the new composite partition key table for root collections
+	// Use the composite partition key table for root collections
 	nullParentID := impl.nullParentUUID()
 
 	query := `SELECT collection_id FROM maplefile_collections_by_parent_and_owner_id_with_asc_created_at_and_asc_collection_id
