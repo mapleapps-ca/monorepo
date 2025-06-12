@@ -9,7 +9,9 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
+	dom_tx "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
 	uc "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
+	uc_collectiondto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collectiondto"
 )
 
 // SoftDeleteService defines the interface for soft deleting local collections
@@ -22,25 +24,31 @@ type SoftDeleteService interface {
 
 // softDeleteService implements the SoftDeleteService interface
 type softDeleteService struct {
-	logger        *zap.Logger
-	getUseCase    uc.GetCollectionUseCase
-	updateUseCase uc.UpdateCollectionUseCase
-	listUseCase   uc.ListCollectionsUseCase
+	logger                                   *zap.Logger
+	transactionManager                       dom_tx.Manager
+	getUseCase                               uc.GetCollectionUseCase
+	updateUseCase                            uc.UpdateCollectionUseCase
+	listUseCase                              uc.ListCollectionsUseCase
+	softSoftDeleteCollectionFromCloudUseCase uc_collectiondto.SoftDeleteCollectionFromCloudUseCase
 }
 
 // NewSoftDeleteService creates a new service for soft deleting local collections
 func NewSoftDeleteService(
 	logger *zap.Logger,
+	transactionManager dom_tx.Manager,
 	getUseCase uc.GetCollectionUseCase,
 	updateUseCase uc.UpdateCollectionUseCase,
 	listUseCase uc.ListCollectionsUseCase,
+	softSoftDeleteCollectionFromCloudUseCase uc_collectiondto.SoftDeleteCollectionFromCloudUseCase,
 ) SoftDeleteService {
 	logger = logger.Named("CollectionSoftDeleteService")
 	return &softDeleteService{
-		logger:        logger,
-		getUseCase:    getUseCase,
-		updateUseCase: updateUseCase,
-		listUseCase:   listUseCase,
+		logger:                                   logger,
+		transactionManager:                       transactionManager,
+		getUseCase:                               getUseCase,
+		updateUseCase:                            updateUseCase,
+		listUseCase:                              listUseCase,
+		softSoftDeleteCollectionFromCloudUseCase: softSoftDeleteCollectionFromCloudUseCase,
 	}
 }
 
@@ -70,6 +78,12 @@ func (s *softDeleteService) SoftDelete(ctx context.Context, id gocql.UUID) error
 		return errors.NewAppError("cannot delete collection in current state", err)
 	}
 
+	// Begin transaction for coordinated deletion
+	if err := s.transactionManager.Begin(); err != nil {
+		s.logger.Error("❌ failed to begin transaction", zap.Error(err))
+		return errors.NewAppError("failed to begin transaction", err)
+	}
+
 	// Update collection state to deleted
 	newState := collection.CollectionStateDeleted
 	updateInput := uc.UpdateCollectionInput{
@@ -82,13 +96,31 @@ func (s *softDeleteService) SoftDelete(ctx context.Context, id gocql.UUID) error
 		s.logger.Error("❌ failed to soft delete collection",
 			zap.String("id", id.String()),
 			zap.Error(err))
+		s.transactionManager.Rollback()
 		return err
 	}
 
-	s.logger.Info("✅ collection soft deleted successfully",
+	s.logger.Info("✅ collection (soft)deleted successfully",
 		zap.String("id", id.String()),
 		zap.String("previousState", existingCollection.State),
 		zap.String("newState", collection.CollectionStateDeleted))
+
+	// Delete from cloud
+	err = s.softSoftDeleteCollectionFromCloudUseCase.Execute(ctx, id)
+	if err != nil {
+		s.logger.Error("❌ failed to (soft)delete collection from cloud",
+			zap.String("collectionID", id.String()),
+			zap.Error(err))
+		s.transactionManager.Rollback()
+		return errors.NewAppError("failed to delete collection from cloud", err)
+	}
+
+	// Commit transaction and return result
+	if err := s.transactionManager.Commit(); err != nil {
+		s.logger.Error("❌ failed to commit transaction", zap.Error(err))
+		s.transactionManager.Rollback()
+		return errors.NewAppError("failed to commit transaction", err)
+	}
 
 	return nil
 }
