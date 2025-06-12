@@ -52,7 +52,7 @@ func NewUpdateService(
 	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
 	collectionEncryptionService svc_collectioncrypto.CollectionEncryptionService,
 ) UpdateService {
-	logger = logger.Named("UpdateService")
+	logger = logger.Named("CollectionUpdateService")
 	return &updateService{
 		logger:                      logger,
 		updateUseCase:               updateUseCase,

@@ -81,6 +81,7 @@ func (uc *createCollectionUseCase) Execute(ctx context.Context, data *collection
 
 	uc.logger.Info("Collection created successfully",
 		zap.String("collectionID", data.ID.String()),
+		zap.String("parentID", data.ParentID.String()),
 		zap.String("name", data.Name),
 		zap.String("state", data.State),
 		zap.String("type", data.CollectionType))

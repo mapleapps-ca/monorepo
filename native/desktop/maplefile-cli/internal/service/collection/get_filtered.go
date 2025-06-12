@@ -49,7 +49,7 @@ func NewGetFilteredService(
 	getFilteredCollectionsFromCloudUseCase uc_collectiondto.GetFilteredCollectionsFromCloudUseCase,
 	collectionDecryptionService svc_collectioncrypto.CollectionDecryptionService,
 ) GetFilteredService {
-	logger = logger.Named("GetFilteredService")
+	logger = logger.Named("CollectionGetFilteredService")
 	return &getFilteredService{
 		logger:                                 logger,
 		getUserByIsLoggedInUseCase:             getUserByIsLoggedInUseCase,

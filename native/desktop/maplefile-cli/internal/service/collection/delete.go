@@ -28,7 +28,7 @@ func NewDeleteService(
 	logger *zap.Logger,
 	deleteUseCase collection.DeleteCollectionUseCase,
 ) DeleteService {
-	logger = logger.Named("DeleteService")
+	logger = logger.Named("CollectionDeleteService")
 	return &deleteService{
 		logger:        logger,
 		deleteUseCase: deleteUseCase,

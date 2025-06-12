@@ -36,7 +36,7 @@ func NewGetService(
 	useCase uc.GetCollectionUseCase,
 	pathUseCase uc.GetCollectionPathUseCase,
 ) GetService {
-	logger = logger.Named("GetService")
+	logger = logger.Named("CollectionGetService")
 	return &getService{
 		logger:      logger,
 		useCase:     useCase,

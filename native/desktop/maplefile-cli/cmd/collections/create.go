@@ -68,9 +68,14 @@ Examples:
 			// Handle parent ID if provided
 			var parentObjectID gocql.UUID
 			var isSubCollection bool
+			var err error
 
 			if parentID != "" {
-				parentObjectID = gocql.TimeUUID()
+				parentObjectID, err = gocql.ParseUUID(parentID)
+				if err != nil {
+					fmt.Printf("🐞 Error parsing `parent` for collection: %v\n", err)
+					return
+				}
 				isSubCollection = true
 			}
 
@@ -83,7 +88,7 @@ Examples:
 
 			if isSubCollection {
 				input.ParentID = parentObjectID
-				fmt.Printf("📁 Creating sub-collection '%s'...\n", name)
+				fmt.Printf("📁 Creating sub-collection '%s' with parent-id %v ...\n", name, parentID)
 			} else {
 				fmt.Printf("📁 Creating root collection '%s'...\n", name)
 			}

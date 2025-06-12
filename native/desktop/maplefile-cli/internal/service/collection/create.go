@@ -62,7 +62,7 @@ func NewCreateService(
 	getUserByEmailUseCase uc_user.GetByEmailUseCase,
 	createCollectionUseCase uc_collection.CreateCollectionUseCase,
 ) CreateService {
-	logger = logger.Named("CreateService")
+	logger = logger.Named("CollectionCreateService")
 	return &createService{
 		logger:                         logger,
 		configService:                  configService,
@@ -244,6 +244,7 @@ func (s *createService) Create(ctx context.Context, input *CreateInput, userPass
 	s.logger.Info("✅ Successfully created E2EE collection",
 		zap.String("collectionID", collectionCloudID.String()),
 		zap.String("name", input.Name),
+		zap.String("parentID", input.ParentID.String()),
 		zap.String("state", col.State))
 
 	return &CreateOutput{
