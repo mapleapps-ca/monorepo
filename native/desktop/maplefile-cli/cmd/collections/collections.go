@@ -16,7 +16,6 @@ func CollectionsCmd(
 	listService collection.ListService,
 	softDeleteService collection.SoftDeleteService,
 	listFromCloudService collectionsyncer.ListFromCloudService,
-	deleteFromCloudService collectionsyncer.DeleteFromCloudService,
 	sharingService collectionsharing.CollectionSharingService,
 	getMembersService collectionsharing.CollectionSharingGetMembersService,
 	listSharedService collectionsharing.ListSharedCollectionsService,
