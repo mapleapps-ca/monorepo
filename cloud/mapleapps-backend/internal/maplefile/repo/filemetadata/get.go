@@ -134,9 +134,9 @@ func (impl *fileMetadataRepositoryImpl) GetByCollection(collectionID gocql.UUID)
 	var fileIDs []gocql.UUID
 
 	query := `SELECT file_id FROM mapleapps.maplefile_files_by_collection_id_with_desc_modified_at_and_asc_file_id
-		WHERE collection_id = ? AND state = ?`
+		WHERE collection_id = ?`
 
-	iter := impl.Session.Query(query, collectionID, dom_file.FileStateActive).Iter()
+	iter := impl.Session.Query(query, collectionID).Iter()
 
 	var fileID gocql.UUID
 	for iter.Scan(&fileID) {

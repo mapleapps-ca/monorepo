@@ -12,9 +12,9 @@ func (impl *fileMetadataRepositoryImpl) GetByCreatedByUserID(createdByUserID goc
 	var fileIDs []gocql.UUID
 
 	query := `SELECT file_id FROM mapleapps.maplefile_files_by_created_by_user_id_with_desc_created_at_and_asc_file_id
-		WHERE created_by_user_id = ? AND state = ?`
+		WHERE created_by_user_id = ?`
 
-	iter := impl.Session.Query(query, createdByUserID, dom_file.FileStateActive).Iter()
+	iter := impl.Session.Query(query, createdByUserID).Iter()
 
 	var fileID gocql.UUID
 	for iter.Scan(&fileID) {

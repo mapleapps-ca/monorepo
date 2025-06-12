@@ -12,9 +12,9 @@ func (impl *fileMetadataRepositoryImpl) GetByOwnerID(ownerID gocql.UUID) ([]*dom
 	var fileIDs []gocql.UUID
 
 	query := `SELECT file_id FROM mapleapps.maplefile_files_by_owner_id_with_desc_modified_at_and_asc_file_id
-		WHERE owner_id = ? AND state = ?`
+		WHERE owner_id = ?`
 
-	iter := impl.Session.Query(query, ownerID, dom_file.FileStateActive).Iter()
+	iter := impl.Session.Query(query, ownerID).Iter()
 
 	var fileID gocql.UUID
 	for iter.Scan(&fileID) {

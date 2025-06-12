@@ -162,12 +162,12 @@ func (impl *collectionRepositoryImpl) getOwnedCollectionsPaginated(ctx context.C
 	// Build paginated query using the access-type-specific table
 	if cursor == nil {
 		query = `SELECT collection_id FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
-			WHERE user_id = ? AND access_type = 'owner' AND state = ? LIMIT ?`
-		args = []any{userID, dom_collection.CollectionStateActive, limit}
+			WHERE user_id = ? AND access_type = 'owner' LIMIT ?`
+		args = []any{userID, limit}
 	} else {
 		query = `SELECT collection_id FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
-			WHERE user_id = ? AND access_type = 'owner' AND state = ? AND (modified_at, collection_id) > (?, ?) LIMIT ?`
-		args = []any{userID, dom_collection.CollectionStateActive, cursor.LastModified, cursor.LastID, limit}
+			WHERE user_id = ? AND access_type = 'owner' AND (modified_at, collection_id) > (?, ?) LIMIT ?`
+		args = []any{userID, cursor.LastModified, cursor.LastID, limit}
 	}
 
 	iter := impl.Session.Query(query, args...).WithContext(ctx).Iter()
@@ -193,12 +193,12 @@ func (impl *collectionRepositoryImpl) getSharedCollectionsPaginated(ctx context.
 	// Build paginated query using the access-type-specific table
 	if cursor == nil {
 		query = `SELECT collection_id FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
-			WHERE user_id = ? AND access_type = 'member' AND state = ? LIMIT ?`
-		args = []any{userID, dom_collection.CollectionStateActive, limit}
+			WHERE user_id = ? AND access_type = 'member' LIMIT ?`
+		args = []any{userID, limit}
 	} else {
 		query = `SELECT collection_id FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
-			WHERE user_id = ? AND access_type = 'member' AND state = ? AND (modified_at, collection_id) > (?, ?) LIMIT ?`
-		args = []any{userID, dom_collection.CollectionStateActive, cursor.LastModified, cursor.LastID, limit}
+			WHERE user_id = ? AND access_type = 'member' AND (modified_at, collection_id) > (?, ?) LIMIT ?`
+		args = []any{userID, cursor.LastModified, cursor.LastID, limit}
 	}
 
 	iter := impl.Session.Query(query, args...).WithContext(ctx).Iter()
