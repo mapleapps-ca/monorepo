@@ -27,6 +27,7 @@ import (
 	svc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filedownload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/filesyncer"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
@@ -57,6 +58,8 @@ func NewRootCmd(
 	createCollectionService collection.CreateService,
 	collectionListService collection.ListService,
 	collectionSoftDeleteService collection.SoftDeleteService,
+	listFromCloudService collectionsyncer.ListFromCloudService,
+	deleteFromCloudService collectionsyncer.DeleteFromCloudService,
 	collectionSharingService collectionsharing.CollectionSharingService,
 	collectionGetMembersService collectionsharing.CollectionSharingGetMembersService,
 	collectionListSharedService collectionsharing.ListSharedCollectionsService,
@@ -154,6 +157,8 @@ For detailed help: maplefile-cli COMMAND --help`,
 		createCollectionService,
 		collectionListService,
 		collectionSoftDeleteService,
+		listFromCloudService,
+		deleteFromCloudService,
 		collectionSharingService,
 		collectionGetMembersService,
 		collectionListSharedService,

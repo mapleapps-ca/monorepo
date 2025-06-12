@@ -12,31 +12,31 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/httperror"
 )
 
-// DeleteCollectionFromCloudUseCase defines the interface for deleting a collection from cloud
-type DeleteCollectionFromCloudUseCase interface {
+// SoftDeleteCollectionFromCloudUseCase defines the interface for deleting a collection from cloud
+type SoftDeleteCollectionFromCloudUseCase interface {
 	Execute(ctx context.Context, collectionID gocql.UUID) error
 }
 
-// deleteCollectionFromCloudUseCase implements the DeleteCollectionFromCloudUseCase interface
-type deleteCollectionFromCloudUseCase struct {
+// softDeleteCollectionFromCloudUseCase implements the SoftDeleteCollectionFromCloudUseCase interface
+type softDeleteCollectionFromCloudUseCase struct {
 	logger     *zap.Logger
 	repository collectiondto.CollectionDTORepository
 }
 
-// NewDeleteCollectionFromCloudUseCase creates a new use case for deleting collections from cloud
-func NewDeleteCollectionFromCloudUseCase(
+// NewSoftDeleteCollectionFromCloudUseCase creates a new use case for deleting collections from cloud
+func NewSoftDeleteCollectionFromCloudUseCase(
 	logger *zap.Logger,
 	repository collectiondto.CollectionDTORepository,
-) DeleteCollectionFromCloudUseCase {
-	logger = logger.Named("SoftDeleteCollectionFromCloudUseCase")
-	return &deleteCollectionFromCloudUseCase{
+) SoftDeleteCollectionFromCloudUseCase {
+	logger = logger.Named("SoftSoftDeleteCollectionFromCloudUseCase")
+	return &softDeleteCollectionFromCloudUseCase{
 		logger:     logger,
 		repository: repository,
 	}
 }
 
 // Execute deletes a collection from the cloud
-func (uc *deleteCollectionFromCloudUseCase) Execute(ctx context.Context, collectionID gocql.UUID) error {
+func (uc *softDeleteCollectionFromCloudUseCase) Execute(ctx context.Context, collectionID gocql.UUID) error {
 	//
 	// STEP 1: Validate the input
 	//

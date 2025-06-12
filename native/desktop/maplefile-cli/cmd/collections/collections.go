@@ -8,12 +8,15 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/cmd/collections/share"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsyncer"
 )
 
 func CollectionsCmd(
 	createService collection.CreateService,
 	listService collection.ListService,
 	softDeleteService collection.SoftDeleteService,
+	listFromCloudService collectionsyncer.ListFromCloudService,
+	deleteFromCloudService collectionsyncer.DeleteFromCloudService,
 	sharingService collectionsharing.CollectionSharingService,
 	getMembersService collectionsharing.CollectionSharingGetMembersService,
 	listSharedService collectionsharing.ListSharedCollectionsService,
