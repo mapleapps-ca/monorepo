@@ -17,9 +17,9 @@ tasks:
       - docker exec -it mapleapps_backend bash
 
   cqlsh:
-    desc: Load the Cassandra DB SQL client
+    desc: Open the Cassandra DB SQL client in running Cassandra container
     cmds:
-      - cqlsh -h localhost -p 9042
+      - docker exec -it mapleapps_cassandra_node1 cqlsh
 
   login:
     desc: (DevOps only) Command will log in your developer's machine with the private docker container registry.
