@@ -43,6 +43,8 @@ func UseCaseModule() fx.Option {
 		fx.Provide(collectiondto.NewCreateCollectionInCloudUseCase),
 		fx.Provide(collectiondto.NewGetFilteredCollectionsFromCloudUseCase),
 		fx.Provide(collectiondto.NewGetCollectionFromCloudUseCase),
+		fx.Provide(collectiondto.NewListCollectionsFromCloudUseCase),
+		fx.Provide(collectiondto.NewDeleteCollectionFromCloudUseCase),
 		// Local-based collection use cases
 		fx.Provide(collection.NewCreateCollectionUseCase),
 		fx.Provide(collection.NewGetCollectionUseCase),

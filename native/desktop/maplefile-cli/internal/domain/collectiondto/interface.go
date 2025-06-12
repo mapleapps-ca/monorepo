@@ -28,11 +28,11 @@ type CollectionDTORepository interface {
 	// The returned slice is guaranteed to be non-nil, even if no collections match the filter (it will be an empty slice).
 	ListFromCloud(ctx context.Context, filter CollectionFilter) ([]*CollectionDTO, error)
 
-	// DeleteInCloudByID deletes a CollectionDTO by its unique identifier from the cloud service.
+	// SoftDeleteInCloudByID deletes a CollectionDTO by its unique identifier from the cloud service.
 	// It returns an error if the deletion fails, for example, if the ID does not exist
 	// or due to permissions issues. A specific error (e.g., domain.ErrNotFound)
 	// should be returned if the ID does not exist.
-	DeleteInCloudByID(ctx context.Context, id gocql.UUID) error
+	SoftDeleteInCloudByID(ctx context.Context, id gocql.UUID) error
 
 	// GetFilteredCollectionsFromCloud retrieves filtered collections (owned/shared) from the cloud service
 	GetFilteredCollectionsFromCloud(ctx context.Context, request *GetFilteredCollectionsRequest) (*GetFilteredCollectionsResponse, error)
