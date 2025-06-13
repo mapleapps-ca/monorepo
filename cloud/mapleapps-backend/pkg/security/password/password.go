@@ -19,7 +19,7 @@ var (
 	ErrIncompatibleVersion = errors.New("incompatible version of argon2")
 )
 
-type Provider interface {
+type PasswordProvider interface {
 	GenerateHashFromPassword(password *sstring.SecureString) (string, error)
 	ComparePasswordAndHash(password *sstring.SecureString, hash string) (bool, error)
 	AlgorithmName() string
@@ -35,7 +35,7 @@ type passwordProvider struct {
 	keyLength   uint32
 }
 
-func NewProvider() Provider {
+func NewPasswordProvider() PasswordProvider {
 	// DEVELOPERS NOTE:
 	// The following code was copy and pasted from: "How to Hash and Verify Passwords With Argon2 in Go" via https://www.alexedwards.net/blog/how-to-hash-and-verify-passwords-with-argon2-in-go
 

@@ -9,8 +9,8 @@ import (
 	sbytes "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/securebytes"
 )
 
-// Provider provides interface for abstracting JWT generation.
-type Provider interface {
+// JWTProvider provides interface for abstracting JWT generation.
+type JWTProvider interface {
 	GenerateJWTToken(uuid string, ad time.Duration) (string, time.Time, error)
 	GenerateJWTTokenPair(uuid string, ad time.Duration, rd time.Duration) (string, time.Time, string, time.Time, error)
 	ProcessJWTToken(reqToken string) (string, error)
@@ -21,7 +21,7 @@ type jwtProvider struct {
 }
 
 // NewProvider Constructor that returns the JWT generator.
-func NewProvider(cfg *config.Configuration) Provider {
+func NewJWTProvider(cfg *config.Configuration) JWTProvider {
 	return jwtProvider{
 		hmacSecret: cfg.App.AdministrationHMACSecret,
 	}

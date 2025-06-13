@@ -16,32 +16,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockProvider is a mock of Provider interface.
-type MockProvider struct {
+// MockPasswordProvider is a mock of PasswordProvider interface.
+type MockPasswordProvider struct {
 	ctrl     *gomock.Controller
-	recorder *MockProviderMockRecorder
+	recorder *MockPasswordProviderMockRecorder
 	isgomock struct{}
 }
 
-// MockProviderMockRecorder is the mock recorder for MockProvider.
-type MockProviderMockRecorder struct {
-	mock *MockProvider
+// MockPasswordProviderMockRecorder is the mock recorder for MockPasswordProvider.
+type MockPasswordProviderMockRecorder struct {
+	mock *MockPasswordProvider
 }
 
-// NewMockProvider creates a new mock instance.
-func NewMockProvider(ctrl *gomock.Controller) *MockProvider {
-	mock := &MockProvider{ctrl: ctrl}
-	mock.recorder = &MockProviderMockRecorder{mock}
+// NewMockPasswordProvider creates a new mock instance.
+func NewMockPasswordProvider(ctrl *gomock.Controller) *MockPasswordProvider {
+	mock := &MockPasswordProvider{ctrl: ctrl}
+	mock.recorder = &MockPasswordProviderMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
+func (m *MockPasswordProvider) EXPECT() *MockPasswordProviderMockRecorder {
 	return m.recorder
 }
 
 // AlgorithmName mocks base method.
-func (m *MockProvider) AlgorithmName() string {
+func (m *MockPasswordProvider) AlgorithmName() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AlgorithmName")
 	ret0, _ := ret[0].(string)
@@ -49,13 +49,13 @@ func (m *MockProvider) AlgorithmName() string {
 }
 
 // AlgorithmName indicates an expected call of AlgorithmName.
-func (mr *MockProviderMockRecorder) AlgorithmName() *gomock.Call {
+func (mr *MockPasswordProviderMockRecorder) AlgorithmName() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AlgorithmName", reflect.TypeOf((*MockProvider)(nil).AlgorithmName))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AlgorithmName", reflect.TypeOf((*MockPasswordProvider)(nil).AlgorithmName))
 }
 
 // ComparePasswordAndHash mocks base method.
-func (m *MockProvider) ComparePasswordAndHash(password *securestring.SecureString, hash string) (bool, error) {
+func (m *MockPasswordProvider) ComparePasswordAndHash(password *securestring.SecureString, hash string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ComparePasswordAndHash", password, hash)
 	ret0, _ := ret[0].(bool)
@@ -64,13 +64,13 @@ func (m *MockProvider) ComparePasswordAndHash(password *securestring.SecureStrin
 }
 
 // ComparePasswordAndHash indicates an expected call of ComparePasswordAndHash.
-func (mr *MockProviderMockRecorder) ComparePasswordAndHash(password, hash any) *gomock.Call {
+func (mr *MockPasswordProviderMockRecorder) ComparePasswordAndHash(password, hash any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ComparePasswordAndHash", reflect.TypeOf((*MockProvider)(nil).ComparePasswordAndHash), password, hash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ComparePasswordAndHash", reflect.TypeOf((*MockPasswordProvider)(nil).ComparePasswordAndHash), password, hash)
 }
 
 // GenerateHashFromPassword mocks base method.
-func (m *MockProvider) GenerateHashFromPassword(password *securestring.SecureString) (string, error) {
+func (m *MockPasswordProvider) GenerateHashFromPassword(password *securestring.SecureString) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GenerateHashFromPassword", password)
 	ret0, _ := ret[0].(string)
@@ -79,13 +79,13 @@ func (m *MockProvider) GenerateHashFromPassword(password *securestring.SecureStr
 }
 
 // GenerateHashFromPassword indicates an expected call of GenerateHashFromPassword.
-func (mr *MockProviderMockRecorder) GenerateHashFromPassword(password any) *gomock.Call {
+func (mr *MockPasswordProviderMockRecorder) GenerateHashFromPassword(password any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateHashFromPassword", reflect.TypeOf((*MockProvider)(nil).GenerateHashFromPassword), password)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateHashFromPassword", reflect.TypeOf((*MockPasswordProvider)(nil).GenerateHashFromPassword), password)
 }
 
 // GenerateSecureRandomBytes mocks base method.
-func (m *MockProvider) GenerateSecureRandomBytes(length int) ([]byte, error) {
+func (m *MockPasswordProvider) GenerateSecureRandomBytes(length int) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GenerateSecureRandomBytes", length)
 	ret0, _ := ret[0].([]byte)
@@ -94,13 +94,13 @@ func (m *MockProvider) GenerateSecureRandomBytes(length int) ([]byte, error) {
 }
 
 // GenerateSecureRandomBytes indicates an expected call of GenerateSecureRandomBytes.
-func (mr *MockProviderMockRecorder) GenerateSecureRandomBytes(length any) *gomock.Call {
+func (mr *MockPasswordProviderMockRecorder) GenerateSecureRandomBytes(length any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateSecureRandomBytes", reflect.TypeOf((*MockProvider)(nil).GenerateSecureRandomBytes), length)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateSecureRandomBytes", reflect.TypeOf((*MockPasswordProvider)(nil).GenerateSecureRandomBytes), length)
 }
 
 // GenerateSecureRandomString mocks base method.
-func (m *MockProvider) GenerateSecureRandomString(length int) (string, error) {
+func (m *MockPasswordProvider) GenerateSecureRandomString(length int) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GenerateSecureRandomString", length)
 	ret0, _ := ret[0].(string)
@@ -109,7 +109,7 @@ func (m *MockProvider) GenerateSecureRandomString(length int) (string, error) {
 }
 
 // GenerateSecureRandomString indicates an expected call of GenerateSecureRandomString.
-func (mr *MockProviderMockRecorder) GenerateSecureRandomString(length any) *gomock.Call {
+func (mr *MockPasswordProviderMockRecorder) GenerateSecureRandomString(length any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateSecureRandomString", reflect.TypeOf((*MockProvider)(nil).GenerateSecureRandomString), length)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateSecureRandomString", reflect.TypeOf((*MockPasswordProvider)(nil).GenerateSecureRandomString), length)
 }

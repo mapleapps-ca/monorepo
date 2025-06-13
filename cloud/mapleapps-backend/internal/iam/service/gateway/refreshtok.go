@@ -22,13 +22,13 @@ type GatewayRefreshTokenService interface {
 
 type gatewayRefreshTokenServiceImpl struct {
 	cache                 cassandracache.Cacher
-	jwtProvider           jwt.Provider
+	jwtProvider           jwt.JWTProvider
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
 }
 
 func NewGatewayRefreshTokenService(
 	cach cassandracache.Cacher,
-	jwtp jwt.Provider,
+	jwtp jwt.JWTProvider,
 	uc1 uc_user.FederatedUserGetByEmailUseCase,
 ) GatewayRefreshTokenService {
 	return &gatewayRefreshTokenServiceImpl{cach, jwtp, uc1}

@@ -10,14 +10,14 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/security/securebytes"
 )
 
-func setupTestProvider(t *testing.T) Provider {
+func setupTestProvider(t *testing.T) JWTProvider {
 	hmacSecret, _ := securebytes.NewSecureBytes([]byte("test-secret"))
 	cfg := &config.Configuration{
 		App: config.AppConfig{
 			AdministrationHMACSecret: hmacSecret,
 		},
 	}
-	return NewProvider(cfg)
+	return NewJWTProvider(cfg)
 }
 
 func TestNewProvider(t *testing.T) {

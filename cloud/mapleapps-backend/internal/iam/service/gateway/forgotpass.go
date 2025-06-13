@@ -20,18 +20,18 @@ type GatewayForgotPasswordService interface {
 }
 
 type gatewayForgotPasswordServiceImpl struct {
-	passwordProvider                           password.Provider
+	passwordProvider                           password.PasswordProvider
 	cache                                      cassandracache.Cacher
-	jwtProvider                                jwt.Provider
+	jwtProvider                                jwt.JWTProvider
 	userGetByEmailUseCase                      uc_user.FederatedUserGetByEmailUseCase
 	userUpdateUseCase                          uc_user.FederatedUserUpdateUseCase
 	sendFederatedUserPasswordResetEmailUseCase uc_emailer.SendFederatedUserPasswordResetEmailUseCase
 }
 
 func NewGatewayForgotPasswordService(
-	pp password.Provider,
+	pp password.PasswordProvider,
 	cach cassandracache.Cacher,
-	jwtp jwt.Provider,
+	jwtp jwt.JWTProvider,
 	uc1 uc_user.FederatedUserGetByEmailUseCase,
 	uc2 uc_user.FederatedUserUpdateUseCase,
 	uc3 uc_emailer.SendFederatedUserPasswordResetEmailUseCase,

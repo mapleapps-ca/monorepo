@@ -21,17 +21,17 @@ type TokenGetSessionService interface {
 
 type tokenGetSessionServiceImpl struct {
 	logger                    *zap.Logger
-	passwordProvider          password.Provider
+	passwordProvider          password.PasswordProvider
 	cache                     cassandracache.Cacher
-	jwtProvider               jwt.Provider
+	jwtProvider               jwt.JWTProvider
 	userGetBySessionIDUseCase uc_user.FederatedUserGetBySessionIDUseCase
 }
 
 func NewTokenGetSessionService(
 	logger *zap.Logger,
-	pp password.Provider,
+	pp password.PasswordProvider,
 	cach cassandracache.Cacher,
-	jwtp jwt.Provider,
+	jwtp jwt.JWTProvider,
 	userGetBySessionIDUseCase uc_user.FederatedUserGetBySessionIDUseCase,
 ) TokenGetSessionService {
 	return &tokenGetSessionServiceImpl{logger, pp, cach, jwtp, userGetBySessionIDUseCase}

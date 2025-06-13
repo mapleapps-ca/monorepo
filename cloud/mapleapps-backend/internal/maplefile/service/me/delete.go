@@ -28,7 +28,7 @@ type DeleteMeService interface {
 type deleteMeServiceImpl struct {
 	config                *config.Configuration
 	logger                *zap.Logger
-	passwordProvider      password.Provider
+	passwordProvider      password.PasswordProvider
 	userGetByIDUseCase    uc_user.FederatedUserGetByIDUseCase
 	userDeleteByIDUseCase uc_user.FederatedUserDeleteByIDUseCase
 }
@@ -36,7 +36,7 @@ type deleteMeServiceImpl struct {
 func NewDeleteMeService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	passwordProvider password.Provider,
+	passwordProvider password.PasswordProvider,
 	userGetByIDUseCase uc_user.FederatedUserGetByIDUseCase,
 	userDeleteByIDUseCase uc_user.FederatedUserDeleteByIDUseCase,
 ) DeleteMeService {

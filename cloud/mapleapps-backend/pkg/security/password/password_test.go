@@ -13,7 +13,7 @@ import (
 func TestPasswordHashing(t *testing.T) {
 	t.Log("TestPasswordHashing: Starting")
 
-	provider := NewProvider()
+	provider := NewPasswordProvider()
 	t.Log("TestPasswordHashing: Provider created")
 
 	password, err := sstring.NewSecureString("test-password")

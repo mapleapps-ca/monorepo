@@ -34,9 +34,9 @@ type GatewayFederatedUserRegisterService interface {
 type gatewayFederatedUserRegisterServiceImpl struct {
 	config                                    *config.Configuration
 	logger                                    *zap.Logger
-	passwordProvider                          password.Provider
+	passwordProvider                          password.PasswordProvider
 	cache                                     cassandracache.Cacher
-	jwtProvider                               jwt.Provider
+	jwtProvider                               jwt.JWTProvider
 	userGetByEmailUseCase                     uc_user.FederatedUserGetByEmailUseCase
 	userCreateUseCase                         uc_user.FederatedUserCreateUseCase
 	userUpdateUseCase                         uc_user.FederatedUserUpdateUseCase
@@ -46,9 +46,9 @@ type gatewayFederatedUserRegisterServiceImpl struct {
 func NewGatewayFederatedUserRegisterService(
 	cfg *config.Configuration,
 	logger *zap.Logger,
-	pp password.Provider,
+	pp password.PasswordProvider,
 	cach cassandracache.Cacher,
-	jwtp jwt.Provider,
+	jwtp jwt.JWTProvider,
 	uc1 uc_user.FederatedUserGetByEmailUseCase,
 	uc2 uc_user.FederatedUserCreateUseCase,
 	uc3 uc_user.FederatedUserUpdateUseCase,

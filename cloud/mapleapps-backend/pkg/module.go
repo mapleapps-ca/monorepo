@@ -42,8 +42,8 @@ func Module() fx.Option {
 			blacklist.NewProvider,
 			distributedmutex.NewAdapter,
 			ipcountryblocker.NewProvider,
-			jwt.NewProvider,
-			password.NewProvider,
+			jwt.NewJWTProvider,
+			password.NewPasswordProvider,
 
 			// Database components
 			cassandradb.NewCassandraConnection,

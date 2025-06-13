@@ -16,32 +16,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockProvider is a mock of Provider interface.
-type MockProvider struct {
+// MockJWTProvider is a mock of JWTProvider interface.
+type MockJWTProvider struct {
 	ctrl     *gomock.Controller
-	recorder *MockProviderMockRecorder
+	recorder *MockJWTProviderMockRecorder
 	isgomock struct{}
 }
 
-// MockProviderMockRecorder is the mock recorder for MockProvider.
-type MockProviderMockRecorder struct {
-	mock *MockProvider
+// MockJWTProviderMockRecorder is the mock recorder for MockJWTProvider.
+type MockJWTProviderMockRecorder struct {
+	mock *MockJWTProvider
 }
 
-// NewMockProvider creates a new mock instance.
-func NewMockProvider(ctrl *gomock.Controller) *MockProvider {
-	mock := &MockProvider{ctrl: ctrl}
-	mock.recorder = &MockProviderMockRecorder{mock}
+// NewMockJWTProvider creates a new mock instance.
+func NewMockJWTProvider(ctrl *gomock.Controller) *MockJWTProvider {
+	mock := &MockJWTProvider{ctrl: ctrl}
+	mock.recorder = &MockJWTProviderMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
+func (m *MockJWTProvider) EXPECT() *MockJWTProviderMockRecorder {
 	return m.recorder
 }
 
 // GenerateJWTToken mocks base method.
-func (m *MockProvider) GenerateJWTToken(uuid string, ad time.Duration) (string, time.Time, error) {
+func (m *MockJWTProvider) GenerateJWTToken(uuid string, ad time.Duration) (string, time.Time, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GenerateJWTToken", uuid, ad)
 	ret0, _ := ret[0].(string)
@@ -51,13 +51,13 @@ func (m *MockProvider) GenerateJWTToken(uuid string, ad time.Duration) (string, 
 }
 
 // GenerateJWTToken indicates an expected call of GenerateJWTToken.
-func (mr *MockProviderMockRecorder) GenerateJWTToken(uuid, ad any) *gomock.Call {
+func (mr *MockJWTProviderMockRecorder) GenerateJWTToken(uuid, ad any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateJWTToken", reflect.TypeOf((*MockProvider)(nil).GenerateJWTToken), uuid, ad)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateJWTToken", reflect.TypeOf((*MockJWTProvider)(nil).GenerateJWTToken), uuid, ad)
 }
 
 // GenerateJWTTokenPair mocks base method.
-func (m *MockProvider) GenerateJWTTokenPair(uuid string, ad, rd time.Duration) (string, time.Time, string, time.Time, error) {
+func (m *MockJWTProvider) GenerateJWTTokenPair(uuid string, ad, rd time.Duration) (string, time.Time, string, time.Time, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GenerateJWTTokenPair", uuid, ad, rd)
 	ret0, _ := ret[0].(string)
@@ -69,13 +69,13 @@ func (m *MockProvider) GenerateJWTTokenPair(uuid string, ad, rd time.Duration) (
 }
 
 // GenerateJWTTokenPair indicates an expected call of GenerateJWTTokenPair.
-func (mr *MockProviderMockRecorder) GenerateJWTTokenPair(uuid, ad, rd any) *gomock.Call {
+func (mr *MockJWTProviderMockRecorder) GenerateJWTTokenPair(uuid, ad, rd any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateJWTTokenPair", reflect.TypeOf((*MockProvider)(nil).GenerateJWTTokenPair), uuid, ad, rd)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateJWTTokenPair", reflect.TypeOf((*MockJWTProvider)(nil).GenerateJWTTokenPair), uuid, ad, rd)
 }
 
 // ProcessJWTToken mocks base method.
-func (m *MockProvider) ProcessJWTToken(reqToken string) (string, error) {
+func (m *MockJWTProvider) ProcessJWTToken(reqToken string) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ProcessJWTToken", reqToken)
 	ret0, _ := ret[0].(string)
@@ -84,7 +84,7 @@ func (m *MockProvider) ProcessJWTToken(reqToken string) (string, error) {
 }
 
 // ProcessJWTToken indicates an expected call of ProcessJWTToken.
-func (mr *MockProviderMockRecorder) ProcessJWTToken(reqToken any) *gomock.Call {
+func (mr *MockJWTProviderMockRecorder) ProcessJWTToken(reqToken any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessJWTToken", reflect.TypeOf((*MockProvider)(nil).ProcessJWTToken), reqToken)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessJWTToken", reflect.TypeOf((*MockJWTProvider)(nil).ProcessJWTToken), reqToken)
 }

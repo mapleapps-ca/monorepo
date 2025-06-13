@@ -17,13 +17,13 @@ type Middleware interface {
 
 type middleware struct {
 	logger                    *zap.Logger
-	jwt                       jwt.Provider
+	jwt                       jwt.JWTProvider
 	userGetBySessionIDUseCase uc_user.UserGetBySessionIDUseCase
 }
 
 func NewMiddleware(
 	logger *zap.Logger,
-	jwtp jwt.Provider,
+	jwtp jwt.JWTProvider,
 	uc1 uc_user.UserGetBySessionIDUseCase,
 ) Middleware {
 	logger = logger.With(zap.String("module", "maplefile"))

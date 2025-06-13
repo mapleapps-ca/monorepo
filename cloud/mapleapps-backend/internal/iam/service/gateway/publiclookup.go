@@ -35,18 +35,18 @@ type GatewayFederatedUserPublicLookupService interface {
 type gatewayFederatedUserPublicLookupServiceImpl struct {
 	config                *config.Configuration
 	logger                *zap.Logger
-	passwordProvider      password.Provider
+	passwordProvider      password.PasswordProvider
 	cache                 cassandracache.Cacher
-	jwtProvider           jwt.Provider
+	jwtProvider           jwt.JWTProvider
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
 }
 
 func NewGatewayFederatedUserPublicLookupService(
 	cfg *config.Configuration,
 	logger *zap.Logger,
-	pp password.Provider,
+	pp password.PasswordProvider,
 	cach cassandracache.Cacher,
-	jwtp jwt.Provider,
+	jwtp jwt.JWTProvider,
 	uc1 uc_user.FederatedUserGetByEmailUseCase,
 ) GatewayFederatedUserPublicLookupService {
 	return &gatewayFederatedUserPublicLookupServiceImpl{cfg, logger, pp, cach, jwtp, uc1}
