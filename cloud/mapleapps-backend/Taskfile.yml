@@ -119,3 +119,19 @@ tasks:
       - task: lint
       - task: vet
     silent: false
+
+  mockgen:
+    desc: "Generate our backend mock files"
+    cmds:
+      # PKG
+      - go tool mockgen -source=pkg/emailer/mailgun/interface.go -destination=pkg/mocks/mock_mailgun.go -package=mocks
+      - go tool mockgen -source=pkg/distributedmutex/distributelocker.go -destination=pkg/mocks/mock_distributedmutex.go -package=mocks
+      # IAM Module
+      ## Domain Entities
+      - go tool mockgen -source=internal/iam/domain/federateduser/interface.go -destination=internal/iam/mocks/mock_repository_federateduser.go -package=mocks
+      ## Repo
+      - go tool mockgen -source=internal/iam/repo/templatedemailer/interface.go -destination=internal/iam/mocks/mock_repository_templatedemailer.go -package=mocks
+      ## Use-Cases
+      - go tool mockgen -source=internal/iam/usecase/emailer/sendloginott.go -destination=internal/iam/mocks/mock_usecase._sendloginottgo -package=mocks
+      - go tool mockgen -source=internal/iam/usecase/emailer/sendpassreset.go -destination=internal/iam/mocks/mock_usecase_sendpassreset.go -package=mocks
+      - go tool mockgen -source=internal/iam/usecase/emailer/sendverificationemail.go -destination=internal/iam/mocks/mock_usecase_sendverificationemail.go -package=mocks
