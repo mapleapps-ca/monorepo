@@ -252,7 +252,7 @@ func CassandraHealthCheck(session *gocql.Session, logger *zap.Logger) HealthChec
 }
 
 // TwoTierCacheHealthCheck creates a health check for the two-tier cache system
-func TwoTierCacheHealthCheck(cache twotiercache.Cacher, logger *zap.Logger) HealthCheck {
+func TwoTierCacheHealthCheck(cache twotiercache.TwoTierCacher, logger *zap.Logger) HealthCheck {
 	return func(ctx context.Context) HealthCheckResult {
 		start := time.Now()
 
@@ -399,7 +399,7 @@ func registerRealHealthChecks(
 	hc *HealthChecker,
 	logger *zap.Logger,
 	cassandraSession *gocql.Session,
-	cache twotiercache.Cacher,
+	cache twotiercache.TwoTierCacher,
 	s3Storage s3.S3ObjectStorage,
 ) {
 	// Register Cassandra health check
