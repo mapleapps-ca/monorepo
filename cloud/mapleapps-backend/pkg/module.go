@@ -53,7 +53,7 @@ func Module() fx.Option {
 			redis.NewCache,
 			twotiercache.NewTwoTierCache,
 			cassandracache.NewCassandraCacher,
-			s3.NewProvider,
+			s3.NewS3ObjectStorageProvider,
 
 			// Observability components (depends on infrastructure for health checks)
 			observability.NewHealthChecker,

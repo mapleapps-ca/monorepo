@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewProvider(cfg *config.Configuration, logger *zap.Logger) S3ObjectStorage {
+func NewS3ObjectStorageProvider(cfg *config.Configuration, logger *zap.Logger) S3ObjectStorage {
 	configProvider := NewS3ObjectStorageConfigurationProvider(
 		cfg.AWS.AccessKey,
 		cfg.AWS.SecretKey,
