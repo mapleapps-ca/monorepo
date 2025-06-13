@@ -6,6 +6,7 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/emailer"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/recovery"
 )
 
 func Module() fx.Option {
@@ -22,6 +23,9 @@ func Module() fx.Option {
 			federateduser.NewFederatedUserGetByIDUseCase,
 			federateduser.NewFederatedUserGetByVerificationCodeUseCase,
 			federateduser.NewFederatedUserUpdateUseCase,
+			recovery.NewInitiateRecoveryUseCase,
+			recovery.NewVerifyRecoveryUseCase,
+			recovery.NewCompleteRecoveryUseCase,
 		),
 	)
 }

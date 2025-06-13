@@ -4,6 +4,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/repo/federateduser"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/repo/recovery"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/repo/templatedemailer"
 )
 
@@ -11,6 +12,7 @@ func Module() fx.Option {
 	return fx.Options(
 		fx.Provide(
 			federateduser.NewRepository,
+			recovery.NewRepository,
 
 			// Annotate the constructor to specify which parameter should receive the named dependency
 			fx.Annotate(

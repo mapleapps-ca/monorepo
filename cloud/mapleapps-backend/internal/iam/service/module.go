@@ -30,6 +30,7 @@ func Module() fx.Option {
 			// me.NewVerifyProfileService,
 			// me.NewDeleteMeService,
 			gateway.NewGatewayFederatedUserPublicLookupService,
+			gateway.NewInitiateRecoveryService,
 		),
 	)
 }
