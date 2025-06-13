@@ -133,5 +133,5 @@ tasks:
       - go tool mockgen -source=internal/iam/repo/templatedemailer/interface.go -destination=internal/iam/mocks/mock_repository_templatedemailer.go -package=mocks
       ## Use-Cases
       - go tool mockgen -source=internal/iam/usecase/emailer/sendloginott.go -destination=internal/iam/mocks/mock_usecase._sendloginottgo -package=mocks
-      - go tool mockgen -source=internal/iam/usecase/emailer/sendpassreset.go -destination=internal/iam/mocks/mock_usecase_sendpassreset.go -package=mocks
+      # - go tool mockgen -source=internal/iam/usecase/emailer/sendpassreset.go -destination=internal/iam/mocks/mock_usecase_sendpassreset.go -package=mocks #TODO
       - go tool mockgen -source=internal/iam/usecase/emailer/sendverificationemail.go -destination=internal/iam/mocks/mock_usecase_sendverificationemail.go -package=mocks
