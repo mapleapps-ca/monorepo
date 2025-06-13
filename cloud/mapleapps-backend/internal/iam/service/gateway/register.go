@@ -134,7 +134,7 @@ func (svc *gatewayFederatedUserRegisterServiceImpl) Execute(ctx context.Context,
 	if req.Module == 0 {
 		e["module"] = "Module is required"
 	} else {
-		// Assuming MonolithModulePaperCloud is the only valid module for now
+		// Assuming MonolithModuleMapleFile is the only valid module for now
 		if req.Module != int(constants.MonolithModuleMapleFile) && req.Module != int(constants.MonolithModulePaperCloud) {
 			e["module"] = "Module is invalid"
 		}

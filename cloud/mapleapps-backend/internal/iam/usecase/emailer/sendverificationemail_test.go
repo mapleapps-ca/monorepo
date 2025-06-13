@@ -51,13 +51,13 @@ func TestSendFederatedUserVerificationEmailUseCase_Execute(t *testing.T) {
 	}{
 		{
 			name:           "Success - Valid user and email verification",
-			monolithModule: int(constants.MonolithModulePaperCloud),
+			monolithModule: int(constants.MonolithModuleMapleFile),
 			user:           validUser,
 			setupMock: func() {
 				mockEmailer.EXPECT().
 					SendUserVerificationEmail(
 						gomock.Any(),
-						int(constants.MonolithModulePaperCloud),
+						int(constants.MonolithModuleMapleFile),
 						"test@example.com",
 						"verify123",
 						"Jane",
@@ -70,7 +70,7 @@ func TestSendFederatedUserVerificationEmailUseCase_Execute(t *testing.T) {
 		},
 		{
 			name:                   "Validation Error - Nil user",
-			monolithModule:         int(constants.MonolithModulePaperCloud),
+			monolithModule:         int(constants.MonolithModuleMapleFile),
 			user:                   nil,
 			setupMock:              func() {},
 			expectedError:          "User is missing value",
@@ -78,7 +78,7 @@ func TestSendFederatedUserVerificationEmailUseCase_Execute(t *testing.T) {
 		},
 		{
 			name:           "Validation Error - Missing first name",
-			monolithModule: int(constants.MonolithModulePaperCloud),
+			monolithModule: int(constants.MonolithModuleMapleFile),
 			user: &domain.FederatedUser{
 				ID:        gocql.TimeUUID(),
 				Email:     "test@example.com",
@@ -94,7 +94,7 @@ func TestSendFederatedUserVerificationEmailUseCase_Execute(t *testing.T) {
 		},
 		{
 			name:           "Validation Error - Missing email",
-			monolithModule: int(constants.MonolithModulePaperCloud),
+			monolithModule: int(constants.MonolithModuleMapleFile),
 			user: &domain.FederatedUser{
 				ID:        gocql.TimeUUID(),
 				Email:     "",
@@ -110,7 +110,7 @@ func TestSendFederatedUserVerificationEmailUseCase_Execute(t *testing.T) {
 		},
 		{
 			name:           "Validation Error - Missing verification code",
-			monolithModule: int(constants.MonolithModulePaperCloud),
+			monolithModule: int(constants.MonolithModuleMapleFile),
 			user: &domain.FederatedUser{
 				ID:        gocql.TimeUUID(),
 				Email:     "test@example.com",
@@ -155,13 +155,13 @@ func TestSendFederatedUserVerificationEmailUseCase_Execute(t *testing.T) {
 		},
 		{
 			name:           "Email Service Error",
-			monolithModule: int(constants.MonolithModulePaperCloud),
+			monolithModule: int(constants.MonolithModuleMapleFile),
 			user:           validUser,
 			setupMock: func() {
 				mockEmailer.EXPECT().
 					SendUserVerificationEmail(
 						gomock.Any(),
-						int(constants.MonolithModulePaperCloud),
+						int(constants.MonolithModuleMapleFile),
 						"test@example.com",
 						"verify123",
 						"Jane",

@@ -77,14 +77,6 @@ func (svc *gatewayFederatedUserPublicLookupServiceImpl) Execute(sessCtx context.
 	if len(req.Email) > 255 {
 		e["email"] = "Email is too long"
 	}
-	// if req.Module == 0 {
-	// 	e["module"] = "Module is required"
-	// } else {
-	// 	// Assuming MonolithModulePaperCloud is the only valid module for now
-	// 	if req.Module != int(constants.MonolithModuleMapleFile) && req.Module != int(constants.MonolithModulePaperCloud) {
-	// 		e["module"] = "Module is invalid"
-	// 	}
-	// }
 
 	if len(e) != 0 {
 		svc.logger.Warn("failed validating",
