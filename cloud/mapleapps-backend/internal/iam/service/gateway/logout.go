@@ -13,11 +13,11 @@ type GatewayLogoutService interface {
 }
 
 type gatewayLogoutServiceImpl struct {
-	cache cassandracache.Cacher
+	cache cassandracache.CassandraCacher
 }
 
 func NewGatewayLogoutService(
-	cach cassandracache.Cacher,
+	cach cassandracache.CassandraCacher,
 ) GatewayLogoutService {
 	return &gatewayLogoutServiceImpl{cach}
 }

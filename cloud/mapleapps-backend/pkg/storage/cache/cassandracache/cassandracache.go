@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type Cacher interface {
+type CassandraCacher interface {
 	Shutdown()
 	Get(ctx context.Context, key string) ([]byte, error)
 	Set(ctx context.Context, key string, val []byte) error
@@ -23,7 +23,7 @@ type cache struct {
 	Logger  *zap.Logger
 }
 
-func NewCache(session *gocql.Session, logger *zap.Logger) Cacher {
+func NewCassandraCacher(session *gocql.Session, logger *zap.Logger) CassandraCacher {
 	logger = logger.Named("CassandraCache")
 	logger.Info("cassandra cache initialized")
 	return &cache{

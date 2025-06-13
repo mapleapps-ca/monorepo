@@ -67,7 +67,7 @@ type GatewayVerifyLoginOTTService interface {
 type gatewayVerifyLoginOTTServiceImpl struct {
 	config                *config.Configuration
 	logger                *zap.Logger
-	cache                 cassandracache.Cacher
+	cache                 cassandracache.CassandraCacher
 	jwtProvider           jwt.JWTProvider
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
 }
@@ -75,7 +75,7 @@ type gatewayVerifyLoginOTTServiceImpl struct {
 func NewGatewayVerifyLoginOTTService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	cache cassandracache.Cacher,
+	cache cassandracache.CassandraCacher,
 	jwtProvider jwt.JWTProvider,
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase,
 ) GatewayVerifyLoginOTTService {

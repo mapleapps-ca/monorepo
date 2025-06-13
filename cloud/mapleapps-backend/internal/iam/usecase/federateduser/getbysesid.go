@@ -20,10 +20,10 @@ type FederatedUserGetBySessionIDUseCase interface {
 type userGetBySessionIDUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
-	cache  cassandracache.Cacher
+	cache  cassandracache.CassandraCacher
 }
 
-func NewFederatedUserGetBySessionIDUseCase(config *config.Configuration, logger *zap.Logger, ca cassandracache.Cacher) FederatedUserGetBySessionIDUseCase {
+func NewFederatedUserGetBySessionIDUseCase(config *config.Configuration, logger *zap.Logger, ca cassandracache.CassandraCacher) FederatedUserGetBySessionIDUseCase {
 	logger = logger.Named("FederatedUserGetBySessionIDUseCase")
 	return &userGetBySessionIDUseCaseImpl{config, logger, ca}
 }

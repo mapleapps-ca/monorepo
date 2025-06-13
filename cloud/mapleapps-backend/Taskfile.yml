@@ -131,6 +131,9 @@ tasks:
       - go tool mockgen -source=pkg/security/password/password.go -destination=pkg/mocks/mock_security_password.go -package=mocks
       - go tool mockgen -source=pkg/security/jwt/jwt.go -destination=pkg/mocks/mock_security_jwt.go -package=mocks
       - go tool mockgen -source=pkg/storage/cache/cassandracache/cassandracache.go -destination=pkg/mocks/mock_storage_cache_cassandracache.go -package=mocks
+      - go tool mockgen -source=pkg/storage/cache/twotiercache/twotiercache.go -destination=pkg/mocks/mock_storage_cache_twotiercache.go -package=mocks
+      - go tool mockgen -source=pkg/storage/memory/inmemory/memory.go -destination=pkg/mocks/mock_storage_memory_inmemory_memory.go -package=mocks
+      - go tool mockgen -source=pkg/storage/object/s3/s3.go -destination=pkg/mocks/mock_storage_object_s3.go -package=mocks
       # IAM Module
       ## Domain Entities
       - go tool mockgen -source=internal/iam/domain/federateduser/interface.go -destination=internal/iam/mocks/mock_repository_federateduser.go -package=mocks

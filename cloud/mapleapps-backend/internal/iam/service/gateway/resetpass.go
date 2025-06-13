@@ -15,7 +15,7 @@ type GatewayResetPasswordService interface {
 
 type gatewayResetPasswordServiceImpl struct {
 	passwordProvider      password.PasswordProvider
-	cache                 cassandracache.Cacher
+	cache                 cassandracache.CassandraCacher
 	jwtProvider           jwt.JWTProvider
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
 	userUpdateUseCase     uc_user.FederatedUserUpdateUseCase
@@ -23,7 +23,7 @@ type gatewayResetPasswordServiceImpl struct {
 
 func NewGatewayResetPasswordService(
 	pp password.PasswordProvider,
-	cach cassandracache.Cacher,
+	cach cassandracache.CassandraCacher,
 	jwtp jwt.JWTProvider,
 	uc1 uc_user.FederatedUserGetByEmailUseCase,
 	uc2 uc_user.FederatedUserUpdateUseCase,

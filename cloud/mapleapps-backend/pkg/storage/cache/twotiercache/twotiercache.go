@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type Cacher interface {
+type TwoTierCacher interface {
 	Shutdown(ctx context.Context)
 	Get(ctx context.Context, key string) ([]byte, error)
 	Set(ctx context.Context, key string, val []byte) error
@@ -29,11 +29,11 @@ type Cacher interface {
 // On Delete: remove from both
 type twoTierCacheImpl struct {
 	RedisCache     redis.Cacher
-	CassandraCache cassandracache.Cacher
+	CassandraCache cassandracache.CassandraCacher
 	Logger         *zap.Logger
 }
 
-func NewTwoTierCache(redisCache redis.Cacher, cassandraCache cassandracache.Cacher, logger *zap.Logger) Cacher {
+func NewTwoTierCache(redisCache redis.Cacher, cassandraCache cassandracache.CassandraCacher, logger *zap.Logger) TwoTierCacher {
 	logger = logger.Named("TwoTierCache")
 	return &twoTierCacheImpl{
 		RedisCache:     redisCache,

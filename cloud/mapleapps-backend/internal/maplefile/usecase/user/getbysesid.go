@@ -20,10 +20,10 @@ type UserGetBySessionIDUseCase interface {
 type userGetBySessionIDUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
-	cache  cassandracache.Cacher
+	cache  cassandracache.CassandraCacher
 }
 
-func NewUserGetBySessionIDUseCase(config *config.Configuration, logger *zap.Logger, ca cassandracache.Cacher) UserGetBySessionIDUseCase {
+func NewUserGetBySessionIDUseCase(config *config.Configuration, logger *zap.Logger, ca cassandracache.CassandraCacher) UserGetBySessionIDUseCase {
 	logger = logger.Named("UserGetBySessionIDUseCase")
 	return &userGetBySessionIDUseCaseImpl{config, logger, ca}
 }

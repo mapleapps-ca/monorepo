@@ -45,7 +45,7 @@ type GatewayCompleteLoginService interface {
 type gatewayCompleteLoginServiceImpl struct {
 	config                *config.Configuration
 	logger                *zap.Logger
-	cache                 twotiercache.Cacher
+	cache                 twotiercache.TwoTierCacher
 	jwtProvider           jwt.JWTProvider
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
 	userUpdateUseCase     uc_user.FederatedUserUpdateUseCase
@@ -54,7 +54,7 @@ type gatewayCompleteLoginServiceImpl struct {
 func NewGatewayCompleteLoginService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	cache twotiercache.Cacher,
+	cache twotiercache.TwoTierCacher,
 	jwtProvider jwt.JWTProvider,
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase,
 	userUpdateUseCase uc_user.FederatedUserUpdateUseCase,

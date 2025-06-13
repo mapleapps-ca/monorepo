@@ -20,14 +20,14 @@ type TokenVerifyService interface {
 type tokenVerifyServiceImpl struct {
 	logger           *zap.Logger
 	passwordProvider password.PasswordProvider
-	cache            cassandracache.Cacher
+	cache            cassandracache.CassandraCacher
 	jwtProvider      jwt.JWTProvider
 }
 
 func NewTokenVerifyService(
 	logger *zap.Logger,
 	pp password.PasswordProvider,
-	cach cassandracache.Cacher,
+	cach cassandracache.CassandraCacher,
 	jwtp jwt.JWTProvider,
 	userGetBySessionIDUseCase uc_user.FederatedUserGetBySessionIDUseCase) TokenVerifyService {
 	return &tokenVerifyServiceImpl{logger, pp, cach, jwtp}

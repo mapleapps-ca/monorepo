@@ -49,7 +49,7 @@ type LoginOTTData struct {
 type gatewayRequestLoginOTTServiceImpl struct {
 	config                *config.Configuration
 	logger                *zap.Logger
-	cache                 cassandracache.Cacher
+	cache                 cassandracache.CassandraCacher
 	jwtProvider           jwt.JWTProvider
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
 	sendOTTEmailUseCase   uc_emailer.SendLoginOTTEmailUseCase
@@ -58,7 +58,7 @@ type gatewayRequestLoginOTTServiceImpl struct {
 func NewGatewayRequestLoginOTTService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	cache cassandracache.Cacher,
+	cache cassandracache.CassandraCacher,
 	jwtProvider jwt.JWTProvider,
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase,
 	sendOTTEmailUseCase uc_emailer.SendLoginOTTEmailUseCase,

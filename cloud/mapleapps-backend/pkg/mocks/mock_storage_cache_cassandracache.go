@@ -17,32 +17,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockCacher is a mock of Cacher interface.
-type MockCacher struct {
+// MockCassandraCacher is a mock of CassandraCacher interface.
+type MockCassandraCacher struct {
 	ctrl     *gomock.Controller
-	recorder *MockCacherMockRecorder
+	recorder *MockCassandraCacherMockRecorder
 	isgomock struct{}
 }
 
-// MockCacherMockRecorder is the mock recorder for MockCacher.
-type MockCacherMockRecorder struct {
-	mock *MockCacher
+// MockCassandraCacherMockRecorder is the mock recorder for MockCassandraCacher.
+type MockCassandraCacherMockRecorder struct {
+	mock *MockCassandraCacher
 }
 
-// NewMockCacher creates a new mock instance.
-func NewMockCacher(ctrl *gomock.Controller) *MockCacher {
-	mock := &MockCacher{ctrl: ctrl}
-	mock.recorder = &MockCacherMockRecorder{mock}
+// NewMockCassandraCacher creates a new mock instance.
+func NewMockCassandraCacher(ctrl *gomock.Controller) *MockCassandraCacher {
+	mock := &MockCassandraCacher{ctrl: ctrl}
+	mock.recorder = &MockCassandraCacherMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockCacher) EXPECT() *MockCacherMockRecorder {
+func (m *MockCassandraCacher) EXPECT() *MockCassandraCacherMockRecorder {
 	return m.recorder
 }
 
 // Delete mocks base method.
-func (m *MockCacher) Delete(ctx context.Context, key string) error {
+func (m *MockCassandraCacher) Delete(ctx context.Context, key string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, key)
 	ret0, _ := ret[0].(error)
@@ -50,13 +50,13 @@ func (m *MockCacher) Delete(ctx context.Context, key string) error {
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockCacherMockRecorder) Delete(ctx, key any) *gomock.Call {
+func (mr *MockCassandraCacherMockRecorder) Delete(ctx, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockCacher)(nil).Delete), ctx, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockCassandraCacher)(nil).Delete), ctx, key)
 }
 
 // Get mocks base method.
-func (m *MockCacher) Get(ctx context.Context, key string) ([]byte, error) {
+func (m *MockCassandraCacher) Get(ctx context.Context, key string) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, key)
 	ret0, _ := ret[0].([]byte)
@@ -65,13 +65,13 @@ func (m *MockCacher) Get(ctx context.Context, key string) ([]byte, error) {
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockCacherMockRecorder) Get(ctx, key any) *gomock.Call {
+func (mr *MockCassandraCacherMockRecorder) Get(ctx, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockCacher)(nil).Get), ctx, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockCassandraCacher)(nil).Get), ctx, key)
 }
 
 // PurgeExpired mocks base method.
-func (m *MockCacher) PurgeExpired(ctx context.Context) error {
+func (m *MockCassandraCacher) PurgeExpired(ctx context.Context) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PurgeExpired", ctx)
 	ret0, _ := ret[0].(error)
@@ -79,13 +79,13 @@ func (m *MockCacher) PurgeExpired(ctx context.Context) error {
 }
 
 // PurgeExpired indicates an expected call of PurgeExpired.
-func (mr *MockCacherMockRecorder) PurgeExpired(ctx any) *gomock.Call {
+func (mr *MockCassandraCacherMockRecorder) PurgeExpired(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PurgeExpired", reflect.TypeOf((*MockCacher)(nil).PurgeExpired), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PurgeExpired", reflect.TypeOf((*MockCassandraCacher)(nil).PurgeExpired), ctx)
 }
 
 // Set mocks base method.
-func (m *MockCacher) Set(ctx context.Context, key string, val []byte) error {
+func (m *MockCassandraCacher) Set(ctx context.Context, key string, val []byte) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Set", ctx, key, val)
 	ret0, _ := ret[0].(error)
@@ -93,13 +93,13 @@ func (m *MockCacher) Set(ctx context.Context, key string, val []byte) error {
 }
 
 // Set indicates an expected call of Set.
-func (mr *MockCacherMockRecorder) Set(ctx, key, val any) *gomock.Call {
+func (mr *MockCassandraCacherMockRecorder) Set(ctx, key, val any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockCacher)(nil).Set), ctx, key, val)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockCassandraCacher)(nil).Set), ctx, key, val)
 }
 
 // SetWithExpiry mocks base method.
-func (m *MockCacher) SetWithExpiry(ctx context.Context, key string, val []byte, expiry time.Duration) error {
+func (m *MockCassandraCacher) SetWithExpiry(ctx context.Context, key string, val []byte, expiry time.Duration) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetWithExpiry", ctx, key, val, expiry)
 	ret0, _ := ret[0].(error)
@@ -107,19 +107,19 @@ func (m *MockCacher) SetWithExpiry(ctx context.Context, key string, val []byte, 
 }
 
 // SetWithExpiry indicates an expected call of SetWithExpiry.
-func (mr *MockCacherMockRecorder) SetWithExpiry(ctx, key, val, expiry any) *gomock.Call {
+func (mr *MockCassandraCacherMockRecorder) SetWithExpiry(ctx, key, val, expiry any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetWithExpiry", reflect.TypeOf((*MockCacher)(nil).SetWithExpiry), ctx, key, val, expiry)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetWithExpiry", reflect.TypeOf((*MockCassandraCacher)(nil).SetWithExpiry), ctx, key, val, expiry)
 }
 
 // Shutdown mocks base method.
-func (m *MockCacher) Shutdown() {
+func (m *MockCassandraCacher) Shutdown() {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Shutdown")
 }
 
 // Shutdown indicates an expected call of Shutdown.
-func (mr *MockCacherMockRecorder) Shutdown() *gomock.Call {
+func (mr *MockCassandraCacherMockRecorder) Shutdown() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockCacher)(nil).Shutdown))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockCassandraCacher)(nil).Shutdown))
 }
