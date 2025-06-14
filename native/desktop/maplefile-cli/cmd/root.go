@@ -33,6 +33,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	svc_me "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/me"
+	svc_recovery "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/recovery"
 	svc_register "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	svc_sync "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/sync"
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
@@ -53,8 +54,9 @@ func NewRootCmd(
 	loginOTTVerificationService svc_authdto.LoginOTTVerificationService,
 	completeLoginService svc_authdto.CompleteLoginService,
 	logoutService svc_authdto.LogoutService,
-	recoveryService svc_authdto.RecoveryService,
-	recoveryKeyService svc_authdto.RecoveryKeyService,
+	recoveryService svc_recovery.RecoveryService,
+	recoveryKeyService svc_recovery.RecoveryKeyService,
+	recoveryCleanupService svc_recovery.RecoveryCleanupService,
 	createCollectionService collection.CreateService,
 	collectionListService collection.ListService,
 	collectionSoftDeleteService collection.SoftDeleteService,
@@ -144,9 +146,17 @@ For detailed help: maplefile-cli COMMAND --help`,
 
 	rootCmd.AddCommand(logout.LogoutCmd(logoutService, logger))
 	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, tokenRepository))
-
-	rootCmd.AddCommand(recovery.RecoveryCmd(recoveryService, logger))
-	rootCmd.AddCommand(recovery.ShowRecoveryKeyCmd(recoveryKeyService, logger))
+	rootCmd.AddCommand(recovery.RecoveryCmd(
+		recoveryService,
+		recoveryKeyService,
+		recoveryCleanupService,
+		logger,
+	))
+	rootCmd.AddCommand(recovery.UnifiedRecoveryCmd(
+		recoveryService,
+		recoveryKeyService,
+		logger,
+	))
 
 	// ========================================
 	// COLLECTIONS
