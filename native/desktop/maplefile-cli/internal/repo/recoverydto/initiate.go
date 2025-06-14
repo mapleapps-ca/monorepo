@@ -12,11 +12,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/recovery"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/recoverydto"
 )
 
 // InitiateRecoveryFromCloud initiates account recovery with the cloud service
-func (r *recoveryDTORepository) InitiateRecoveryFromCloud(ctx context.Context, request *recovery.RecoveryInitiateRequest) (*recovery.RecoveryInitiateResponse, error) {
+func (r *recoveryDTORepository) InitiateRecoveryFromCloud(ctx context.Context, request *recoverydto.RecoveryInitiateRequestDTO) (*recoverydto.RecoveryInitiateResponseDTO, error) {
 	r.logger.Debug("🔐 Initiating account recovery from cloud",
 		zap.String("email", request.Email),
 		zap.String("method", request.Method))
@@ -29,7 +29,7 @@ func (r *recoveryDTORepository) InitiateRecoveryFromCloud(ctx context.Context, r
 	}
 
 	// Validate request
-	if err := recovery.ValidateRecoveryInitiateRequest(request); err != nil {
+	if err := recoverydto.ValidateRecoveryInitiateRequestDTO(request); err != nil {
 		r.logger.Error("❌ Invalid recovery initiate request", zap.Error(err))
 		return nil, err
 	}
@@ -96,10 +96,10 @@ func (r *recoveryDTORepository) InitiateRecoveryFromCloud(ctx context.Context, r
 	r.logger.Debug("✅ HTTP response status is successful")
 
 	// Parse the response
-	r.logger.Debug("🔍 Parsing HTTP response body into RecoveryInitiateResponse")
-	var response recovery.RecoveryInitiateResponse
+	r.logger.Debug("🔍 Parsing HTTP response body into RecoveryInitiateResponseDTO")
+	var response recoverydto.RecoveryInitiateResponseDTO
 	if err := json.Unmarshal(body, &response); err != nil {
-		r.logger.Error("❌ Failed to parse response body into RecoveryInitiateResponse", zap.ByteString("body", body), zap.Error(err))
+		r.logger.Error("❌ Failed to parse response body into RecoveryInitiateResponseDTO", zap.ByteString("body", body), zap.Error(err))
 		return nil, errors.NewAppError("failed to parse response", err)
 	}
 	r.logger.Debug("✅ Successfully parsed HTTP response body")

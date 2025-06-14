@@ -12,11 +12,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/recovery"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/recoverydto"
 )
 
 // VerifyRecoveryFromCloud verifies the recovery challenge with the cloud service
-func (r *recoveryDTORepository) VerifyRecoveryFromCloud(ctx context.Context, request *recovery.RecoveryVerifyRequest) (*recovery.RecoveryVerifyResponse, error) {
+func (r *recoveryDTORepository) VerifyRecoveryFromCloud(ctx context.Context, request *recoverydto.RecoveryVerifyRequestDTO) (*recoverydto.RecoveryVerifyResponseDTO, error) {
 	r.logger.Debug("🔐 Verifying recovery challenge from cloud",
 		zap.String("sessionID", request.SessionID))
 
@@ -28,7 +28,7 @@ func (r *recoveryDTORepository) VerifyRecoveryFromCloud(ctx context.Context, req
 	}
 
 	// Validate request
-	if err := recovery.ValidateRecoveryVerifyRequest(request); err != nil {
+	if err := recoverydto.ValidateRecoveryVerifyRequestDTO(request); err != nil {
 		r.logger.Error("❌ Invalid recovery verify request", zap.Error(err))
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (r *recoveryDTORepository) VerifyRecoveryFromCloud(ctx context.Context, req
 			if details, ok := errorResponse["details"].(map[string]interface{}); ok {
 				if challengeErr, ok := details["decrypted_challenge"].(string); ok {
 					r.logger.Error("🚨 Challenge verification failed", zap.String("challengeError", challengeErr))
-					return nil, recovery.NewChallengeDecryptionError()
+					return nil, errors.NewAppError("challenge decryption failed", nil)
 				}
 			}
 		}
@@ -101,10 +101,10 @@ func (r *recoveryDTORepository) VerifyRecoveryFromCloud(ctx context.Context, req
 	r.logger.Debug("✅ HTTP response status is successful")
 
 	// Parse the response
-	r.logger.Debug("🔍 Parsing HTTP response body into RecoveryVerifyResponse")
-	var response recovery.RecoveryVerifyResponse
+	r.logger.Debug("🔍 Parsing HTTP response body into RecoveryVerifyResponseDTO")
+	var response recoverydto.RecoveryVerifyResponseDTO
 	if err := json.Unmarshal(body, &response); err != nil {
-		r.logger.Error("❌ Failed to parse response body into RecoveryVerifyResponse", zap.ByteString("body", body), zap.Error(err))
+		r.logger.Error("❌ Failed to parse response body into RecoveryVerifyResponseDTO", zap.ByteString("body", body), zap.Error(err))
 		return nil, errors.NewAppError("failed to parse response", err)
 	}
 	r.logger.Debug("✅ Successfully parsed HTTP response body")

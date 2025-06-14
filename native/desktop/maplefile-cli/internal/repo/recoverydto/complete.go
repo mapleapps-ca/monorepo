@@ -12,11 +12,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/recovery"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/recoverydto"
 )
 
 // CompleteRecoveryFromCloud completes the account recovery process with the cloud service
-func (r *recoveryDTORepository) CompleteRecoveryFromCloud(ctx context.Context, request *recovery.RecoveryCompleteRequest) (*recovery.RecoveryCompleteResponse, error) {
+func (r *recoveryDTORepository) CompleteRecoveryFromCloud(ctx context.Context, request *recoverydto.RecoveryCompleteRequestDTO) (*recoverydto.RecoveryCompleteResponseDTO, error) {
 	r.logger.Debug("🔐 Completing account recovery from cloud")
 
 	// Get server URL from configuration
@@ -27,7 +27,7 @@ func (r *recoveryDTORepository) CompleteRecoveryFromCloud(ctx context.Context, r
 	}
 
 	// Validate request
-	if err := recovery.ValidateRecoveryCompleteRequest(request); err != nil {
+	if err := recoverydto.ValidateRecoveryCompleteRequestDTO(request); err != nil {
 		r.logger.Error("❌ Invalid recovery complete request", zap.Error(err))
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (r *recoveryDTORepository) CompleteRecoveryFromCloud(ctx context.Context, r
 			if details, ok := errorResponse["details"].(map[string]interface{}); ok {
 				if tokenErr, ok := details["recovery_token"].(string); ok {
 					r.logger.Error("🚨 Recovery token validation failed", zap.String("tokenError", tokenErr))
-					return nil, recovery.NewRecoveryError(recovery.ErrCodeTokenInvalid, "Invalid recovery token", recovery.ErrTokenInvalid)
+					return nil, errors.NewAppError("invalid recovery token", nil)
 				}
 			}
 		}
@@ -100,10 +100,10 @@ func (r *recoveryDTORepository) CompleteRecoveryFromCloud(ctx context.Context, r
 	r.logger.Debug("✅ HTTP response status is successful")
 
 	// Parse the response
-	r.logger.Debug("🔍 Parsing HTTP response body into RecoveryCompleteResponse")
-	var response recovery.RecoveryCompleteResponse
+	r.logger.Debug("🔍 Parsing HTTP response body into RecoveryCompleteResponseDTO")
+	var response recoverydto.RecoveryCompleteResponseDTO
 	if err := json.Unmarshal(body, &response); err != nil {
-		r.logger.Error("❌ Failed to parse response body into RecoveryCompleteResponse", zap.ByteString("body", body), zap.Error(err))
+		r.logger.Error("❌ Failed to parse response body into RecoveryCompleteResponseDTO", zap.ByteString("body", body), zap.Error(err))
 		return nil, errors.NewAppError("failed to parse response", err)
 	}
 	r.logger.Debug("✅ Successfully parsed HTTP response body")
