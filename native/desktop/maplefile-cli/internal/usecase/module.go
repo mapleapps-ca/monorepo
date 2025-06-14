@@ -14,6 +14,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/medto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/publiclookupdto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/recovery"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/syncdto"
@@ -72,6 +73,15 @@ func UseCaseModule() fx.Option {
 		fx.Provide(file.NewCheckFileExistsUseCase),
 		fx.Provide(file.NewCheckFileAccessUseCase),
 		fx.Provide(file.NewSwapIDsUseCase),
+
+		// Recovery
+		fx.Provide(recovery.NewCheckRateLimitUseCase),
+		fx.Provide(recovery.NewCleanupExpiredRecoveryDataUseCase),
+		fx.Provide(recovery.NewCompleteRecoveryUseCase),
+		fx.Provide(recovery.NewGetRecoverySessionUseCase),
+		fx.Provide(recovery.NewInitiateRecoveryUseCase),
+		fx.Provide(recovery.NewTrackRecoveryAttemptUseCase),
+		fx.Provide(recovery.NewVerifyRecoveryUseCase),
 
 		// Local file system use cases (actual file operations)
 		fx.Provide(localfile.NewReadFileUseCase),
