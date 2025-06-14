@@ -15,6 +15,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/fileupload"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/localfile"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/me"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/recovery"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/register"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/security"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/sync"
@@ -114,5 +115,8 @@ func ServiceModule() fx.Option {
 		// Cloud-based interaction with user profile DTO
 		fx.Provide(me.NewGetMeService),
 		fx.Provide(me.NewUpdateMeService),
+
+		// Recovery
+		fx.Provide(recovery.NewRecoveryService),
 	)
 }
