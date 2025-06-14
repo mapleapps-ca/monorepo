@@ -70,3 +70,17 @@ func NewLevelDBConfigurationProviderForSyncState() leveldb.LevelDBConfigurationP
 
 	return leveldb.NewLevelDBConfigurationProvider(appDir, "syncstate")
 }
+
+// NewLevelDBConfigurationProviderForRecovery returns a LevelDB configuration provider for recovery data
+func NewLevelDBConfigurationProviderForRecovery() leveldb.LevelDBConfigurationProvider {
+	// Get user config directory
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		log.Fatalf("Failed getting user config directory with error: %v\n", err)
+	}
+
+	// Use the app directory for storing the LevelDB database
+	appDir := filepath.Join(configDir, AppName)
+
+	return leveldb.NewLevelDBConfigurationProvider(appDir, "recovery")
+}

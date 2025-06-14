@@ -9,6 +9,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/file"
+	dom_recovery "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/recovery"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/transaction"
 )
 
@@ -17,6 +18,7 @@ type transactionManager struct {
 	logger             *zap.Logger
 	collectionRepo     collection.CollectionRepository
 	fileRepo           file.FileRepository
+	recoveryRepo       dom_recovery.RecoveryRepository
 	inTransaction      bool
 	transactionStarted bool
 	mutex              sync.Mutex
@@ -27,12 +29,14 @@ func NewTransactionManager(
 	logger *zap.Logger,
 	collectionRepo collection.CollectionRepository,
 	fileRepo file.FileRepository,
+	recoveryRepo dom_recovery.RecoveryRepository,
 ) transaction.Manager {
 	logger = logger.Named("transaction.Manager")
 	return &transactionManager{
 		logger:         logger,
 		collectionRepo: collectionRepo,
 		fileRepo:       fileRepo,
+		recoveryRepo:   recoveryRepo,
 		inTransaction:  false,
 		mutex:          sync.Mutex{},
 	}
@@ -62,6 +66,14 @@ func (tm *transactionManager) Begin() error {
 		// Rollback collection transaction
 		tm.collectionRepo.DiscardTransaction()
 		return errors.NewAppError("failed to begin file transaction", err)
+	}
+
+	// Begin transaction on recovery repository
+	if err := tm.recoveryRepo.OpenTransaction(); err != nil {
+		tm.logger.Error("❌ Failed to begin transaction on recovery repository", zap.Error(err))
+		// Rollback collection transaction
+		tm.collectionRepo.DiscardTransaction()
+		return errors.NewAppError("failed to begin recovery transaction", err)
 	}
 
 	tm.inTransaction = true
@@ -96,6 +108,12 @@ func (tm *transactionManager) Commit() error {
 		commitErrors = append(commitErrors, err)
 	}
 
+	// Commit recovery repository transaction
+	if err := tm.recoveryRepo.CommitTransaction(); err != nil {
+		tm.logger.Error("❌ Failed to commit recovery transaction", zap.Error(err))
+		commitErrors = append(commitErrors, err)
+	}
+
 	tm.inTransaction = false
 	tm.transactionStarted = false
 
@@ -125,6 +143,9 @@ func (tm *transactionManager) Rollback() error {
 
 	// Discard file repository transaction
 	tm.fileRepo.DiscardTransaction()
+
+	// Discard recovery repository transaction
+	tm.recoveryRepo.DiscardTransaction()
 
 	tm.inTransaction = false
 	tm.transactionStarted = false

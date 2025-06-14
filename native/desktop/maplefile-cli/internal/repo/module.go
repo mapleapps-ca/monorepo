@@ -13,6 +13,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/filedto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/medto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/publiclookupdto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/recovery"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/recoverydto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/syncdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/syncstate"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/transaction"
@@ -47,6 +49,12 @@ func RepoModule() fx.Option {
 			fx.Annotate(
 				config.NewLevelDBConfigurationProviderForSyncState,
 				fx.ResultTags(`name:"sync_state_db_config_provider"`),
+			),
+		),
+		fx.Provide(
+			fx.Annotate(
+				config.NewLevelDBConfigurationProviderForRecovery, // You'll need to add this function
+				fx.ResultTags(`name:"recovery_db_config_provider"`),
 			),
 		),
 
@@ -89,6 +97,13 @@ func RepoModule() fx.Option {
 			fx.Annotate(
 				NewUserRepo,
 				fx.ParamTags(``, `name:"user_db"`),
+			),
+		),
+		fx.Provide(
+			fx.Annotate(
+				leveldb.NewDiskStorage,
+				fx.ParamTags(`name:"recovery_db_config_provider"`),
+				fx.ResultTags(`name:"recovery_db"`),
 			),
 		),
 
@@ -161,6 +176,21 @@ func RepoModule() fx.Option {
 		// Cloud Me DTO repository
 		//----------------------------------------------
 		fx.Provide(medto.NewMeDTORepository),
+
+		//----------------------------------------------
+		// Recovery repositories
+		//----------------------------------------------
+		fx.Provide(
+			fx.Annotate(
+				recovery.NewRecoveryRepository,
+				fx.ParamTags(``, `name:"recovery_db"`),
+			),
+		),
+
+		//----------------------------------------------
+		// Recovery DTO repository (for cloud API calls)
+		//----------------------------------------------
+		fx.Provide(recoverydto.NewRecoveryDTORepository),
 
 		//----------------------------------------------
 		// Transaction manager
