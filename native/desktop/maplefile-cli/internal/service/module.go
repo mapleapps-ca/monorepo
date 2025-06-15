@@ -121,5 +121,7 @@ func ServiceModule() fx.Option {
 
 		// Recovery
 		fx.Provide(recovery.NewRecoveryService),
+		fx.Provide(recovery.NewRecoveryCleanupService),
+		fx.Provide(recovery.NewRecoveryKeyService),
 	)
 }
