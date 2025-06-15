@@ -32,6 +32,8 @@ func Module() fx.Option {
 			gateway.NewGatewayRefreshTokenService,
 			gateway.NewGatewayFederatedUserPublicLookupService,
 			gateway.NewInitiateRecoveryService,
+			gateway.NewVerifyRecoveryService,
+			gateway.NewCompleteRecoveryService,
 		),
 	)
 }
