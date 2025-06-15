@@ -31,9 +31,10 @@ func init() {
 		"/maplefile/api/v1/dashboard": true,
 		// "/iam/api/v1/reset-password":      true,
 		// "/iam/api/v1/token/refresh": true, // This is counterintuitive to the token refresh api endpoint
-		"/iam/api/v1/recovery/initiate": true,
-		"/iam/api/v1/recovery/verify":   true,
-		"/iam/api/v1/recovery/complete": true,
+
+		// "/iam/api/v1/recovery/initiate": true,
+		// "/iam/api/v1/recovery/verify":   true,
+		// "/iam/api/v1/recovery/complete": true,
 	}
 
 	// Pattern matches
