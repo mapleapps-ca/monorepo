@@ -1,4 +1,4 @@
-// native/desktop/maplefile-cli/internal/repo/auth/token.go
+// native/desktop/maplefile-cli/internal/repo/authdto/token.go
 package authdto
 
 import (
@@ -15,31 +15,23 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
-	svc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
 )
 
 // tokenDTORepositoryImpl implements the TokenDTORepository interface
 type tokenDTORepositoryImpl struct {
-	logger                 *zap.Logger
-	configService          config.ConfigService
-	userRepo               user.Repository
-	tokenDecryptionService svc_authdto.TokenDecryptionService
+	logger        *zap.Logger
+	configService config.ConfigService
 }
 
 // NewTokenDTORepository creates a new instance of TokenDTORepository
 func NewTokenDTORepository(
 	logger *zap.Logger,
 	configService config.ConfigService,
-	userRepo user.Repository,
-	tokenDecryptionService svc_authdto.TokenDecryptionService,
 ) dom_authdto.TokenDTORepository {
 	logger = logger.Named("TokenRepository")
 	return &tokenDTORepositoryImpl{
-		logger:                 logger,
-		configService:          configService,
-		userRepo:               userRepo,
-		tokenDecryptionService: tokenDecryptionService,
+		logger:        logger,
+		configService: configService,
 	}
 }
 
@@ -208,63 +200,8 @@ func (s *tokenDTORepositoryImpl) refreshFromCloud(ctx context.Context, refreshTo
 		return nil, fmt.Errorf("error parsing response: %w", err)
 	}
 
-	// Check if we received encrypted tokens
-	if tokenResponse.EncryptedTokens != "" {
-		s.logger.Info("Received encrypted refresh tokens, need to decrypt",
-			zap.String("email", email))
-
-		// Get user data to decrypt tokens
-		userData, err := s.userRepo.GetByEmail(ctx, email)
-		if err != nil || userData == nil {
-			return nil, errors.NewAppError("failed to retrieve user data for token decryption", err)
-		}
-
-		// For token refresh, we need the user's password to decrypt
-		// In a production system, you might want to:
-		// 1. Store password temporarily in secure memory during session
-		// 2. Use OS keychain/keyring services
-		// 3. Prompt user for password
-		// For now, we'll return an error indicating password is needed
-
-		// Check if we have a password stored (this would be implemented with secure storage)
-		password := s.getStoredPassword(ctx, email)
-		if password == "" {
-			// We can't decrypt without the password
-			s.logger.Warn("Cannot decrypt refreshed tokens without password",
-				zap.String("email", email))
-			return nil, errors.NewAppError("password required to decrypt refreshed tokens - please login again", nil)
-		}
-
-		// Decrypt the tokens
-		accessToken, refreshToken, err := s.tokenDecryptionService.DecryptTokens(
-			tokenResponse.EncryptedTokens,
-			userData,
-			password,
-		)
-		if err != nil {
-			return nil, errors.NewAppError("failed to decrypt refreshed tokens", err)
-		}
-
-		// Update response with decrypted tokens
-		tokenResponse.AccessToken = accessToken
-		tokenResponse.RefreshToken = refreshToken
-
-		s.logger.Info("Successfully decrypted refreshed tokens",
-			zap.String("email", email))
-	} else if tokenResponse.AccessToken == "" || tokenResponse.RefreshToken == "" {
-		// No tokens received
-		return nil, errors.NewAppError("no tokens received from refresh", nil)
-	}
+	// Note: If tokens are encrypted, they need to be decrypted at the service layer, not here
+	// The repository layer should only handle data access, not business logic
 
 	return &tokenResponse, nil
-}
-
-// getStoredPassword retrieves stored password (placeholder - implement secure storage)
-func (s *tokenDTORepositoryImpl) getStoredPassword(ctx context.Context, email string) string {
-	// This is a placeholder - in production, implement secure password storage
-	// Options:
-	// 1. OS Keychain/Keyring integration
-	// 2. Secure in-memory storage during session
-	// 3. Hardware security module
-	return ""
 }

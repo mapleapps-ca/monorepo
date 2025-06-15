@@ -110,7 +110,13 @@ func RepoModule() fx.Option {
 		//----------------------------------------------
 		// Auth repositories
 		//----------------------------------------------
-		fx.Provide(authdto.NewTokenDTORepository),
+		fx.Provide(
+			fx.Annotate(
+				authdto.NewTokenDTORepository,
+				// Note: The token repository now requires these additional dependencies
+				// fx.ParamTags(``, ``, ``, ``), // logger, configService, userRepo, tokenDecryptionService
+			),
+		),
 		fx.Provide(authdto.NewEmailVerificationDTORepository),
 		fx.Provide(authdto.NewLoginOTTDTORepository),
 		fx.Provide(authdto.NewLoginOTTVerificationDTORepository),
