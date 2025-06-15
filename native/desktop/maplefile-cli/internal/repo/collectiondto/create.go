@@ -24,7 +24,7 @@ func (r *collectionDTORepository) CreateInCloud(ctx context.Context, collectionD
 	}
 
 	// Get server URL from configuration
-	r.logger.Debug("🔍 Getting cloud provider address from config")
+	r.logger.Debug("🔍 Marshalling create collection request to JSON")
 	serverURL, err := r.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
 		r.logger.Error("❌ Failed to get cloud provider address from config", zap.Error(err))
@@ -32,7 +32,7 @@ func (r *collectionDTORepository) CreateInCloud(ctx context.Context, collectionD
 	}
 
 	// Convert request to JSON
-	r.logger.Debug("🔍 Marshalling create collection request to JSON")
+	r.logger.Debug("✅ Successfully marshalled request to JSON")
 	jsonData, err := json.Marshal(collectionDTO)
 	if err != nil {
 		r.logger.Error("❌ Failed to marshal request to JSON", zap.Any("request", collectionDTO), zap.Error(err))
