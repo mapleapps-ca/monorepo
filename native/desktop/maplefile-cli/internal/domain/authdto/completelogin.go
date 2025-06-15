@@ -15,10 +15,15 @@ type CompleteLoginRequestDTO struct {
 
 // TokenResponseDTO represents the response from the server with auth tokens
 type TokenResponseDTO struct {
-	AccessToken            string    `json:"access_token"`
+	// Legacy plaintext fields
+	AccessToken            string    `json:"access_token,omitempty"`
 	AccessTokenExpiryTime  time.Time `json:"access_token_expiry_time"`
-	RefreshToken           string    `json:"refresh_token"`
+	RefreshToken           string    `json:"refresh_token,omitempty"`
 	RefreshTokenExpiryTime time.Time `json:"refresh_token_expiry_time"`
+
+	// New encrypted token fields
+	EncryptedTokens string `json:"encrypted_tokens,omitempty"`
+	TokenNonce      string `json:"token_nonce,omitempty"`
 }
 
 // CompleteLoginRepository defines methods for the login completion process

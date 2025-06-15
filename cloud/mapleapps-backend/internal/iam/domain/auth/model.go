@@ -26,3 +26,16 @@ type EncryptedAuthToken struct {
 	Ciphertext []byte `json:"ciphertext" bson:"ciphertext"`
 	UserID     string `json:"user_id" bson:"user_id"`
 }
+
+// EncryptedTokenResponse represents tokens encrypted with user's public key
+type EncryptedTokenResponse struct {
+	// Base64 encoded encrypted access token
+	EncryptedAccessToken string `json:"encrypted_access_token"`
+	// Base64 encoded encrypted refresh token
+	EncryptedRefreshToken string `json:"encrypted_refresh_token"`
+	// Expiry times are sent in plaintext as they're not sensitive
+	AccessTokenExpiryTime  time.Time `json:"access_token_expiry_time"`
+	RefreshTokenExpiryTime time.Time `json:"refresh_token_expiry_time"`
+	// Base64 encoded nonce used for encryption
+	Nonce string `json:"nonce"`
+}

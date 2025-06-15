@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
+	dom_auth "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/auth"
 	domain "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/federateduser"
 	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
@@ -28,12 +29,17 @@ type GatewayCompleteLoginRequestIDO struct {
 	DecryptedData string `json:"decryptedData"`
 }
 
-// GatewayCompleteLoginResponseIDO is the response sent back to client with authentication tokens
+// GatewayCompleteLoginResponseIDO is the response sent back to client with encrypted authentication tokens
 type GatewayCompleteLoginResponseIDO struct {
-	AccessToken            string    `json:"access_token"`
+	// Legacy plaintext fields (deprecated, will be removed in future)
+	AccessToken            string    `json:"access_token,omitempty"`
 	AccessTokenExpiryTime  time.Time `json:"access_token_expiry_time"`
-	RefreshToken           string    `json:"refresh_token"`
+	RefreshToken           string    `json:"refresh_token,omitempty"`
 	RefreshTokenExpiryTime time.Time `json:"refresh_token_expiry_time"`
+
+	// New encrypted token fields
+	EncryptedTokens string `json:"encrypted_tokens"`
+	TokenNonce      string `json:"token_nonce,omitempty"`
 }
 
 // Service interface for completing login
@@ -43,12 +49,13 @@ type GatewayCompleteLoginService interface {
 
 // Implementation of complete login service
 type gatewayCompleteLoginServiceImpl struct {
-	config                *config.Configuration
-	logger                *zap.Logger
-	cache                 twotiercache.TwoTierCacher
-	jwtProvider           jwt.JWTProvider
-	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase
-	userUpdateUseCase     uc_user.FederatedUserUpdateUseCase
+	config                 *config.Configuration
+	logger                 *zap.Logger
+	cache                  twotiercache.TwoTierCacher
+	jwtProvider            jwt.JWTProvider
+	userGetByEmailUseCase  uc_user.FederatedUserGetByEmailUseCase
+	userUpdateUseCase      uc_user.FederatedUserUpdateUseCase
+	tokenEncryptionService dom_auth.TokenEncryptionService
 }
 
 func NewGatewayCompleteLoginService(
@@ -58,15 +65,17 @@ func NewGatewayCompleteLoginService(
 	jwtProvider jwt.JWTProvider,
 	userGetByEmailUseCase uc_user.FederatedUserGetByEmailUseCase,
 	userUpdateUseCase uc_user.FederatedUserUpdateUseCase,
+	tokenEncryptionService dom_auth.TokenEncryptionService,
 ) GatewayCompleteLoginService {
 	logger = logger.Named("GatewayCompleteLoginService")
 	return &gatewayCompleteLoginServiceImpl{
-		config:                config,
-		logger:                logger,
-		cache:                 cache,
-		jwtProvider:           jwtProvider,
-		userGetByEmailUseCase: userGetByEmailUseCase,
-		userUpdateUseCase:     userUpdateUseCase,
+		config:                 config,
+		logger:                 logger,
+		cache:                  cache,
+		jwtProvider:            jwtProvider,
+		userGetByEmailUseCase:  userGetByEmailUseCase,
+		userUpdateUseCase:      userUpdateUseCase,
+		tokenEncryptionService: tokenEncryptionService,
 	}
 }
 
@@ -125,9 +134,7 @@ func (s *gatewayCompleteLoginServiceImpl) Execute(sessCtx context.Context, req *
 		return nil, httperror.NewForBadRequestWithSingleField("challengeId", "Challenge has already been used")
 	}
 
-	// Verify the decrypted data by comparing the raw bytes of the challenge.
-	// The challenge stored in cache (`challengeData.Challenge`) is standard Base64 encoded.
-	// The challenge received from the client (`req.DecryptedData`) is URL-safe Base64 encoded (no padding).
+	// Verify the decrypted data by comparing the raw bytes of the challenge
 	storedChallengeBase64 := challengeData.Challenge
 	receivedChallengeBase64 := req.DecryptedData
 
@@ -169,9 +176,6 @@ func (s *gatewayCompleteLoginServiceImpl) Execute(sessCtx context.Context, req *
 	if !bytes.Equal(storedChallengeBytes, receivedChallengeBytes) {
 		s.logger.Error("Challenge verification failed: byte content mismatch after decoding",
 			zap.String("challenge_id", req.ChallengeID),
-			// For security, avoid logging the actual byte values unless in a highly controlled debug environment.
-			// zap.String("stored_bytes_hex_preview", fmt.Sprintf("%.10x...", storedChallengeBytes)),
-			// zap.String("received_bytes_hex_preview", fmt.Sprintf("%.10x...", receivedChallengeBytes)),
 		)
 		return nil, httperror.NewForBadRequestWithSingleField("decryptedData", "Invalid challenge response")
 	}
@@ -209,12 +213,12 @@ func (s *gatewayCompleteLoginServiceImpl) Execute(sessCtx context.Context, req *
 		}
 	}
 
-	// Generate JWT tokens
-	return s.generateTokens(sessCtx, user)
+	// Generate JWT tokens and encrypt them
+	return s.generateEncryptedTokens(sessCtx, user)
 }
 
-// generateTokens creates access and refresh tokens for the user
-func (s *gatewayCompleteLoginServiceImpl) generateTokens(ctx context.Context, user *domain.FederatedUser) (*GatewayCompleteLoginResponseIDO, error) {
+// generateEncryptedTokens creates access and refresh tokens and encrypts them with user's public key
+func (s *gatewayCompleteLoginServiceImpl) generateEncryptedTokens(ctx context.Context, user *domain.FederatedUser) (*GatewayCompleteLoginResponseIDO, error) {
 	// Convert user to JSON for storage in cache
 	userBin, err := json.Marshal(user)
 	if err != nil {
@@ -227,6 +231,7 @@ func (s *gatewayCompleteLoginServiceImpl) generateTokens(ctx context.Context, us
 
 	// Create a unique session ID
 	sessionUUID := gocql.TimeUUID()
+
 	// Store user data in cache
 	err = s.cache.SetWithExpiry(ctx, sessionUUID.String(), userBin, rtExpiry)
 	if err != nil {
@@ -239,11 +244,47 @@ func (s *gatewayCompleteLoginServiceImpl) generateTokens(ctx context.Context, us
 		return nil, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
-	// Return tokens
+	// Check if user has a public key for encryption
+	if user.SecurityData == nil || len(user.SecurityData.PublicKey.Key) == 0 {
+		s.logger.Warn("User does not have public key, returning plaintext tokens (legacy mode)",
+			zap.String("email", user.Email))
+
+		// Return plaintext tokens for backward compatibility
+		return &GatewayCompleteLoginResponseIDO{
+			AccessToken:            accessToken,
+			AccessTokenExpiryTime:  accessTokenExpiry,
+			RefreshToken:           refreshToken,
+			RefreshTokenExpiryTime: refreshTokenExpiry,
+		}, nil
+	}
+
+	// Encrypt tokens with user's public key
+	encryptedResponse, err := s.tokenEncryptionService.EncryptTokens(
+		accessToken,
+		refreshToken,
+		user.SecurityData.PublicKey.Key,
+		accessTokenExpiry,
+		refreshTokenExpiry,
+	)
+	if err != nil {
+		s.logger.Error("Failed to encrypt tokens, falling back to plaintext",
+			zap.Error(err),
+			zap.String("email", user.Email))
+
+		// Fallback to plaintext tokens if encryption fails
+		return &GatewayCompleteLoginResponseIDO{
+			AccessToken:            accessToken,
+			AccessTokenExpiryTime:  accessTokenExpiry,
+			RefreshToken:           refreshToken,
+			RefreshTokenExpiryTime: refreshTokenExpiry,
+		}, nil
+	}
+
+	// Return encrypted tokens
 	return &GatewayCompleteLoginResponseIDO{
-		AccessToken:            accessToken,
+		EncryptedTokens:        encryptedResponse.EncryptedAccessToken,
+		TokenNonce:             encryptedResponse.Nonce,
 		AccessTokenExpiryTime:  accessTokenExpiry,
-		RefreshToken:           refreshToken,
 		RefreshTokenExpiryTime: refreshTokenExpiry,
 	}, nil
 }

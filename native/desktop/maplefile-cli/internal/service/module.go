@@ -4,7 +4,7 @@ package service
 import (
 	"go.uber.org/fx"
 
-	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
+	svc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collection"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectioncrypto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/collectionsharing"
@@ -34,14 +34,17 @@ func ServiceModule() fx.Option {
 		fx.Provide(security.NewPasswordValidationService),
 
 		// Auth DTO services
-		fx.Provide(authdto.NewUserVerificationDataTransformer),
-		fx.Provide(authdto.NewEmailVerificationService),
-		fx.Provide(authdto.NewLoginOTTService),
-		fx.Provide(authdto.NewLoginOTTVerificationService),
-		fx.Provide(authdto.NewCompleteLoginService),
-		fx.Provide(authdto.NewLogoutService),
-		fx.Provide(authdto.NewRecoveryService),
-		fx.Provide(authdto.NewRecoveryKeyService),
+		fx.Provide(svc_authdto.NewUserVerificationDataTransformer),
+		fx.Provide(svc_authdto.NewEmailVerificationService),
+		fx.Provide(svc_authdto.NewLoginOTTService),
+		fx.Provide(svc_authdto.NewLoginOTTVerificationService),
+		fx.Provide(svc_authdto.NewCompleteLoginService),
+		fx.Provide(svc_authdto.NewLogoutService),
+		fx.Provide(svc_authdto.NewRecoveryService),
+		fx.Provide(svc_authdto.NewRecoveryKeyService),
+
+		// Token encryption/decryption service
+		fx.Provide(svc_authdto.NewTokenDecryptionService),
 
 		// Collection services
 		fx.Provide(collection.NewCreateService),

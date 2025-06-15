@@ -1,4 +1,4 @@
-// cloud/mapleapps-backend/internal/iam/service/module.go
+// cloud/mapleapps-backend/internal/iam/service/module_updated.go
 package service
 
 import (
@@ -11,24 +11,25 @@ import (
 func Module() fx.Option {
 	return fx.Options(
 		fx.Provide(
+			// Token services
 			token.NewTokenVerifyService,
 			token.NewTokenGetSessionService,
+
+			// Token encryption service
+			gateway.NewTokenEncryptionService,
+
+			// Gateway services
 			gateway.NewGatewayFederatedUserRegisterService,
 			gateway.NewGatewayVerifyEmailService,
-			// Add the new E2EE login services
+
+			// E2EE login services
 			gateway.NewGatewayRequestLoginOTTService,
 			gateway.NewGatewayVerifyLoginOTTService,
 			gateway.NewGatewayCompleteLoginService,
+
 			// Other services
 			gateway.NewGatewayLogoutService,
-			// gateway.NewGatewaySendVerifyEmailService,
 			gateway.NewGatewayRefreshTokenService,
-			// gateway.NewGatewayResetPasswordService,
-			// gateway.NewGatewayForgotPasswordService,
-			// me.NewGetMeService,
-			// me.NewUpdateMeService,
-			// me.NewVerifyProfileService,
-			// me.NewDeleteMeService,
 			gateway.NewGatewayFederatedUserPublicLookupService,
 			gateway.NewInitiateRecoveryService,
 		),

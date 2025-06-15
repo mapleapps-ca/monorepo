@@ -15,20 +15,31 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/config"
 	dom_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/authdto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
+	svc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/authdto"
 )
 
 // tokenDTORepositoryImpl implements the TokenDTORepository interface
 type tokenDTORepositoryImpl struct {
-	logger        *zap.Logger
-	configService config.ConfigService
+	logger                 *zap.Logger
+	configService          config.ConfigService
+	userRepo               user.Repository
+	tokenDecryptionService svc_authdto.TokenDecryptionService
 }
 
 // NewTokenDTORepository creates a new instance of TokenDTORepository
-func NewTokenDTORepository(logger *zap.Logger, configService config.ConfigService) dom_authdto.TokenDTORepository {
+func NewTokenDTORepository(
+	logger *zap.Logger,
+	configService config.ConfigService,
+	userRepo user.Repository,
+	tokenDecryptionService svc_authdto.TokenDecryptionService,
+) dom_authdto.TokenDTORepository {
 	logger = logger.Named("TokenRepository")
 	return &tokenDTORepositoryImpl{
-		logger:        logger,
-		configService: configService,
+		logger:                 logger,
+		configService:          configService,
+		userRepo:               userRepo,
+		tokenDecryptionService: tokenDecryptionService,
 	}
 }
 
@@ -54,10 +65,6 @@ func (s *tokenDTORepositoryImpl) GetAccessToken(ctx context.Context) (string, er
 
 	// Check if token is expired or will expire soon (within 30 seconds as a buffer)
 	if creds.AccessToken == "" || time.Now().Add(30*time.Second).After(*creds.AccessTokenExpiryTime) {
-		// r.logger.Info("Access token expired or will expire soon, attempting to refresh",
-		// 	zap.String("email", creds.Email),
-		// 	zap.Time("tokenExpiry", creds.AccessTokenExpiryTime))
-
 		// Check if we have a refresh token
 		if creds.RefreshToken == "" {
 			return "", errors.NewAppError("no refresh token available", nil)
@@ -68,14 +75,24 @@ func (s *tokenDTORepositoryImpl) GetAccessToken(ctx context.Context) (string, er
 			return "", errors.NewAppError("refresh token has expired, please login again", nil)
 		}
 
-		// Refresh the token using the domain interface
-		tokenResp, err := s.refreshFromCloud(ctx, creds.RefreshToken)
+		// Refresh the token
+		tokenResp, err := s.refreshFromCloud(ctx, creds.RefreshToken, creds.Email)
 		if err != nil {
 			return "", errors.NewAppError("failed to refresh token", err)
 		}
-		if err := s.configService.SetLoggedInUserCredentials(ctx, creds.Email, tokenResp.AccessToken, &tokenResp.AccessTokenExpiryDate, tokenResp.RefreshToken, &tokenResp.RefreshTokenExpiryDate); err != nil {
+
+		// Update credentials
+		if err := s.configService.SetLoggedInUserCredentials(
+			ctx,
+			creds.Email,
+			tokenResp.AccessToken,
+			&tokenResp.AccessTokenExpiryDate,
+			tokenResp.RefreshToken,
+			&tokenResp.RefreshTokenExpiryDate,
+		); err != nil {
 			return "", errors.NewAppError("failed to save refreshed credentials", err)
 		}
+
 		creds.AccessToken = tokenResp.AccessToken
 	}
 
@@ -91,16 +108,25 @@ func (s *tokenDTORepositoryImpl) GetAccessTokenAfterForcedRefresh(ctx context.Co
 		return "", fmt.Errorf("no logged in user credentials found")
 	}
 
-	// Refresh the token using the domain interface
-	tokenResp, err := s.refreshFromCloud(ctx, creds.RefreshToken)
+	// Refresh the token
+	tokenResp, err := s.refreshFromCloud(ctx, creds.RefreshToken, creds.Email)
 	if err != nil {
 		return "", errors.NewAppError("failed to refresh token", err)
 	}
-	if err := s.configService.SetLoggedInUserCredentials(ctx, creds.Email, tokenResp.AccessToken, &tokenResp.AccessTokenExpiryDate, tokenResp.RefreshToken, &tokenResp.RefreshTokenExpiryDate); err != nil {
+
+	// Update credentials
+	if err := s.configService.SetLoggedInUserCredentials(
+		ctx,
+		creds.Email,
+		tokenResp.AccessToken,
+		&tokenResp.AccessTokenExpiryDate,
+		tokenResp.RefreshToken,
+		&tokenResp.RefreshTokenExpiryDate,
+	); err != nil {
 		return "", errors.NewAppError("failed to save refreshed credentials", err)
 	}
-	creds.AccessToken = tokenResp.AccessToken
-	return creds.AccessToken, nil
+
+	return tokenResp.AccessToken, nil
 }
 
 type TokenRefreshRequestDTO struct {
@@ -108,15 +134,20 @@ type TokenRefreshRequestDTO struct {
 }
 
 type TokenRefreshResponseDTO struct {
+	// Legacy plaintext fields
 	Email                  string    `json:"username"`
-	AccessToken            string    `json:"access_token"`
+	AccessToken            string    `json:"access_token,omitempty"`
 	AccessTokenExpiryDate  time.Time `json:"access_token_expiry_date"`
-	RefreshToken           string    `json:"refresh_token"`
+	RefreshToken           string    `json:"refresh_token,omitempty"`
 	RefreshTokenExpiryDate time.Time `json:"refresh_token_expiry_date"`
+
+	// New encrypted token fields
+	EncryptedTokens string `json:"encrypted_tokens,omitempty"`
+	TokenNonce      string `json:"token_nonce,omitempty"`
 }
 
 // RefreshToken refreshes the authentication token using the provided refresh token
-func (s *tokenDTORepositoryImpl) refreshFromCloud(ctx context.Context, refreshToken string) (*TokenRefreshResponseDTO, error) {
+func (s *tokenDTORepositoryImpl) refreshFromCloud(ctx context.Context, refreshToken string, email string) (*TokenRefreshResponseDTO, error) {
 	// Get the server URL from configuration
 	serverURL, err := s.configService.GetCloudProviderAddress(ctx)
 	if err != nil {
@@ -177,5 +208,63 @@ func (s *tokenDTORepositoryImpl) refreshFromCloud(ctx context.Context, refreshTo
 		return nil, fmt.Errorf("error parsing response: %w", err)
 	}
 
+	// Check if we received encrypted tokens
+	if tokenResponse.EncryptedTokens != "" {
+		s.logger.Info("Received encrypted refresh tokens, need to decrypt",
+			zap.String("email", email))
+
+		// Get user data to decrypt tokens
+		userData, err := s.userRepo.GetByEmail(ctx, email)
+		if err != nil || userData == nil {
+			return nil, errors.NewAppError("failed to retrieve user data for token decryption", err)
+		}
+
+		// For token refresh, we need the user's password to decrypt
+		// In a production system, you might want to:
+		// 1. Store password temporarily in secure memory during session
+		// 2. Use OS keychain/keyring services
+		// 3. Prompt user for password
+		// For now, we'll return an error indicating password is needed
+
+		// Check if we have a password stored (this would be implemented with secure storage)
+		password := s.getStoredPassword(ctx, email)
+		if password == "" {
+			// We can't decrypt without the password
+			s.logger.Warn("Cannot decrypt refreshed tokens without password",
+				zap.String("email", email))
+			return nil, errors.NewAppError("password required to decrypt refreshed tokens - please login again", nil)
+		}
+
+		// Decrypt the tokens
+		accessToken, refreshToken, err := s.tokenDecryptionService.DecryptTokens(
+			tokenResponse.EncryptedTokens,
+			userData,
+			password,
+		)
+		if err != nil {
+			return nil, errors.NewAppError("failed to decrypt refreshed tokens", err)
+		}
+
+		// Update response with decrypted tokens
+		tokenResponse.AccessToken = accessToken
+		tokenResponse.RefreshToken = refreshToken
+
+		s.logger.Info("Successfully decrypted refreshed tokens",
+			zap.String("email", email))
+	} else if tokenResponse.AccessToken == "" || tokenResponse.RefreshToken == "" {
+		// No tokens received
+		return nil, errors.NewAppError("no tokens received from refresh", nil)
+	}
+
 	return &tokenResponse, nil
+}
+
+// getStoredPassword retrieves stored password (placeholder - implement secure storage)
+func (s *tokenDTORepositoryImpl) getStoredPassword(ctx context.Context, email string) string {
+	// This is a placeholder - in production, implement secure password storage
+	// Options:
+	// 1. OS Keychain/Keyring integration
+	// 2. Secure in-memory storage during session
+	// 3. Hardware security module
+	return ""
 }
