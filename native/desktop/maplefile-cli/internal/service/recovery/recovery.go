@@ -3,6 +3,7 @@ package recovery
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	uc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/authdto"
 	uc_medto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/medto"
 	uc_recovery "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/recovery"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
 // RecoveryService provides high-level functionality for account recovery
@@ -216,7 +218,38 @@ func (s *recoveryService) VerifyRecoveryKey(ctx context.Context, sessionID strin
 	s.logger.Debug("Normalized recovery key format")
 
 	//
-	// STEP 3: Update in-memory status to match the found session
+	// STEP 3: Get the user from local storage
+	//
+	user, err := s.userRepo.GetByEmail(ctx, session.Email)
+	if err != nil {
+		s.logger.Error("❌ Failed to get user", zap.Error(err))
+		return nil, errors.NewAppError("failed to get user data", err)
+	}
+
+	if user == nil {
+		s.logger.Error("❌ User not found locally", zap.String("email", session.Email))
+		return nil, errors.NewAppError("user not found locally. Please ensure you have logged in before attempting recovery.", nil)
+	}
+
+	//
+	// STEP 4: Validate the recovery key against local user data
+	//
+	if err := s.validateRecoveryKeyLocally(ctx, user, cleanRecoveryKey); err != nil {
+		s.logger.Error("❌ Recovery key validation failed", zap.Error(err))
+		return nil, errors.NewAppError("invalid recovery key", err)
+	}
+
+	//
+	// STEP 5: Decrypt master key using recovery key to prepare recovery data
+	//
+	recoveryData, err := s.prepareRecoveryData(ctx, user, cleanRecoveryKey)
+	if err != nil {
+		s.logger.Error("❌ Failed to prepare recovery data", zap.Error(err))
+		return nil, err
+	}
+
+	//
+	// STEP 6: Update in-memory status to match the found session
 	//
 	s.mu.Lock()
 	s.currentStatus = &RecoveryStatus{
@@ -229,16 +262,7 @@ func (s *recoveryService) VerifyRecoveryKey(ctx context.Context, sessionID strin
 	s.mu.Unlock()
 
 	//
-	// STEP 4: Use auth recovery use case to get decrypted keys
-	//
-	recoveryData, err := s.authRecoveryUseCase.InitiateRecovery(ctx, session.Email, cleanRecoveryKey)
-	if err != nil {
-		s.logger.Error("❌ Failed to verify recovery key", zap.Error(err))
-		return nil, err
-	}
-
-	//
-	// STEP 5: Verify with cloud service
+	// STEP 7: Verify with cloud service
 	//
 	response, err := s.verifyRecoveryUseCase.Execute(ctx, sessionID, cleanRecoveryKey)
 	if err != nil {
@@ -247,7 +271,7 @@ func (s *recoveryService) VerifyRecoveryKey(ctx context.Context, sessionID strin
 	}
 
 	//
-	// STEP 6: Store recovery data for completion phase
+	// STEP 8: Store recovery data for completion phase
 	//
 	s.mu.Lock()
 	s.recoveryData = recoveryData
@@ -265,6 +289,71 @@ func (s *recoveryService) VerifyRecoveryKey(ctx context.Context, sessionID strin
 		MasterKeyEncryptedWithRecoveryKey: response.MasterKeyEncryptedWithRecoveryKey,
 		ExpiresAt:                         expiresAt,
 	}, nil
+}
+
+// validateRecoveryKeyLocally validates the recovery key against local user data
+func (s *recoveryService) validateRecoveryKeyLocally(ctx context.Context, user *user.User, recoveryKey string) error {
+	// Import the crypto package
+	// Decode recovery key
+	recoveryKeyBytes, err := base64.StdEncoding.DecodeString(recoveryKey)
+	if err != nil {
+		// Try URL-safe encoding
+		recoveryKeyBytes, err = base64.RawURLEncoding.DecodeString(recoveryKey)
+		if err != nil {
+			return errors.NewAppError("invalid recovery key format", err)
+		}
+	}
+
+	// Check if user has encrypted master key with recovery key
+	if len(user.MasterKeyEncryptedWithRecoveryKey.Ciphertext) == 0 {
+		return errors.NewAppError("no recovery key configured for this account", nil)
+	}
+
+	// Try to decrypt master key with the provided recovery key
+	// Note: You'll need to import the crypto package
+	_, err = crypto.DecryptWithSecretBox(
+		user.MasterKeyEncryptedWithRecoveryKey.Ciphertext,
+		user.MasterKeyEncryptedWithRecoveryKey.Nonce,
+		recoveryKeyBytes,
+	)
+
+	if err != nil {
+		return errors.NewAppError("invalid recovery key", nil)
+	}
+
+	return nil
+}
+
+// prepareRecoveryData prepares the recovery data needed for password reset
+func (s *recoveryService) prepareRecoveryData(ctx context.Context, user *user.User, recoveryKey string) (*uc_authdto.RecoveryData, error) {
+	// Decode recovery key
+	recoveryKeyBytes, err := base64.StdEncoding.DecodeString(recoveryKey)
+	if err != nil {
+		// Try URL-safe encoding
+		recoveryKeyBytes, err = base64.RawURLEncoding.DecodeString(recoveryKey)
+		if err != nil {
+			return nil, errors.NewAppError("invalid recovery key format", err)
+		}
+	}
+
+	// Decrypt master key using recovery key
+	masterKey, err := crypto.DecryptWithSecretBox(
+		user.MasterKeyEncryptedWithRecoveryKey.Ciphertext,
+		user.MasterKeyEncryptedWithRecoveryKey.Nonce,
+		recoveryKeyBytes,
+	)
+	if err != nil {
+		return nil, errors.NewAppError("failed to decrypt master key with recovery key", err)
+	}
+
+	// Prepare recovery data
+	recoveryData := &uc_authdto.RecoveryData{
+		Email:     user.Email,
+		MasterKey: masterKey,
+		// Add other fields as needed based on the RecoveryData structure
+	}
+
+	return recoveryData, nil
 }
 
 // normalizeRecoveryKey cleans up the recovery key format to be a proper base64 string
