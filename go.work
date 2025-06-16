@@ -1,7 +1,6 @@
 go 1.24.3
 
 use (
-	./cloud/backend
 	./cloud/mapleapps-backend
 	./native/desktop/maplefile-cli
 )
