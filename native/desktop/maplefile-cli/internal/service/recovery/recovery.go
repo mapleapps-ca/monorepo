@@ -4,6 +4,7 @@ package recovery
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -182,17 +183,20 @@ func (s *recoveryService) VerifyRecoveryKey(ctx context.Context, sessionID strin
 	s.logger.Info("🔐 Verifying recovery key", zap.String("sessionID", sessionID))
 
 	//
-	// STEP 1: Check current status
+	// STEP 1: First try to get session from repository (persistent storage)
 	//
-	s.mu.RLock()
-	status := s.currentStatus
-	s.mu.RUnlock()
-
-	if status == nil || !status.InProgress || status.SessionID != sessionID {
-		return nil, errors.NewAppError("no active recovery session or session mismatch", nil)
+	session, err := s.getRecoverySessionUseCase.Execute(ctx, sessionID)
+	if err != nil {
+		s.logger.Error("❌ Failed to get recovery session", zap.Error(err))
+		return nil, err
 	}
 
-	if status.ExpiresAt != nil && time.Now().After(*status.ExpiresAt) {
+	if session == nil {
+		return nil, errors.NewAppError("recovery session not found", nil)
+	}
+
+	// Check if session has expired
+	if session.IsExpired() {
 		s.mu.Lock()
 		s.currentStatus = nil
 		s.recoveryData = nil
@@ -200,26 +204,50 @@ func (s *recoveryService) VerifyRecoveryKey(ctx context.Context, sessionID strin
 		return nil, errors.NewAppError("recovery session has expired", nil)
 	}
 
+	// Check if session can be verified
+	if !session.CanVerify() {
+		return nil, errors.NewAppError("recovery session cannot be verified (expired or already verified)", nil)
+	}
+
 	//
-	// STEP 2: Use auth recovery use case to get decrypted keys
+	// STEP 2: Clean and normalize the recovery key format
 	//
-	recoveryData, err := s.authRecoveryUseCase.InitiateRecovery(ctx, status.Email, recoveryKey)
+	cleanRecoveryKey := s.normalizeRecoveryKey(recoveryKey)
+	s.logger.Debug("Normalized recovery key format")
+
+	//
+	// STEP 3: Update in-memory status to match the found session
+	//
+	s.mu.Lock()
+	s.currentStatus = &RecoveryStatus{
+		InProgress: true,
+		SessionID:  sessionID,
+		Email:      session.Email,
+		Stage:      "initiated",
+		ExpiresAt:  &session.ExpiresAt,
+	}
+	s.mu.Unlock()
+
+	//
+	// STEP 4: Use auth recovery use case to get decrypted keys
+	//
+	recoveryData, err := s.authRecoveryUseCase.InitiateRecovery(ctx, session.Email, cleanRecoveryKey)
 	if err != nil {
 		s.logger.Error("❌ Failed to verify recovery key", zap.Error(err))
 		return nil, err
 	}
 
 	//
-	// STEP 3: Verify with cloud service
+	// STEP 5: Verify with cloud service
 	//
-	response, err := s.verifyRecoveryUseCase.Execute(ctx, sessionID, recoveryKey)
+	response, err := s.verifyRecoveryUseCase.Execute(ctx, sessionID, cleanRecoveryKey)
 	if err != nil {
 		s.logger.Error("❌ Failed to verify recovery with cloud", zap.Error(err))
 		return nil, err
 	}
 
 	//
-	// STEP 4: Store recovery data for completion phase
+	// STEP 6: Store recovery data for completion phase
 	//
 	s.mu.Lock()
 	s.recoveryData = recoveryData
@@ -237,6 +265,22 @@ func (s *recoveryService) VerifyRecoveryKey(ctx context.Context, sessionID strin
 		MasterKeyEncryptedWithRecoveryKey: response.MasterKeyEncryptedWithRecoveryKey,
 		ExpiresAt:                         expiresAt,
 	}, nil
+}
+
+// normalizeRecoveryKey cleans up the recovery key format to be a proper base64 string
+func (s *recoveryService) normalizeRecoveryKey(recoveryKey string) string {
+	// Remove any whitespace
+	cleanKey := strings.TrimSpace(recoveryKey)
+
+	// Remove hyphens and spaces that might be used for formatting
+	cleanKey = strings.ReplaceAll(cleanKey, "-", "")
+	cleanKey = strings.ReplaceAll(cleanKey, " ", "")
+
+	s.logger.Debug("Recovery key normalized",
+		zap.String("original_length", fmt.Sprintf("%d", len(recoveryKey))),
+		zap.String("cleaned_length", fmt.Sprintf("%d", len(cleanKey))))
+
+	return cleanKey
 }
 
 // CompleteRecovery sets new password and completes the recovery
