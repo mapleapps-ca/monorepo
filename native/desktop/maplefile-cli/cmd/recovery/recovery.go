@@ -196,6 +196,7 @@ Example:
 func completeRecoveryCmd(recoveryService recovery.RecoveryService, logger *zap.Logger) *cobra.Command {
 	var recoveryToken string
 	var showNewKey bool
+	var recoveryKey string
 
 	var cmd = &cobra.Command{
 		Use:   "complete",
@@ -209,27 +210,38 @@ This final step:
 4. Maintains all your encrypted data intact
 
 Your encrypted files remain accessible because the master key stays the same -
-only the password protecting it changes.`,
+only the password protecting it changes.
+
+If your recovery session was interrupted, you may need to provide your recovery key again.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
 
-			// Get recovery status if no token provided
-			if recoveryToken == "" {
-				status, err := recoveryService.GetRecoveryStatus(ctx)
-				if err != nil || !status.InProgress {
-					fmt.Println("❌ Error: no active recovery session")
-					fmt.Println("👉 Start recovery first: maplefile-cli recovery start --email <email>")
-					return
-				}
-
-				if status.Stage != "verified" {
-					fmt.Println("❌ Error: recovery key not yet verified")
-					fmt.Printf("👉 Verify first: maplefile-cli recovery verify --session %s\n", status.SessionID)
-					return
-				}
-
-				fmt.Printf("📧 Completing recovery for: %s\n", status.Email)
+			// Check recovery status first
+			status, err := recoveryService.GetRecoveryStatus(ctx)
+			if err != nil {
+				fmt.Printf("❌ Error checking recovery status: %v\n", err)
+				return
 			}
+
+			if !status.InProgress {
+				fmt.Println("❌ Error: no active recovery session found")
+				fmt.Println("\n💡 Recovery flow:")
+				fmt.Println("   1. maplefile-cli recovery start --email <email>")
+				fmt.Println("   2. maplefile-cli recovery verify --session <session-id>")
+				fmt.Println("   3. maplefile-cli recovery complete")
+				fmt.Println("\n👉 Start recovery first: maplefile-cli recovery start --email <email>")
+				return
+			}
+
+			if status.Stage != "verified" {
+				fmt.Printf("❌ Error: recovery key not yet verified (current stage: %s)\n", status.Stage)
+				if status.Stage == "initiated" {
+					fmt.Printf("👉 Verify first: maplefile-cli recovery verify --session %s\n", status.SessionID)
+				}
+				return
+			}
+
+			fmt.Printf("📧 Completing recovery for: %s\n", status.Email)
 
 			// Prompt for new password
 			password, err := promptForNewPassword()
@@ -249,8 +261,54 @@ only the password protecting it changes.`,
 			// Complete recovery
 			result, err := recoveryService.CompleteRecovery(ctx, recoveryToken, password)
 			if err != nil {
-				fmt.Printf("❌ Error: %v\n", err)
-				return
+				// Check if this is a missing recovery data error and we can prompt for recovery key
+				if strings.Contains(err.Error(), "recovery data not found") && recoveryKey == "" {
+					fmt.Println("⚠️  Recovery data not found in memory. This can happen if the CLI was restarted.")
+					fmt.Println("🔑 Please provide your recovery key to complete the process:")
+
+					// Prompt for recovery key
+					promptedRecoveryKey, keyErr := promptForRecoveryKey()
+					if keyErr != nil {
+						fmt.Printf("❌ Error reading recovery key: %v\n", keyErr)
+						return
+					}
+
+					// Clean the recovery key
+					cleanKey := cleanRecoveryKey(promptedRecoveryKey)
+
+					// Try to re-verify with the recovery key to restore recovery data
+					fmt.Println("🔄 Re-verifying recovery key to restore session data...")
+					_, verifyErr := recoveryService.VerifyRecoveryKey(ctx, status.SessionID, cleanKey)
+					if verifyErr != nil {
+						fmt.Printf("❌ Failed to verify recovery key: %v\n", verifyErr)
+						fmt.Println("\n💡 Please ensure you're using the correct recovery key.")
+						return
+					}
+
+					fmt.Println("✅ Recovery key verified! Attempting to complete recovery again...")
+
+					// Try completion again
+					result, err = recoveryService.CompleteRecovery(ctx, recoveryToken, password)
+					if err != nil {
+						fmt.Printf("❌ Error: %v\n", err)
+						return
+					}
+				} else {
+					fmt.Printf("❌ Error: %v\n", err)
+
+					// Provide helpful error messages based on error type
+					if strings.Contains(err.Error(), "no active recovery session") {
+						fmt.Println("\n💡 The recovery session may have expired or been completed.")
+						fmt.Println("👉 Start a new recovery: maplefile-cli recovery start --email <email>")
+					} else if strings.Contains(err.Error(), "not verified") {
+						fmt.Println("\n💡 You need to verify your recovery key first.")
+						fmt.Println("👉 Verify: maplefile-cli recovery verify --session <session-id>")
+					} else if strings.Contains(err.Error(), "expired") {
+						fmt.Println("\n💡 The recovery session has expired.")
+						fmt.Println("👉 Start a new recovery: maplefile-cli recovery start --email <email>")
+					}
+					return
+				}
 			}
 
 			fmt.Println("\n✅ Password reset successfully!")
@@ -278,6 +336,7 @@ only the password protecting it changes.`,
 	// Define command flags
 	cmd.Flags().StringVar(&recoveryToken, "token", "", "Recovery token (if you have it)")
 	cmd.Flags().BoolVar(&showNewKey, "show-new-key", true, "Display the new recovery key after reset")
+	cmd.Flags().StringVar(&recoveryKey, "recovery-key", "", "Recovery key (if recovery data was lost)")
 
 	return cmd
 }
