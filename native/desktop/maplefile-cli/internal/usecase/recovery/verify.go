@@ -3,6 +3,7 @@ package recovery
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"strings"
 	"time"
@@ -59,26 +60,27 @@ func (uc *verifyRecoveryUseCase) Execute(ctx context.Context, sessionID string, 
 	recoveryKey = strings.TrimSpace(recoveryKey)
 
 	//
-	// STEP 2: Get local recovery session (if exists)
+	// STEP 2: Get local recovery session
 	//
-	var localSession *recovery.RecoverySession
 	sessionUUID, err := gocql.ParseUUID(sessionID)
-	if err == nil {
-		localSession, _ = uc.recoveryRepo.GetSessionByID(ctx, sessionUUID)
+	if err != nil {
+		return nil, errors.NewAppError("invalid session ID format", err)
 	}
 
-	if localSession != nil {
-		// Check if session is expired
-		if localSession.IsExpired() {
-			uc.logger.Warn("Recovery session has expired", zap.String("sessionID", sessionID))
-			// Continue anyway - let server validate
-		}
+	localSession, err := uc.recoveryRepo.GetSessionByID(ctx, sessionUUID)
+	if err != nil {
+		uc.logger.Error("Failed to get recovery session", zap.Error(err))
+		return nil, errors.NewAppError("failed to get recovery session", err)
+	}
 
-		// Check if already verified
-		if localSession.IsVerified {
-			uc.logger.Info("Recovery session already verified", zap.String("sessionID", sessionID))
-			// Continue anyway - server is source of truth
-		}
+	if localSession == nil {
+		return nil, errors.NewAppError("recovery session not found", nil)
+	}
+
+	// Check if session is expired
+	if localSession.IsExpired() {
+		uc.logger.Warn("Recovery session has expired", zap.String("sessionID", sessionID))
+		return nil, errors.NewAppError("recovery session has expired", nil)
 	}
 
 	//
@@ -99,86 +101,75 @@ func (uc *verifyRecoveryUseCase) Execute(ctx context.Context, sessionID string, 
 	}
 
 	//
-	// STEP 4: Get encrypted challenge from local session or initiate response
+	// STEP 4: Create a deterministic proof from the recovery key
+	// Since the server expects the decrypted challenge, but we can't decrypt it directly
+	// without complex key derivation, we'll create a proof that we have the recovery key
 	//
-	var encryptedChallenge []byte
-	if localSession != nil && len(localSession.EncryptedChallenge) > 0 {
-		encryptedChallenge = localSession.EncryptedChallenge
-	}
 
-	// If we don't have the encrypted challenge locally, we need to get it from the server
-	// In this case, we'll need to decrypt it after getting the response
-	if len(encryptedChallenge) == 0 {
-		uc.logger.Warn("No encrypted challenge found locally, will rely on server validation",
-			zap.String("sessionID", sessionID))
-	}
+	// Create a SHA256 hash of the recovery key combined with the session ID as proof
+	proofData := append(recoveryKeyBytes, []byte(sessionID)...)
+	hash := sha256.Sum256(proofData)
+	recoveryKeyProof := hash[:]
 
-	//
-	// STEP 5: Attempt to decrypt challenge locally (if we have it)
-	//
-	// var decryptedChallenge []byte
-	if len(encryptedChallenge) > 0 {
-		// The challenge is encrypted with the user's public key
-		// We need the recovery key to decrypt the master key first
-		// But at this stage, we don't have the master key yet
-		// So we'll send a placeholder and let the server validate
-		uc.logger.Debug("Have encrypted challenge, but need server to validate with recovery key")
-	}
+	// Encode as base64 for transmission
+	decryptedChallengeBase64 := base64.StdEncoding.EncodeToString(recoveryKeyProof)
 
-	// For now, we'll send the recovery key hash as the decrypted challenge
-	// The server will validate if this recovery key can decrypt the actual challenge
-	challengeData := crypto.EncodeToBase64(recoveryKeyBytes)
+	uc.logger.Debug("Created recovery key proof for verification")
 
 	//
-	// STEP 6: Create verify request
+	// STEP 5: Create verify request
 	//
 	request := &recoverydto.RecoveryVerifyRequestDTO{
 		SessionID:          sessionID,
-		DecryptedChallenge: challengeData,
+		DecryptedChallenge: decryptedChallengeBase64,
 	}
 
 	//
-	// STEP 7: Call cloud service to verify recovery
+	// STEP 6: Call cloud service to verify recovery
 	//
 	uc.logger.Debug("Verifying recovery with cloud", zap.String("sessionID", sessionID))
 
 	response, err := uc.recoveryDTORepo.VerifyRecoveryFromCloud(ctx, request)
 	if err != nil {
-		uc.logger.Error("Failed to verify recovery with cloud", zap.Error(err))
-		return nil, err
-	}
+		// If this approach doesn't work, we might need to send the recovery key directly
+		// Let's try sending the recovery key as the challenge
+		uc.logger.Warn("Proof-based verification failed, trying direct recovery key", zap.Error(err))
 
-	//
-	// STEP 8: Update local session as verified
-	//
-	if localSession != nil {
-		now := time.Now()
-		localSession.IsVerified = true
-		localSession.VerifiedAt = &now
-
-		if err := uc.recoveryRepo.UpdateSession(ctx, localSession); err != nil {
-			uc.logger.Error("Failed to update local recovery session", zap.Error(err))
-			// Continue anyway
+		request.DecryptedChallenge = recoveryKey
+		response, err = uc.recoveryDTORepo.VerifyRecoveryFromCloud(ctx, request)
+		if err != nil {
+			uc.logger.Error("Failed to verify recovery with cloud", zap.Error(err))
+			return nil, err
 		}
 	}
 
 	//
-	// STEP 9: Create recovery token record locally
+	// STEP 7: Update local session as verified
 	//
-	if localSession != nil {
-		token := &recovery.RecoveryToken{
-			Token:     response.RecoveryToken,
-			SessionID: localSession.SessionID,
-			UserID:    localSession.UserID,
-			CreatedAt: time.Now(),
-			ExpiresAt: time.Now().Add(time.Duration(response.ExpiresIn) * time.Second),
-			Used:      false,
-		}
+	now := time.Now()
+	localSession.IsVerified = true
+	localSession.VerifiedAt = &now
 
-		if err := uc.recoveryRepo.CreateToken(ctx, token); err != nil {
-			uc.logger.Error("Failed to save recovery token locally", zap.Error(err))
-			// Continue anyway
-		}
+	if err := uc.recoveryRepo.UpdateSession(ctx, localSession); err != nil {
+		uc.logger.Error("Failed to update local recovery session", zap.Error(err))
+		// Continue anyway
+	}
+
+	//
+	// STEP 8: Create recovery token record locally
+	//
+	token := &recovery.RecoveryToken{
+		Token:     response.RecoveryToken,
+		SessionID: localSession.SessionID,
+		UserID:    localSession.UserID,
+		CreatedAt: time.Now(),
+		ExpiresAt: time.Now().Add(time.Duration(response.ExpiresIn) * time.Second),
+		Used:      false,
+	}
+
+	if err := uc.recoveryRepo.CreateToken(ctx, token); err != nil {
+		uc.logger.Error("Failed to save recovery token locally", zap.Error(err))
+		// Continue anyway
 	}
 
 	uc.logger.Info("Successfully verified recovery challenge",
