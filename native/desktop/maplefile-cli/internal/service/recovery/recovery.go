@@ -1,5 +1,3 @@
-// native/desktop/maplefile-cli/internal/service/recovery/recovery.go
-// native/desktop/maplefile-cli/internal/service/recovery/recovery.go
 package recovery
 
 import (
@@ -86,6 +84,7 @@ type recoveryService struct {
 	mu            sync.RWMutex
 	currentStatus *RecoveryStatus
 	recoveryData  *uc_authdto.RecoveryData // Store decrypted keys temporarily
+	recoveryToken string                   // Store recovery token
 }
 
 // NewRecoveryService creates a new recovery service
@@ -212,6 +211,7 @@ func (s *recoveryService) VerifyRecoveryKey(ctx context.Context, sessionID strin
 		s.mu.Lock()
 		s.currentStatus = nil
 		s.recoveryData = nil
+		s.recoveryToken = ""
 		s.mu.Unlock()
 		return nil, errors.NewAppError("recovery session has expired", nil)
 	}
@@ -285,6 +285,7 @@ func (s *recoveryService) VerifyRecoveryKey(ctx context.Context, sessionID strin
 	//
 	s.mu.Lock()
 	s.recoveryData = recoveryData
+	s.recoveryToken = response.RecoveryToken
 	s.currentStatus.Stage = "verified"
 	expiresAt := time.Now().Add(time.Duration(response.ExpiresIn) * time.Second)
 	s.currentStatus.ExpiresAt = &expiresAt
@@ -293,6 +294,12 @@ func (s *recoveryService) VerifyRecoveryKey(ctx context.Context, sessionID strin
 	// Save updated state to persistent storage
 	if err := s.stateManager.SaveState(ctx, s.currentStatus); err != nil {
 		s.logger.Warn("Failed to save recovery state after verification", zap.Error(err))
+		// Continue anyway - this is not critical for the recovery process
+	}
+
+	// Save recovery data to persistent storage
+	if err := s.stateManager.SaveRecoveryData(ctx, recoveryData, response.RecoveryToken); err != nil {
+		s.logger.Warn("Failed to save recovery data after verification", zap.Error(err))
 		// Continue anyway - this is not critical for the recovery process
 	}
 
@@ -309,7 +316,6 @@ func (s *recoveryService) VerifyRecoveryKey(ctx context.Context, sessionID strin
 
 // validateRecoveryKeyLocally validates the recovery key against local user data
 func (s *recoveryService) validateRecoveryKeyLocally(ctx context.Context, user *user.User, recoveryKey string) error {
-	// Import the crypto package
 	// Decode recovery key
 	recoveryKeyBytes, err := base64.StdEncoding.DecodeString(recoveryKey)
 	if err != nil {
@@ -326,7 +332,6 @@ func (s *recoveryService) validateRecoveryKeyLocally(ctx context.Context, user *
 	}
 
 	// Try to decrypt master key with the provided recovery key
-	// Note: You'll need to import the crypto package
 	_, err = crypto.DecryptWithSecretBox(
 		user.MasterKeyEncryptedWithRecoveryKey.Ciphertext,
 		user.MasterKeyEncryptedWithRecoveryKey.Nonce,
@@ -398,6 +403,7 @@ func (s *recoveryService) CompleteRecovery(ctx context.Context, recoveryToken st
 	s.mu.RLock()
 	status := s.currentStatus
 	recoveryData := s.recoveryData
+	storedRecoveryToken := s.recoveryToken
 	s.mu.RUnlock()
 
 	// If no in-memory state, try to restore from persistent storage
@@ -418,10 +424,10 @@ func (s *recoveryService) CompleteRecovery(ctx context.Context, recoveryToken st
 			return nil, errors.NewAppError(fmt.Sprintf("recovery session not verified (current stage: %s). Please verify your recovery key first.", restoredStatus.Stage), nil)
 		}
 
-		// Restore recovery data from user and session
+		// Restore recovery data from persistent storage
 		if err := s.restoreRecoveryData(ctx, restoredStatus); err != nil {
 			s.logger.Error("❌ Failed to restore recovery data", zap.Error(err))
-			return nil, errors.NewAppError("failed to restore recovery data. Please start the recovery process again.", err)
+			return nil, err
 		}
 
 		// Update in-memory state
@@ -433,6 +439,7 @@ func (s *recoveryService) CompleteRecovery(ctx context.Context, recoveryToken st
 		s.mu.RLock()
 		status = s.currentStatus
 		recoveryData = s.recoveryData
+		storedRecoveryToken = s.recoveryToken
 		s.mu.RUnlock()
 	}
 
@@ -452,9 +459,22 @@ func (s *recoveryService) CompleteRecovery(ctx context.Context, recoveryToken st
 		s.mu.Lock()
 		s.currentStatus = nil
 		s.recoveryData = nil
+		s.recoveryToken = ""
 		s.mu.Unlock()
 		_ = s.stateManager.ClearState(ctx)
+		_ = s.stateManager.ClearRecoveryData(ctx)
 		return nil, errors.NewAppError("recovery session has expired", nil)
+	}
+
+	// Use provided recovery token or stored one
+	finalRecoveryToken := recoveryToken
+	if finalRecoveryToken == "" && storedRecoveryToken != "" {
+		finalRecoveryToken = storedRecoveryToken
+		s.logger.Debug("Using stored recovery token")
+	}
+
+	if finalRecoveryToken == "" {
+		return nil, errors.NewAppError("recovery token is required and not found in storage", nil)
 	}
 
 	//
@@ -474,7 +494,7 @@ func (s *recoveryService) CompleteRecovery(ctx context.Context, recoveryToken st
 	//
 	// STEP 3: Complete recovery with cloud
 	//
-	response, err := s.completeRecoveryUseCase.Execute(ctx, recoveryToken, newPassword, recoveryData.MasterKey)
+	response, err := s.completeRecoveryUseCase.Execute(ctx, finalRecoveryToken, newPassword, recoveryData.MasterKey)
 	if err != nil {
 		s.logger.Error("❌ Failed to complete recovery with cloud", zap.Error(err))
 		return nil, err
@@ -561,16 +581,20 @@ func (s *recoveryService) CompleteRecovery(ctx context.Context, recoveryToken st
 	}
 
 	//
-	// STEP 9: Clear recovery state
+	// STEP 9: Clear recovery state and data
 	//
 	s.mu.Lock()
 	s.currentStatus = nil
 	s.recoveryData = nil
+	s.recoveryToken = ""
 	s.mu.Unlock()
 
-	// Clear persistent state
+	// Clear persistent state and data
 	if err := s.stateManager.ClearState(ctx); err != nil {
 		s.logger.Warn("Failed to clear recovery state", zap.Error(err))
+	}
+	if err := s.stateManager.ClearRecoveryData(ctx); err != nil {
+		s.logger.Warn("Failed to clear recovery data", zap.Error(err))
 	}
 
 	// Display new recovery key to user
@@ -588,33 +612,47 @@ func (s *recoveryService) CompleteRecovery(ctx context.Context, recoveryToken st
 
 // restoreRecoveryData attempts to restore recovery data from the session and user
 func (s *recoveryService) restoreRecoveryData(ctx context.Context, status *RecoveryStatus) error {
-	s.logger.Debug("🔄 Attempting to restore recovery data")
+	s.logger.Debug("🔄 Attempting to restore recovery data from persistent storage")
 
 	if status.Email == "" {
 		return errors.NewAppError("no email in recovery status", nil)
 	}
 
-	// Get user from repository
-	user, err := s.userRepo.GetByEmail(ctx, status.Email)
+	// Load recovery data from persistent storage
+	recoveryData, recoveryToken, err := s.stateManager.LoadRecoveryData(ctx)
 	if err != nil {
-		return errors.NewAppError("failed to get user for recovery restoration", err)
+		return errors.NewAppError("failed to load recovery data from storage", err)
 	}
 
-	if user == nil {
-		return errors.NewAppError("user not found for recovery restoration", nil)
+	if recoveryData == nil {
+		s.logger.Debug("No recovery data found in persistent storage")
+		// Try to restore basic data without master key
+		user, err := s.userRepo.GetByEmail(ctx, status.Email)
+		if err != nil {
+			return errors.NewAppError("failed to get user for recovery restoration", err)
+		}
+
+		if user == nil {
+			return errors.NewAppError("user not found for recovery restoration", nil)
+		}
+
+		s.mu.Lock()
+		s.recoveryData = &uc_authdto.RecoveryData{
+			Email: user.Email,
+			// MasterKey will need to be provided again during completion
+		}
+		s.mu.Unlock()
+
+		return errors.NewAppError("recovery data not found in memory. Please provide your recovery key again to complete the process.", nil)
 	}
 
-	// We can't fully restore the recovery data without the recovery key
-	// But we can at least restore the email and user reference
-	// The actual master key will need to be provided again during completion
+	// Restore full recovery data
 	s.mu.Lock()
-	s.recoveryData = &uc_authdto.RecoveryData{
-		Email: user.Email,
-		// Note: MasterKey cannot be restored without the recovery key
-		// This will need to be handled in the completion flow
-	}
+	s.recoveryData = recoveryData
+	s.recoveryToken = recoveryToken
 	s.mu.Unlock()
 
+	s.logger.Info("✅ Successfully restored recovery data from persistent storage")
 	return nil
 }
 
@@ -632,8 +670,10 @@ func (s *recoveryService) GetRecoveryStatus(ctx context.Context) (*RecoveryStatu
 			s.mu.Lock()
 			s.currentStatus = nil
 			s.recoveryData = nil
+			s.recoveryToken = ""
 			s.mu.Unlock()
 			_ = s.stateManager.ClearState(ctx)
+			_ = s.stateManager.ClearRecoveryData(ctx)
 
 			return &RecoveryStatus{
 				InProgress: false,

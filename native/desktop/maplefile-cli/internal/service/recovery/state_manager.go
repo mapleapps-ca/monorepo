@@ -1,8 +1,9 @@
-// native/desktop/maplefile-cli/internal/service/recovery/state_manager.go
+// internal/service/recovery/state_manager.go
 package recovery
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"time"
 
@@ -10,11 +11,13 @@ import (
 
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/recovery"
+	uc_authdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/authdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage"
 )
 
 const (
 	recoveryStateKey = "current_recovery_state"
+	recoveryDataKey  = "current_recovery_data"
 )
 
 // RecoveryStateManager handles persistent recovery state
@@ -23,6 +26,11 @@ type RecoveryStateManager interface {
 	LoadState(ctx context.Context) (*RecoveryStatus, error)
 	ClearState(ctx context.Context) error
 	FindActiveSession(ctx context.Context) (*RecoveryStatus, error)
+
+	// Recovery data persistence methods
+	SaveRecoveryData(ctx context.Context, data *uc_authdto.RecoveryData, recoveryToken string) error
+	LoadRecoveryData(ctx context.Context) (*uc_authdto.RecoveryData, string, error)
+	ClearRecoveryData(ctx context.Context) error
 }
 
 // PersistentRecoveryState represents the recovery state stored in the database
@@ -33,6 +41,14 @@ type PersistentRecoveryState struct {
 	Stage      string     `json:"stage,omitempty"`
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
 	SavedAt    time.Time  `json:"saved_at"`
+}
+
+// PersistentRecoveryData represents the recovery data stored in the database
+type PersistentRecoveryData struct {
+	Email         string    `json:"email"`
+	RecoveryToken string    `json:"recovery_token,omitempty"`
+	MasterKey     string    `json:"master_key,omitempty"` // Base64 encoded for persistence
+	SavedAt       time.Time `json:"saved_at"`
 }
 
 type recoveryStateManager struct {
@@ -137,6 +153,89 @@ func (rsm *recoveryStateManager) ClearState(ctx context.Context) error {
 	}
 
 	rsm.logger.Debug("Successfully cleared recovery state")
+	return nil
+}
+
+// SaveRecoveryData saves the recovery data to persistent storage
+func (rsm *recoveryStateManager) SaveRecoveryData(ctx context.Context, data *uc_authdto.RecoveryData, recoveryToken string) error {
+	if data == nil {
+		return rsm.ClearRecoveryData(ctx)
+	}
+
+	// Encode master key as base64 for persistence
+	var masterKeyB64 string
+	if data.MasterKey != nil {
+		masterKeyB64 = base64.StdEncoding.EncodeToString(data.MasterKey)
+	}
+
+	persistentData := &PersistentRecoveryData{
+		Email:         data.Email,
+		RecoveryToken: recoveryToken,
+		MasterKey:     masterKeyB64,
+		SavedAt:       time.Now(),
+	}
+
+	dataBytes, err := json.Marshal(persistentData)
+	if err != nil {
+		rsm.logger.Error("Failed to marshal recovery data", zap.Error(err))
+		return errors.NewAppError("failed to save recovery data", err)
+	}
+
+	if err := rsm.storage.Set(recoveryDataKey, dataBytes); err != nil {
+		rsm.logger.Error("Failed to save recovery data to storage", zap.Error(err))
+		return errors.NewAppError("failed to save recovery data", err)
+	}
+
+	rsm.logger.Debug("Successfully saved recovery data")
+	return nil
+}
+
+// LoadRecoveryData loads the recovery data from persistent storage
+func (rsm *recoveryStateManager) LoadRecoveryData(ctx context.Context) (*uc_authdto.RecoveryData, string, error) {
+	dataBytes, err := rsm.storage.Get(recoveryDataKey)
+	if err != nil {
+		rsm.logger.Error("Failed to load recovery data from storage", zap.Error(err))
+		return nil, "", errors.NewAppError("failed to load recovery data", err)
+	}
+
+	if dataBytes == nil {
+		rsm.logger.Debug("No recovery data found in storage")
+		return nil, "", nil
+	}
+
+	var persistentData PersistentRecoveryData
+	if err := json.Unmarshal(dataBytes, &persistentData); err != nil {
+		rsm.logger.Error("Failed to unmarshal recovery data", zap.Error(err))
+		return nil, "", errors.NewAppError("failed to parse recovery data", err)
+	}
+
+	// Decode master key from base64
+	var masterKey []byte
+	if persistentData.MasterKey != "" {
+		masterKey, err = base64.StdEncoding.DecodeString(persistentData.MasterKey)
+		if err != nil {
+			rsm.logger.Error("Failed to decode master key", zap.Error(err))
+			return nil, "", errors.NewAppError("failed to decode master key", err)
+		}
+	}
+
+	data := &uc_authdto.RecoveryData{
+		Email:     persistentData.Email,
+		MasterKey: masterKey,
+	}
+
+	rsm.logger.Debug("Successfully loaded recovery data")
+	return data, persistentData.RecoveryToken, nil
+}
+
+// ClearRecoveryData removes the recovery data from persistent storage
+func (rsm *recoveryStateManager) ClearRecoveryData(ctx context.Context) error {
+	if err := rsm.storage.Delete(recoveryDataKey); err != nil {
+		rsm.logger.Error("Failed to clear recovery data from storage", zap.Error(err))
+		return errors.NewAppError("failed to clear recovery data", err)
+	}
+
+	rsm.logger.Debug("Successfully cleared recovery data")
 	return nil
 }
 
