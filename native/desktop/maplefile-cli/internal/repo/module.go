@@ -1,4 +1,5 @@
-// internal/repo/module.go
+// internal/repo/module.go - Complete updated RepoModule function
+
 package repo
 
 import (
@@ -18,6 +19,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/syncdto"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/syncstate"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/repo/transaction"
+	svc_recovery "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/service/recovery"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/storage/leveldb"
 )
 
@@ -53,8 +55,15 @@ func RepoModule() fx.Option {
 		),
 		fx.Provide(
 			fx.Annotate(
-				config.NewLevelDBConfigurationProviderForRecovery, // You'll need to add this function
+				config.NewLevelDBConfigurationProviderForRecovery,
 				fx.ResultTags(`name:"recovery_db_config_provider"`),
+			),
+		),
+		// NEW: Recovery State Storage Configuration Provider
+		fx.Provide(
+			fx.Annotate(
+				config.NewLevelDBConfigurationProviderForRecoveryState,
+				fx.ResultTags(`name:"recovery_state_db_config_provider"`),
 			),
 		),
 
@@ -89,6 +98,21 @@ func RepoModule() fx.Option {
 				fx.ResultTags(`name:"sync_state_db"`),
 			),
 		),
+		fx.Provide(
+			fx.Annotate(
+				leveldb.NewDiskStorage,
+				fx.ParamTags(`name:"recovery_db_config_provider"`),
+				fx.ResultTags(`name:"recovery_db"`),
+			),
+		),
+		// NEW: Recovery State Storage Instance
+		fx.Provide(
+			fx.Annotate(
+				leveldb.NewDiskStorage,
+				fx.ParamTags(`name:"recovery_state_db_config_provider"`),
+				fx.ResultTags(`name:"recovery_state_storage"`),
+			),
+		),
 
 		//----------------------------------------------
 		// Provide user repository
@@ -97,13 +121,6 @@ func RepoModule() fx.Option {
 			fx.Annotate(
 				NewUserRepo,
 				fx.ParamTags(``, `name:"user_db"`),
-			),
-		),
-		fx.Provide(
-			fx.Annotate(
-				leveldb.NewDiskStorage,
-				fx.ParamTags(`name:"recovery_db_config_provider"`),
-				fx.ResultTags(`name:"recovery_db"`),
 			),
 		),
 
@@ -197,6 +214,16 @@ func RepoModule() fx.Option {
 		// Recovery DTO repository (for cloud API calls)
 		//----------------------------------------------
 		fx.Provide(recoverydto.NewRecoveryDTORepository),
+
+		//----------------------------------------------
+		// Recovery State Manager (NEW: with dedicated storage)
+		//----------------------------------------------
+		fx.Provide(
+			fx.Annotate(
+				svc_recovery.NewRecoveryStateManager,
+				fx.ParamTags(``, `name:"recovery_state_storage"`, ``), // logger, storage, recoveryRepo
+			),
+		),
 
 		//----------------------------------------------
 		// Transaction manager

@@ -123,6 +123,5 @@ func ServiceModule() fx.Option {
 		fx.Provide(recovery.NewRecoveryService),
 		fx.Provide(recovery.NewRecoveryCleanupService),
 		fx.Provide(recovery.NewRecoveryKeyService),
-		fx.Provide(recovery.NewRecoveryStateManager),
 	)
 }
