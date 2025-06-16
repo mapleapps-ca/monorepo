@@ -39,6 +39,7 @@ import (
 	uc_collection "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/collection"
 	uc_file "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/file"
 	uc_publiclookupdto "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/publiclookupdto"
+	uc_refreshtoken "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/refreshtoken"
 	uc_user "github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/usecase/user"
 )
 
@@ -54,6 +55,7 @@ func NewRootCmd(
 	loginOTTVerificationService svc_authdto.LoginOTTVerificationService,
 	completeLoginService svc_authdto.CompleteLoginService,
 	logoutService svc_authdto.LogoutService,
+	refreshTokenUseCase uc_refreshtoken.RefreshTokenUseCase,
 	recoveryService svc_recovery.RecoveryService,
 	recoveryKeyService svc_recovery.RecoveryKeyService,
 	recoveryCleanupService svc_recovery.RecoveryCleanupService,
@@ -145,7 +147,7 @@ For detailed help: maplefile-cli COMMAND --help`,
 	rootCmd.AddCommand(login.CompleteLoginCmd(completeLoginService, logger))
 
 	rootCmd.AddCommand(logout.LogoutCmd(logoutService, logger))
-	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, tokenRepository))
+	rootCmd.AddCommand(refreshtoken.RefreshTokenCmd(logger, configService, refreshTokenUseCase))
 	rootCmd.AddCommand(recovery.RecoveryCmd(
 		recoveryService,
 		recoveryKeyService,

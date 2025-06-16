@@ -42,6 +42,7 @@ func ServiceModule() fx.Option {
 		fx.Provide(svc_authdto.NewLogoutService),
 		fx.Provide(svc_authdto.NewRecoveryService),
 		fx.Provide(svc_authdto.NewRecoveryKeyService),
+		fx.Provide(svc_authdto.NewTokenRefreshService),
 
 		// Token encryption/decryption service
 		fx.Provide(svc_authdto.NewTokenDecryptionService),
