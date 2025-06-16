@@ -3,7 +3,6 @@ package recovery
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
 	"strings"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/common/errors"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/recovery"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/recoverydto"
+	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/internal/domain/user"
 	"github.com/mapleapps-ca/monorepo/native/desktop/maplefile-cli/pkg/crypto"
 )
 
@@ -27,6 +27,7 @@ type verifyRecoveryUseCase struct {
 	logger          *zap.Logger
 	recoveryDTORepo recoverydto.RecoveryDTORepository
 	recoveryRepo    recovery.RecoveryRepository
+	userRepo        user.Repository // Added user repository
 }
 
 // NewVerifyRecoveryUseCase creates a new verify recovery use case
@@ -34,12 +35,14 @@ func NewVerifyRecoveryUseCase(
 	logger *zap.Logger,
 	recoveryDTORepo recoverydto.RecoveryDTORepository,
 	recoveryRepo recovery.RecoveryRepository,
+	userRepo user.Repository, // Added user repository parameter
 ) VerifyRecoveryUseCase {
 	logger = logger.Named("VerifyRecoveryUseCase")
 	return &verifyRecoveryUseCase{
 		logger:          logger,
 		recoveryDTORepo: recoveryDTORepo,
 		recoveryRepo:    recoveryRepo,
+		userRepo:        userRepo, // Store user repository
 	}
 }
 
@@ -84,7 +87,20 @@ func (uc *verifyRecoveryUseCase) Execute(ctx context.Context, sessionID string, 
 	}
 
 	//
-	// STEP 3: Decode recovery key
+	// STEP 3: Get user data to access encrypted keys
+	//
+	user, err := uc.userRepo.GetByEmail(ctx, localSession.Email)
+	if err != nil {
+		uc.logger.Error("Failed to get user", zap.Error(err))
+		return nil, errors.NewAppError("failed to get user data", err)
+	}
+
+	if user == nil {
+		return nil, errors.NewAppError("user not found locally. Please ensure you have logged in before attempting recovery.", nil)
+	}
+
+	//
+	// STEP 4: Decode and validate recovery key
 	//
 	recoveryKeyBytes, err := base64.StdEncoding.DecodeString(recoveryKey)
 	if err != nil {
@@ -101,23 +117,81 @@ func (uc *verifyRecoveryUseCase) Execute(ctx context.Context, sessionID string, 
 	}
 
 	//
-	// STEP 4: Create a deterministic proof from the recovery key
-	// Since the server expects the decrypted challenge, but we can't decrypt it directly
-	// without complex key derivation, we'll create a proof that we have the recovery key
+	// STEP 5: Decrypt master key using recovery key
 	//
+	if len(user.MasterKeyEncryptedWithRecoveryKey.Ciphertext) == 0 {
+		return nil, errors.NewAppError("no recovery key data found for user", nil)
+	}
 
-	// Create a SHA256 hash of the recovery key combined with the session ID as proof
-	proofData := append(recoveryKeyBytes, []byte(sessionID)...)
-	hash := sha256.Sum256(proofData)
-	recoveryKeyProof := hash[:]
+	masterKey, err := crypto.DecryptWithSecretBox(
+		user.MasterKeyEncryptedWithRecoveryKey.Ciphertext,
+		user.MasterKeyEncryptedWithRecoveryKey.Nonce,
+		recoveryKeyBytes,
+	)
+	if err != nil {
+		uc.logger.Error("Failed to decrypt master key with recovery key", zap.Error(err))
+		return nil, errors.NewAppError("invalid recovery key", nil)
+	}
 
-	// Encode as base64 for transmission
-	decryptedChallengeBase64 := base64.StdEncoding.EncodeToString(recoveryKeyProof)
-
-	uc.logger.Debug("Created recovery key proof for verification")
+	// Clear master key after use
+	defer crypto.ClearBytes(masterKey)
 
 	//
-	// STEP 5: Create verify request
+	// STEP 6: Decrypt private key using master key
+	//
+	privateKey, err := crypto.DecryptWithSecretBox(
+		user.EncryptedPrivateKey.Ciphertext,
+		user.EncryptedPrivateKey.Nonce,
+		masterKey,
+	)
+	if err != nil {
+		uc.logger.Error("Failed to decrypt private key", zap.Error(err))
+		return nil, errors.NewAppError("failed to decrypt private key", err)
+	}
+
+	// Clear private key after use
+	defer crypto.ClearBytes(privateKey)
+
+	//
+	// STEP 7: Decrypt the challenge using the private key
+	//
+	if len(localSession.EncryptedChallenge) == 0 {
+		return nil, errors.NewAppError("no encrypted challenge found in session", nil)
+	}
+
+	// The encrypted challenge from the server should be base64 encoded
+	encryptedChallengeStr := string(localSession.EncryptedChallenge)
+
+	// Decode the base64 encrypted challenge
+	encryptedChallengeBytes, err := base64.StdEncoding.DecodeString(encryptedChallengeStr)
+	if err != nil {
+		// Try URL-safe base64
+		encryptedChallengeBytes, err = base64.RawURLEncoding.DecodeString(encryptedChallengeStr)
+		if err != nil {
+			return nil, errors.NewAppError("invalid encrypted challenge format", err)
+		}
+	}
+
+	// Decrypt the challenge using box_open (public key cryptography)
+	// The challenge is encrypted with the user's public key, so we need the private key
+	decryptedChallenge, err := crypto.DecryptWithBoxAnonymous(
+		encryptedChallengeBytes,
+		user.PublicKey.Key,
+		privateKey,
+	)
+	if err != nil {
+		uc.logger.Error("Failed to decrypt challenge with private key", zap.Error(err))
+		return nil, errors.NewAppError("failed to decrypt challenge", err)
+	}
+
+	// Encode the decrypted challenge as base64 for transmission
+	decryptedChallengeBase64 := base64.StdEncoding.EncodeToString(decryptedChallenge)
+
+	uc.logger.Debug("Successfully decrypted challenge",
+		zap.Int("challengeLength", len(decryptedChallenge)))
+
+	//
+	// STEP 8: Create verify request with the properly decrypted challenge
 	//
 	request := &recoverydto.RecoveryVerifyRequestDTO{
 		SessionID:          sessionID,
@@ -125,26 +199,18 @@ func (uc *verifyRecoveryUseCase) Execute(ctx context.Context, sessionID string, 
 	}
 
 	//
-	// STEP 6: Call cloud service to verify recovery
+	// STEP 9: Call cloud service to verify recovery
 	//
 	uc.logger.Debug("Verifying recovery with cloud", zap.String("sessionID", sessionID))
 
 	response, err := uc.recoveryDTORepo.VerifyRecoveryFromCloud(ctx, request)
 	if err != nil {
-		// If this approach doesn't work, we might need to send the recovery key directly
-		// Let's try sending the recovery key as the challenge
-		uc.logger.Warn("Proof-based verification failed, trying direct recovery key", zap.Error(err))
-
-		request.DecryptedChallenge = recoveryKey
-		response, err = uc.recoveryDTORepo.VerifyRecoveryFromCloud(ctx, request)
-		if err != nil {
-			uc.logger.Error("Failed to verify recovery with cloud", zap.Error(err))
-			return nil, err
-		}
+		uc.logger.Error("Failed to verify recovery with cloud", zap.Error(err))
+		return nil, err
 	}
 
 	//
-	// STEP 7: Update local session as verified
+	// STEP 10: Update local session as verified
 	//
 	now := time.Now()
 	localSession.IsVerified = true
@@ -156,7 +222,7 @@ func (uc *verifyRecoveryUseCase) Execute(ctx context.Context, sessionID string, 
 	}
 
 	//
-	// STEP 8: Create recovery token record locally
+	// STEP 11: Create recovery token record locally
 	//
 	token := &recovery.RecoveryToken{
 		Token:     response.RecoveryToken,

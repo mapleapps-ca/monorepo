@@ -417,3 +417,8 @@ func ClearBytes(b []byte) {
 		b[i] = 0
 	}
 }
+
+func HashSHA256(proofData []byte) []byte {
+	hash := sha256.Sum256(proofData)
+	return hash[:]
+}
