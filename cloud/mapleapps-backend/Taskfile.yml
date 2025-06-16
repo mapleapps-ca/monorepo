@@ -132,7 +132,10 @@ tasks:
       - go tool mockgen -source=pkg/security/jwt/jwt.go -destination=pkg/mocks/mock_security_jwt.go -package=mocks
       - go tool mockgen -source=pkg/storage/cache/cassandracache/cassandracache.go -destination=pkg/mocks/mock_storage_cache_cassandracache.go -package=mocks
       - go tool mockgen -source=pkg/storage/cache/twotiercache/twotiercache.go -destination=pkg/mocks/mock_storage_cache_twotiercache.go -package=mocks
-      - go tool mockgen -source=pkg/storage/memory/inmemory/memory.go -destination=pkg/mocks/mock_storage_memory_inmemory_memory.go -package=mocks
+      - go tool mockgen -source=pkg/storage/database/cassandradb/cassandradb.go -destination=pkg/mocks/mock_storage_database_cassandra_db.go -package=mocks
+      - go tool mockgen -source=pkg/storage/database/cassandradb/migration.go -destination=pkg/mocks/mock_storage_database_cassandra_migration.go -package=mocks
+      - go tool mockgen -source=pkg/storage/memory/inmemory/memory.go -destination=pkg/mocks/mock_storage_memory_inmemory.go -package=mocks
+      - go tool mockgen -source=pkg/storage/memory/redis/redis.go -destination=pkg/mocks/mock_storage_memory_redis.go -package=mocks
       - go tool mockgen -source=pkg/storage/object/s3/s3.go -destination=pkg/mocks/mock_storage_object_s3.go -package=mocks
       # IAM Module
       ## Domain Entities
