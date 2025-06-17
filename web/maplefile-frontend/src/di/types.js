@@ -7,4 +7,6 @@ export const TYPES = {
   AuthService: Symbol.for("AuthService"),
   CryptoService: Symbol.for("CryptoService"),
   RegistrationService: Symbol.for("RegistrationService"),
+  LoginService: Symbol.for("LoginService"),
+  TokenService: Symbol.for("TokenService"),
 };
