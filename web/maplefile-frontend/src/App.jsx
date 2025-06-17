@@ -1,8 +1,11 @@
+// src/App.jsx
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 
 // Import your existing pages
 import IndexPage from "./pages/anonymous/Index/page";
 import RegisterPage from "./pages/anonymous/Register/page";
+import EmailVerificationPage from "./pages/anonymous/VerifyEmail/page";
 import RequestOTTPage from "./pages/anonymous/Login/requestOTTPage";
 import VerifyOTTPage from "./pages/anonymous/Login/verifyOTTPage";
 import CompleteLoginPage from "./pages/anonymous/Login/completeLoginPage";
@@ -69,6 +72,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<IndexPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<EmailVerificationPage />} />
           <Route path="/login" element={<RequestOTTPage />} />
           <Route path="/verify-ott" element={<VerifyOTTPage />} />
           <Route path="/complete-login" element={<CompleteLoginPage />} />
