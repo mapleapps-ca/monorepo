@@ -1,11 +1,6 @@
-// monorepo/web/prototyping/maplefile-cli/src/App.jsx
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Link,
-  Navigate,
-} from "react-router";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
+
+// Import your existing pages
 import IndexPage from "./pages/anonymous/Index/page";
 import RegisterPage from "./pages/anonymous/Register/page";
 import RequestOTTPage from "./pages/anonymous/Login/requestOTTPage";
@@ -13,133 +8,95 @@ import VerifyOTTPage from "./pages/anonymous/Login/verifyOTTPage";
 import CompleteLoginPage from "./pages/anonymous/Login/completeLoginPage";
 import UserDashboardPage from "./pages/user/Dashboard/page";
 
-// // Protected route component
-// function ProtectedRoute({ children }) {
-//   const { isAuthenticated, isLoading } = useAuth();
+// Import the new providers
+import { DIProvider } from "./contexts/DIProvider.jsx";
+import { AuthProvider } from "./contexts/AuthContext.jsx";
+import { useAuth } from "./contexts/AuthContext.jsx";
 
-//   if (isLoading) {
-//     return <div>Loading...</div>;
-//   }
+// Protected route component (now this actually works!)
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, isLoading } = useAuth();
 
-//   if (!isAuthenticated) {
-//     return <Navigate to="/login" replace />;
-//   }
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
-//   return children;
-// }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
 
 // Navigation with authentication status
 function Navigation() {
-  return <>test</>;
-  // const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
 
-  // return (
-  //   <nav>
-  //     <ul>
-  //       <li>
-  //         <Link to="/">Home</Link>
-  //       </li>
-  //       {!isAuthenticated ? (
-  //         <>
-  //           <li>
-  //             <Link to="/register">Register</Link>
-  //           </li>
-  //           <li>
-  //             <Link to="/login">Login</Link>
-  //           </li>
-  //         </>
-  //       ) : (
-  //         <>
-  //           <li>
-  //             <Link to="/collections">Collections</Link>{" "}
-  //           </li>
-  //           <li>
-  //             <Link to="/profile">Profile</Link>{" "}
-  //           </li>
-  //           <li>
-  //             <button onClick={logout}>Logout</button>
-  //           </li>
-  //         </>
-  //       )}
-  //     </ul>
-  //   </nav>
-  // );
+  return (
+    <nav style={{ padding: "1rem", borderBottom: "1px solid #ccc" }}>
+      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+        <a href="/">MapleFile</a>
+
+        {!isAuthenticated ? (
+          <>
+            <a href="/register">Register</a>
+            <a href="/login">Login</a>
+          </>
+        ) : (
+          <>
+            <a href="/dashboard">Dashboard</a>
+            <span>Welcome, {user?.name}!</span>
+            <button onClick={logout}>Logout</button>
+          </>
+        )}
+      </div>
+    </nav>
+  );
 }
 
-// Main App component
+// Main App component content
 function AppContent() {
-  // const { isLoading } = useAuth();
+  const { isLoading } = useAuth();
 
-  // if (isLoading) {
-  //   return <div>Loading authentication...</div>;
-  // }
+  if (isLoading) {
+    return <div>Loading authentication...</div>;
+  }
 
   return (
     <div>
       <Navigation />
-
-      <Routes>
-        <Route
-          path="/"
-          element={
-            // <ProtectedRoute>
-            <IndexPage />
-            // </ProtectedRoute>
-          }
-        />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/login" element={<RequestOTTPage />} />
-        <Route path="/verify-ott" element={<VerifyOTTPage />} />
-        <Route path="/complete-login" element={<CompleteLoginPage />} />
-
-        <Route path="/dashboard" element={<UserDashboardPage />} />
-        {/*
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/collections"
-          element={
-            <ProtectedRoute>
-              <CollectionListPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/collections/:collectionId/files"
-          element={
-            <ProtectedRoute>
-              <CollectionFileListPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/collections/:collectionId/upload"
-          element={
-            <ProtectedRoute>
-              <FileUploadPage />
-            </ProtectedRoute>
-          }
-        />
-
-        */}
-      </Routes>
+      <main style={{ padding: "2rem" }}>
+        <Routes>
+          <Route path="/" element={<IndexPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<RequestOTTPage />} />
+          <Route path="/verify-ott" element={<VerifyOTTPage />} />
+          <Route path="/complete-login" element={<CompleteLoginPage />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <UserDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </main>
     </div>
   );
 }
 
-// Wrap everything with the auth provider
+// Main App component with all providers
 function App() {
   return (
     <Router>
-      {/* <AuthProvider> */}
-      <AppContent />
-      {/* </AuthProvider> */}
+      {/* DIProvider makes dependency injection available everywhere */}
+      <DIProvider>
+        {/* AuthProvider uses dependency injection to get services */}
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </DIProvider>
     </Router>
   );
 }
