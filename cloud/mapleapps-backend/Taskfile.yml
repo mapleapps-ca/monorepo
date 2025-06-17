@@ -125,7 +125,9 @@ tasks:
     cmds:
       # Third-Party Packages
       # - go tool mockgen -source=github.com/gocql/gocql -destination=pkg/mocks/mock_gocql_session.go -package=mocks Session,Query,Iter,Batch
+      #################
       # PKG
+      #################
       - go tool mockgen -source=pkg/emailer/mailgun/interface.go -destination=pkg/mocks/mock_mailgun.go -package=mocks
       - go tool mockgen -source=pkg/distributedmutex/distributelocker.go -destination=pkg/mocks/mock_distributedmutex.go -package=mocks
       - go tool mockgen -source=pkg/security/password/password.go -destination=pkg/mocks/mock_security_password.go -package=mocks
@@ -137,12 +139,19 @@ tasks:
       - go tool mockgen -source=pkg/storage/memory/inmemory/memory.go -destination=pkg/mocks/mock_storage_memory_inmemory.go -package=mocks
       - go tool mockgen -source=pkg/storage/memory/redis/redis.go -destination=pkg/mocks/mock_storage_memory_redis.go -package=mocks
       - go tool mockgen -source=pkg/storage/object/s3/s3.go -destination=pkg/mocks/mock_storage_object_s3.go -package=mocks
+      #################
       # IAM Module
+      #################
       ## Domain Entities
+      #------------------
+      - go tool mockgen -source=internal/iam/domain/auth/interface.go -destination=internal/iam/mocks/mock_repository_auth.go -package=mocks
       - go tool mockgen -source=internal/iam/domain/federateduser/interface.go -destination=internal/iam/mocks/mock_repository_federateduser.go -package=mocks
+      - go tool mockgen -source=internal/iam/domain/recovery/interface.go -destination=internal/iam/mocks/mock_repository_recovery.go -package=mocks
       ## Repo
+      #------------------
       - go tool mockgen -source=internal/iam/repo/templatedemailer/interface.go -destination=internal/iam/mocks/mock_repository_templatedemailer.go -package=mocks
       ## Use-Cases
+      #------------------
       ### Emailer
       - go tool mockgen -source=internal/iam/usecase/emailer/sendloginott.go -destination=internal/iam/mocks/mock_usecase._sendloginottgo -package=mocks
       # - go tool mockgen -source=internal/iam/usecase/emailer/sendpassreset.go -destination=internal/iam/mocks/mock_usecase_sendpassreset.go -package=mocks #TODO
@@ -157,3 +166,28 @@ tasks:
       - go tool mockgen -source=internal/iam/usecase/federateduser/getbysesid.go -destination=internal/iam/mocks/mock_usecase_federateduser_getbysesid.go -package=mocks
       - go tool mockgen -source=internal/iam/usecase/federateduser/getbyverify.go -destination=internal/iam/mocks/mock_usecase_federateduser_getbyverify.go -package=mocks
       - go tool mockgen -source=internal/iam/usecase/federateduser/update.go -destination=internal/iam/mocks/mock_usecase_federateduser_update.go -package=mocks
+      - go tool mockgen -source=internal/iam/usecase/recovery/initiate.go -destination=internal/iam/mocks/mock_usecase_recovery_initiate.go -package=mocks
+      - go tool mockgen -source=internal/iam/usecase/recovery/verify.go -destination=internal/iam/mocks/mock_usecase_recovery_verify.go -package=mocks
+      - go tool mockgen -source=internal/iam/usecase/recovery/complete.go -destination=internal/iam/mocks/mock_usecase_recovery_complete.go -package=mocks
+      ## Service
+      #------------------
+      ###
+      # TODO
+      #
+      ###################
+      # MapleFile Module
+      ###################
+      ## Domain
+      #------------------
+      - go tool mockgen -source=internal/maplefile/domain/collection/interface.go -destination=internal/maplefile/mocks/mock_repository_collection.go -package=mocks
+      - go tool mockgen -source=internal/maplefile/domain/file/interface.go -destination=internal/maplefile/mocks/mock_repository_file.go -package=mocks
+      - go tool mockgen -source=internal/maplefile/domain/user/interface.go -destination=internal/maplefile/mocks/mock_repository_user.go -package=mocks
+      ## Use-Cases
+      #------------------
+      ###
+      # TODO
+      #
+      ## Service
+      #------------------
+      ###
+      # TODO
