@@ -1,23 +1,146 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import "./App.css";
+// monorepo/web/prototyping/maplefile-cli/src/App.jsx
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  Navigate,
+} from "react-router";
+import IndexPage from "./pages/anonymous/Index/page";
+import RegisterPage from "./pages/anonymous/Register/page";
+import RequestOTTPage from "./pages/anonymous/Login/requestOTTPage";
+import VerifyOTTPage from "./pages/anonymous/Login/verifyOTTPage";
+import CompleteLoginPage from "./pages/anonymous/Login/completeLoginPage";
+import UserDashboardPage from "./pages/user/Dashboard/page";
 
+// // Protected route component
+// function ProtectedRoute({ children }) {
+//   const { isAuthenticated, isLoading } = useAuth();
+
+//   if (isLoading) {
+//     return <div>Loading...</div>;
+//   }
+
+//   if (!isAuthenticated) {
+//     return <Navigate to="/login" replace />;
+//   }
+
+//   return children;
+// }
+
+// Navigation with authentication status
+function Navigation() {
+  return <>test</>;
+  // const { isAuthenticated, logout } = useAuth();
+
+  // return (
+  //   <nav>
+  //     <ul>
+  //       <li>
+  //         <Link to="/">Home</Link>
+  //       </li>
+  //       {!isAuthenticated ? (
+  //         <>
+  //           <li>
+  //             <Link to="/register">Register</Link>
+  //           </li>
+  //           <li>
+  //             <Link to="/login">Login</Link>
+  //           </li>
+  //         </>
+  //       ) : (
+  //         <>
+  //           <li>
+  //             <Link to="/collections">Collections</Link>{" "}
+  //           </li>
+  //           <li>
+  //             <Link to="/profile">Profile</Link>{" "}
+  //           </li>
+  //           <li>
+  //             <button onClick={logout}>Logout</button>
+  //           </li>
+  //         </>
+  //       )}
+  //     </ul>
+  //   </nav>
+  // );
+}
+
+// Main App component
+function AppContent() {
+  // const { isLoading } = useAuth();
+
+  // if (isLoading) {
+  //   return <div>Loading authentication...</div>;
+  // }
+
+  return (
+    <div>
+      <Navigation />
+
+      <Routes>
+        <Route
+          path="/"
+          element={
+            // <ProtectedRoute>
+            <IndexPage />
+            // </ProtectedRoute>
+          }
+        />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/login" element={<RequestOTTPage />} />
+        <Route path="/verify-ott" element={<VerifyOTTPage />} />
+        <Route path="/complete-login" element={<CompleteLoginPage />} />
+
+        <Route path="/dashboard" element={<UserDashboardPage />} />
+        {/*
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/collections"
+          element={
+            <ProtectedRoute>
+              <CollectionListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/collections/:collectionId/files"
+          element={
+            <ProtectedRoute>
+              <CollectionFileListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/collections/:collectionId/upload"
+          element={
+            <ProtectedRoute>
+              <FileUploadPage />
+            </ProtectedRoute>
+          }
+        />
+
+        */}
+      </Routes>
+    </div>
+  );
+}
+
+// Wrap everything with the auth provider
 function App() {
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">
-          Welcome to Maplefile Frontend
-        </h1>
-        <p className="text-gray-600">
-          Your React + Vite + Tailwind CSS app is ready!
-        </p>
-        <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
-          Get Started
-        </button>
-      </div>
-    </div>
+    <Router>
+      {/* <AuthProvider> */}
+      <AppContent />
+      {/* </AuthProvider> */}
+    </Router>
   );
 }
 
