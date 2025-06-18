@@ -56,9 +56,9 @@ class CryptoService {
     return this.sodium.randombytes_buf(length);
   }
 
-  // Generate salt (32 bytes for Argon2ID)
+  // Generate salt (16 bytes for Argon2ID - MUST match backend Argon2SaltSize)
   generateSalt() {
-    return this.generateRandomBytes(32);
+    return this.generateRandomBytes(16); // Changed from 32 to 16 to match backend
   }
 
   // Generate master key (32 bytes for ChaCha20-Poly1305)
@@ -86,10 +86,15 @@ class CryptoService {
     };
   }
 
-  // Argon2ID key derivation (LibSodium native)
+  // Argon2ID key derivation (LibSodium native) - Use same parameters as backend
   async deriveKeyFromPassword(password, salt) {
     if (!this.sodium) {
       throw new Error("LibSodium not initialized");
+    }
+
+    // Validate salt length matches backend expectation
+    if (salt.length !== 16) {
+      throw new Error(`Invalid salt length: expected 16, got ${salt.length}`);
     }
 
     console.log("Deriving key from password using Argon2ID...");
@@ -99,13 +104,14 @@ class CryptoService {
         ? this.sodium.from_string(password)
         : password;
 
-    // Use Argon2ID with parameters matching the backend
+    // Use Argon2ID with parameters matching the backend constants
+    // Backend: Argon2MemLimit = 67108864 (64 MB), Argon2OpsLimit = 4
     const derivedKey = this.sodium.crypto_pwhash(
       32, // output length (32 bytes for ChaCha20-Poly1305)
       passwordBytes,
       salt,
-      this.sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE, // iterations
-      this.sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE, // memory limit
+      4, // Argon2OpsLimit = 4 (matches backend)
+      67108864, // Argon2MemLimit = 64 MB (matches backend)
       this.sodium.crypto_pwhash_ALG_ARGON2ID,
     );
 
@@ -200,7 +206,7 @@ class CryptoService {
       await this.ensureReady();
 
       // Generate all the required keys and data
-      const salt = this.generateSalt();
+      const salt = this.generateSalt(); // Now generates 16 bytes
       const masterKey = this.generateMasterKey();
       const recoveryKey = this.generateRecoveryKey();
       const keyPair = this.generateKeyPair();
