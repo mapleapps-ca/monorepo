@@ -70,28 +70,6 @@ class AuthService {
   isAuthenticated() {
     return this.currentUser !== null;
   }
-
-  // Update user profile
-  updateProfile(name) {
-    if (!this.currentUser) {
-      throw new Error("No user logged in");
-    }
-
-    // Update the user's name
-    this.currentUser.name = name;
-
-    // Update in users array
-    const userIndex = this.users.findIndex((u) => u.id === this.currentUser.id);
-    if (userIndex !== -1) {
-      this.users[userIndex] = this.currentUser;
-    }
-
-    // Save to localStorage
-    localStorage.setItem("users", JSON.stringify(this.users));
-    localStorage.setItem("currentUser", JSON.stringify(this.currentUser));
-
-    return this.currentUser;
-  }
 }
 
 export default AuthService;

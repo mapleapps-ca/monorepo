@@ -1,6 +1,7 @@
-// src/contexts/ServiceContext.jsx
+// src/contexts/ServiceContext.js
 import React, { createContext, useContext } from "react";
 import AuthService from "../services/AuthService";
+import MeService from "../services/MeService";
 
 // Create a context for our services
 const ServiceContext = createContext();
@@ -17,8 +18,13 @@ export const useServices = () => {
 // Create a provider component that will wrap our app
 export const ServiceProvider = ({ children }) => {
   // Initialize all services here
+  // Note: MeService depends on AuthService, so we pass it as a dependency
+  const authService = new AuthService();
+  const meService = new MeService(authService);
+
   const services = {
-    authService: new AuthService(),
+    authService,
+    meService,
   };
 
   return (

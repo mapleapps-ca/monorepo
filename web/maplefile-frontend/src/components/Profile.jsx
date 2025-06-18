@@ -1,31 +1,39 @@
-// src/components/Profile.jsx
+// src/components/Profile.js
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../contexts/ServiceContext";
 
 const Profile = () => {
-  const { authService } = useServices();
+  const { authService, meService } = useServices();
   const navigate = useNavigate();
 
   // State
   const [user, setUser] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Check authentication and load user data on component mount
   useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    if (!currentUser) {
+    if (!authService.isAuthenticated()) {
       // Redirect to login if not authenticated
       navigate("/login");
     } else {
-      setUser(currentUser);
-      setName(currentUser.name);
+      try {
+        const profile = meService.getProfile();
+        setUser(profile);
+        setName(profile.name);
+        setEmail(profile.email);
+      } catch (err) {
+        console.error("Error loading profile:", err);
+        navigate("/login");
+      }
     }
-  }, [authService, navigate]);
+  }, [authService, meService, navigate]);
 
   // Handle profile update
   const handleUpdate = async (e) => {
@@ -41,7 +49,7 @@ const Profile = () => {
       }
 
       // Update profile
-      const updatedUser = authService.updateProfile(name);
+      const updatedUser = meService.updateName(name);
       setUser(updatedUser);
       setSuccess("Profile updated successfully!");
       setIsEditing(false);
@@ -52,10 +60,32 @@ const Profile = () => {
     }
   };
 
+  // Handle email update
+  const handleUpdateEmail = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setLoading(true);
+
+    try {
+      // Update email
+      const updatedUser = meService.updateEmail(email);
+      setUser(updatedUser);
+      setSuccess("Email updated successfully!");
+      setIsEditingEmail(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handle cancel editing
   const handleCancel = () => {
     setName(user.name);
+    setEmail(user.email);
     setIsEditing(false);
+    setIsEditingEmail(false);
     setError("");
   };
 
@@ -76,7 +106,42 @@ const Profile = () => {
         <div style={styles.profileInfo}>
           <div style={styles.infoRow}>
             <span style={styles.label}>Email:</span>
-            <span style={styles.value}>{user.email}</span>
+            {isEditingEmail ? (
+              <form onSubmit={handleUpdateEmail} style={styles.editForm}>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={styles.input}
+                  disabled={loading}
+                />
+                <button
+                  type="submit"
+                  style={styles.saveButton}
+                  disabled={loading}
+                >
+                  {loading ? "Saving..." : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  style={styles.cancelButton}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <>
+                <span style={styles.value}>{user.email}</span>
+                <button
+                  onClick={() => setIsEditingEmail(true)}
+                  style={styles.editButton}
+                >
+                  Edit
+                </button>
+              </>
+            )}
           </div>
 
           <div style={styles.infoRow}>
@@ -129,18 +194,33 @@ const Profile = () => {
 
         <div style={styles.stats}>
           <h3 style={styles.statsTitle}>Account Statistics</h3>
-          <div style={styles.statItem}>
-            <span style={styles.statLabel}>User ID:</span>
-            <span style={styles.statValue}>#{user.id}</span>
-          </div>
-          <div style={styles.statItem}>
-            <span style={styles.statLabel}>Account Type:</span>
-            <span style={styles.statValue}>Standard User</span>
-          </div>
-          <div style={styles.statItem}>
-            <span style={styles.statLabel}>Status:</span>
-            <span style={styles.statValue}>Active</span>
-          </div>
+          {(() => {
+            const stats = meService.getUserStats();
+            return (
+              <>
+                <div style={styles.statItem}>
+                  <span style={styles.statLabel}>User ID:</span>
+                  <span style={styles.statValue}>#{stats.userId}</span>
+                </div>
+                <div style={styles.statItem}>
+                  <span style={styles.statLabel}>Account Type:</span>
+                  <span style={styles.statValue}>{stats.accountType}</span>
+                </div>
+                <div style={styles.statItem}>
+                  <span style={styles.statLabel}>Status:</span>
+                  <span style={styles.statValue}>{stats.status}</span>
+                </div>
+                <div style={styles.statItem}>
+                  <span style={styles.statLabel}>Member Since:</span>
+                  <span style={styles.statValue}>{stats.memberSince}</span>
+                </div>
+                <div style={styles.statItem}>
+                  <span style={styles.statLabel}>Last Updated:</span>
+                  <span style={styles.statValue}>{stats.lastUpdated}</span>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
