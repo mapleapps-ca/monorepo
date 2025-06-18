@@ -199,7 +199,7 @@ private_*.md
 todo.txt
 private_docs
 private_docs/*
-web/private/maplefile-frontend
+web/private/maplefile-*
 web/maplefile-frontend.zip
 web/papercloud-frontend.zip
 cloud/backend.zip

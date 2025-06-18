@@ -1,108 +1,62 @@
-// src/App.jsx
-
+// src/App.js
+import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
+import { ServiceProvider } from "./contexts/ServiceContext";
+import Navigation from "./components/Navigation";
+import Login from "./components/Login";
+import Register from "./components/Register";
+import Profile from "./components/Profile";
 
-// Import your existing pages
-import IndexPage from "./pages/anonymous/Index/page";
-import RegisterPage from "./pages/anonymous/Register/page";
-import EmailVerificationPage from "./pages/anonymous/VerifyEmail/page";
-import RequestOTTPage from "./pages/anonymous/Login/requestOTTPage";
-import VerifyOTTPage from "./pages/anonymous/Login/verifyOTTPage";
-import CompleteLoginPage from "./pages/anonymous/Login/completeLoginPage";
-import UserDashboardPage from "./pages/user/Dashboard/page";
-
-// Import the new providers
-import { DIProvider } from "./contexts/DIProvider.jsx";
-import { AuthProvider } from "./contexts/AuthContext.jsx";
-import { useAuth } from "./contexts/AuthContext.jsx";
-
-// Protected route component (now this actually works!)
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-}
-
-// Navigation with authentication status
-function Navigation() {
-  const { isAuthenticated, logout, user } = useAuth();
-
+// Home component - simple landing page
+const Home = () => {
   return (
-    <nav style={{ padding: "1rem", borderBottom: "1px solid #ccc" }}>
-      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-        <a href="/">MapleFile</a>
-
-        {!isAuthenticated ? (
-          <>
-            <a href="/register">Register</a>
-            <a href="/login">Login</a>
-          </>
-        ) : (
-          <>
-            <a href="/dashboard">Dashboard</a>
-            <span>Welcome, {user?.name}!</span>
-            <button onClick={logout}>Logout</button>
-          </>
-        )}
-      </div>
-    </nav>
-  );
-}
-
-// Main App component content
-function AppContent() {
-  const { isLoading } = useAuth();
-
-  if (isLoading) {
-    return <div>Loading authentication...</div>;
-  }
-
-  return (
-    <div>
-      <Navigation />
-      <main style={{ padding: "2rem" }}>
-        <Routes>
-          <Route path="/" element={<IndexPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/verify-email" element={<EmailVerificationPage />} />
-          <Route path="/login" element={<RequestOTTPage />} />
-          <Route path="/verify-ott" element={<VerifyOTTPage />} />
-          <Route path="/complete-login" element={<CompleteLoginPage />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <UserDashboardPage />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </main>
+    <div style={styles.home}>
+      <h1>Welcome to My Auth App</h1>
+      <p>
+        This is a simple authentication demo using React with dependency
+        injection.
+      </p>
+      <p>Please login or register to access your profile.</p>
     </div>
   );
-}
+};
 
-// Main App component with all providers
+// Main App component
 function App() {
   return (
-    <Router>
-      {/* DIProvider makes dependency injection available everywhere */}
-      <DIProvider>
-        {/* AuthProvider uses dependency injection to get services */}
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </DIProvider>
-    </Router>
+    // Wrap entire app with ServiceProvider for dependency injection
+    <ServiceProvider>
+      <Router>
+        <div style={styles.app}>
+          {/* Navigation will be shown on all pages */}
+          <Navigation />
+
+          {/* Define all routes */}
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/profile" element={<Profile />} />
+            {/* Redirect any unknown routes to home */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </div>
+      </Router>
+    </ServiceProvider>
   );
 }
+
+const styles = {
+  app: {
+    minHeight: "100vh",
+    backgroundColor: "#f5f5f5",
+  },
+  home: {
+    textAlign: "center",
+    padding: "2rem",
+    maxWidth: "800px",
+    margin: "0 auto",
+  },
+};
 
 export default App;
