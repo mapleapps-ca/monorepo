@@ -2,6 +2,7 @@
 import React, { createContext, useContext } from "react";
 import AuthService from "../services/AuthService";
 import MeService from "../services/MeService";
+import TokenService from "../services/TokenService";
 
 // Create a context for our services
 const ServiceContext = createContext();
@@ -21,10 +22,12 @@ export const ServiceProvider = ({ children }) => {
   // Note: MeService depends on AuthService, so we pass it as a dependency
   const authService = new AuthService();
   const meService = new MeService(authService);
+  const tokenService = new TokenService();
 
   const services = {
     authService,
     meService,
+    tokenService,
   };
 
   return (
