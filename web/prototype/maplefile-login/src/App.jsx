@@ -1,35 +1,75 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
+import RequestOTT from "./pages/RequestOTT.jsx";
+import VerifyOTT from "./pages/VerifyOTT.jsx";
+import CompleteLogin from "./pages/CompleteLogin.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
+import authService from "./services/authService.jsx";
+import "./styles/App.css";
+
+// Protected Route component
+const ProtectedRoute = ({ children }) => {
+  const isAuthenticated = authService.isAuthenticated();
+
+  return isAuthenticated ? children : <Navigate to="/" replace />;
+};
+
+// Redirect authenticated users away from login pages
+const LoginRoute = ({ children }) => {
+  const isAuthenticated = authService.isAuthenticated();
+
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
+};
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <Router>
+      <div className="app">
+        <Routes>
+          {/* Login flow routes */}
+          <Route
+            path="/"
+            element={
+              <LoginRoute>
+                <RequestOTT />
+              </LoginRoute>
+            }
+          />
+
+          <Route
+            path="/verify-ott"
+            element={
+              <LoginRoute>
+                <VerifyOTT />
+              </LoginRoute>
+            }
+          />
+
+          <Route
+            path="/complete-login"
+            element={
+              <LoginRoute>
+                <CompleteLogin />
+              </LoginRoute>
+            }
+          />
+
+          {/* Protected routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch all route - redirect to home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </Router>
+  );
 }
 
-export default App
+export default App;
