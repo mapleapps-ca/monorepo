@@ -3,6 +3,7 @@ import React, { createContext, useContext } from "react";
 import AuthService from "../services/AuthService";
 import MeService from "../services/MeService";
 import TokenService from "../services/TokenService";
+import CryptoService from "../services/CryptoService";
 
 // Create a context for our services
 const ServiceContext = createContext();
@@ -18,16 +19,24 @@ export const useServices = () => {
 
 // Create a provider component that will wrap our app
 export const ServiceProvider = ({ children }) => {
-  // Initialize all services here
-  // Note: MeService depends on AuthService, so we pass it as a dependency
-  const authService = new AuthService();
+  // Initialize all services here following dependency injection principles
+  // CryptoService has no dependencies
+  const cryptoService = new CryptoService();
+
+  // AuthService depends on CryptoService
+  const authService = new AuthService(cryptoService);
+
+  // MeService depends on AuthService
   const meService = new MeService(authService);
+
+  // TokenService has no dependencies
   const tokenService = new TokenService();
 
   const services = {
     authService,
     meService,
     tokenService,
+    cryptoService,
   };
 
   return (

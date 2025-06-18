@@ -36,6 +36,9 @@ const Navigation = () => {
             </>
           ) : (
             <>
+              <Link to="/" style={styles.logo}>
+                MapleFile
+              </Link>
               <Link to="/login" style={styles.link}>
                 Login
               </Link>

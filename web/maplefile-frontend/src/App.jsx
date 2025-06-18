@@ -6,17 +6,16 @@ import Navigation from "./components/Navigation";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Profile from "./components/Profile";
+import EmailVerification from "./components/EmailVerification";
+import RegistrationSuccess from "./components/RegistrationSuccess";
 
 // Home component - simple landing page
 const Home = () => {
   return (
     <div style={styles.home}>
-      <h1>Welcome to My Auth App</h1>
-      <p>
-        This is a simple authentication demo using React with dependency
-        injection.
-      </p>
-      <p>Please login or register to access your profile.</p>
+      <h1>Welcome to MapleFile</h1>
+      <p>Secure file storage and sharing with end-to-end encryption.</p>
+      <p>Please login or register to access your account.</p>
     </div>
   );
 };
@@ -36,6 +35,11 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/verify-email" element={<EmailVerification />} />
+            <Route
+              path="/registration-success"
+              element={<RegistrationSuccess />}
+            />
             <Route path="/profile" element={<Profile />} />
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />

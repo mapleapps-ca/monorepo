@@ -1,14 +1,19 @@
 // src/components/Login.jsx
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link, useLocation } from "react-router";
 import { useServices } from "../contexts/ServiceContext";
 
 const Login = () => {
   const { authService } = useServices();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get email from navigation state (if coming from registration)
+  const prefilledEmail = location.state?.email || "";
+  const fromRegistration = location.state?.fromRegistration || false;
 
   // Form state
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

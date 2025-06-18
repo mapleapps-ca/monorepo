@@ -10,10 +10,30 @@ const Register = () => {
   // Form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState("Canada");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [agreeTerms, setAgreeTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Common countries list
+  const countries = [
+    "Canada",
+    "United States",
+    "United Kingdom",
+    "Australia",
+    "Germany",
+    "France",
+    "Italy",
+    "Spain",
+    "Netherlands",
+    "Sweden",
+    "Norway",
+    "Denmark",
+    "Other",
+  ];
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -23,8 +43,12 @@ const Register = () => {
 
     try {
       // Validate inputs
-      if (!name || !email || !password || !confirmPassword) {
-        throw new Error("Please fill in all fields");
+      if (!name || !email || !phone || !password || !confirmPassword) {
+        throw new Error("Please fill in all required fields");
+      }
+
+      if (!agreeTerms) {
+        throw new Error("You must agree to the terms of service to continue");
       }
 
       // Check if passwords match
@@ -33,17 +57,46 @@ const Register = () => {
       }
 
       // Check password length
-      if (password.length < 6) {
-        throw new Error("Password must be at least 6 characters long");
+      if (password.length < 8) {
+        throw new Error("Password must be at least 8 characters long");
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new Error("Please enter a valid email address");
+      }
+
+      // Validate phone format (basic validation)
+      const phoneRegex = /^[+]?[\d\s\-\(\)]{10,}$/;
+      if (!phoneRegex.test(phone)) {
+        throw new Error("Please enter a valid phone number");
       }
 
       // Attempt to register
-      await authService.register(email, password, name);
+      const result = await authService.register(
+        email.trim(),
+        password,
+        name.trim(),
+        phone.trim(),
+        country,
+        "America/Toronto", // Default timezone
+      );
 
-      // Redirect to profile page on success
-      navigate("/profile");
-      // Force re-render to update navigation
-      window.location.reload();
+      if (result.success) {
+        // Show recovery key info if provided
+        if (result.recoveryKeyInfo) {
+          alert(result.recoveryKeyInfo);
+        }
+
+        // Redirect to email verification page
+        navigate("/verify-email", {
+          state: {
+            email: email.trim(),
+            name: name.trim(),
+          },
+        });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -54,14 +107,14 @@ const Register = () => {
   return (
     <div style={styles.container}>
       <div style={styles.formCard}>
-        <h2 style={styles.title}>Register</h2>
+        <h2 style={styles.title}>Create Your Account</h2>
 
         {error && <div style={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.formGroup}>
             <label htmlFor="name" style={styles.label}>
-              Name
+              Full Name *
             </label>
             <input
               type="text"
@@ -69,14 +122,15 @@ const Register = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               style={styles.input}
-              placeholder="Enter your name"
+              placeholder="Enter your full name"
               disabled={loading}
+              required
             />
           </div>
 
           <div style={styles.formGroup}>
             <label htmlFor="email" style={styles.label}>
-              Email
+              Email Address *
             </label>
             <input
               type="email"
@@ -84,14 +138,54 @@ const Register = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={styles.input}
-              placeholder="Enter your email"
+              placeholder="Enter your email address"
               disabled={loading}
+              required
             />
           </div>
 
           <div style={styles.formGroup}>
+            <label htmlFor="phone" style={styles.label}>
+              Phone Number *
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              style={styles.input}
+              placeholder="Enter your phone number"
+              disabled={loading}
+              required
+            />
+            <small style={styles.hint}>
+              Include country code (e.g., +1 for North America)
+            </small>
+          </div>
+
+          <div style={styles.formGroup}>
+            <label htmlFor="country" style={styles.label}>
+              Country *
+            </label>
+            <select
+              id="country"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              style={styles.select}
+              disabled={loading}
+              required
+            >
+              {countries.map((countryOption) => (
+                <option key={countryOption} value={countryOption}>
+                  {countryOption}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={styles.formGroup}>
             <label htmlFor="password" style={styles.label}>
-              Password
+              Password *
             </label>
             <input
               type="password"
@@ -99,14 +193,15 @@ const Register = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
-              placeholder="Enter your password (min 6 characters)"
+              placeholder="Enter your password (min 8 characters)"
               disabled={loading}
+              required
             />
           </div>
 
           <div style={styles.formGroup}>
             <label htmlFor="confirmPassword" style={styles.label}>
-              Confirm Password
+              Confirm Password *
             </label>
             <input
               type="password"
@@ -116,11 +211,47 @@ const Register = () => {
               style={styles.input}
               placeholder="Confirm your password"
               disabled={loading}
+              required
             />
           </div>
 
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? "Creating account..." : "Register"}
+          <div style={styles.checkboxGroup}>
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={agreeTerms}
+                onChange={(e) => setAgreeTerms(e.target.checked)}
+                style={styles.checkbox}
+                disabled={loading}
+                required
+              />
+              <span style={styles.checkboxText}>
+                I agree to the{" "}
+                <a
+                  href="#"
+                  style={styles.link}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  Terms of Service
+                </a>{" "}
+                and{" "}
+                <a
+                  href="#"
+                  style={styles.link}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  Privacy Policy
+                </a>
+              </span>
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            style={styles.button}
+            disabled={loading || !agreeTerms}
+          >
+            {loading ? "Creating Account..." : "Create Account"}
           </button>
         </form>
 
@@ -149,7 +280,7 @@ const styles = {
     borderRadius: "8px",
     boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
     width: "100%",
-    maxWidth: "400px",
+    maxWidth: "500px",
   },
   title: {
     textAlign: "center",
@@ -184,6 +315,38 @@ const styles = {
     fontSize: "1rem",
     boxSizing: "border-box",
   },
+  select: {
+    width: "100%",
+    padding: "0.75rem",
+    border: "1px solid #ddd",
+    borderRadius: "4px",
+    fontSize: "1rem",
+    boxSizing: "border-box",
+    backgroundColor: "white",
+  },
+  hint: {
+    display: "block",
+    marginTop: "0.25rem",
+    color: "#888",
+    fontSize: "0.85rem",
+  },
+  checkboxGroup: {
+    marginBottom: "1.5rem",
+  },
+  checkboxLabel: {
+    display: "flex",
+    alignItems: "flex-start",
+    cursor: "pointer",
+  },
+  checkbox: {
+    marginRight: "0.5rem",
+    marginTop: "0.1rem",
+  },
+  checkboxText: {
+    color: "#555",
+    fontSize: "0.9rem",
+    lineHeight: "1.4",
+  },
   button: {
     backgroundColor: "#28a745",
     color: "white",
@@ -193,7 +356,7 @@ const styles = {
     fontSize: "1rem",
     fontWeight: "bold",
     cursor: "pointer",
-    marginTop: "0.5rem",
+    marginBottom: "1rem",
   },
   switchText: {
     textAlign: "center",
