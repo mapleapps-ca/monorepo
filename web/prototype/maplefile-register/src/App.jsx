@@ -1,84 +1,29 @@
-import React, { useState } from "react";
-import RegistrationForm from "./components/RegistrationForm";
-import EmailVerification from "./components/EmailVerification";
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
+import Register from "./pages/Register";
+import RecoveryCode from "./pages/RecoveryCode";
+import VerifyEmail from "./pages/VerifyEmail";
+import VerificationSuccess from "./pages/VerificationSuccess";
 
 function App() {
-  const [currentStep, setCurrentStep] = useState("register"); // 'register', 'verify', 'complete'
-  const [registeredEmail, setRegisteredEmail] = useState("");
-  const [userRole, setUserRole] = useState(null);
-
-  const handleRegistrationSuccess = (email) => {
-    setRegisteredEmail(email);
-    setCurrentStep("verify");
-  };
-
-  const handleVerificationSuccess = (role) => {
-    setUserRole(role);
-    setCurrentStep("complete");
-  };
-
-  const handleBackToRegistration = () => {
-    setCurrentStep("register");
-    setRegisteredEmail("");
-    setUserRole(null);
-  };
-
   return (
-    <div className="container">
-      <h1>MapleApps Registration</h1>
+    <Router>
+      <div className="container">
+        <h1>MapleApps Registration</h1>
 
-      {currentStep === "register" && (
-        <RegistrationForm onSuccess={handleRegistrationSuccess} />
-      )}
-
-      {currentStep === "verify" && (
-        <EmailVerification
-          email={registeredEmail}
-          onSuccess={handleVerificationSuccess}
-          onBack={handleBackToRegistration}
-        />
-      )}
-
-      {currentStep === "complete" && (
-        <div className="step">
-          <h2>Registration Complete! 🎉</h2>
-          <div className="success">
-            <p>
-              Welcome to MapleApps! Your email has been verified successfully.
-            </p>
-            <p>
-              <strong>Email:</strong> {registeredEmail}
-            </p>
-            <p>
-              <strong>User Role:</strong> {getUserRoleText(userRole)}
-            </p>
-            <p>You can now log in to access MapleApps services.</p>
-          </div>
-          <div className="navigation">
-            <button
-              className="btn-secondary"
-              onClick={handleBackToRegistration}
-            >
-              Register Another Account
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+        <Routes>
+          <Route path="/" element={<Navigate to="/register" replace />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/register/recovery" element={<RecoveryCode />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route
+            path="/verify-email/success"
+            element={<VerificationSuccess />}
+          />
+        </Routes>
+      </div>
+    </Router>
   );
 }
-
-const getUserRoleText = (role) => {
-  switch (role) {
-    case 1:
-      return "Root User";
-    case 2:
-      return "Company User";
-    case 3:
-      return "Individual User";
-    default:
-      return "Unknown";
-  }
-};
 
 export default App;
