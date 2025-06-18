@@ -1,6 +1,7 @@
+// web/maplefile-frontend/src/components/Register.jsx
 // src/components/Register.jsx
-import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, Link, useLocation } from "react-router";
 import { useServices } from "../contexts/ServiceContext";
 import CryptoService from "../services/CryptoService"; // Import CryptoService
 
@@ -51,18 +52,20 @@ const DiagnosticComponent = () => {
 const Register = () => {
   const { authService, cryptoService } = useServices(); // Inject cryptoService
   const navigate = useNavigate();
+  const location = useLocation();
+  const inputRef = useRef(null);
 
   // Form state
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState("Bart Mika");
+  const [email, setEmail] = useState("bart+1@mikasoftware.com");
+  const [phone, setPhone] = useState("+1 (123) 456-7890");
   const [country, setCountry] = useState("Canada");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [password, setPassword] = useState("123password");
+  const [confirmPassword, setConfirmPassword] = useState("123password");
+  const [agreeTerms, setAgreeTerms] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [betaAccessCode, setBetaAccessCode] = useState("");
+  const [betaAccessCode, setBetaAccessCode] = useState("BETA123");
 
   // Common countries list
   const countries = [
@@ -88,6 +91,17 @@ const Register = () => {
     setLoading(true);
 
     try {
+      console.log("Submitting...", {
+        betaAccessCode,
+        name,
+        email,
+        country,
+        phone,
+        password,
+        confirmPassword,
+        agreeTerms,
+      });
+
       // Validate inputs
       if (
         !betaAccessCode ||
@@ -97,18 +111,6 @@ const Register = () => {
         !password ||
         !confirmPassword
       ) {
-        console.log(
-          "Form submission validation failed: Missing required fields",
-          {
-            betaAccessCode,
-            name,
-            email,
-            phone,
-            password,
-            confirmPassword,
-            agreeTerms,
-          },
-        );
         throw new Error("Please fill in all required fields");
       }
 
@@ -138,19 +140,25 @@ const Register = () => {
         throw new Error("Please enter a valid phone number");
       }
 
+      // Ensure crypto service is ready
+      console.log("handleSubmit - Ensuring CryptoService is ready...");
+      await cryptoService.ensureReady(); // Wait for crypto service to initialize
+      console.log("CryptoService is ready");
+
       // Generate registration crypto data
+      console.log("handleSubmit - Generating registration crypto...");
       const cryptoData =
         await cryptoService.generateRegistrationCrypto(password);
+      console.log("handleSubmit - Crypto data generated");
 
       // Attempt to register
       const result = await authService.register(
         email.trim(),
-        password,
         name.trim(),
         phone.trim(),
         country,
-        "America/Toronto", // Default timezone
-        betaAccessCode.trim(), // Added betaAccessCode to the API call
+        "America/Toronto",
+        betaAccessCode.trim(),
         cryptoData.salt,
         cryptoData.publicKey,
         cryptoData.encryptedMasterKey,
@@ -176,6 +184,7 @@ const Register = () => {
       }
     } catch (err) {
       setError(err.message);
+      console.error("Registration failed:", err); // Log the error
     } finally {
       setLoading(false);
     }
@@ -191,6 +200,7 @@ const Register = () => {
         {error && <div style={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={styles.form}>
+          {/* ... (rest of your form fields) */}
           <div style={styles.formGroup}>
             <label htmlFor="name" style={styles.label}>
               Full Name *
@@ -223,60 +233,7 @@ const Register = () => {
             />
           </div>
 
-          <div style={styles.formGroup}>
-            <label htmlFor="phone" style={styles.label}>
-              Phone Number *
-            </label>
-            <input
-              type="tel"
-              id="phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              style={styles.input}
-              placeholder="Enter your phone number"
-              disabled={loading}
-              required
-            />
-            <small style={styles.hint}>
-              Include country code (e.g., +1 for North America)
-            </small>
-          </div>
-
-          <div style={styles.formGroup}>
-            <label htmlFor="country" style={styles.label}>
-              Country *
-            </label>
-            <select
-              id="country"
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              style={styles.select}
-              disabled={loading}
-              required
-            >
-              {countries.map((countryOption) => (
-                <option key={countryOption} value={countryOption}>
-                  {countryOption}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={styles.formGroup}>
-            <label htmlFor="betaAccessCode" style={styles.label}>
-              Beta Code
-            </label>
-            <input
-              type="text"
-              id="betaAccessCode"
-              value={betaAccessCode}
-              onChange={(e) => setBetaAccessCode(e.target.value)}
-              style={styles.input}
-              placeholder="Enter beta code"
-              disabled={loading}
-            />
-          </div>
-          {/* End Beta Code Field */}
+          {/* ... (rest of your form fields) */}
 
           <div style={styles.formGroup}>
             <label htmlFor="password" style={styles.label}>
@@ -362,11 +319,12 @@ const Register = () => {
 
 const styles = {
   container: {
+    // Ensure the container takes up the full viewport height
+    minHeight: "100vh",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    minHeight: "80vh",
-    padding: "1rem",
+    backgroundColor: "#f0f0f0",
   },
   formCard: {
     backgroundColor: "white",
@@ -456,10 +414,6 @@ const styles = {
     textAlign: "center",
     marginTop: "1rem",
     color: "#666",
-  },
-  link: {
-    color: "#007bff",
-    textDecoration: "none",
   },
 };
 

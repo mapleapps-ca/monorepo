@@ -1,18 +1,21 @@
+// web/maplefile-frontend/src/components/RegistrationSuccess.jsx
 // src/components/RegistrationSuccess.jsx
 import React, { useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router";
+import { useServices } from "../contexts/ServiceContext";
 
 const RegistrationSuccess = () => {
+  const { authService } = useServices();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get data from navigation state (passed from email verification)
+  // Get data from navigation state (passed from registration)
   const email = location.state?.email || "";
   const message =
     location.state?.message || "Registration completed successfully!";
   const userRole = location.state?.userRole;
 
-  // Redirect to home if no email provided (direct access without proper flow)
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (!email) {
       navigate("/");
@@ -63,12 +66,12 @@ const RegistrationSuccess = () => {
         <div style={styles.accountDetails}>
           <h3 style={styles.detailsTitle}>Account Information</h3>
           <div style={styles.detailItem}>
-            <span style={styles.detailLabel}>Email:</span>
+            <span style={styles.label}>Email:</span>
             <span style={styles.detailValue}>{email}</span>
           </div>
           {userRole && (
             <div style={styles.detailItem}>
-              <span style={styles.detailLabel}>Account Type:</span>
+              <span style={styles.label}>Account Type:</span>
               <span style={styles.detailValue}>
                 {getUserRoleDescription(userRole)}
               </span>
@@ -92,7 +95,7 @@ const RegistrationSuccess = () => {
             Continue to Login
           </button>
 
-          <Link to="/" style={styles.homeLink}>
+          <Link to="/register" style={styles.homeLink}>
             Go to Homepage
           </Link>
         </div>
@@ -244,5 +247,20 @@ const styles = {
     lineHeight: "1.4",
   },
 };
+
+// Add CSS keyframes for spinner animation
+if (typeof document !== "undefined") {
+  const styleSheet = document.createElement("style");
+  styleSheet.textContent = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  if (!document.head.querySelector("style[data-email-verification]")) {
+    styleSheet.setAttribute("data-email-verification", "true");
+    document.head.appendChild(styleSheet);
+  }
+}
 
 export default RegistrationSuccess;

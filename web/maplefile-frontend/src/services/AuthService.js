@@ -76,12 +76,18 @@ class AuthService {
   // Register a new user using real API
   async register(
     email,
-    password,
     name,
     phone,
     country,
     timezone = "America/Toronto",
     betaAccessCode,
+    salt,
+    publicKey,
+    encryptedMasterKey,
+    encryptedPrivateKey,
+    encryptedRecoveryKey,
+    masterKeyEncryptedWithRecoveryKey,
+    verificationID,
   ) {
     try {
       console.log("Starting registration process for:", email);
@@ -116,14 +122,13 @@ class AuthService {
         agree_promotions: false,
         agree_to_tracking_across_third_party_apps_and_services: false,
         module: 1, // 1 for MapleFile, 2 for PaperCloud
-        salt: cryptoData.salt,
-        publicKey: cryptoData.publicKey,
-        encryptedMasterKey: cryptoData.encryptedMasterKey,
-        encryptedPrivateKey: cryptoData.encryptedPrivateKey,
-        encryptedRecoveryKey: cryptoData.encryptedRecoveryKey,
-        masterKeyEncryptedWithRecoveryKey:
-          cryptoData.masterKeyEncryptedWithRecoveryKey,
-        verificationID: cryptoData.verificationID,
+        salt: salt,
+        publicKey: publicKey,
+        encryptedMasterKey: encryptedMasterKey,
+        encryptedPrivateKey: encryptedPrivateKey,
+        encryptedRecoveryKey: encryptedRecoveryKey,
+        masterKeyEncryptedWithRecoveryKey: masterKeyEncryptedWithRecoveryKey,
+        verificationID: verificationID,
       };
 
       console.log(

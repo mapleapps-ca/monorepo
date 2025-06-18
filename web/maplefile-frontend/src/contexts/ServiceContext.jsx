@@ -26,7 +26,7 @@ export const ServiceProvider = ({ children }) => {
   // Initialize the cryptoService early
   useEffect(() => {
     cryptoService.init().catch(console.error); // Handle errors during initialization
-  }, []);
+  }, [cryptoService]);
 
   const authService = new AuthService(cryptoService);
   const meService = new MeService(authService);

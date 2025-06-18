@@ -94,11 +94,11 @@ class CryptoService {
 
     console.log(
       "deriveKeyFromPassword - Checking if Argon2ID algorithm is available:",
-      this.sodium && this.sodium.crypto_pwhash_ALG_ARGON2ID !== undefined,
+      this.sodium && this.sodium.crypto_pwhash_ALG_ARGON2ID13 !== undefined,
     );
-    if (this.sodium && !this.sodium.crypto_pwhash_ALG_ARGON2ID) {
-      console.error("Argon2ID algorithm not supported by libsodium");
-      throw new Error("Argon2ID algorithm not supported by libsodium");
+    if (this.sodium && !this.sodium.crypto_pwhash_ALG_ARGON2ID13) {
+      console.error("Argon2ID13 algorithm not supported by libsodium");
+      throw new Error("Argon2ID13 algorithm not supported by libsodium");
     }
 
     // Validate salt length matches backend expectation
@@ -106,7 +106,7 @@ class CryptoService {
       throw new Error(`Invalid salt length: expected 16, got ${salt.length}`);
     }
 
-    console.log("Deriving key from password using Argon2ID...");
+    console.log("Deriving key from password using Argon2ID13...");
 
     const passwordBytes =
       typeof password === "string"
@@ -121,7 +121,7 @@ class CryptoService {
       salt,
       4, // Argon2OpsLimit = 4 (matches backend)
       67108864, // Argon2MemLimit = 64 MB (matches backend)
-      this.sodium.crypto_pwhash_ALG_ARGON2ID,
+      this.sodium.crypto_pwhash_ALG_ARGON2ID13,
     );
 
     return derivedKey;
