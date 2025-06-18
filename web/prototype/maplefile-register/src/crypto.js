@@ -1,5 +1,7 @@
 // Crypto utility functions for E2EE using libsodium-wrappers-sumo
 import sodium from "libsodium-wrappers-sumo";
+import * as bip39 from "@scure/bip39";
+import { wordlist } from "@scure/bip39/wordlists/english";
 
 // Simple PBKDF2 implementation for key derivation (since we're avoiding argon2-browser)
 const deriveKeyFromPassword = async (password, salt) => {
@@ -31,6 +33,20 @@ const deriveKeyFromPassword = async (password, salt) => {
   return new Uint8Array(keyBuffer);
 };
 
+// Convert BIP39 mnemonic to recovery key
+const mnemonicToRecoveryKey = async (mnemonic) => {
+  // Validate the mnemonic
+  if (!bip39.validateMnemonic(mnemonic, wordlist)) {
+    throw new Error("Invalid mnemonic");
+  }
+
+  // Convert mnemonic to seed (this gives us 64 bytes)
+  const seed = bip39.mnemonicToSeedSync(mnemonic);
+
+  // Use first 32 bytes as our recovery key (sodium expects 32 bytes)
+  return seed.slice(0, 32);
+};
+
 // Generate E2EE data for registration
 export const generateE2EEData = async (password) => {
   try {
@@ -38,26 +54,34 @@ export const generateE2EEData = async (password) => {
     await sodium.ready;
     console.log("Libsodium ready!");
 
-    // 1. Generate salt for password key derivation
+    // 1. Generate BIP39 mnemonic (12 words)
+    const mnemonicEntropy = sodium.randombytes_buf(16); // 128 bits = 12 words
+    const mnemonic = bip39.entropyToMnemonic(mnemonicEntropy, wordlist);
+    console.log("Generated BIP39 mnemonic");
+
+    // 2. Convert mnemonic to recovery key
+    const recoveryKey = await mnemonicToRecoveryKey(mnemonic);
+    console.log("Derived recovery key from mnemonic");
+
+    // 3. Generate salt for password key derivation
     const salt = sodium.randombytes_buf(16);
     console.log("Generated salt");
 
-    // 2. Derive key encryption key from password using PBKDF2
+    // 4. Derive key encryption key from password using PBKDF2
     const keyEncryptionKey = await deriveKeyFromPassword(password, salt);
     console.log("Derived key encryption key");
 
-    // 3. Generate X25519 key pair
+    // 5. Generate X25519 key pair
     const keyPair = sodium.crypto_box_keypair();
     const publicKey = keyPair.publicKey;
     const privateKey = keyPair.privateKey;
     console.log("Generated key pair");
 
-    // 4. Generate master key and recovery key
+    // 6. Generate master key
     const masterKey = sodium.randombytes_buf(32);
-    const recoveryKey = sodium.randombytes_buf(32);
-    console.log("Generated master and recovery keys");
+    console.log("Generated master key");
 
-    // 5. Encrypt master key with KEK using ChaCha20-Poly1305
+    // 7. Encrypt master key with KEK using ChaCha20-Poly1305
     const masterKeyNonce = sodium.randombytes_buf(
       sodium.crypto_secretbox_NONCEBYTES,
     );
@@ -72,7 +96,7 @@ export const generateE2EEData = async (password) => {
     encryptedMasterKey.set(masterKeyNonce, 0);
     encryptedMasterKey.set(encryptedMasterKeyData, masterKeyNonce.length);
 
-    // 6. Encrypt private key with master key
+    // 8. Encrypt private key with master key
     const privateKeyNonce = sodium.randombytes_buf(
       sodium.crypto_secretbox_NONCEBYTES,
     );
@@ -87,7 +111,7 @@ export const generateE2EEData = async (password) => {
     encryptedPrivateKey.set(privateKeyNonce, 0);
     encryptedPrivateKey.set(encryptedPrivateKeyData, privateKeyNonce.length);
 
-    // 7. Encrypt recovery key with master key
+    // 9. Encrypt recovery key with master key
     const recoveryKeyNonce = sodium.randombytes_buf(
       sodium.crypto_secretbox_NONCEBYTES,
     );
@@ -105,7 +129,7 @@ export const generateE2EEData = async (password) => {
       recoveryKeyNonce.length,
     );
 
-    // 8. Encrypt master key with recovery key
+    // 10. Encrypt master key with recovery key
     const masterWithRecoveryNonce = sodium.randombytes_buf(
       sodium.crypto_secretbox_NONCEBYTES,
     );
@@ -125,11 +149,7 @@ export const generateE2EEData = async (password) => {
 
     console.log("Encrypted all keys");
 
-    // 9. Let the server generate the verification ID from the public key
-    // The backend will generate the proper BIP39 mnemonic from the public key's SHA256 hash
-    console.log("Server will generate verification ID from public key");
-
-    // 10. Encode everything to base64 URL
+    // 11. Encode everything to base64 URL
     const result = {
       salt: sodium.to_base64(salt, sodium.base64_variants.URLSAFE_NO_PADDING),
       publicKey: sodium.to_base64(
@@ -153,14 +173,16 @@ export const generateE2EEData = async (password) => {
         sodium.base64_variants.URLSAFE_NO_PADDING,
       ),
       verificationID: "", // Let server generate the proper BIP39 mnemonic
+      // Include the mnemonic so it can be displayed to the user
+      recoveryMnemonic: mnemonic,
     };
 
     console.log("E2EE data generated successfully");
+    console.log("Generated 12-word recovery mnemonic");
     console.log(
-      "Public key (first 16 chars):",
-      result.publicKey.substring(0, 16) + "...",
+      "Mnemonic preview:",
+      mnemonic.split(" ").slice(0, 3).join(" ") + "...",
     );
-    console.log("Verification ID will be generated server-side");
     return result;
   } catch (error) {
     console.error("Error generating E2EE data:", error);

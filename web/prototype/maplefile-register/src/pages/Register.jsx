@@ -133,6 +133,9 @@ const Register = () => {
       const e2eeData = await generateE2EEData(formData.password);
       console.log("Encryption data generated successfully!");
 
+      // Extract the mnemonic and remove it from the data sent to server
+      const { recoveryMnemonic, ...e2eeDataForServer } = e2eeData;
+
       // Prepare registration data
       const registrationData = {
         beta_access_code: formData.beta_access_code.trim(),
@@ -147,7 +150,7 @@ const Register = () => {
         agree_to_tracking_across_third_party_apps_and_services:
           formData.agree_to_tracking_across_third_party_apps_and_services,
         module: formData.module,
-        ...e2eeData,
+        ...e2eeDataForServer,
       };
 
       console.log("Sending registration request...");
@@ -155,8 +158,16 @@ const Register = () => {
 
       console.log("Registration successful:", result);
 
-      // Store data for next page
-      sessionStorage.setItem("registrationResult", JSON.stringify(result));
+      // Store data for next page - include the recovery mnemonic
+      const registrationWithMnemonic = {
+        ...result,
+        recoveryMnemonic: recoveryMnemonic,
+      };
+
+      sessionStorage.setItem(
+        "registrationResult",
+        JSON.stringify(registrationWithMnemonic),
+      );
       sessionStorage.setItem("registeredEmail", formData.email);
 
       // Navigate to recovery code page
