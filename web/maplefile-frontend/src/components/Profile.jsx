@@ -24,16 +24,26 @@ const Profile = () => {
       navigate("/login");
     } else {
       try {
-        const profile = meService.getProfile();
-        setUser(profile);
-        setName(profile.name);
-        setEmail(profile.email);
+        const currentUser = authService.getCurrentUser();
+        if (currentUser) {
+          // For the new E2EE system, we store different user data
+          const profile = {
+            email: currentUser.email,
+            name: currentUser.email?.split("@")[0] || "User", // Use email prefix as default name
+            createdAt: currentUser.loginTime || new Date().toISOString(),
+          };
+          setUser(profile);
+          setName(profile.name);
+          setEmail(profile.email);
+        } else {
+          throw new Error("No user data found");
+        }
       } catch (err) {
         console.error("Error loading profile:", err);
         navigate("/login");
       }
     }
-  }, [authService, meService, navigate]);
+  }, [authService, navigate]);
 
   // Handle profile update
   const handleUpdate = async (e) => {

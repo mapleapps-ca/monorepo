@@ -6,8 +6,10 @@ import Navigation from "./components/Navigation";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Profile from "./components/Profile";
+import Dashboard from "./components/Dashboard";
 import EmailVerification from "./components/EmailVerification";
 import RegistrationSuccess from "./components/RegistrationSuccess";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Home component - simple landing page
 const Home = () => {
@@ -40,7 +42,25 @@ function App() {
               path="/registration-success"
               element={<RegistrationSuccess />}
             />
-            <Route path="/profile" element={<Profile />} />
+
+            {/* Protected routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

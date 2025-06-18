@@ -19,9 +19,9 @@ class CryptoService {
     await this.initPromise;
   }
 
-  // Generate a random salt for key derivation
+  // Generate a random salt for key derivation (Argon2ID requires specific length)
   generateSalt() {
-    return sodium.randombytes_buf(32);
+    return sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
   }
 
   // Generate a keypair for encryption
@@ -41,18 +41,31 @@ class CryptoService {
 
   // Derive key from password using Argon2ID
   async deriveKeyFromPassword(password, salt) {
-    // Using Argon2ID with recommended parameters
+    await this.ensureReady();
+
+    // Convert password to Uint8Array if it's a string
+    const passwordBytes =
+      typeof password === "string"
+        ? new TextEncoder().encode(password)
+        : password;
+
+    // Use recommended Argon2ID parameters
     const opsLimit = sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE;
     const memLimit = sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE;
 
-    return sodium.crypto_pwhash(
-      32, // key length
-      password,
-      salt,
-      opsLimit,
-      memLimit,
-      sodium.crypto_pwhash_ALG_ARGON2ID,
-    );
+    try {
+      return sodium.crypto_pwhash(
+        32, // key length
+        passwordBytes,
+        salt,
+        opsLimit,
+        memLimit,
+        sodium.crypto_pwhash_ALG_ARGON2ID,
+      );
+    } catch (error) {
+      console.error("Key derivation error:", error);
+      throw new Error("Failed to derive encryption key from password");
+    }
   }
 
   // Encrypt data using ChaCha20-Poly1305
@@ -101,54 +114,191 @@ class CryptoService {
     return sodium.from_base64(data, sodium.base64_variants.URLSAFE_NO_PADDING);
   }
 
+  // Decrypt challenge using X25519 box (used in login step 3)
+  decryptWithPrivateKey(encryptedData, privateKey, publicKey) {
+    const nonceLength = sodium.crypto_box_NONCEBYTES;
+    const nonce = encryptedData.slice(0, nonceLength);
+    const ciphertext = encryptedData.slice(nonceLength);
+
+    return sodium.crypto_box_open_easy(
+      ciphertext,
+      nonce,
+      publicKey,
+      privateKey,
+    );
+  }
+
+  // Derive key from password with specific KDF parameters
+  async deriveKeyWithParams(password, salt, kdfParams) {
+    await this.ensureReady();
+
+    // Convert password to Uint8Array if it's a string
+    const passwordBytes =
+      typeof password === "string"
+        ? new TextEncoder().encode(password)
+        : password;
+
+    // Use provided KDF parameters or defaults
+    const opsLimit =
+      kdfParams?.iterations || sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE;
+    const memLimit =
+      kdfParams?.memory || sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE;
+    const keyLength = kdfParams?.key_length || 32;
+
+    try {
+      return sodium.crypto_pwhash(
+        keyLength,
+        passwordBytes,
+        salt,
+        opsLimit,
+        memLimit,
+        sodium.crypto_pwhash_ALG_ARGON2ID,
+      );
+    } catch (error) {
+      console.error("Key derivation with params error:", error);
+      throw new Error(
+        "Failed to derive encryption key with provided parameters",
+      );
+    }
+  }
+
+  // Process login step 2 response - decrypt keys and challenge
+  async processLoginStep2(password, loginData) {
+    await this.ensureReady();
+
+    try {
+      // Decode base64 data
+      const salt = this.base64UrlDecode(loginData.salt);
+      const encryptedMasterKey = this.base64UrlDecode(
+        loginData.encryptedMasterKey,
+      );
+      const encryptedPrivateKey = this.base64UrlDecode(
+        loginData.encryptedPrivateKey,
+      );
+      const encryptedChallenge = this.base64UrlDecode(
+        loginData.encryptedChallenge,
+      );
+      const publicKey = this.base64UrlDecode(loginData.publicKey);
+
+      // Derive key encryption key from password using provided KDF params
+      const kek = await this.deriveKeyWithParams(
+        password,
+        salt,
+        loginData.kdf_params,
+      );
+
+      // Decrypt master key
+      const masterKey = this.decrypt(encryptedMasterKey, kek);
+
+      // Decrypt private key using master key
+      const privateKey = this.decrypt(encryptedPrivateKey, masterKey);
+
+      // Decrypt challenge using private key and server's public key
+      // Note: For X25519 box, we need to handle the nonce differently
+      const decryptedChallenge = this.decryptWithPrivateKey(
+        encryptedChallenge,
+        privateKey,
+        publicKey, // This should be the server's public key for the challenge
+      );
+
+      return {
+        masterKey: this.base64UrlEncode(masterKey),
+        privateKey: this.base64UrlEncode(privateKey),
+        publicKey: this.base64UrlEncode(publicKey),
+        decryptedChallenge: this.base64UrlEncode(decryptedChallenge),
+        challengeId: loginData.challengeId,
+      };
+    } catch (error) {
+      console.error("Decryption error:", error);
+      throw new Error(
+        "Failed to decrypt login data. Please check your password.",
+      );
+    }
+  }
+
+  // Decrypt tokens received from login step 3
+  async decryptTokens(encryptedTokens, tokenNonce, privateKey) {
+    await this.ensureReady();
+
+    try {
+      const encryptedData = this.base64UrlDecode(encryptedTokens);
+      const nonce = this.base64UrlDecode(tokenNonce);
+      const privateKeyBytes = this.base64UrlDecode(privateKey);
+
+      // For token decryption, we use ChaCha20-Poly1305
+      const decryptedData = sodium.crypto_aead_chacha20poly1305_decrypt(
+        null, // nsec (not used)
+        encryptedData,
+        null, // additional data
+        nonce,
+        privateKeyBytes,
+      );
+
+      // Parse the decrypted JSON
+      const tokenData = JSON.parse(new TextDecoder().decode(decryptedData));
+      return tokenData;
+    } catch (error) {
+      console.error("Token decryption error:", error);
+      throw new Error("Failed to decrypt authentication tokens");
+    }
+  }
+
   // Generate all encryption fields needed for registration
   async generateRegistrationCrypto(password) {
     await this.ensureReady();
 
-    // Generate random values
-    const salt = this.generateSalt();
-    const masterKey = this.generateMasterKey();
-    const recoveryKey = this.generateRecoveryKey();
-    const keyPair = this.generateKeyPair();
+    try {
+      // Generate random values
+      const salt = this.generateSalt();
+      const masterKey = this.generateMasterKey();
+      const recoveryKey = this.generateRecoveryKey();
+      const keyPair = this.generateKeyPair();
 
-    // Derive key encryption key from password
-    const kek = await this.deriveKeyFromPassword(password, salt);
+      console.log("Generated salt length:", salt.length);
+      console.log("Expected salt length:", sodium.crypto_pwhash_SALTBYTES);
 
-    // Encrypt master key with KEK
-    const encryptedMasterKey = this.encrypt(masterKey, kek);
+      // Derive key encryption key from password
+      const kek = await this.deriveKeyFromPassword(password, salt);
 
-    // Encrypt private key with master key
-    const encryptedPrivateKey = this.encrypt(keyPair.privateKey, masterKey);
+      // Encrypt master key with KEK
+      const encryptedMasterKey = this.encrypt(masterKey, kek);
 
-    // Encrypt recovery key with master key
-    const encryptedRecoveryKey = this.encrypt(recoveryKey, masterKey);
+      // Encrypt private key with master key
+      const encryptedPrivateKey = this.encrypt(keyPair.privateKey, masterKey);
 
-    // Encrypt master key with recovery key
-    const masterKeyEncryptedWithRecoveryKey = this.encrypt(
-      masterKey,
-      recoveryKey,
-    );
+      // Encrypt recovery key with master key
+      const encryptedRecoveryKey = this.encrypt(recoveryKey, masterKey);
 
-    // Generate verification ID (can be derived from public key)
-    const verificationID = this.base64UrlEncode(
-      sodium.crypto_generichash(16, keyPair.publicKey),
-    );
+      // Encrypt master key with recovery key
+      const masterKeyEncryptedWithRecoveryKey = this.encrypt(
+        masterKey,
+        recoveryKey,
+      );
 
-    return {
-      salt: this.base64UrlEncode(salt),
-      publicKey: this.base64UrlEncode(keyPair.publicKey),
-      encryptedMasterKey: this.base64UrlEncode(encryptedMasterKey),
-      encryptedPrivateKey: this.base64UrlEncode(encryptedPrivateKey),
-      encryptedRecoveryKey: this.base64UrlEncode(encryptedRecoveryKey),
-      masterKeyEncryptedWithRecoveryKey: this.base64UrlEncode(
-        masterKeyEncryptedWithRecoveryKey,
-      ),
-      verificationID,
-      // Keep these for potential future use (not sent to API)
-      _masterKey: this.base64UrlEncode(masterKey),
-      _recoveryKey: this.base64UrlEncode(recoveryKey),
-      _privateKey: this.base64UrlEncode(keyPair.privateKey),
-    };
+      // Generate verification ID (can be derived from public key)
+      const verificationID = this.base64UrlEncode(
+        sodium.crypto_generichash(16, keyPair.publicKey),
+      );
+
+      return {
+        salt: this.base64UrlEncode(salt),
+        publicKey: this.base64UrlEncode(keyPair.publicKey),
+        encryptedMasterKey: this.base64UrlEncode(encryptedMasterKey),
+        encryptedPrivateKey: this.base64UrlEncode(encryptedPrivateKey),
+        encryptedRecoveryKey: this.base64UrlEncode(encryptedRecoveryKey),
+        masterKeyEncryptedWithRecoveryKey: this.base64UrlEncode(
+          masterKeyEncryptedWithRecoveryKey,
+        ),
+        verificationID,
+        // Keep these for potential future use (not sent to API)
+        _masterKey: this.base64UrlEncode(masterKey),
+        _recoveryKey: this.base64UrlEncode(recoveryKey),
+        _privateKey: this.base64UrlEncode(keyPair.privateKey),
+      };
+    } catch (error) {
+      console.error("Registration crypto generation error:", error);
+      throw new Error(`Failed to generate encryption data: ${error.message}`);
+    }
   }
 }
 
