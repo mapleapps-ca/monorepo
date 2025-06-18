@@ -81,6 +81,7 @@ class AuthService {
     phone,
     country,
     timezone = "America/Toronto",
+    betaAccessCode,
   ) {
     try {
       console.log("Starting registration process for:", email);
@@ -104,7 +105,7 @@ class AuthService {
 
       // Prepare registration payload
       const registrationData = {
-        beta_access_code: "BETA2024", // You may want to make this configurable
+        beta_access_code: betaAccessCode,
         first_name: firstName,
         last_name: lastName,
         email: email.toLowerCase().trim(),

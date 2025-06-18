@@ -1,33 +1,67 @@
-// src/services/CryptoService.js - Web Crypto API Fallback
+// src/services/CryptoService.js - LibSodium Implementation
 class CryptoService {
   constructor() {
-    this.isReady = true; // Web Crypto is always ready in modern browsers
-    console.log("Using Web Crypto API fallback");
+    this.sodium = null;
+    this.isReady = false;
+    console.log("Initializing CryptoService with libsodium-wrappers-sumo");
   }
 
   async init() {
-    // Web Crypto doesn't need initialization
-    return Promise.resolve();
+    if (this.isReady && this.sodium) {
+      return;
+    }
+
+    try {
+      console.log("Loading libsodium-wrappers-sumo...");
+
+      // Dynamic import with proper error handling
+      const sodiumModule = await import("libsodium-wrappers-sumo");
+      const sodium = sodiumModule.default || sodiumModule;
+
+      console.log("LibSodium module loaded, waiting for ready...");
+      await sodium.ready;
+
+      this.sodium = sodium;
+      this.isReady = true;
+
+      console.log("✅ LibSodium initialized successfully");
+      console.log("Available methods:", {
+        randombytes_buf: typeof sodium.randombytes_buf,
+        crypto_box_keypair: typeof sodium.crypto_box_keypair,
+        crypto_pwhash: typeof sodium.crypto_pwhash,
+        crypto_secretbox_easy: typeof sodium.crypto_secretbox_easy,
+        crypto_box_easy: typeof sodium.crypto_box_easy,
+      });
+    } catch (error) {
+      console.error("❌ Failed to initialize LibSodium:", error);
+      throw new Error(`LibSodium initialization failed: ${error.message}`);
+    }
   }
 
   async ensureReady() {
-    // Always ready
-    return Promise.resolve();
+    if (!this.isReady) {
+      await this.init();
+    }
+
+    if (!this.sodium) {
+      throw new Error("LibSodium not available");
+    }
   }
 
-  // Generate random bytes using Web Crypto
+  // Generate random bytes using LibSodium
   generateRandomBytes(length) {
-    const array = new Uint8Array(length);
-    crypto.getRandomValues(array);
-    return array;
+    if (!this.sodium) {
+      throw new Error("LibSodium not initialized");
+    }
+    return this.sodium.randombytes_buf(length);
   }
 
-  // Generate salt (32 bytes for Web Crypto)
+  // Generate salt (32 bytes for Argon2ID)
   generateSalt() {
     return this.generateRandomBytes(32);
   }
 
-  // Generate master key
+  // Generate master key (32 bytes for ChaCha20-Poly1305)
   generateMasterKey() {
     return this.generateRandomBytes(32);
   }
@@ -37,163 +71,169 @@ class CryptoService {
     return this.generateRandomBytes(32);
   }
 
-  // Generate keypair using Web Crypto
-  async generateKeyPair() {
-    const keyPair = await crypto.subtle.generateKey(
-      {
-        name: "ECDH",
-        namedCurve: "P-256",
-      },
-      true,
-      ["deriveKey"],
-    );
+  // Generate X25519 keypair using LibSodium
+  generateKeyPair() {
+    if (!this.sodium) {
+      throw new Error("LibSodium not initialized");
+    }
 
-    const publicKey = await crypto.subtle.exportKey("raw", keyPair.publicKey);
-    const privateKey = await crypto.subtle.exportKey(
-      "pkcs8",
-      keyPair.privateKey,
-    );
+    console.log("Generating X25519 keypair...");
+    const keyPair = this.sodium.crypto_box_keypair();
 
     return {
-      publicKey: new Uint8Array(publicKey),
-      privateKey: new Uint8Array(privateKey),
+      publicKey: keyPair.publicKey,
+      privateKey: keyPair.privateKey,
     };
   }
 
-  // PBKDF2 key derivation (Web Crypto native)
+  // Argon2ID key derivation (LibSodium native)
   async deriveKeyFromPassword(password, salt) {
+    if (!this.sodium) {
+      throw new Error("LibSodium not initialized");
+    }
+
+    console.log("Deriving key from password using Argon2ID...");
+
     const passwordBytes =
       typeof password === "string"
-        ? new TextEncoder().encode(password)
+        ? this.sodium.from_string(password)
         : password;
 
-    const keyMaterial = await crypto.subtle.importKey(
-      "raw",
+    // Use Argon2ID with parameters matching the backend
+    const derivedKey = this.sodium.crypto_pwhash(
+      32, // output length (32 bytes for ChaCha20-Poly1305)
       passwordBytes,
-      { name: "PBKDF2" },
-      false,
-      ["deriveKey"],
+      salt,
+      this.sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE, // iterations
+      this.sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE, // memory limit
+      this.sodium.crypto_pwhash_ALG_ARGON2ID,
     );
 
-    const key = await crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: salt,
-        iterations: 100000, // 100k iterations
-        hash: "SHA-256",
-      },
-      keyMaterial,
-      { name: "AES-GCM", length: 256 },
-      true,
-      ["encrypt", "decrypt"],
-    );
-
-    return new Uint8Array(await crypto.subtle.exportKey("raw", key));
+    return derivedKey;
   }
 
-  // AES-GCM encryption (Web Crypto native)
-  async encrypt(message, key) {
-    const iv = this.generateRandomBytes(12); // 96-bit IV for GCM
+  // ChaCha20-Poly1305 encryption (LibSodium native)
+  encrypt(message, key) {
+    if (!this.sodium) {
+      throw new Error("LibSodium not initialized");
+    }
 
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      key,
-      { name: "AES-GCM" },
-      false,
-      ["encrypt"],
+    const nonce = this.generateRandomBytes(
+      this.sodium.crypto_secretbox_NONCEBYTES,
     );
+    const ciphertext = this.sodium.crypto_secretbox_easy(message, nonce, key);
 
-    const encrypted = await crypto.subtle.encrypt(
-      {
-        name: "AES-GCM",
-        iv: iv,
-      },
-      cryptoKey,
-      message,
-    );
-
-    // Combine IV + ciphertext
-    const result = new Uint8Array(iv.length + encrypted.byteLength);
-    result.set(iv);
-    result.set(new Uint8Array(encrypted), iv.length);
+    // Combine nonce + ciphertext (as expected by backend)
+    const result = new Uint8Array(nonce.length + ciphertext.length);
+    result.set(nonce);
+    result.set(ciphertext, nonce.length);
 
     return result;
   }
 
-  // AES-GCM decryption (Web Crypto native)
-  async decrypt(encryptedData, key) {
-    const iv = encryptedData.slice(0, 12);
-    const ciphertext = encryptedData.slice(12);
+  // ChaCha20-Poly1305 decryption (LibSodium native)
+  decrypt(encryptedData, key) {
+    if (!this.sodium) {
+      throw new Error("LibSodium not initialized");
+    }
 
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      key,
-      { name: "AES-GCM" },
-      false,
-      ["decrypt"],
-    );
+    const nonceLength = this.sodium.crypto_secretbox_NONCEBYTES;
+    const nonce = encryptedData.slice(0, nonceLength);
+    const ciphertext = encryptedData.slice(nonceLength);
 
-    const decrypted = await crypto.subtle.decrypt(
-      {
-        name: "AES-GCM",
-        iv: iv,
-      },
-      cryptoKey,
+    const decrypted = this.sodium.crypto_secretbox_open_easy(
       ciphertext,
+      nonce,
+      key,
     );
-
-    return new Uint8Array(decrypted);
+    return decrypted;
   }
 
-  // Base64 URL encode
+  // Base64 URL encode (LibSodium native)
   base64UrlEncode(data) {
-    const base64 = btoa(String.fromCharCode(...data));
-    return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    if (!this.sodium) {
+      throw new Error("LibSodium not initialized");
+    }
+    return this.sodium.to_base64(
+      data,
+      this.sodium.base64_variants.URLSAFE_NO_PADDING,
+    );
   }
 
-  // Base64 URL decode
+  // Base64 URL decode (LibSodium native)
   base64UrlDecode(data) {
-    const base64 = data.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64 + "===".slice((base64.length + 3) % 4);
-    const binary = atob(padded);
-    return new Uint8Array([...binary].map((char) => char.charCodeAt(0)));
+    if (!this.sodium) {
+      throw new Error("LibSodium not initialized");
+    }
+    return this.sodium.from_base64(
+      data,
+      this.sodium.base64_variants.URLSAFE_NO_PADDING,
+    );
   }
 
-  // Generate registration crypto data
+  // Generate verification ID that matches backend expectations
+  generateVerificationID(publicKey) {
+    if (!this.sodium) {
+      throw new Error("LibSodium not initialized");
+    }
+
+    console.log("Generating verification ID from public key...");
+
+    // Hash the public key using Blake2b (or SHA-256 if Blake2b not available)
+    let hash;
+    if (this.sodium.crypto_generichash) {
+      // Use Blake2b (preferred)
+      hash = this.sodium.crypto_generichash(16, publicKey);
+    } else {
+      // Fallback to SHA-256
+      const fullHash = this.sodium.crypto_hash_sha256(publicKey);
+      hash = fullHash.slice(0, 16);
+    }
+
+    return this.base64UrlEncode(hash);
+  }
+
+  // Generate registration crypto data (matching backend expectations)
   async generateRegistrationCrypto(password) {
     try {
-      console.log("Generating registration crypto with Web Crypto API...");
+      console.log("Generating registration crypto with LibSodium...");
+      await this.ensureReady();
 
+      // Generate all the required keys and data
       const salt = this.generateSalt();
       const masterKey = this.generateMasterKey();
       const recoveryKey = this.generateRecoveryKey();
-      const keyPair = await this.generateKeyPair();
+      const keyPair = this.generateKeyPair();
 
-      // Derive key encryption key
+      console.log("Generated keys:", {
+        saltLength: salt.length,
+        masterKeyLength: masterKey.length,
+        recoveryKeyLength: recoveryKey.length,
+        publicKeyLength: keyPair.publicKey.length,
+        privateKeyLength: keyPair.privateKey.length,
+      });
+
+      // Derive key encryption key using Argon2ID
       const kek = await this.deriveKeyFromPassword(password, salt);
+      console.log("Key encryption key derived, length:", kek.length);
 
-      // Encrypt keys
-      const encryptedMasterKey = await this.encrypt(masterKey, kek);
-      const encryptedPrivateKey = await this.encrypt(
-        keyPair.privateKey,
-        masterKey,
-      );
-      const encryptedRecoveryKey = await this.encrypt(recoveryKey, masterKey);
-      const masterKeyEncryptedWithRecoveryKey = await this.encrypt(
+      // Encrypt keys using ChaCha20-Poly1305
+      const encryptedMasterKey = this.encrypt(masterKey, kek);
+      const encryptedPrivateKey = this.encrypt(keyPair.privateKey, masterKey);
+      const encryptedRecoveryKey = this.encrypt(recoveryKey, masterKey);
+      const masterKeyEncryptedWithRecoveryKey = this.encrypt(
         masterKey,
         recoveryKey,
       );
 
-      // Generate verification ID
-      const publicKeyHash = await crypto.subtle.digest(
-        "SHA-256",
-        keyPair.publicKey,
-      );
-      const verificationID = this.base64UrlEncode(
-        new Uint8Array(publicKeyHash.slice(0, 16)),
-      );
+      console.log("Keys encrypted successfully");
 
-      return {
+      // Generate verification ID that matches backend expectations
+      const verificationID = this.generateVerificationID(keyPair.publicKey);
+      console.log("Verification ID generated:", verificationID);
+
+      // Return data in the format expected by the backend
+      const result = {
         salt: this.base64UrlEncode(salt),
         publicKey: this.base64UrlEncode(keyPair.publicKey),
         encryptedMasterKey: this.base64UrlEncode(encryptedMasterKey),
@@ -202,26 +242,35 @@ class CryptoService {
         masterKeyEncryptedWithRecoveryKey: this.base64UrlEncode(
           masterKeyEncryptedWithRecoveryKey,
         ),
-        verificationID,
+        verificationID: verificationID,
+        // Store raw keys for session use (these won't be sent to server)
         _masterKey: this.base64UrlEncode(masterKey),
         _recoveryKey: this.base64UrlEncode(recoveryKey),
         _privateKey: this.base64UrlEncode(keyPair.privateKey),
       };
+
+      console.log("Registration crypto data generated successfully");
+      return result;
     } catch (error) {
-      console.error("Web Crypto registration error:", error);
+      console.error("❌ LibSodium registration crypto error:", error);
       throw new Error(`Failed to generate encryption data: ${error.message}`);
     }
   }
 
-  // Derive key with parameters (for login)
+  // Derive key with parameters (for login compatibility)
   async deriveKeyWithParams(password, salt, kdfParams) {
-    // Use same method as registration
+    await this.ensureReady();
+
+    // For now, use the same derivation as registration
+    // In the future, this could be extended to handle different KDF parameters
     return await this.deriveKeyFromPassword(password, salt);
   }
 
-  // Process login step 2
+  // Process login step 2 (decrypt user data)
   async processLoginStep2(password, loginData) {
     try {
+      await this.ensureReady();
+
       const salt = this.base64UrlDecode(loginData.salt);
       const encryptedMasterKey = this.base64UrlDecode(
         loginData.encryptedMasterKey,
@@ -239,14 +288,23 @@ class CryptoService {
       );
 
       // Decrypt master key
-      const masterKey = await this.decrypt(encryptedMasterKey, kek);
+      const masterKey = this.decrypt(encryptedMasterKey, kek);
 
       // Decrypt private key
-      const privateKey = await this.decrypt(encryptedPrivateKey, masterKey);
+      const privateKey = this.decrypt(encryptedPrivateKey, masterKey);
 
-      // For challenge decryption, we'll need a different approach
-      // This is a simplified version - real implementation would need ECDH
-      const decryptedChallenge = this.generateRandomBytes(32); // Placeholder
+      // Handle encrypted challenge if present
+      let decryptedChallenge;
+      if (loginData.encryptedChallenge) {
+        const encryptedChallengeBytes = this.base64UrlDecode(
+          loginData.encryptedChallenge,
+        );
+        // For challenge decryption, we might need to use box_open with ephemeral key
+        // This is a simplified version - full implementation would need the ephemeral public key
+        decryptedChallenge = this.generateRandomBytes(32); // Placeholder
+      } else {
+        decryptedChallenge = this.generateRandomBytes(32);
+      }
 
       return {
         masterKey: this.base64UrlEncode(masterKey),
@@ -256,23 +314,48 @@ class CryptoService {
         challengeId: loginData.challengeId,
       };
     } catch (error) {
+      console.error("Login step 2 error:", error);
       throw new Error(
         "Failed to decrypt login data. Please check your password.",
       );
     }
   }
 
-  // Token decryption (simplified)
+  // Token decryption using box_open
   async decryptTokens(encryptedTokens, tokenNonce, privateKey) {
     try {
-      const encryptedData = this.base64UrlDecode(encryptedTokens);
-      const key = this.base64UrlDecode(privateKey).slice(0, 32); // Use first 32 bytes as key
+      await this.ensureReady();
 
-      const decryptedData = await this.decrypt(encryptedData, key);
-      return JSON.parse(new TextDecoder().decode(decryptedData));
+      const encryptedData = this.base64UrlDecode(encryptedTokens);
+      const nonce = this.base64UrlDecode(tokenNonce);
+      const privateKeyBytes = this.base64UrlDecode(privateKey);
+
+      // For token decryption, we would need the server's public key
+      // This is a simplified version
+      const key = privateKeyBytes.slice(0, 32); // Use first 32 bytes as key
+      const decryptedData = this.decrypt(encryptedData, key);
+
+      return JSON.parse(this.sodium.to_string(decryptedData));
     } catch (error) {
+      console.error("Token decryption error:", error);
       throw new Error("Failed to decrypt authentication tokens");
     }
+  }
+
+  // Utility method to convert string to bytes
+  stringToBytes(str) {
+    if (!this.sodium) {
+      throw new Error("LibSodium not initialized");
+    }
+    return this.sodium.from_string(str);
+  }
+
+  // Utility method to convert bytes to string
+  bytesToString(bytes) {
+    if (!this.sodium) {
+      throw new Error("LibSodium not initialized");
+    }
+    return this.sodium.to_string(bytes);
   }
 }
 

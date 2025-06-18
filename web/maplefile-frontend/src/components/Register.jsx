@@ -61,6 +61,7 @@ const Register = () => {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [betaAccessCode, setBetaAccessCode] = useState("");
 
   // Common countries list
   const countries = [
@@ -87,7 +88,26 @@ const Register = () => {
 
     try {
       // Validate inputs
-      if (!name || !email || !phone || !password || !confirmPassword) {
+      if (
+        !betaAccessCode ||
+        !name ||
+        !email ||
+        !phone ||
+        !password ||
+        !confirmPassword
+      ) {
+        console.log(
+          "Form submission validation failed: Missing required fields",
+          {
+            betaAccessCode,
+            name,
+            email,
+            phone,
+            password,
+            confirmPassword,
+            agreeTerms,
+          },
+        );
         throw new Error("Please fill in all required fields");
       }
 
@@ -125,6 +145,7 @@ const Register = () => {
         phone.trim(),
         country,
         "America/Toronto", // Default timezone
+        betaAccessCode.trim(), // Added betaAccessCode to the API call
       );
 
       if (result.success) {
@@ -228,6 +249,22 @@ const Register = () => {
               ))}
             </select>
           </div>
+
+          <div style={styles.formGroup}>
+            <label htmlFor="betaAccessCode" style={styles.label}>
+              Beta Code
+            </label>
+            <input
+              type="text"
+              id="betaAccessCode"
+              value={betaAccessCode}
+              onChange={(e) => setBetaAccessCode(e.target.value)}
+              style={styles.input}
+              placeholder="Enter beta code"
+              disabled={loading}
+            />
+          </div>
+          {/* End Beta Code Field */}
 
           <div style={styles.formGroup}>
             <label htmlFor="password" style={styles.label}>
