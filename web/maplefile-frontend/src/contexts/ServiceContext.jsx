@@ -1,5 +1,6 @@
+// web/maplefile-frontend/src/contexts/ServiceContext.jsx
 // src/contexts/ServiceContext.js
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useEffect } from "react"; // Added useEffect
 import AuthService from "../services/AuthService";
 import MeService from "../services/MeService";
 import TokenService from "../services/TokenService";
@@ -20,16 +21,15 @@ export const useServices = () => {
 // Create a provider component that will wrap our app
 export const ServiceProvider = ({ children }) => {
   // Initialize all services here following dependency injection principles
-  // CryptoService has no dependencies
   const cryptoService = new CryptoService();
 
-  // AuthService depends on CryptoService
+  // Initialize the cryptoService early
+  useEffect(() => {
+    cryptoService.init().catch(console.error); // Handle errors during initialization
+  }, []);
+
   const authService = new AuthService(cryptoService);
-
-  // MeService depends on AuthService
   const meService = new MeService(authService);
-
-  // TokenService has no dependencies
   const tokenService = new TokenService();
 
   const services = {

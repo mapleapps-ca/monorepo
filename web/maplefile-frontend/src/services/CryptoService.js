@@ -1,3 +1,4 @@
+// web/maplefile-frontend/src/services/CryptoService.js
 // src/services/CryptoService.js - LibSodium Implementation
 class CryptoService {
   constructor() {
@@ -31,6 +32,7 @@ class CryptoService {
         crypto_pwhash: typeof sodium.crypto_pwhash,
         crypto_secretbox_easy: typeof sodium.crypto_secretbox_easy,
         crypto_box_easy: typeof sodium.crypto_box_easy,
+        crypto_pwhash_ALG_ARGON2ID: typeof sodium.crypto_pwhash_ALG_ARGON2ID, // Add this line to log
       });
     } catch (error) {
       console.error("❌ Failed to initialize LibSodium:", error);
@@ -88,8 +90,15 @@ class CryptoService {
 
   // Argon2ID key derivation (LibSodium native) - Use same parameters as backend
   async deriveKeyFromPassword(password, salt) {
-    if (!this.sodium) {
-      throw new Error("LibSodium not initialized");
+    await this.ensureReady();
+
+    console.log(
+      "deriveKeyFromPassword - Checking if Argon2ID algorithm is available:",
+      this.sodium && this.sodium.crypto_pwhash_ALG_ARGON2ID !== undefined,
+    );
+    if (this.sodium && !this.sodium.crypto_pwhash_ALG_ARGON2ID) {
+      console.error("Argon2ID algorithm not supported by libsodium");
+      throw new Error("Argon2ID algorithm not supported by libsodium");
     }
 
     // Validate salt length matches backend expectation

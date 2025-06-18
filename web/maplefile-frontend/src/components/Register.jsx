@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
 import { useServices } from "../contexts/ServiceContext";
+import CryptoService from "../services/CryptoService"; // Import CryptoService
 
 const DiagnosticComponent = () => {
   useEffect(() => {
@@ -48,7 +49,7 @@ const DiagnosticComponent = () => {
 };
 
 const Register = () => {
-  const { authService } = useServices();
+  const { authService, cryptoService } = useServices(); // Inject cryptoService
   const navigate = useNavigate();
 
   // Form state
@@ -137,6 +138,10 @@ const Register = () => {
         throw new Error("Please enter a valid phone number");
       }
 
+      // Generate registration crypto data
+      const cryptoData =
+        await cryptoService.generateRegistrationCrypto(password);
+
       // Attempt to register
       const result = await authService.register(
         email.trim(),
@@ -146,6 +151,13 @@ const Register = () => {
         country,
         "America/Toronto", // Default timezone
         betaAccessCode.trim(), // Added betaAccessCode to the API call
+        cryptoData.salt,
+        cryptoData.publicKey,
+        cryptoData.encryptedMasterKey,
+        cryptoData.encryptedPrivateKey,
+        cryptoData.encryptedRecoveryKey,
+        cryptoData.masterKeyEncryptedWithRecoveryKey,
+        cryptoData.verificationID,
       );
 
       if (result.success) {
