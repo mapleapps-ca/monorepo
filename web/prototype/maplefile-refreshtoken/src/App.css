@@ -1,42 +1,451 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* src/App.css */
+
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+        "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
+        "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #f5f5f7;
+    color: #1d1d1f;
+    line-height: 1.6;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* App layout */
+.app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.card {
-  padding: 2em;
+.header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
 }
 
-.read-the-docs {
-  color: #888;
+.header p {
+    opacity: 0.9;
+    font-size: 1.2rem;
+}
+
+.main {
+    flex: 1;
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.container {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.footer {
+    background-color: #f8f9fa;
+    padding: 1rem 2rem;
+    text-align: center;
+    color: #86868b;
+    border-top: 1px solid #e5e5e7;
+}
+
+/* Status cards */
+.status-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e5e7;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.status-card h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    color: #1d1d1f;
+}
+
+.status-card p {
+    color: #86868b;
+    margin-bottom: 0.5rem;
+}
+
+.status-card.no-tokens {
+    border-left: 4px solid #ff3b30;
+}
+
+.expected-keys {
+    margin-top: 2rem;
+    text-align: left;
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+.expected-keys h3 {
+    margin-bottom: 1rem;
+    color: #1d1d1f;
+}
+
+.expected-keys ul {
+    list-style: none;
+    padding: 0;
+}
+
+.expected-keys li {
+    padding: 0.5rem 0;
+    display: flex;
+    align-items: center;
+}
+
+.expected-keys code {
+    background: #e5e5e7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+    font-size: 0.875rem;
+}
+
+/* Token display card */
+.token-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e5e7;
+    margin-bottom: 2rem;
+}
+
+.token-card h3 {
+    margin-bottom: 1.5rem;
+    color: #1d1d1f;
+    font-size: 1.5rem;
+}
+
+.user-info {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+}
+
+.token-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.token-item {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #e5e5e7;
+}
+
+.token-item h4 {
+    margin-bottom: 1rem;
+    color: #1d1d1f;
+    font-size: 1.2rem;
+}
+
+.token-status,
+.token-detail {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.label {
+    font-weight: 600;
+    color: #1d1d1f;
+}
+
+.value,
+.status {
+    font-weight: 500;
+}
+
+.status.success,
+.value.success {
+    color: #2d7d32;
+}
+
+.status.warning {
+    color: #f57c00;
+}
+
+.status.error,
+.value.error {
+    color: #d32f2f;
+}
+
+.token-summary {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #1976d2;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.summary-item:last-child {
+    margin-bottom: 0;
+}
+
+.warning-box {
+    background: #fff3e0;
+    border: 1px solid #ffcc02;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.warning-box h4 {
+    margin-bottom: 0.5rem;
+    color: #f57c00;
+}
+
+.warning-box .error {
+    color: #d32f2f;
+}
+
+.warning-box .warning {
+    color: #f57c00;
+}
+
+/* Monitor card */
+.monitor-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e5e7;
+}
+
+.monitor-card h3 {
+    margin-bottom: 1.5rem;
+    color: #1d1d1f;
+    font-size: 1.5rem;
+}
+
+.monitor-status {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.status-item:last-child {
+    margin-bottom: 0;
+}
+
+.status.active {
+    color: #2d7d32;
+    font-weight: 600;
+}
+
+.status.inactive {
+    color: #757575;
+    font-weight: 600;
+}
+
+.status.refreshing {
+    color: #1976d2;
+    font-weight: 600;
+}
+
+.timestamp {
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+    font-size: 0.875rem;
+    color: #86868b;
+}
+
+.monitor-controls {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+}
+
+.monitor-info {
+    background: #e8f5e8;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border-left: 4px solid #2d7d32;
+}
+
+.monitor-info h4 {
+    margin-bottom: 1rem;
+    color: #2d7d32;
+}
+
+.monitor-info ul {
+    list-style: none;
+    padding: 0;
+}
+
+.monitor-info li {
+    padding: 0.25rem 0;
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+.monitor-info li::before {
+    content: "✓";
+    color: #2d7d32;
+    font-weight: bold;
+    position: absolute;
+    left: 0;
+}
+
+/* Buttons */
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 140px;
+    justify-content: center;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-secondary {
+    background-color: #f5f5f7;
+    color: #1d1d1f;
+    border: 1px solid #e5e5e7;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: #e5e5e7;
+}
+
+.btn-action {
+    background-color: #1976d2;
+    color: white;
+}
+
+.btn-action:hover:not(:disabled) {
+    background-color: #1565c0;
+}
+
+.btn-action:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-danger {
+    background-color: #ff3b30;
+    color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background-color: #d70015;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .header {
+        padding: 1.5rem 1rem;
+    }
+
+    .header h1 {
+        font-size: 2rem;
+    }
+
+    .main {
+        padding: 1rem;
+    }
+
+    .token-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .monitor-controls {
+        flex-direction: column;
+    }
+
+    .btn {
+        min-width: auto;
+        width: 100%;
+    }
+
+    .status-item,
+    .token-detail,
+    .summary-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+}
+
+/* Animation for status updates */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.status.refreshing {
+    animation: pulse 2s infinite;
 }
