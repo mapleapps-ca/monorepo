@@ -11,6 +11,7 @@ const CompleteLogin = () => {
   const [decrypting, setDecrypting] = useState(false);
   const [error, setError] = useState("");
   const [verifyData, setVerifyData] = useState(null);
+  const [decryptionProgress, setDecryptionProgress] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,8 +23,18 @@ const CompleteLogin = () => {
     if (storedEmail && storedVerifyData) {
       setEmail(storedEmail);
       setVerifyData(storedVerifyData);
+
+      // Log the available data for debugging
+      console.log(
+        "[CompleteLogin] Available verify data:",
+        Object.keys(storedVerifyData),
+      );
+      console.log("[CompleteLogin] Verify data:", storedVerifyData);
     } else {
       // If no data from previous steps, redirect to start
+      console.error(
+        "[CompleteLogin] Missing email or verify data, redirecting to start",
+      );
       navigate("/");
     }
   }, [navigate]);
@@ -33,6 +44,7 @@ const CompleteLogin = () => {
     setLoading(true);
     setDecrypting(true);
     setError("");
+    setDecryptionProgress("");
 
     try {
       // Validate password
@@ -40,32 +52,39 @@ const CompleteLogin = () => {
         throw new Error("Password is required");
       }
 
-      if (
-        !verifyData ||
-        !verifyData.challengeId ||
-        !verifyData.encryptedChallenge
-      ) {
+      if (!verifyData || !verifyData.challengeId) {
         throw new Error(
           "Missing challenge data. Please start the login process again.",
         );
       }
 
-      // Simulate the decryption process
-      // In a real implementation, this would involve:
-      // 1. Deriving key from password using Argon2ID with provided salt and KDF params
-      // 2. Decrypting the master key with the derived key
-      // 3. Decrypting the private key with the master key
-      // 4. Decrypting the challenge with the private key using X25519 and ChaCha20-Poly1305
-
-      console.log("Starting challenge decryption process...");
+      console.log("[CompleteLogin] Starting challenge decryption process...");
       console.log("Challenge ID:", verifyData.challengeId);
-      console.log("Encrypted Challenge:", verifyData.encryptedChallenge);
-      console.log("KDF Params:", verifyData.kdf_params);
 
-      setDecrypting(true);
-      const decryptedChallenge = await AuthService.simulateDecryption(
-        verifyData.encryptedChallenge,
+      // Update progress
+      setDecryptionProgress("Initializing cryptographic libraries...");
+
+      // Small delay to show progress
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      setDecryptionProgress("Deriving encryption key from password...");
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      setDecryptionProgress("Decrypting master key...");
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      setDecryptionProgress("Decrypting private key...");
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      setDecryptionProgress("Decrypting challenge data...");
+
+      // Perform the actual decryption
+      const decryptedChallenge = await AuthService.decryptChallenge(
+        password,
+        verifyData,
       );
+
+      setDecryptionProgress("Completing authentication...");
       setDecrypting(false);
 
       // Complete the login with the decrypted challenge
@@ -75,13 +94,15 @@ const CompleteLogin = () => {
         decryptedChallenge,
       );
 
-      console.log("Login completed successfully!");
+      console.log("[CompleteLogin] Login completed successfully!");
 
       // Navigate to dashboard
       navigate("/dashboard");
     } catch (error) {
+      console.error("[CompleteLogin] Login failed:", error);
       setError(error.message);
       setDecrypting(false);
+      setDecryptionProgress("");
     } finally {
       setLoading(false);
     }
@@ -95,6 +116,7 @@ const CompleteLogin = () => {
     return (
       <Layout title="Loading...">
         <div className="loading-container">
+          <div className="spinner"></div>
           <p>Loading verification data...</p>
         </div>
       </Layout>
@@ -118,9 +140,10 @@ const CompleteLogin = () => {
               placeholder="Enter your password"
               required
               disabled={loading}
+              autoComplete="current-password"
             />
             <small>
-              Your password will be used to decrypt your secure keys
+              Your password will be used to decrypt your secure keys locally
             </small>
           </div>
 
@@ -129,7 +152,7 @@ const CompleteLogin = () => {
           {decrypting && (
             <div className="info-message">
               <div className="spinner"></div>
-              Decrypting challenge data...
+              {decryptionProgress || "Processing..."}
             </div>
           )}
 
@@ -160,18 +183,29 @@ const CompleteLogin = () => {
         <div className="security-info">
           <h3>Security Information</h3>
           <div className="security-details">
-            <p>
-              <strong>Current Key Version:</strong>{" "}
-              {verifyData.current_key_version}
-            </p>
+            {verifyData.current_key_version && (
+              <p>
+                <strong>Current Key Version:</strong>{" "}
+                {verifyData.current_key_version}
+              </p>
+            )}
             <p>
               <strong>Encryption:</strong> End-to-end encrypted with
               ChaCha20-Poly1305
             </p>
             <p>
-              <strong>Key Derivation:</strong> Argon2ID with{" "}
-              {verifyData.kdf_params?.iterations} iterations
+              <strong>Key Exchange:</strong> X25519 Elliptic Curve
+              Diffie-Hellman
             </p>
+            <p>
+              <strong>Key Derivation:</strong> PBKDF2 with 100,000 iterations
+            </p>
+            {verifyData.kdf_params?.iterations && (
+              <p>
+                <strong>KDF Iterations:</strong>{" "}
+                {verifyData.kdf_params.iterations}
+              </p>
+            )}
             {verifyData.kdf_params_need_upgrade && (
               <p className="warning">
                 ⚠️ Your encryption parameters will be upgraded after login
@@ -181,18 +215,38 @@ const CompleteLogin = () => {
         </div>
 
         <div className="info-box">
-          <h3>What's happening?</h3>
+          <h3>End-to-End Encryption Process</h3>
           <ul>
-            <li>Your password is used to derive an encryption key</li>
-            <li>This key decrypts your master key stored securely</li>
+            <li>Your password derives an encryption key using PBKDF2</li>
             <li>
-              The challenge is decrypted to prove you have the correct password
+              This key decrypts your master key stored securely on the server
             </li>
+            <li>The master key decrypts your private X25519 key</li>
             <li>
-              No passwords are sent to the server - everything is client-side
+              Your private key decrypts the challenge using ECDH +
+              ChaCha20-Poly1305
             </li>
+            <li>No passwords or private keys are ever sent to the server</li>
+            <li>All decryption happens locally in your browser</li>
           </ul>
         </div>
+
+        {verifyData.verificationID && (
+          <div className="info-box">
+            <h3>Verification ID (BIP39)</h3>
+            <p>
+              <strong>Your Verification ID:</strong>
+            </p>
+            <code className="verification-id">
+              {verifyData.verificationID.split(" ").slice(0, 6).join(" ")}...
+            </code>
+            <small>
+              This 24-word BIP39 mnemonic is derived from your public key using
+              SHA256. It serves as a human-readable verification of your
+              cryptographic identity.
+            </small>
+          </div>
+        )}
       </div>
     </Layout>
   );

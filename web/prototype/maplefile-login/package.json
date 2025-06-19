@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@scure/bip39": "^1.6.0",
+    "argon2-browser": "^1.18.0",
+    "libsodium-wrappers-sumo": "^0.7.15",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router": "^7.6.2"

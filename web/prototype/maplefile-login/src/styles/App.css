@@ -651,3 +651,108 @@ body {
         align-items: flex-start;
     }
 }
+
+/* Additional CSS for verification ID and decryption progress */
+.verification-id {
+    display: block;
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+    font-size: 0.9rem;
+    border: 1px solid #e5e5e7;
+    word-break: break-word;
+    margin: 0.5rem 0;
+    color: #1d1d1f;
+    letter-spacing: 0.5px;
+}
+
+.info-message .spinner {
+    margin-right: 0.5rem;
+}
+
+/* Progress indicator for decryption steps */
+.decryption-progress {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #90caf9;
+    margin: 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 500;
+}
+
+.decryption-progress .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e5e5e7;
+    border-top: 2px solid #1976d2;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Security details styling */
+.security-details p {
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.security-details strong {
+    color: #1d1d1f;
+    min-width: 160px;
+}
+
+/* Loading container improvements */
+.loading-container {
+    text-align: center;
+    padding: 4rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.loading-container .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e5e5e7;
+    border-top: 3px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Enhanced info box for crypto details */
+.info-box.crypto-info {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-left: 4px solid #667eea;
+}
+
+.info-box.crypto-info h3 {
+    color: #667eea;
+    font-weight: 600;
+}
+
+/* Responsive improvements for mobile */
+@media (max-width: 768px) {
+    .verification-id {
+        font-size: 0.8rem;
+        letter-spacing: 0.3px;
+        padding: 0.75rem;
+    }
+
+    .security-details p {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+
+    .security-details strong {
+        min-width: auto;
+    }
+}

@@ -1,5 +1,6 @@
-// Authentication Service for API calls
+// Authentication Service for API calls - Production Version
 import LocalStorageService from "./localStorageService.jsx";
+import CryptoService from "./cryptoService.jsx";
 import workerManager from "./workerManager.jsx";
 
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config
@@ -28,6 +29,7 @@ class AuthService {
       // Fallback to manual token management if worker fails
     }
   }
+
   // Helper method to make API requests
   async makeRequest(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -106,15 +108,15 @@ class AuthService {
     }
   }
 
-  // Step 3: Complete Login
-  async completeLogin(email, challengeId, decryptedData) {
+  // Step 3: Complete Login with Real Decryption
+  async completeLogin(email, challengeId, decryptedChallenge) {
     try {
       const response = await this.makeRequest("/complete-login", {
         method: "POST",
         body: JSON.stringify({
           email: email.toLowerCase().trim(),
           challengeId: challengeId,
-          decryptedData: decryptedData,
+          decryptedData: decryptedChallenge,
         }),
       });
 
@@ -151,6 +153,129 @@ class AuthService {
       return response;
     } catch (error) {
       throw new Error(`Failed to complete login: ${error.message}`);
+    }
+  }
+
+  // Real challenge decryption using CryptoService
+  async decryptChallenge(password, verifyData) {
+    try {
+      console.log("[AuthService] Starting challenge decryption");
+      console.log(
+        "[AuthService] Available verify data fields:",
+        Object.keys(verifyData),
+      );
+      console.log("[AuthService] Verify data:", verifyData);
+
+      // Validate required data
+      if (!verifyData) {
+        throw new Error("No verification data provided");
+      }
+
+      // The verification response should contain the encrypted keys and challenge
+      // Let's check what fields are actually available and map them correctly
+
+      // Common field name variations to check
+      const fieldMappings = {
+        salt: ["salt", "Salt", "password_salt"],
+        encryptedMasterKey: [
+          "encryptedMasterKey",
+          "encrypted_master_key",
+          "masterKey",
+          "master_key",
+        ],
+        encryptedPrivateKey: [
+          "encryptedPrivateKey",
+          "encrypted_private_key",
+          "privateKey",
+          "private_key",
+        ],
+        encryptedChallenge: [
+          "encryptedChallenge",
+          "encrypted_challenge",
+          "challenge",
+        ],
+        publicKey: [
+          "publicKey",
+          "public_key",
+          "userPublicKey",
+          "user_public_key",
+        ],
+      };
+
+      const challengeData = {};
+
+      // Map fields to their actual names in the response
+      for (const [expectedField, possibleNames] of Object.entries(
+        fieldMappings,
+      )) {
+        let found = false;
+        for (const possibleName of possibleNames) {
+          if (verifyData[possibleName]) {
+            challengeData[expectedField] = verifyData[possibleName];
+            console.log(
+              `[AuthService] Mapped ${expectedField} -> ${possibleName}`,
+            );
+            found = true;
+            break;
+          }
+        }
+        if (!found && expectedField !== "publicKey") {
+          // publicKey is optional
+          console.error(
+            `[AuthService] Could not find field for ${expectedField}`,
+          );
+          console.error(
+            `[AuthService] Looked for: ${possibleNames.join(", ")}`,
+          );
+        }
+      }
+
+      // Check if we have all required data
+      const missingFields = [];
+      const requiredFields = [
+        "salt",
+        "encryptedMasterKey",
+        "encryptedPrivateKey",
+        "encryptedChallenge",
+      ];
+
+      for (const field of requiredFields) {
+        if (!challengeData[field]) {
+          missingFields.push(field);
+        }
+      }
+
+      if (missingFields.length > 0) {
+        console.error("[AuthService] Missing required fields:", missingFields);
+        console.error(
+          "[AuthService] Available verify data:",
+          Object.keys(verifyData),
+        );
+        console.error(
+          "[AuthService] Mapped challenge data:",
+          Object.keys(challengeData),
+        );
+        throw new Error(
+          `Missing required encrypted data: ${missingFields.join(", ")}`,
+        );
+      }
+
+      console.log("[AuthService] Successfully mapped all required fields");
+      if (challengeData.publicKey) {
+        console.log("[AuthService] Public key also available for verification");
+      }
+
+      // Use CryptoService to decrypt the challenge
+      const decryptedChallenge = await CryptoService.decryptLoginChallenge(
+        password,
+        challengeData,
+      );
+
+      console.log("[AuthService] Challenge decryption successful");
+      return decryptedChallenge;
+    } catch (error) {
+      console.error("[AuthService] Challenge decryption failed:", error);
+      throw new Error(`Challenge decryption failed: ${error.message}`);
     }
   }
 
@@ -210,33 +335,14 @@ class AuthService {
     return LocalStorageService.getUserEmail();
   }
 
-  // Simple challenge decryption simulation
-  // Note: In a real implementation, this would involve proper cryptographic operations
-  // with libsodium or similar libraries for ChaCha20-Poly1305 decryption
-  simulateDecryption(encryptedChallenge) {
-    console.log("Simulating challenge decryption...");
-    console.log("Encrypted challenge:", encryptedChallenge);
+  // Generate verification ID from public key (utility method)
+  async generateVerificationID(publicKey) {
+    return await CryptoService.generateVerificationID(publicKey);
+  }
 
-    // For demo purposes, we'll simulate the decryption process
-    // In reality, this would involve:
-    // 1. Deriving key from password using Argon2ID
-    // 2. Decrypting master key with derived key
-    // 3. Decrypting private key with master key
-    // 4. Decrypting challenge with private key
-    // 5. Return base64 encoded decrypted challenge
-
-    // Simulate some processing time
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Return a simulated decrypted challenge
-        // This is just for demo - replace with actual cryptographic implementation
-        const simulatedDecrypted = btoa(
-          "simulated_decrypted_challenge_" + Date.now(),
-        );
-        console.log("Simulated decrypted challenge:", simulatedDecrypted);
-        resolve(simulatedDecrypted);
-      }, 1000);
-    });
+  // Validate BIP39 mnemonic (utility method)
+  validateMnemonic(mnemonic) {
+    return CryptoService.validateMnemonic(mnemonic);
   }
 }
 
