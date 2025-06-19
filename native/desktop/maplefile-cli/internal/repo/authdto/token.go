@@ -63,9 +63,8 @@ func (s *tokenDTORepositoryImpl) GetAccessToken(ctx context.Context) (string, er
 			return "", errors.NewAppError("refresh token has expired, please login again", nil)
 		}
 
-		// IMPORTANT: Return an error indicating that encrypted token refresh is needed
-		// This forces the caller to use the service layer which has decryption capabilities
-		return "", errors.NewAppError("access token expired - encrypted token refresh required at service layer", nil)
+		// Since we only support encrypted tokens now, always require service layer for refresh
+		return "", errors.NewAppError("access token expired - encrypted token refresh required at service layer with password", nil)
 	}
 
 	return creds.AccessToken, nil
@@ -80,10 +79,6 @@ func (s *tokenDTORepositoryImpl) GetAccessTokenAfterForcedRefresh(ctx context.Co
 		return "", fmt.Errorf("no logged in user credentials found")
 	}
 
-	// IMPORTANT: For forced refresh, we also need to delegate to service layer
-	// The repository should not handle encryption/decryption
-	return "", errors.NewAppError("forced refresh requires service layer with decryption capabilities", nil)
+	// For forced refresh, always delegate to service layer since all tokens are encrypted
+	return "", errors.NewAppError("forced refresh requires service layer with password for encrypted token decryption", nil)
 }
-
-// RefreshTokenFromCloud - REMOVED: This method should not exist at repository level
-// Token refresh with decryption should be handled at the service layer

@@ -19,12 +19,10 @@ import (
 
 // TokenRefreshService handles token refresh with encryption support
 type TokenRefreshService interface {
-	// GetValidAccessToken gets a valid access token, refreshing if needed
-	GetValidAccessToken(ctx context.Context) (string, error)
 	// RefreshTokenWithPassword refreshes and decrypts tokens using the provided password
 	RefreshTokenWithPassword(ctx context.Context, password string) (string, error)
-	// ForceRefresh forces a token refresh regardless of expiry
-	ForceRefresh(ctx context.Context) (string, error)
+	// GetValidAccessToken gets a valid access token, refreshing if needed (requires password for encrypted tokens)
+	GetValidAccessToken(ctx context.Context, password string) (string, error)
 }
 
 // tokenRefreshService implements TokenRefreshService
@@ -58,20 +56,19 @@ type TokenRefreshRequestDTO struct {
 
 // TokenRefreshResponseDTO represents the response from token refresh
 type TokenRefreshResponseDTO struct {
-	// Legacy plaintext fields
 	Email                  string    `json:"username"`
-	AccessToken            string    `json:"access_token,omitempty"`
 	AccessTokenExpiryDate  time.Time `json:"access_token_expiry_date"`
-	RefreshToken           string    `json:"refresh_token,omitempty"`
 	RefreshTokenExpiryDate time.Time `json:"refresh_token_expiry_date"`
-
-	// New encrypted token fields
-	EncryptedTokens string `json:"encrypted_tokens,omitempty"`
-	TokenNonce      string `json:"token_nonce,omitempty"`
+	EncryptedTokens        string    `json:"encrypted_tokens"`
+	TokenNonce             string    `json:"token_nonce"`
 }
 
 // GetValidAccessToken gets a valid access token, refreshing if needed
-func (s *tokenRefreshService) GetValidAccessToken(ctx context.Context) (string, error) {
+func (s *tokenRefreshService) GetValidAccessToken(ctx context.Context, password string) (string, error) {
+	if password == "" {
+		return "", errors.NewAppError("password is required for encrypted token operations", nil)
+	}
+
 	creds, err := s.configService.GetLoggedInUserCredentials(ctx)
 	if err != nil {
 		return "", fmt.Errorf("error getting logged in user credentials: %w", err)
@@ -82,11 +79,11 @@ func (s *tokenRefreshService) GetValidAccessToken(ctx context.Context) (string, 
 
 	// Check if token is expired or will expire soon (within 30 seconds as a buffer)
 	if creds.AccessToken == "" || time.Now().Add(30*time.Second).After(*creds.AccessTokenExpiryTime) {
-		s.logger.Info("Access token expired or expiring soon, attempting refresh",
+		s.logger.Info("Access token expired or expiring soon, refreshing",
 			zap.String("email", creds.Email))
 
-		// Try to refresh the token
-		newToken, err := s.ForceRefresh(ctx)
+		// Refresh the token
+		newToken, err := s.RefreshTokenWithPassword(ctx, password)
 		if err != nil {
 			return "", fmt.Errorf("failed to refresh token: %w", err)
 		}
@@ -94,71 +91,6 @@ func (s *tokenRefreshService) GetValidAccessToken(ctx context.Context) (string, 
 	}
 
 	return creds.AccessToken, nil
-}
-
-// ForceRefresh forces a token refresh regardless of expiry
-func (s *tokenRefreshService) ForceRefresh(ctx context.Context) (string, error) {
-	creds, err := s.configService.GetLoggedInUserCredentials(ctx)
-	if err != nil || creds == nil {
-		return "", errors.NewAppError("no logged in user found", err)
-	}
-
-	// Check if refresh token is still valid
-	if time.Now().After(*creds.RefreshTokenExpiryTime) {
-		return "", errors.NewAppError("refresh token has expired, please login again", nil)
-	}
-
-	s.logger.Info("Forcing token refresh", zap.String("email", creds.Email))
-
-	// Call the cloud API to refresh tokens
-	refreshResponse, err := s.refreshFromCloud(ctx, creds.RefreshToken, creds.Email)
-	if err != nil {
-		return "", fmt.Errorf("failed to refresh tokens from cloud: %w", err)
-	}
-
-	// Handle encrypted vs plaintext tokens
-	var finalAccessToken, finalRefreshToken string
-
-	if refreshResponse.EncryptedTokens != "" {
-		s.logger.Info("Received encrypted tokens, decrypting...", zap.String("email", creds.Email))
-
-		// We have encrypted tokens - need to decrypt them
-		// Get user data for decryption
-		userData, err := s.userRepo.GetByEmail(ctx, creds.Email)
-		if err != nil || userData == nil {
-			return "", errors.NewAppError("failed to retrieve user data for token decryption", err)
-		}
-
-		// For encrypted token refresh, we need the password
-		// Since we don't have the password stored, we need to prompt for it
-		// For now, return an error indicating password is needed
-		return "", errors.NewAppError("encrypted tokens received - password required for decryption. Please login again or use RefreshTokenWithPassword", nil)
-
-	} else if refreshResponse.AccessToken != "" && refreshResponse.RefreshToken != "" {
-		// We have plaintext tokens (legacy mode)
-		s.logger.Info("Received plaintext tokens", zap.String("email", creds.Email))
-		finalAccessToken = refreshResponse.AccessToken
-		finalRefreshToken = refreshResponse.RefreshToken
-
-	} else {
-		return "", errors.NewAppError("no valid tokens received from refresh", nil)
-	}
-
-	// Save the new tokens
-	err = s.configService.SetLoggedInUserCredentials(
-		ctx,
-		creds.Email,
-		finalAccessToken,
-		&refreshResponse.AccessTokenExpiryDate,
-		finalRefreshToken,
-		&refreshResponse.RefreshTokenExpiryDate,
-	)
-	if err != nil {
-		return "", errors.NewAppError("failed to save refreshed credentials", err)
-	}
-
-	s.logger.Info("Token refresh completed successfully", zap.String("email", creds.Email))
-	return finalAccessToken, nil
 }
 
 // RefreshTokenWithPassword refreshes and decrypts tokens using the provided password
@@ -172,7 +104,12 @@ func (s *tokenRefreshService) RefreshTokenWithPassword(ctx context.Context, pass
 		return "", errors.NewAppError("no logged in user found", err)
 	}
 
-	s.logger.Info("Refreshing tokens with password", zap.String("email", creds.Email))
+	// Check if refresh token is still valid
+	if time.Now().After(*creds.RefreshTokenExpiryTime) {
+		return "", errors.NewAppError("refresh token has expired, please login again", nil)
+	}
+
+	s.logger.Info("Refreshing encrypted tokens", zap.String("email", creds.Email))
 
 	// Call the cloud API to refresh tokens
 	refreshResponse, err := s.refreshFromCloud(ctx, creds.RefreshToken, creds.Email)
@@ -180,46 +117,36 @@ func (s *tokenRefreshService) RefreshTokenWithPassword(ctx context.Context, pass
 		return "", fmt.Errorf("failed to refresh tokens from cloud: %w", err)
 	}
 
-	var finalAccessToken, finalRefreshToken string
+	// Verify we received encrypted tokens
+	if refreshResponse.EncryptedTokens == "" {
+		return "", errors.NewAppError("server did not return encrypted tokens - this should not happen in encrypted-only mode", nil)
+	}
 
-	if refreshResponse.EncryptedTokens != "" {
-		s.logger.Info("Decrypting received encrypted tokens", zap.String("email", creds.Email))
+	s.logger.Info("Decrypting received encrypted tokens", zap.String("email", creds.Email))
 
-		// Get user data for decryption
-		userData, err := s.userRepo.GetByEmail(ctx, creds.Email)
-		if err != nil || userData == nil {
-			return "", errors.NewAppError("failed to retrieve user data for token decryption", err)
-		}
+	// Get user data for decryption
+	userData, err := s.userRepo.GetByEmail(ctx, creds.Email)
+	if err != nil || userData == nil {
+		return "", errors.NewAppError("failed to retrieve user data for token decryption", err)
+	}
 
-		// Decrypt the tokens using the user's private key
-		accessToken, refreshToken, err := s.tokenDecryptionService.DecryptTokens(
-			refreshResponse.EncryptedTokens,
-			userData,
-			password,
-		)
-		if err != nil {
-			return "", errors.NewAppError("failed to decrypt refreshed tokens", err)
-		}
-
-		finalAccessToken = accessToken
-		finalRefreshToken = refreshToken
-
-	} else if refreshResponse.AccessToken != "" && refreshResponse.RefreshToken != "" {
-		// Plaintext tokens
-		finalAccessToken = refreshResponse.AccessToken
-		finalRefreshToken = refreshResponse.RefreshToken
-
-	} else {
-		return "", errors.NewAppError("no valid tokens received from refresh", nil)
+	// Decrypt the tokens using the user's private key
+	accessToken, refreshToken, err := s.tokenDecryptionService.DecryptTokens(
+		refreshResponse.EncryptedTokens,
+		userData,
+		password,
+	)
+	if err != nil {
+		return "", errors.NewAppError("failed to decrypt refreshed tokens", err)
 	}
 
 	// Save the new tokens
 	err = s.configService.SetLoggedInUserCredentials(
 		ctx,
 		creds.Email,
-		finalAccessToken,
+		accessToken,
 		&refreshResponse.AccessTokenExpiryDate,
-		finalRefreshToken,
+		refreshToken,
 		&refreshResponse.RefreshTokenExpiryDate,
 	)
 	if err != nil {
@@ -227,7 +154,7 @@ func (s *tokenRefreshService) RefreshTokenWithPassword(ctx context.Context, pass
 	}
 
 	s.logger.Info("Token refresh with decryption completed successfully", zap.String("email", creds.Email))
-	return finalAccessToken, nil
+	return accessToken, nil
 }
 
 // refreshFromCloud calls the cloud API to refresh tokens
@@ -290,6 +217,11 @@ func (s *tokenRefreshService) refreshFromCloud(ctx context.Context, refreshToken
 	var tokenResponse TokenRefreshResponseDTO
 	if err := json.Unmarshal(body, &tokenResponse); err != nil {
 		return nil, fmt.Errorf("error parsing response: %w", err)
+	}
+
+	// Validate that we received encrypted tokens
+	if tokenResponse.EncryptedTokens == "" {
+		return nil, fmt.Errorf("server did not return encrypted tokens")
 	}
 
 	return &tokenResponse, nil

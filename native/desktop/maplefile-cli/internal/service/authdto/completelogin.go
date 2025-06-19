@@ -1,4 +1,4 @@
-// monorepo/native/desktop/maplefile-cli/internal/service/authdto/completelogin_service.go
+// monorepo/native/desktop/maplefile-cli/internal/service/authdto/completelogin.go
 package authdto
 
 import (
@@ -57,35 +57,30 @@ func (s *completeLoginService) CompleteLogin(ctx context.Context, email, passwor
 		return nil, errors.NewAppError("failed to complete login", err)
 	}
 
-	// Check if we received encrypted tokens
-	if tokenResp.EncryptedTokens != "" {
-		s.logger.Info("Received encrypted tokens, decrypting...",
-			zap.String("email", email))
-
-		// Decrypt the tokens using the user's private key
-		accessToken, refreshToken, err := s.tokenDecryptionService.DecryptTokens(
-			tokenResp.EncryptedTokens,
-			updatedUser,
-			password,
-		)
-		if err != nil {
-			return nil, errors.NewAppError("failed to decrypt authentication tokens", err)
-		}
-
-		// Update the response with decrypted tokens
-		tokenResp.AccessToken = accessToken
-		tokenResp.RefreshToken = refreshToken
-
-		s.logger.Info("Successfully decrypted authentication tokens",
-			zap.String("email", email))
-	} else if tokenResp.AccessToken == "" || tokenResp.RefreshToken == "" {
-		// No tokens received at all
-		return nil, errors.NewAppError("no authentication tokens received from server", nil)
-	} else {
-		// We received plaintext tokens (legacy mode)
-		s.logger.Warn("Received plaintext tokens (legacy mode)",
-			zap.String("email", email))
+	// All tokens should now be encrypted - verify we received encrypted tokens
+	if tokenResp.EncryptedTokens == "" {
+		return nil, errors.NewAppError("server did not return encrypted tokens - this should not happen in encrypted-only mode", nil)
 	}
+
+	s.logger.Info("Received encrypted tokens, decrypting...",
+		zap.String("email", email))
+
+	// Decrypt the tokens using the user's private key
+	accessToken, refreshToken, err := s.tokenDecryptionService.DecryptTokens(
+		tokenResp.EncryptedTokens,
+		updatedUser,
+		password,
+	)
+	if err != nil {
+		return nil, errors.NewAppError("failed to decrypt authentication tokens", err)
+	}
+
+	// Update the response with decrypted tokens
+	tokenResp.AccessToken = accessToken
+	tokenResp.RefreshToken = refreshToken
+
+	s.logger.Info("Successfully decrypted authentication tokens",
+		zap.String("email", email))
 
 	// Start a transaction to update the user
 	if err := s.userRepo.OpenTransaction(); err != nil {
@@ -108,15 +103,8 @@ func (s *completeLoginService) CompleteLogin(ctx context.Context, email, passwor
 		&tokenResp.RefreshTokenExpiryTime,
 	)
 
-	// Store password temporarily in memory for token refresh
-	// (In production, consider using a secure keyring/keychain)
-	if err := s.storePasswordTemporarily(ctx, email, password); err != nil {
-		s.logger.Warn("Failed to store password for token refresh", zap.Error(err))
-		// Continue anyway
-	}
-
 	// Log success
-	s.logger.Info("✅ Login completed successfully",
+	s.logger.Info("✅ Login completed successfully with encrypted tokens",
 		zap.String("email", email),
 		zap.Time("accessTokenExpiry", tokenResp.AccessTokenExpiryTime),
 		zap.Time("refreshTokenExpiry", tokenResp.RefreshTokenExpiryTime))
@@ -166,18 +154,10 @@ func (s *completeLoginService) CompleteLogin(ctx context.Context, email, passwor
 	}
 
 	// Log success
-	s.logger.Info("✅ Successfully received user profile and saved locally",
+	s.logger.Info("✅ Successfully received user profile and saved locally with encrypted tokens",
 		zap.String("email", email),
 		zap.Time("accessTokenExpiry", tokenResp.AccessTokenExpiryTime),
 		zap.Time("refreshTokenExpiry", tokenResp.RefreshTokenExpiryTime))
 
 	return tokenResp, nil
-}
-
-// storePasswordTemporarily stores the password in memory for token refresh
-// In production, use a secure keyring/keychain service
-func (s *completeLoginService) storePasswordTemporarily(ctx context.Context, email, password string) error {
-	// This is a placeholder - in production, use proper secure storage
-	// For now, we'll need to prompt for password during refresh if tokens are encrypted
-	return nil
 }
