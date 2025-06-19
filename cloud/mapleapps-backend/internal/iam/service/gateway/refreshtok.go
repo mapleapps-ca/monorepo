@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -48,16 +49,12 @@ type GatewayRefreshTokenRequestIDO struct {
 
 // GatewayRefreshTokenResponseIDO struct used to represent the system's response when the refresh token request was a success.
 type GatewayRefreshTokenResponseIDO struct {
-	// Legacy plaintext fields (deprecated)
 	Email                  string    `json:"username"`
-	AccessToken            string    `json:"access_token,omitempty"`
+	EncryptedAccessToken   string    `json:"encrypted_access_token"`
+	EncryptedRefreshToken  string    `json:"encrypted_refresh_token"`
 	AccessTokenExpiryDate  time.Time `json:"access_token_expiry_date"`
-	RefreshToken           string    `json:"refresh_token,omitempty"`
 	RefreshTokenExpiryDate time.Time `json:"refresh_token_expiry_date"`
-
-	// New encrypted token fields
-	EncryptedTokens string `json:"encrypted_tokens,omitempty"`
-	TokenNonce      string `json:"token_nonce,omitempty"`
+	TokenNonce             string    `json:"token_nonce"`
 }
 
 func (s *gatewayRefreshTokenServiceImpl) Execute(
@@ -111,22 +108,14 @@ func (s *gatewayRefreshTokenServiceImpl) Execute(
 		return nil, err
 	}
 
-	// Check if user has a public key for encryption
+	// Require user to have a public key for encryption
 	if u.SecurityData == nil || len(u.SecurityData.PublicKey.Key) == 0 {
-		s.logger.Warn("User does not have public key, returning plaintext tokens (legacy mode)",
+		s.logger.Error("User does not have public key required for encryption",
 			zap.String("email", u.Email))
-
-		// Return plaintext tokens for backward compatibility
-		return &GatewayRefreshTokenResponseIDO{
-			Email:                  u.Email,
-			AccessToken:            accessToken,
-			AccessTokenExpiryDate:  accessTokenExpiry,
-			RefreshToken:           refreshToken,
-			RefreshTokenExpiryDate: refreshTokenExpiry,
-		}, nil
+		return nil, errors.New("user account not properly configured for secure authentication")
 	}
 
-	// Encrypt tokens with user's public key
+	// Encrypt tokens separately with user's public key
 	encryptedResponse, err := s.tokenEncryptionService.EncryptTokens(
 		accessToken,
 		refreshToken,
@@ -135,24 +124,17 @@ func (s *gatewayRefreshTokenServiceImpl) Execute(
 		refreshTokenExpiry,
 	)
 	if err != nil {
-		s.logger.Error("Failed to encrypt tokens, falling back to plaintext",
+		s.logger.Error("Failed to encrypt tokens",
 			zap.Error(err),
 			zap.String("email", u.Email))
-
-		// Fallback to plaintext tokens if encryption fails
-		return &GatewayRefreshTokenResponseIDO{
-			Email:                  u.Email,
-			AccessToken:            accessToken,
-			AccessTokenExpiryDate:  accessTokenExpiry,
-			RefreshToken:           refreshToken,
-			RefreshTokenExpiryDate: refreshTokenExpiry,
-		}, nil
+		return nil, fmt.Errorf("failed to encrypt authentication tokens: %w", err)
 	}
 
-	// Return encrypted tokens
+	// Return separately encrypted tokens
 	return &GatewayRefreshTokenResponseIDO{
 		Email:                  u.Email,
-		EncryptedTokens:        encryptedResponse.EncryptedAccessToken,
+		EncryptedAccessToken:   encryptedResponse.EncryptedAccessToken,
+		EncryptedRefreshToken:  encryptedResponse.EncryptedRefreshToken,
 		TokenNonce:             encryptedResponse.Nonce,
 		AccessTokenExpiryDate:  accessTokenExpiry,
 		RefreshTokenExpiryDate: refreshTokenExpiry,

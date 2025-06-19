@@ -27,7 +27,7 @@ type EncryptedAuthToken struct {
 	UserID     string `json:"user_id" bson:"user_id"`
 }
 
-// EncryptedTokenResponse represents tokens encrypted with user's public key
+// EncryptedTokenResponse represents tokens encrypted separately with user's public key
 type EncryptedTokenResponse struct {
 	// Base64 encoded encrypted access token
 	EncryptedAccessToken string `json:"encrypted_access_token"`

@@ -4,7 +4,6 @@ package gateway
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -28,13 +27,7 @@ func NewTokenEncryptionService(logger *zap.Logger) dom_auth.TokenEncryptionServi
 	}
 }
 
-// TokenPayload represents the structured token data to encrypt
-type TokenPayload struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-}
-
-// EncryptTokens encrypts both tokens with the user's public key
+// EncryptTokens encrypts access and refresh tokens separately with the user's public key
 func (s *tokenEncryptionService) EncryptTokens(
 	accessToken, refreshToken string,
 	publicKey []byte,
@@ -45,20 +38,9 @@ func (s *tokenEncryptionService) EncryptTokens(
 		return nil, fmt.Errorf("invalid public key size: expected %d, got %d", crypto.PublicKeySize, len(publicKey))
 	}
 
-	// Create token payload
-	payload := TokenPayload{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	}
-
-	// Marshal to JSON
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal token payload: %w", err)
-	}
-
-	s.logger.Debug("Encrypting tokens for user",
-		zap.Int("payload_size", len(payloadBytes)),
+	s.logger.Debug("Encrypting tokens separately for user",
+		zap.Int("access_token_size", len(accessToken)),
+		zap.Int("refresh_token_size", len(refreshToken)),
 		zap.String("public_key_preview", base64.StdEncoding.EncodeToString(publicKey[:8])))
 
 	// Generate ephemeral keypair for this encryption
@@ -81,25 +63,34 @@ func (s *tokenEncryptionService) EncryptTokens(
 	var nonceArray [24]byte
 	copy(nonceArray[:], nonce)
 
-	// Encrypt the payload using box.Seal
-	encrypted := box.Seal(nil, payloadBytes, &nonceArray, &recipientPubKey, ephemeralPrivKey)
+	// Encrypt access token using box.Seal
+	encryptedAccessToken := box.Seal(nil, []byte(accessToken), &nonceArray, &recipientPubKey, ephemeralPrivKey)
 
-	// Combine ephemeral public key + nonce + encrypted data
+	// Encrypt refresh token using box.Seal (reuse same nonce and keys)
+	encryptedRefreshToken := box.Seal(nil, []byte(refreshToken), &nonceArray, &recipientPubKey, ephemeralPrivKey)
+
+	// Combine ephemeral public key + nonce + encrypted data for each token
 	// Format: [32 bytes ephemeral pubkey][24 bytes nonce][encrypted data]
-	combined := make([]byte, 32+24+len(encrypted))
-	copy(combined[:32], ephemeralPubKey[:])
-	copy(combined[32:56], nonce)
-	copy(combined[56:], encrypted)
+	combinedAccessToken := make([]byte, 32+24+len(encryptedAccessToken))
+	copy(combinedAccessToken[:32], ephemeralPubKey[:])
+	copy(combinedAccessToken[32:56], nonce)
+	copy(combinedAccessToken[56:], encryptedAccessToken)
 
-	s.logger.Info("Successfully encrypted tokens",
-		zap.Int("encrypted_size", len(combined)),
+	combinedRefreshToken := make([]byte, 32+24+len(encryptedRefreshToken))
+	copy(combinedRefreshToken[:32], ephemeralPubKey[:])
+	copy(combinedRefreshToken[32:56], nonce)
+	copy(combinedRefreshToken[56:], encryptedRefreshToken)
+
+	s.logger.Info("Successfully encrypted tokens separately",
+		zap.Int("encrypted_access_token_size", len(combinedAccessToken)),
+		zap.Int("encrypted_refresh_token_size", len(combinedRefreshToken)),
 		zap.Time("access_expiry", accessExpiry),
 		zap.Time("refresh_expiry", refreshExpiry))
 
-	// Return encrypted response
+	// Return encrypted response with separate tokens
 	return &dom_auth.EncryptedTokenResponse{
-		EncryptedAccessToken:   base64.StdEncoding.EncodeToString(combined),
-		EncryptedRefreshToken:  "", // Both tokens are in the same encrypted payload
+		EncryptedAccessToken:   base64.StdEncoding.EncodeToString(combinedAccessToken),
+		EncryptedRefreshToken:  base64.StdEncoding.EncodeToString(combinedRefreshToken),
 		AccessTokenExpiryTime:  accessExpiry,
 		RefreshTokenExpiryTime: refreshExpiry,
 		Nonce:                  base64.StdEncoding.EncodeToString(nonce),

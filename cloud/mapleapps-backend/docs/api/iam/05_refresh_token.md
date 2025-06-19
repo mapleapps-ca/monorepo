@@ -33,12 +33,11 @@ This API endpoint allows users to refresh their authentication tokens using a va
 ```json
 {
   "username": "user@example.com",
-  "access_token": "string",
+  "encrypted_access_token": "base64_encoded_encrypted_access_token",
+  "encrypted_refresh_token": "base64_encoded_encrypted_refresh_token",
   "access_token_expiry_date": "2024-01-15T11:00:00Z",
-  "refresh_token": "string",
   "refresh_token_expiry_date": "2024-01-29T10:30:00Z",
-  "encrypted_tokens": "string",
-  "token_nonce": "string"
+  "token_nonce": "base64_encoded_nonce"
 }
 ```
 
@@ -47,28 +46,15 @@ This API endpoint allows users to refresh their authentication tokens using a va
 | Field | Type | Description |
 |-------|------|-------------|
 | `username` | string | User's email address |
-| `access_token` | string | New JWT access token (legacy/fallback, may be empty) |
+| `encrypted_access_token` | string | Base64-encoded encrypted access token |
+| `encrypted_refresh_token` | string | Base64-encoded encrypted refresh token |
 | `access_token_expiry_date` | string | ISO 8601 timestamp when access token expires (30 minutes) |
-| `refresh_token` | string | New JWT refresh token (legacy/fallback, may be empty) |
 | `refresh_token_expiry_date` | string | ISO 8601 timestamp when refresh token expires (14 days) |
-| `encrypted_tokens` | string | Base64-encoded encrypted token payload (preferred method) |
-| `token_nonce` | string | Base64-encoded nonce used for token encryption (when encrypted_tokens is present) |
+| `token_nonce` | string | Base64-encoded nonce used for token encryption |
 
-### Token Types
+### Token Security
 
-The API returns tokens in two possible formats:
-
-#### 1. Encrypted Tokens (Preferred)
-When the user has a public key configured, tokens are encrypted with the user's public key:
-- `encrypted_tokens`: Contains both access and refresh tokens encrypted together
-- `token_nonce`: Nonce used for encryption
-- `access_token` and `refresh_token`: Empty or omitted
-
-#### 2. Plaintext Tokens (Legacy Fallback)
-When the user doesn't have a public key or encryption fails:
-- `access_token`: Plaintext JWT access token
-- `refresh_token`: Plaintext JWT refresh token
-- `encrypted_tokens` and `token_nonce`: Empty or omitted
+All tokens are encrypted using the user's public key with NaCl box encryption. Users must have a properly configured public key in their security data for authentication to succeed. The access and refresh tokens are encrypted separately for enhanced security.
 
 ### Error Responses
 
@@ -101,10 +87,21 @@ When the user doesn't have a public key or encryption fails:
 }
 ```
 
+#### User Not Properly Configured (HTTP 500)
+
+```json
+{
+  "error": "Internal Server Error",
+  "message": "user account not properly configured for secure authentication"
+}
+```
+
 **Common error scenarios:**
 - `"jwt refresh token failed"` - Invalid, expired, or malformed refresh token
 - `"payload structure is wrong"` - Invalid JSON format
 - Session expired or not found in cache
+- `"user account not properly configured for secure authentication"` - User doesn't have required public key for encryption
+- `"failed to encrypt authentication tokens"` - Token encryption failed
 - Token generation failures
 
 ## Implementation Examples
@@ -128,17 +125,11 @@ const refreshToken = async (refreshTokenValue) => {
       const result = await response.json();
       console.log('Tokens refreshed successfully');
 
-      // Handle encrypted tokens
-      if (result.encrypted_tokens) {
-        // Decrypt tokens using private key
-        const tokens = await decryptTokens(result.encrypted_tokens, privateKey);
-        localStorage.setItem('access_token', tokens.access_token);
-        localStorage.setItem('refresh_token', tokens.refresh_token);
-      } else {
-        // Handle plaintext tokens (legacy)
-        localStorage.setItem('access_token', result.access_token);
-        localStorage.setItem('refresh_token', result.refresh_token);
-      }
+      // Decrypt tokens using private key (required)
+      const accessToken = await decryptToken(result.encrypted_access_token, privateKey);
+      const refreshToken = await decryptToken(result.encrypted_refresh_token, privateKey);
+      localStorage.setItem('access_token', accessToken);
+      localStorage.setItem('refresh_token', refreshToken);
 
       // Store expiry times
       localStorage.setItem('access_token_expiry', result.access_token_expiry_date);
@@ -201,12 +192,11 @@ type RefreshTokenRequest struct {
 
 type RefreshTokenResponse struct {
     Username               string    `json:"username"`
-    AccessToken            string    `json:"access_token,omitempty"`
     AccessTokenExpiryDate  time.Time `json:"access_token_expiry_date"`
-    RefreshToken           string    `json:"refresh_token,omitempty"`
     RefreshTokenExpiryDate time.Time `json:"refresh_token_expiry_date"`
-    EncryptedTokens        string    `json:"encrypted_tokens,omitempty"`
-    TokenNonce             string    `json:"token_nonce,omitempty"`
+    EncryptedAccessToken   string    `json:"encrypted_access_token"`
+    EncryptedRefreshToken  string    `json:"encrypted_refresh_token"`
+    TokenNonce             string    `json:"token_nonce"`
 }
 
 func refreshToken(refreshTokenValue string) (*RefreshTokenResponse, error) {
@@ -260,20 +250,17 @@ func (tm *TokenManager) RefreshIfNeeded() error {
             return fmt.Errorf("failed to refresh token: %w", err)
         }
 
-        // Update stored tokens
-        if result.EncryptedTokens != "" {
-            // Handle encrypted tokens
-            tokens, err := decryptTokens(result.EncryptedTokens, privateKey)
-            if err != nil {
-                return fmt.Errorf("failed to decrypt tokens: %w", err)
-            }
-            tm.accessToken = tokens.AccessToken
-            tm.refreshToken = tokens.RefreshToken
-        } else {
-            // Handle plaintext tokens
-            tm.accessToken = result.AccessToken
-            tm.refreshToken = result.RefreshToken
+        // Update stored tokens (always encrypted)
+        accessToken, err := decryptToken(result.EncryptedAccessToken, privateKey)
+        if err != nil {
+            return fmt.Errorf("failed to decrypt access token: %w", err)
         }
+        refreshToken, err := decryptToken(result.EncryptedRefreshToken, privateKey)
+        if err != nil {
+            return fmt.Errorf("failed to decrypt refresh token: %w", err)
+        }
+        tm.accessToken = accessToken
+        tm.refreshToken = refreshToken
 
         tm.accessExpiry = result.AccessTokenExpiryDate
         tm.refreshExpiry = result.RefreshTokenExpiryDate
@@ -319,16 +306,9 @@ class TokenManager:
             if response.status_code == 201:
                 result = response.json()
 
-                # Update stored tokens
-                if result.get('encrypted_tokens'):
-                    # Handle encrypted tokens
-                    tokens = self.decrypt_tokens(result['encrypted_tokens'], self.private_key)
-                    self.access_token = tokens['access_token']
-                    self.refresh_token = tokens['refresh_token']
-                else:
-                    # Handle plaintext tokens
-                    self.access_token = result.get('access_token')
-                    self.refresh_token = result.get('refresh_token')
+                # Update stored tokens (always encrypted)
+                self.access_token = self.decrypt_token(result['encrypted_access_token'], self.private_key)
+                self.refresh_token = self.decrypt_token(result['encrypted_refresh_token'], self.private_key)
 
                 # Parse expiry dates
                 self.access_expiry = datetime.fromisoformat(
@@ -391,16 +371,18 @@ curl -X POST https://api.mapleapps.ca/iam/api/v1/token/refresh \
 ### Security Considerations
 
 1. **Session Rotation**: Each token refresh generates entirely new access and refresh tokens
-2. **Encrypted Tokens**: When available, tokens are encrypted with the user's public key
-3. **Secure Storage**: Store refresh tokens securely on the client side
-4. **Automatic Cleanup**: Failed refresh attempts should clear stored tokens
+2. **Separate Encryption**: Access and refresh tokens are encrypted separately for enhanced security
+3. **Required Encryption**: All tokens are encrypted with the user's public key - no plaintext fallback
+4. **Secure Storage**: Store refresh tokens securely on the client side
+5. **Automatic Cleanup**: Failed refresh attempts should clear stored tokens
 
 ### Best Practices
 
 1. **Proactive Refresh**: Refresh tokens before access tokens expire (5 minutes before expiry recommended)
 2. **Error Handling**: Always handle refresh failures gracefully and redirect to login
 3. **Token Validation**: Validate token expiry dates before making API calls
-4. **Fallback Strategy**: Support both encrypted and plaintext token formats
+4. **Public Key Requirement**: Ensure users have properly configured public keys for encryption
+5. **Secure Decryption**: Always decrypt tokens on the client side using the user's private key
 
 ### Common Integration Patterns
 
@@ -442,4 +424,4 @@ const initializeAuth = async () => {
 };
 ```
 
-This API enables seamless token management and maintains user sessions without requiring frequent re-authentication.
+This API enables seamless token management with mandatory encryption for enhanced security through separate token encryption and maintains user sessions without requiring frequent re-authentication. All users must have properly configured public keys for secure token handling.

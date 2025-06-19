@@ -31,15 +31,11 @@ type GatewayCompleteLoginRequestIDO struct {
 
 // GatewayCompleteLoginResponseIDO is the response sent back to client with encrypted authentication tokens
 type GatewayCompleteLoginResponseIDO struct {
-	// Legacy plaintext fields (deprecated, will be removed in future)
-	AccessToken            string    `json:"access_token,omitempty"`
-	AccessTokenExpiryTime  time.Time `json:"access_token_expiry_time"`
-	RefreshToken           string    `json:"refresh_token,omitempty"`
-	RefreshTokenExpiryTime time.Time `json:"refresh_token_expiry_time"`
-
-	// New encrypted token fields
-	EncryptedTokens string `json:"encrypted_tokens"`
-	TokenNonce      string `json:"token_nonce,omitempty"`
+	EncryptedAccessToken   string    `json:"encrypted_access_token"`
+	EncryptedRefreshToken  string    `json:"encrypted_refresh_token"`
+	AccessTokenExpiryDate  time.Time `json:"access_token_expiry_date"`
+	RefreshTokenExpiryDate time.Time `json:"refresh_token_expiry_date"`
+	TokenNonce             string    `json:"token_nonce"`
 }
 
 // Service interface for completing login
@@ -217,7 +213,7 @@ func (s *gatewayCompleteLoginServiceImpl) Execute(sessCtx context.Context, req *
 	return s.generateEncryptedTokens(sessCtx, user)
 }
 
-// generateEncryptedTokens creates access and refresh tokens and encrypts them with user's public key
+// generateEncryptedTokens creates access and refresh tokens and encrypts them separately with user's public key
 func (s *gatewayCompleteLoginServiceImpl) generateEncryptedTokens(ctx context.Context, user *domain.FederatedUser) (*GatewayCompleteLoginResponseIDO, error) {
 	// Convert user to JSON for storage in cache
 	userBin, err := json.Marshal(user)
@@ -244,21 +240,14 @@ func (s *gatewayCompleteLoginServiceImpl) generateEncryptedTokens(ctx context.Co
 		return nil, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
-	// Check if user has a public key for encryption
+	// Require user to have a public key for encryption
 	if user.SecurityData == nil || len(user.SecurityData.PublicKey.Key) == 0 {
-		s.logger.Warn("User does not have public key, returning plaintext tokens (legacy mode)",
+		s.logger.Error("User does not have public key required for encryption",
 			zap.String("email", user.Email))
-
-		// Return plaintext tokens for backward compatibility
-		return &GatewayCompleteLoginResponseIDO{
-			AccessToken:            accessToken,
-			AccessTokenExpiryTime:  accessTokenExpiry,
-			RefreshToken:           refreshToken,
-			RefreshTokenExpiryTime: refreshTokenExpiry,
-		}, nil
+		return nil, fmt.Errorf("user account not properly configured for secure authentication")
 	}
 
-	// Encrypt tokens with user's public key
+	// Encrypt tokens separately with user's public key
 	encryptedResponse, err := s.tokenEncryptionService.EncryptTokens(
 		accessToken,
 		refreshToken,
@@ -267,24 +256,18 @@ func (s *gatewayCompleteLoginServiceImpl) generateEncryptedTokens(ctx context.Co
 		refreshTokenExpiry,
 	)
 	if err != nil {
-		s.logger.Error("Failed to encrypt tokens, falling back to plaintext",
+		s.logger.Error("Failed to encrypt tokens",
 			zap.Error(err),
 			zap.String("email", user.Email))
-
-		// Fallback to plaintext tokens if encryption fails
-		return &GatewayCompleteLoginResponseIDO{
-			AccessToken:            accessToken,
-			AccessTokenExpiryTime:  accessTokenExpiry,
-			RefreshToken:           refreshToken,
-			RefreshTokenExpiryTime: refreshTokenExpiry,
-		}, nil
+		return nil, fmt.Errorf("failed to encrypt authentication tokens: %w", err)
 	}
 
-	// Return encrypted tokens
+	// Return separately encrypted tokens
 	return &GatewayCompleteLoginResponseIDO{
-		EncryptedTokens:        encryptedResponse.EncryptedAccessToken,
+		EncryptedAccessToken:   encryptedResponse.EncryptedAccessToken,
+		EncryptedRefreshToken:  encryptedResponse.EncryptedRefreshToken,
 		TokenNonce:             encryptedResponse.Nonce,
-		AccessTokenExpiryTime:  accessTokenExpiry,
-		RefreshTokenExpiryTime: refreshTokenExpiry,
+		AccessTokenExpiryDate:  accessTokenExpiry,
+		RefreshTokenExpiryDate: refreshTokenExpiry,
 	}, nil
 }
