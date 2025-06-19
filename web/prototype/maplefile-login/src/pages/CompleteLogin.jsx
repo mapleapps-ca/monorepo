@@ -95,9 +95,29 @@ const CompleteLogin = () => {
       );
 
       console.log("[CompleteLogin] Login completed successfully!");
+      console.log("[CompleteLogin] Response:", response);
 
-      // Navigate to dashboard
-      navigate("/dashboard");
+      // Wait a moment for tokens to be fully stored
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Verify authentication state before navigating
+      const isAuthenticatedNow = AuthService.isAuthenticated();
+      console.log(
+        "[CompleteLogin] Authentication state after login:",
+        isAuthenticatedNow,
+      );
+
+      if (isAuthenticatedNow) {
+        console.log("[CompleteLogin] Navigating to dashboard...");
+        navigate("/dashboard", { replace: true });
+      } else {
+        console.error(
+          "[CompleteLogin] Authentication failed - tokens not properly stored",
+        );
+        setError(
+          "Login completed but authentication state is invalid. Please try again.",
+        );
+      }
     } catch (error) {
       console.error("[CompleteLogin] Login failed:", error);
       setError(error.message);
