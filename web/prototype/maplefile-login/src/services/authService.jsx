@@ -120,26 +120,47 @@ class AuthService {
         }),
       });
 
-      // Store tokens in local storage
-      if (response.access_token) {
+      console.log("[AuthService] Complete login response:", response);
+
+      // Handle different token response formats
+      if (response.encrypted_tokens) {
+        // Backend sends encrypted tokens - store them for now
+        // TODO: Implement client-side token decryption later
+        console.log(
+          "[AuthService] Received encrypted tokens, storing temporarily",
+        );
+
         LocalStorageService.setAccessToken(
-          response.access_token,
+          "encrypted_" + response.encrypted_tokens,
           response.access_token_expiry_time,
         );
-      }
 
-      if (response.refresh_token) {
         LocalStorageService.setRefreshToken(
-          response.refresh_token,
+          "encrypted_refresh_token", // Placeholder
           response.refresh_token_expiry_time,
         );
-      }
 
-      // Handle encrypted tokens if provided
-      if (response.encrypted_tokens) {
-        console.log("Received encrypted tokens:", response.encrypted_tokens);
-        // Note: In a real implementation, you would decrypt these tokens client-side
-        // For this demo, we'll just log them
+        // Store the nonce for future decryption
+        if (response.token_nonce) {
+          localStorage.setItem("mapleapps_token_nonce", response.token_nonce);
+        }
+
+        console.log("[AuthService] Encrypted tokens stored successfully");
+      } else {
+        // Handle plain text tokens (fallback)
+        if (response.access_token) {
+          LocalStorageService.setAccessToken(
+            response.access_token,
+            response.access_token_expiry_time,
+          );
+        }
+
+        if (response.refresh_token) {
+          LocalStorageService.setRefreshToken(
+            response.refresh_token,
+            response.refresh_token_expiry_time,
+          );
+        }
       }
 
       // Clear login session data

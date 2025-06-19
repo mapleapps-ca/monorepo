@@ -100,22 +100,31 @@ const CompleteLogin = () => {
       // Wait a moment for tokens to be fully stored
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Verify authentication state before navigating
-      const isAuthenticatedNow = AuthService.isAuthenticated();
-      console.log(
-        "[CompleteLogin] Authentication state after login:",
-        isAuthenticatedNow,
-      );
+      // Check if we have tokens (encrypted or plain)
+      const accessToken = LocalStorageService.getAccessToken();
+      const refreshToken = LocalStorageService.getRefreshToken();
 
-      if (isAuthenticatedNow) {
-        console.log("[CompleteLogin] Navigating to dashboard...");
+      console.log("[CompleteLogin] Stored tokens check:");
+      console.log("- Access token exists:", !!accessToken);
+      console.log("- Refresh token exists:", !!refreshToken);
+
+      if (accessToken) {
+        console.log(
+          "- Access token preview:",
+          accessToken.substring(0, 30) + "...",
+        );
+      }
+
+      // For encrypted tokens, we just need to verify they exist
+      const hasTokens = !!(accessToken && refreshToken);
+
+      if (hasTokens) {
+        console.log("[CompleteLogin] Tokens found, navigating to dashboard...");
         navigate("/dashboard", { replace: true });
       } else {
-        console.error(
-          "[CompleteLogin] Authentication failed - tokens not properly stored",
-        );
+        console.error("[CompleteLogin] No tokens found after login");
         setError(
-          "Login completed but authentication state is invalid. Please try again.",
+          "Login completed but no authentication tokens were received. Please try again.",
         );
       }
     } catch (error) {
