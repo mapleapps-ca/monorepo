@@ -8,6 +8,7 @@ const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config
 class AuthService {
   constructor() {
     this.isInitialized = false;
+    this.workerDisabled = false;
     this.initializeWorker();
   }
 
@@ -16,17 +17,27 @@ class AuthService {
     if (this.isInitialized) return;
 
     try {
+      console.log("[AuthService] Initializing background worker...");
       await workerManager.initialize();
       this.isInitialized = true;
-      console.log("[AuthService] Background worker initialized");
+      console.log("[AuthService] Background worker initialized successfully");
 
       // Start monitoring if authenticated
       if (this.isAuthenticated()) {
+        console.log("[AuthService] Starting token monitoring");
         workerManager.startMonitoring();
       }
     } catch (error) {
       console.error("[AuthService] Failed to initialize worker:", error);
-      // Fallback to manual token management if worker fails
+      console.warn(
+        "[AuthService] Continuing without background worker - token refresh will be manual only",
+      );
+
+      // Set a flag to indicate we're running without worker
+      this.isInitialized = false;
+      this.workerDisabled = true;
+
+      // Don't throw the error - continue without worker
     }
   }
 
@@ -369,10 +380,30 @@ class AuthService {
 
   // Get worker status for debugging
   async getWorkerStatus() {
-    if (!this.isInitialized) {
-      return { isInitialized: false };
+    if (this.workerDisabled) {
+      return {
+        isInitialized: false,
+        workerDisabled: true,
+        error: "Worker initialization failed - running in manual mode",
+      };
     }
-    return await workerManager.getWorkerStatus();
+
+    if (!this.isInitialized) {
+      return {
+        isInitialized: false,
+        workerDisabled: false,
+        status: "not_initialized",
+      };
+    }
+
+    try {
+      return await workerManager.getWorkerStatus();
+    } catch (error) {
+      return {
+        isInitialized: this.isInitialized,
+        error: error.message,
+      };
+    }
   }
 
   // Logout and stop background monitoring

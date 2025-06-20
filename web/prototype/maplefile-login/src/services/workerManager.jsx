@@ -33,11 +33,18 @@ class WorkerManager {
     }
 
     try {
+      console.log("[WorkerManager] Starting worker initialization...");
+
       // Create the worker
       this.worker = new Worker("/auth-worker.js");
+      console.log("[WorkerManager] Worker created successfully");
 
       // Set up worker message handling
       this.worker.addEventListener("message", (event) => {
+        console.log(
+          "[WorkerManager] Received message from worker:",
+          event.data.type,
+        );
         this.handleWorkerMessage(event.data);
       });
 
@@ -46,41 +53,71 @@ class WorkerManager {
         this.handleWorkerError(error);
       });
 
+      console.log("[WorkerManager] Worker event listeners attached");
+
+      // Wait for worker ready signal
+      console.log("[WorkerManager] Waiting for worker ready signal...");
+      await this.waitForWorkerReady();
+
       this.isInitialized = true;
       console.log("[WorkerManager] Worker initialized successfully");
 
-      // Wait for worker ready signal
-      await this.waitForWorkerReady();
-
       // Start monitoring if user is authenticated
       if (LocalStorageService.isAuthenticated()) {
+        console.log(
+          "[WorkerManager] User is authenticated, starting monitoring",
+        );
         this.startMonitoring();
+      } else {
+        console.log(
+          "[WorkerManager] User not authenticated, monitoring not started",
+        );
       }
     } catch (error) {
       console.error("[WorkerManager] Failed to initialize worker:", error);
+
+      // Check if it's a worker loading issue
+      if (error.message.includes("Worker ready timeout")) {
+        console.error(
+          "[WorkerManager] Worker file may not be loading properly. Check that /auth-worker.js exists in public folder",
+        );
+      }
+
       throw error;
     }
   }
 
   // Wait for worker ready signal
-  waitForWorkerReady(timeout = 5000) {
+  waitForWorkerReady(timeout = 10000) {
     return new Promise((resolve, reject) => {
+      console.log(
+        `[WorkerManager] Setting up worker ready timeout: ${timeout}ms`,
+      );
+
       const timer = setTimeout(() => {
+        this.removeMessageHandler("worker_ready", handleReady);
+        console.error("[WorkerManager] Worker ready timeout reached");
+        console.error("[WorkerManager] Common causes:");
+        console.error(
+          "- Worker file /auth-worker.js not found in public folder",
+        );
+        console.error("- JavaScript error in worker preventing initialization");
+        console.error("- Worker blocked by browser security policy");
         reject(new Error("Worker ready timeout"));
       }, timeout);
 
-      const handleReady = (data) => {
-        if (data.type === "worker_ready") {
-          clearTimeout(timer);
-          this.removeMessageHandler("worker_ready", handleReady);
-          console.log(
-            "[WorkerManager] Worker is ready with token system:",
-            data.data.tokenSystem,
-          );
-          resolve(data.data);
-        }
+      const handleReady = (data, message) => {
+        console.log("[WorkerManager] Received worker ready signal:", data);
+        clearTimeout(timer);
+        this.removeMessageHandler("worker_ready", handleReady);
+        console.log(
+          "[WorkerManager] Worker is ready with token system:",
+          data.tokenSystem,
+        );
+        resolve(data);
       };
 
+      console.log("[WorkerManager] Adding worker ready handler");
       this.addMessageHandler("worker_ready", handleReady);
     });
   }

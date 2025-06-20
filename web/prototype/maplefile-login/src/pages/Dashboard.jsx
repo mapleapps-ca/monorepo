@@ -115,6 +115,22 @@ const TokenDebugComponent = () => {
         </button>
       </div>
 
+      {/* Worker Status Alert */}
+      {workerStatus.workerDisabled && (
+        <div
+          style={{
+            backgroundColor: "#fff3cd",
+            color: "#856404",
+            padding: "10px",
+            borderRadius: "4px",
+            marginBottom: "15px",
+            border: "1px solid #ffeaa7",
+          }}
+        >
+          ⚠️ <strong>Worker Disabled:</strong> {workerStatus.error}
+        </div>
+      )}
+
       <div style={{ marginBottom: "20px" }}>
         <h4>Encrypted Token Status</h4>
         <div
@@ -145,6 +161,16 @@ const TokenDebugComponent = () => {
             {tokenInfo.isAuthenticated ? "✅ YES" : "❌ NO"}
           </div>
 
+          <div style={{ fontWeight: "bold" }}>Worker Status:</div>
+          <div
+            style={{
+              color: workerStatus.isInitialized ? "green" : "red",
+              fontWeight: "bold",
+            }}
+          >
+            {workerStatus.isInitialized ? "✅ Initialized" : "❌ Failed"}
+          </div>
+
           <div style={{ fontWeight: "bold" }}>Access Token Expired:</div>
           <div
             style={{ color: tokenInfo.accessTokenExpired ? "red" : "green" }}
@@ -162,7 +188,7 @@ const TokenDebugComponent = () => {
       </div>
 
       <div style={{ marginBottom: "20px" }}>
-        <h4>Storage Contents</h4>
+        <h4>Worker Status Details</h4>
         <div
           style={{
             fontFamily: "monospace",
@@ -172,39 +198,7 @@ const TokenDebugComponent = () => {
             borderRadius: "4px",
           }}
         >
-          <div>
-            <strong>User Email:</strong> {tokenInfo.userEmail || "Not set"}
-          </div>
-          <div>
-            <strong>Encrypted Tokens:</strong>{" "}
-            {tokenInfo.encryptedTokens ? "Present ✅" : "Missing ❌"}
-          </div>
-          <div>
-            <strong>Token Nonce:</strong>{" "}
-            {tokenInfo.tokenNonce ? "Present ✅" : "Missing ❌"}
-          </div>
-          <div>
-            <strong>Access Token Expiry:</strong>{" "}
-            {tokenInfo.accessTokenExpiry || "Not set"}
-          </div>
-          <div>
-            <strong>Refresh Token Expiry:</strong>{" "}
-            {tokenInfo.refreshTokenExpiry || "Not set"}
-          </div>
-          <div style={{ color: tokenInfo.legacyAccessToken ? "red" : "green" }}>
-            <strong>Legacy Access Token:</strong>{" "}
-            {tokenInfo.legacyAccessToken
-              ? "❌ Present (should be cleared!)"
-              : "✅ None"}
-          </div>
-          <div
-            style={{ color: tokenInfo.legacyRefreshToken ? "red" : "green" }}
-          >
-            <strong>Legacy Refresh Token:</strong>{" "}
-            {tokenInfo.legacyRefreshToken
-              ? "❌ Present (should be cleared!)"
-              : "✅ None"}
-          </div>
+          <pre>{JSON.stringify(workerStatus, null, 2)}</pre>
         </div>
       </div>
 
@@ -248,6 +242,240 @@ const TokenDebugComponent = () => {
         Look for [AuthWorker], [AuthService], and [LocalStorageService]
         messages.
       </div>
+    </div>
+  );
+};
+
+// Worker Test Component
+const WorkerTestComponent = () => {
+  const [testResults, setTestResults] = useState({});
+  const [testing, setTesting] = useState(false);
+  const [showTest, setShowTest] = useState(false);
+
+  const runWorkerTests = async () => {
+    setTesting(true);
+    const results = {};
+
+    // Test 1: Check if worker file exists
+    try {
+      const response = await fetch("/auth-worker.js");
+      results.workerFileExists = response.ok;
+      results.workerFileStatus = response.status;
+      if (!response.ok) {
+        results.workerFileError = `HTTP ${response.status}`;
+      }
+    } catch (error) {
+      results.workerFileExists = false;
+      results.workerFileError = error.message;
+    }
+
+    // Test 2: Try to create a simple worker
+    try {
+      const simpleWorker = new Worker("/auth-worker.js");
+      results.workerCreation = true;
+
+      // Test 3: Listen for messages from worker
+      const messagePromise = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error("Worker message timeout"));
+        }, 3000);
+
+        simpleWorker.addEventListener("message", (event) => {
+          clearTimeout(timeout);
+          resolve(event.data);
+        });
+
+        simpleWorker.addEventListener("error", (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+      });
+
+      try {
+        const workerMessage = await messagePromise;
+        results.workerMessage = true;
+        results.workerMessageData = workerMessage;
+      } catch (msgError) {
+        results.workerMessage = false;
+        results.workerMessageError = msgError.message;
+      }
+
+      simpleWorker.terminate();
+    } catch (creationError) {
+      results.workerCreation = false;
+      results.workerCreationError = creationError.message;
+    }
+
+    // Test 4: Check browser support
+    results.workerSupport = typeof Worker !== "undefined";
+    results.broadcastChannelSupport = typeof BroadcastChannel !== "undefined";
+
+    setTestResults(results);
+    setTesting(false);
+  };
+
+  const renderTestResult = (label, success, error = null) => (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        padding: "8px",
+        backgroundColor: success ? "#d4edda" : "#f8d7da",
+        borderRadius: "4px",
+        marginBottom: "8px",
+      }}
+    >
+      <span style={{ fontWeight: "bold" }}>{label}:</span>
+      <span style={{ color: success ? "green" : "red" }}>
+        {success ? "✅ PASS" : "❌ FAIL"}
+        {error && ` (${error})`}
+      </span>
+    </div>
+  );
+
+  if (!showTest) {
+    return (
+      <div style={{ textAlign: "center", marginTop: "20px" }}>
+        <button onClick={() => setShowTest(true)} className="btn btn-danger">
+          🧪 Run Worker Diagnostic Test
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        backgroundColor: "#fff3cd",
+        padding: "20px",
+        borderRadius: "8px",
+        marginTop: "20px",
+        border: "1px solid #ffeaa7",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "15px",
+        }}
+      >
+        <h3>🧪 Worker Diagnostic Test</h3>
+        <button
+          onClick={() => setShowTest(false)}
+          style={{
+            padding: "4px 8px",
+            backgroundColor: "#6c757d",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontSize: "12px",
+          }}
+        >
+          ✕ Hide
+        </button>
+      </div>
+
+      <p>
+        This test will help diagnose why the authentication worker is not
+        initializing.
+      </p>
+
+      <button
+        onClick={runWorkerTests}
+        disabled={testing}
+        style={{
+          padding: "10px 20px",
+          backgroundColor: "#007bff",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: testing ? "not-allowed" : "pointer",
+          marginBottom: "20px",
+        }}
+      >
+        {testing ? "🔄 Testing..." : "🧪 Run Worker Tests"}
+      </button>
+
+      {Object.keys(testResults).length > 0 && (
+        <div>
+          <h4>Test Results:</h4>
+
+          {renderTestResult(
+            "Browser Worker Support",
+            testResults.workerSupport,
+          )}
+
+          {renderTestResult(
+            "BroadcastChannel Support",
+            testResults.broadcastChannelSupport,
+          )}
+
+          {renderTestResult(
+            "Worker File Accessible",
+            testResults.workerFileExists,
+            testResults.workerFileError,
+          )}
+
+          {renderTestResult(
+            "Worker Creation",
+            testResults.workerCreation,
+            testResults.workerCreationError,
+          )}
+
+          {renderTestResult(
+            "Worker Communication",
+            testResults.workerMessage,
+            testResults.workerMessageError,
+          )}
+
+          {testResults.workerMessageData && (
+            <div
+              style={{
+                marginTop: "15px",
+                padding: "10px",
+                backgroundColor: "#f8f9fa",
+                borderRadius: "4px",
+                border: "1px solid #e9ecef",
+              }}
+            >
+              <strong>Worker Message Received:</strong>
+              <pre style={{ fontSize: "12px", marginTop: "5px" }}>
+                {JSON.stringify(testResults.workerMessageData, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          <div
+            style={{
+              marginTop: "15px",
+              padding: "10px",
+              backgroundColor: "#e9ecef",
+              borderRadius: "4px",
+              fontSize: "14px",
+            }}
+          >
+            <strong>🔧 Troubleshooting Tips:</strong>
+            <ul style={{ margin: "5px 0", paddingLeft: "20px" }}>
+              <li>
+                Make sure <code>auth-worker.js</code> exists in the{" "}
+                <code>public</code> folder
+              </li>
+              <li>Check browser console for JavaScript errors in the worker</li>
+              <li>
+                Verify your development server is serving files from the public
+                folder
+              </li>
+              <li>Try disabling browser extensions that might block workers</li>
+              <li>
+                Check if your browser supports Web Workers and BroadcastChannel
+              </li>
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -301,6 +529,9 @@ const Dashboard = () => {
 
         {/* Token Debug Component */}
         <TokenDebugComponent />
+
+        {/* Worker Test Component */}
+        <WorkerTestComponent />
 
         {/* Features Section */}
         <div className="features-section">

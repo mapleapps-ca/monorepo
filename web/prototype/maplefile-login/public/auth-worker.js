@@ -20,8 +20,12 @@ let isRefreshing = false;
 let broadcastChannel = null;
 try {
   broadcastChannel = new BroadcastChannel("auth_worker");
+  console.log("[AuthWorker] BroadcastChannel initialized successfully");
 } catch (error) {
-  console.warn("BroadcastChannel not supported, falling back to postMessage");
+  console.warn(
+    "[AuthWorker] BroadcastChannel not supported, falling back to postMessage:",
+    error,
+  );
 }
 
 // Worker state
@@ -75,20 +79,30 @@ function broadcastMessage(type, data) {
     timestamp: Date.now(),
   };
 
-  // Use BroadcastChannel if available
+  console.log(`[AuthWorker] Broadcasting message: ${type}`, data);
+
+  // Always try postMessage first (most reliable)
+  try {
+    self.postMessage(message);
+    console.log(`[AuthWorker] Message sent via postMessage: ${type}`);
+  } catch (error) {
+    console.error(
+      `[AuthWorker] Failed to send message via postMessage: ${type}`,
+      error,
+    );
+  }
+
+  // Use BroadcastChannel if available (for cross-tab communication)
   if (broadcastChannel) {
     try {
       broadcastChannel.postMessage(message);
+      console.log(`[AuthWorker] Message sent via BroadcastChannel: ${type}`);
     } catch (error) {
-      console.error("Failed to broadcast message:", error);
+      console.error(
+        `[AuthWorker] Failed to send message via BroadcastChannel: ${type}`,
+        error,
+      );
     }
-  }
-
-  // Also use postMessage for main thread communication
-  try {
-    self.postMessage(message);
-  } catch (error) {
-    console.error("Failed to post message:", error);
   }
 }
 
@@ -382,14 +396,43 @@ self.addEventListener("error", (error) => {
 });
 
 // Initialize worker
+console.log("[AuthWorker] Authentication worker initializing...");
+
+// Send ready signal immediately
+try {
+  console.log("[AuthWorker] Sending worker ready signal...");
+  broadcastMessage("worker_ready", {
+    timestamp: Date.now(),
+    checkInterval: CHECK_INTERVAL,
+    refreshThreshold: REFRESH_THRESHOLD,
+    tokenSystem: "encrypted",
+  });
+  console.log("[AuthWorker] Worker ready signal sent successfully");
+} catch (error) {
+  console.error("[AuthWorker] Failed to send ready signal:", error);
+  // Try to send via postMessage as fallback
+  try {
+    self.postMessage({
+      type: "worker_ready",
+      data: {
+        timestamp: Date.now(),
+        checkInterval: CHECK_INTERVAL,
+        refreshThreshold: REFRESH_THRESHOLD,
+        tokenSystem: "encrypted",
+      },
+      timestamp: Date.now(),
+    });
+    console.log(
+      "[AuthWorker] Worker ready signal sent via postMessage fallback",
+    );
+  } catch (fallbackError) {
+    console.error(
+      "[AuthWorker] Failed to send ready signal via fallback:",
+      fallbackError,
+    );
+  }
+}
+
 console.log(
   "[AuthWorker] Authentication worker initialized with encrypted token support",
 );
-
-// Send ready signal
-broadcastMessage("worker_ready", {
-  timestamp: Date.now(),
-  checkInterval: CHECK_INTERVAL,
-  refreshThreshold: REFRESH_THRESHOLD,
-  tokenSystem: "encrypted",
-});
