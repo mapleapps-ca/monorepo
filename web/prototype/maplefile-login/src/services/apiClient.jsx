@@ -1,6 +1,5 @@
 // API Client with encrypted token support and automatic token refresh
-import authService from "./authService.js";
-import localStorageService from "./localStorageService.js";
+import localStorageService from "./localStorageService.jsx";
 
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config
 
@@ -141,8 +140,8 @@ class ApiClient {
         throw new Error("No refresh tokens available");
       }
 
-      // Try to refresh the token using the auth service
-      await authService.refreshToken();
+      // Try to refresh the token directly using the API
+      await this.refreshTokenDirect();
 
       // Update authorization header with new token
       const newAuthHeader = await this.getAuthorizationHeader();
@@ -172,7 +171,7 @@ class ApiClient {
       this.processQueue(refreshError, null);
 
       // Clear authentication data and redirect to login
-      authService.logout();
+      this.clearAuthData();
 
       // Redirect to login page
       if (window.location.pathname !== "/") {
@@ -181,6 +180,70 @@ class ApiClient {
 
       throw new Error("Session expired. Please log in again.");
     }
+  }
+
+  // Direct token refresh method (to avoid circular dependency)
+  async refreshTokenDirect() {
+    try {
+      console.log("[ApiClient] Starting direct token refresh");
+
+      const refreshToken = localStorageService.getRefreshToken();
+      if (!refreshToken) {
+        throw new Error("No refresh token available");
+      }
+
+      // Use the new API endpoint format
+      const response = await fetch(`${API_BASE_URL}/token/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          value: refreshToken,
+        }),
+      });
+
+      if (response.status !== 201) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Token refresh failed");
+      }
+
+      const result = await response.json();
+      console.log("[ApiClient] Direct token refresh successful");
+
+      // Handle the new encrypted token response
+      if (result.encrypted_tokens && result.token_nonce) {
+        console.log("[ApiClient] Received new encrypted tokens");
+
+        // Store the new encrypted tokens
+        localStorageService.setEncryptedTokens(
+          result.encrypted_tokens,
+          result.token_nonce,
+          result.access_token_expiry_date,
+          result.refresh_token_expiry_date,
+        );
+
+        // Update user email if provided
+        if (result.username) {
+          localStorageService.setUserEmail(result.username);
+        }
+
+        console.log("[ApiClient] New encrypted tokens stored successfully");
+        return result;
+      } else {
+        // This should not happen with the new system
+        console.error("[ApiClient] No encrypted tokens in refresh response");
+        throw new Error("Token refresh failed: No encrypted tokens received");
+      }
+    } catch (error) {
+      console.error("[ApiClient] Direct token refresh failed:", error);
+      throw error;
+    }
+  }
+
+  // Clear authentication data (to avoid circular dependency)
+  clearAuthData() {
+    localStorageService.clearAuthData();
   }
 
   // Check if we can make authenticated requests

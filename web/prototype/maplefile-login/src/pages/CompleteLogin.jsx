@@ -100,29 +100,31 @@ const CompleteLogin = () => {
       // Wait a moment for tokens to be fully stored
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Check if we have tokens (encrypted or plain)
-      const accessToken = LocalStorageService.getAccessToken();
-      const refreshToken = LocalStorageService.getRefreshToken();
+      // Check if we have encrypted tokens (new system)
+      const encryptedTokens = LocalStorageService.getEncryptedTokens();
+      const tokenNonce = LocalStorageService.getTokenNonce();
 
       console.log("[CompleteLogin] Stored tokens check:");
-      console.log("- Access token exists:", !!accessToken);
-      console.log("- Refresh token exists:", !!refreshToken);
+      console.log("- Encrypted tokens exist:", !!encryptedTokens);
+      console.log("- Token nonce exists:", !!tokenNonce);
 
-      if (accessToken) {
+      if (encryptedTokens && tokenNonce) {
         console.log(
-          "- Access token preview:",
-          accessToken.substring(0, 30) + "...",
+          "- Encrypted tokens preview:",
+          encryptedTokens.substring(0, 30) + "...",
         );
       }
 
       // For encrypted tokens, we just need to verify they exist
-      const hasTokens = !!(accessToken && refreshToken);
+      const hasTokens = !!(encryptedTokens && tokenNonce);
 
       if (hasTokens) {
-        console.log("[CompleteLogin] Tokens found, navigating to dashboard...");
+        console.log(
+          "[CompleteLogin] Encrypted tokens found, navigating to dashboard...",
+        );
         navigate("/dashboard", { replace: true });
       } else {
-        console.error("[CompleteLogin] No tokens found after login");
+        console.error("[CompleteLogin] No encrypted tokens found after login");
         setError(
           "Login completed but no authentication tokens were received. Please try again.",
         );
@@ -240,6 +242,10 @@ const CompleteLogin = () => {
                 ⚠️ Your encryption parameters will be upgraded after login
               </p>
             )}
+            <p>
+              <strong>Token System:</strong> Encrypted tokens with client-side
+              decryption
+            </p>
           </div>
         </div>
 
@@ -257,6 +263,10 @@ const CompleteLogin = () => {
             </li>
             <li>No passwords or private keys are ever sent to the server</li>
             <li>All decryption happens locally in your browser</li>
+            <li>
+              <strong>NEW:</strong> Authentication tokens are encrypted
+              end-to-end
+            </li>
           </ul>
         </div>
 

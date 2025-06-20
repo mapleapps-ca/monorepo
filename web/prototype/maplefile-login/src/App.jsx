@@ -4,19 +4,19 @@ import RequestOTT from "./pages/RequestOTT.jsx";
 import VerifyOTT from "./pages/VerifyOTT.jsx";
 import CompleteLogin from "./pages/CompleteLogin.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import authService from "./services/authService.jsx";
+import LocalStorageService from "./services/localStorageService.jsx";
 import "./styles/App.css";
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
-  const isAuthenticated = authService.isAuthenticated();
+  const isAuthenticated = LocalStorageService.isAuthenticated();
 
   return isAuthenticated ? children : <Navigate to="/" replace />;
 };
 
 // Redirect authenticated users away from login pages
 const LoginRoute = ({ children }) => {
-  const isAuthenticated = authService.isAuthenticated();
+  const isAuthenticated = LocalStorageService.isAuthenticated();
 
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
 };

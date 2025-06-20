@@ -1,395 +1,334 @@
-// Authentication Worker - Updated for Encrypted Token System
-// This worker runs independently and communicates with all tabs
-
-const STORAGE_KEYS = {
+// Local Storage Service for managing encrypted authentication tokens
+const LOCAL_STORAGE_KEYS = {
   ENCRYPTED_TOKENS: "mapleapps_encrypted_tokens",
   TOKEN_NONCE: "mapleapps_token_nonce",
   ACCESS_TOKEN_EXPIRY: "mapleapps_access_token_expiry",
   REFRESH_TOKEN_EXPIRY: "mapleapps_refresh_token_expiry",
   USER_EMAIL: "mapleapps_user_email",
+  // Legacy keys (will be removed)
+  ACCESS_TOKEN: "mapleapps_access_token",
+  REFRESH_TOKEN: "mapleapps_refresh_token",
 };
 
-const API_BASE_URL = "/iam/api/v1";
-const CHECK_INTERVAL = 30000; // Check every 30 seconds
-const REFRESH_THRESHOLD = 5 * 60 * 1000; // Refresh 5 minutes before expiry
-
-let checkInterval = null;
-let isRefreshing = false;
-
-// Broadcast channel for cross-tab communication
-let broadcastChannel = null;
-try {
-  broadcastChannel = new BroadcastChannel("auth_worker");
-} catch (error) {
-  console.warn("BroadcastChannel not supported, falling back to postMessage");
-}
-
-// Worker state
-let workerState = {
-  isAuthenticated: false,
-  isRefreshing: false,
-  lastCheck: null,
-  tokenInfo: {},
-};
-
-// Utility functions for localStorage access in worker
-function getStorageItem(key) {
-  try {
-    // In worker context, we need to simulate localStorage access
-    // We'll get this data from the main thread
-    return self.localStorage?.[key] || null;
-  } catch (error) {
-    return null;
-  }
-}
-
-function setStorageItem(key, value) {
-  try {
-    if (self.localStorage) {
-      self.localStorage[key] = value;
-    }
-    // Also broadcast to main thread
-    broadcastMessage("storage_update", { key, value });
-  } catch (error) {
-    // Fallback - send to main thread
-    broadcastMessage("storage_update", { key, value });
-  }
-}
-
-function removeStorageItem(key) {
-  try {
-    if (self.localStorage) {
-      delete self.localStorage[key];
-    }
-    broadcastMessage("storage_remove", { key });
-  } catch (error) {
-    broadcastMessage("storage_remove", { key });
-  }
-}
-
-// Broadcast message to all tabs
-function broadcastMessage(type, data) {
-  const message = {
-    type,
-    data,
-    timestamp: Date.now(),
-  };
-
-  // Use BroadcastChannel if available
-  if (broadcastChannel) {
-    try {
-      broadcastChannel.postMessage(message);
-    } catch (error) {
-      console.error("Failed to broadcast message:", error);
-    }
-  }
-
-  // Also use postMessage for main thread communication
-  try {
-    self.postMessage(message);
-  } catch (error) {
-    console.error("Failed to post message:", error);
-  }
-}
-
-// Check if tokens are expired
-function isTokenExpired(expiryTime) {
-  if (!expiryTime) return true;
-  return new Date() >= new Date(expiryTime);
-}
-
-// Check if token expires soon
-function isTokenExpiringSoon(expiryTime, thresholdMs = REFRESH_THRESHOLD) {
-  if (!expiryTime) return true;
-  const expiry = new Date(expiryTime);
-  const now = new Date();
-  return expiry.getTime() - now.getTime() <= thresholdMs;
-}
-
-// Get current token information for encrypted tokens
-function getTokenInfo(storageData) {
-  const encryptedTokens = storageData[STORAGE_KEYS.ENCRYPTED_TOKENS];
-  const tokenNonce = storageData[STORAGE_KEYS.TOKEN_NONCE];
-  const accessTokenExpiry = storageData[STORAGE_KEYS.ACCESS_TOKEN_EXPIRY];
-  const refreshTokenExpiry = storageData[STORAGE_KEYS.REFRESH_TOKEN_EXPIRY];
-
-  const accessTokenExpired = isTokenExpired(accessTokenExpiry);
-  const refreshTokenExpired = isTokenExpired(refreshTokenExpiry);
-  const accessTokenExpiringSoon = isTokenExpiringSoon(accessTokenExpiry);
-
-  return {
-    hasEncryptedTokens: !!(encryptedTokens && tokenNonce),
-    hasRefreshToken: !!encryptedTokens, // Encrypted tokens serve as refresh token
-    accessTokenExpired,
-    refreshTokenExpired,
-    accessTokenExpiringSoon,
+class LocalStorageService {
+  // Store encrypted tokens with expiry times
+  setEncryptedTokens(
+    encryptedTokens,
+    tokenNonce,
     accessTokenExpiry,
     refreshTokenExpiry,
-    isAuthenticated: !!(encryptedTokens && tokenNonce) && !refreshTokenExpired,
-  };
-}
+  ) {
+    if (encryptedTokens && tokenNonce) {
+      localStorage.setItem(
+        LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS,
+        encryptedTokens,
+      );
+      localStorage.setItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE, tokenNonce);
 
-// Make API request for token refresh using new endpoint
-async function refreshTokens(encryptedTokens, storageData) {
-  const url = `${API_BASE_URL}/token/refresh`;
-
-  try {
-    console.log("[AuthWorker] Attempting token refresh with new API...");
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        value: encryptedTokens,
-      }),
-    });
-
-    if (response.status === 201) {
-      const result = await response.json();
-      console.log("[AuthWorker] Token refresh successful");
-
-      // Handle new encrypted tokens
-      if (result.encrypted_tokens && result.token_nonce) {
-        console.log("[AuthWorker] Received new encrypted tokens");
-
-        // Update storage with new encrypted tokens
-        setStorageItem(STORAGE_KEYS.ENCRYPTED_TOKENS, result.encrypted_tokens);
-        setStorageItem(STORAGE_KEYS.TOKEN_NONCE, result.token_nonce);
-
-        // Update expiry times
-        if (result.access_token_expiry_date) {
-          setStorageItem(
-            STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
-            result.access_token_expiry_date,
-          );
-        }
-        if (result.refresh_token_expiry_date) {
-          setStorageItem(
-            STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
-            result.refresh_token_expiry_date,
-          );
-        }
-
-        // Update user email if provided
-        if (result.username) {
-          setStorageItem(STORAGE_KEYS.USER_EMAIL, result.username);
-        }
-
-        // Broadcast success
-        broadcastMessage("token_refresh_success", {
-          accessTokenExpiry: result.access_token_expiry_date,
-          refreshTokenExpiry: result.refresh_token_expiry_date,
-          username: result.username,
-        });
-
-        return true;
-      } else {
-        console.error("[AuthWorker] No encrypted tokens in refresh response");
-        throw new Error("Token refresh failed: No encrypted tokens received");
+      if (accessTokenExpiry) {
+        localStorage.setItem(
+          LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+          accessTokenExpiry,
+        );
       }
-    } else {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Token refresh failed");
+
+      if (refreshTokenExpiry) {
+        localStorage.setItem(
+          LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
+          refreshTokenExpiry,
+        );
+      }
+
+      console.log("[LocalStorageService] Encrypted tokens stored successfully");
     }
-  } catch (error) {
-    console.error("[AuthWorker] Token refresh failed:", error);
+  }
 
-    // Clear all tokens on refresh failure
-    Object.values(STORAGE_KEYS).forEach((key) => {
-      removeStorageItem(key);
-    });
+  // Get encrypted tokens blob
+  getEncryptedTokens() {
+    return localStorage.getItem(LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS);
+  }
 
-    // Broadcast failure
-    broadcastMessage("token_refresh_failed", {
-      error: error.message,
-      shouldRedirect: true,
-    });
+  // Get token nonce
+  getTokenNonce() {
+    return localStorage.getItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE);
+  }
+
+  // Decrypt and get access token (placeholder - would need crypto implementation)
+  async getDecryptedAccessToken() {
+    const encryptedTokens = this.getEncryptedTokens();
+    const tokenNonce = this.getTokenNonce();
+
+    if (!encryptedTokens || !tokenNonce) {
+      console.warn("[LocalStorageService] No encrypted tokens available");
+      return null;
+    }
+
+    try {
+      // TODO: Implement actual token decryption here
+      // For now, we'll indicate that tokens are encrypted
+      console.log(
+        "[LocalStorageService] Encrypted tokens available but decryption not yet implemented",
+      );
+
+      // Return a placeholder that indicates we have encrypted tokens
+      // In a real implementation, you would decrypt the tokens here using the user's private key
+      return "encrypted_token_available";
+    } catch (error) {
+      console.error(
+        "[LocalStorageService] Failed to decrypt access token:",
+        error,
+      );
+      return null;
+    }
+  }
+
+  // Get refresh token for refresh API calls
+  getRefreshToken() {
+    // For token refresh, we send the encrypted tokens blob as the refresh token
+    const encryptedTokens = this.getEncryptedTokens();
+
+    if (encryptedTokens) {
+      console.log("[LocalStorageService] Using encrypted tokens for refresh");
+      return encryptedTokens;
+    }
+
+    // Fallback: check for legacy refresh token
+    const legacyRefreshToken = localStorage.getItem(
+      LOCAL_STORAGE_KEYS.REFRESH_TOKEN,
+    );
+    if (legacyRefreshToken) {
+      console.warn(
+        "[LocalStorageService] Using legacy refresh token - this should be migrated",
+      );
+      return legacyRefreshToken;
+    }
+
+    return null;
+  }
+
+  // Legacy method for backward compatibility
+  getAccessToken() {
+    // First try to get decrypted access token
+    const encryptedTokens = this.getEncryptedTokens();
+    if (encryptedTokens) {
+      // Return indicator that we have encrypted tokens
+      return "encrypted_token_available";
+    }
+
+    // Fallback to legacy token
+    return localStorage.getItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN);
+  }
+
+  // Set user email
+  setUserEmail(email) {
+    if (email) {
+      localStorage.setItem(LOCAL_STORAGE_KEYS.USER_EMAIL, email);
+    }
+  }
+
+  // Get user email
+  getUserEmail() {
+    return localStorage.getItem(LOCAL_STORAGE_KEYS.USER_EMAIL);
+  }
+
+  // Check if access token is expired
+  isAccessTokenExpired() {
+    const expiryTime = localStorage.getItem(
+      LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+    );
+    if (!expiryTime) return true;
+
+    return new Date() >= new Date(expiryTime);
+  }
+
+  // Check if access token is expiring soon (within specified minutes)
+  isAccessTokenExpiringSoon(minutesBeforeExpiry = 5) {
+    const expiryTime = localStorage.getItem(
+      LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+    );
+    if (!expiryTime) return true;
+
+    const expiry = new Date(expiryTime);
+    const now = new Date();
+    const timeUntilExpiry = expiry.getTime() - now.getTime();
+    const warningThreshold = minutesBeforeExpiry * 60 * 1000; // Convert to milliseconds
+
+    return timeUntilExpiry <= warningThreshold;
+  }
+
+  // Check if refresh token is expired
+  isRefreshTokenExpired() {
+    const expiryTime = localStorage.getItem(
+      LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
+    );
+    if (!expiryTime) return true;
+
+    return new Date() >= new Date(expiryTime);
+  }
+
+  // Check if user is authenticated (has valid encrypted tokens)
+  isAuthenticated() {
+    // Check for encrypted tokens first
+    const encryptedTokens = this.getEncryptedTokens();
+    const tokenNonce = this.getTokenNonce();
+
+    if (encryptedTokens && tokenNonce) {
+      // We have encrypted tokens, check if refresh token is still valid
+      if (!this.isRefreshTokenExpired()) {
+        return true;
+      }
+    }
+
+    // Fallback: check legacy tokens
+    const accessToken = localStorage.getItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN);
+    const refreshToken = localStorage.getItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
+
+    if (!accessToken || !refreshToken) return false;
+
+    // If access token is valid, user is authenticated
+    if (!this.isAccessTokenExpired()) return true;
+
+    // If access token is expired but refresh token is valid, we can refresh
+    if (!this.isRefreshTokenExpired()) return true;
 
     return false;
   }
-}
 
-// Main token checking logic for encrypted tokens
-async function checkTokens(storageData) {
-  const tokenInfo = getTokenInfo(storageData);
-
-  // Update worker state
-  workerState.tokenInfo = tokenInfo;
-  workerState.lastCheck = new Date().toISOString();
-  workerState.isAuthenticated = tokenInfo.isAuthenticated;
-
-  // Broadcast current status
-  broadcastMessage("token_status_update", {
-    tokenInfo,
-    lastCheck: workerState.lastCheck,
-    isAuthenticated: workerState.isAuthenticated,
-  });
-
-  // If no encrypted tokens, nothing to do
-  if (!tokenInfo.hasEncryptedTokens) {
-    console.log("[AuthWorker] No encrypted tokens available");
-    return;
+  // Check if we have any form of valid tokens
+  hasValidTokens() {
+    return this.isAuthenticated();
   }
 
-  // If refresh token is expired, logout user
-  if (tokenInfo.refreshTokenExpired) {
-    console.log("[AuthWorker] Refresh token expired, logging out user");
-
-    // Clear all tokens
-    Object.values(STORAGE_KEYS).forEach((key) => {
-      removeStorageItem(key);
-    });
-
-    // Broadcast logout
-    broadcastMessage("force_logout", {
-      reason: "refresh_token_expired",
-      shouldRedirect: true,
-    });
-
-    return;
+  // Get token expiry information
+  getTokenExpiryInfo() {
+    return {
+      accessTokenExpiry: localStorage.getItem(
+        LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+      ),
+      refreshTokenExpiry: localStorage.getItem(
+        LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
+      ),
+      accessTokenExpired: this.isAccessTokenExpired(),
+      refreshTokenExpired: this.isRefreshTokenExpired(),
+      accessTokenExpiringSoon: this.isAccessTokenExpiringSoon(5),
+    };
   }
 
-  // If access token is expired or expiring soon, refresh
-  if (
-    (tokenInfo.accessTokenExpired || tokenInfo.accessTokenExpiringSoon) &&
-    !isRefreshing
-  ) {
-    isRefreshing = true;
-    workerState.isRefreshing = true;
+  // Clear all authentication data
+  clearAuthData() {
+    // Clear encrypted tokens
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.USER_EMAIL);
 
-    console.log("[AuthWorker] Access token needs refresh");
+    // Clear legacy tokens
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
 
-    const encryptedTokens = storageData[STORAGE_KEYS.ENCRYPTED_TOKENS];
-    const success = await refreshTokens(encryptedTokens, storageData);
-
-    isRefreshing = false;
-    workerState.isRefreshing = success;
-
-    if (!success) {
-      // Refresh failed, user will be redirected by the failed handler
-      workerState.isAuthenticated = false;
-    }
-  }
-}
-
-// Start monitoring tokens
-function startTokenMonitoring() {
-  console.log("[AuthWorker] Starting encrypted token monitoring...");
-
-  if (checkInterval) {
-    clearInterval(checkInterval);
+    console.log("[LocalStorageService] All authentication data cleared");
   }
 
-  checkInterval = setInterval(async () => {
-    if (isRefreshing) {
-      console.log("[AuthWorker] Refresh in progress, skipping check");
-      return;
-    }
-
-    try {
-      // Request current storage data from main thread
-      broadcastMessage("request_storage_data", {});
-    } catch (error) {
-      console.error("[AuthWorker] Error during token check:", error);
-    }
-  }, CHECK_INTERVAL);
-
-  // Also check immediately
-  broadcastMessage("request_storage_data", {});
-}
-
-// Stop monitoring tokens
-function stopTokenMonitoring() {
-  console.log("[AuthWorker] Stopping token monitoring...");
-
-  if (checkInterval) {
-    clearInterval(checkInterval);
-    checkInterval = null;
+  // Store login session data (for multi-step login)
+  setLoginSessionData(key, data) {
+    localStorage.setItem(`login_session_${key}`, JSON.stringify(data));
   }
 
-  isRefreshing = false;
-  workerState.isRefreshing = false;
-  workerState.isAuthenticated = false;
-}
+  // Get login session data
+  getLoginSessionData(key) {
+    const data = localStorage.getItem(`login_session_${key}`);
+    return data ? JSON.parse(data) : null;
+  }
 
-// Handle messages from main thread
-self.addEventListener("message", async (event) => {
-  const { type, data } = event.data;
+  // Clear login session data
+  clearLoginSessionData(key) {
+    localStorage.removeItem(`login_session_${key}`);
+  }
 
-  switch (type) {
-    case "start_monitoring":
-      console.log("[AuthWorker] Received start_monitoring command");
-      startTokenMonitoring();
-      break;
-
-    case "stop_monitoring":
-      console.log("[AuthWorker] Received stop_monitoring command");
-      stopTokenMonitoring();
-      break;
-
-    case "storage_data_response":
-      // Received storage data from main thread
-      if (data && !isRefreshing) {
-        await checkTokens(data);
+  // Clear all login session data
+  clearAllLoginSessionData() {
+    const keys = Object.keys(localStorage);
+    keys.forEach((key) => {
+      if (key.startsWith("login_session_")) {
+        localStorage.removeItem(key);
       }
-      break;
+    });
+  }
 
-    case "force_token_check":
-      console.log("[AuthWorker] Received force_token_check command");
-      if (data && !isRefreshing) {
-        await checkTokens(data);
-      }
-      break;
+  // Migrate legacy tokens to new system (utility method)
+  migrateLegacyTokens() {
+    const legacyAccessToken = localStorage.getItem(
+      LOCAL_STORAGE_KEYS.ACCESS_TOKEN,
+    );
+    const legacyRefreshToken = localStorage.getItem(
+      LOCAL_STORAGE_KEYS.REFRESH_TOKEN,
+    );
 
-    case "manual_refresh":
-      console.log("[AuthWorker] Received manual_refresh command");
-      if (data && data.refreshToken && !isRefreshing) {
-        isRefreshing = true;
-        workerState.isRefreshing = true;
-        const success = await refreshTokens(
-          data.refreshToken,
-          data.storageData || {},
+    if (legacyAccessToken || legacyRefreshToken) {
+      console.warn(
+        "[LocalStorageService] Legacy tokens detected - user should re-authenticate with new system",
+      );
+
+      // Clear legacy tokens to force re-authentication
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN);
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
+
+      return true; // Indicates migration occurred
+    }
+
+    return false; // No migration needed
+  }
+
+  // Get all storage data for worker communication
+  getAllStorageData() {
+    return {
+      encryptedTokens: this.getEncryptedTokens(),
+      tokenNonce: this.getTokenNonce(),
+      accessTokenExpiry: localStorage.getItem(
+        LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+      ),
+      refreshTokenExpiry: localStorage.getItem(
+        LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
+      ),
+      userEmail: this.getUserEmail(),
+      // Include token status
+      ...this.getTokenExpiryInfo(),
+    };
+  }
+
+  // Set legacy access token (for compatibility during transition)
+  setAccessToken(token, expiryTime) {
+    console.warn(
+      "[LocalStorageService] setAccessToken called - this method is deprecated in favor of encrypted tokens",
+    );
+    if (token) {
+      localStorage.setItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN, token);
+      if (expiryTime) {
+        localStorage.setItem(
+          LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+          expiryTime,
         );
-        isRefreshing = false;
-        workerState.isRefreshing = false;
       }
-      break;
-
-    case "get_worker_status":
-      // Send current worker status
-      broadcastMessage("worker_status_response", {
-        ...workerState,
-        isRefreshing,
-        tokenSystem: "encrypted",
-      });
-      break;
-
-    default:
-      console.log("[AuthWorker] Unknown message type:", type);
+    }
   }
-});
 
-// Handle errors
-self.addEventListener("error", (error) => {
-  console.error("[AuthWorker] Worker error:", error);
-  broadcastMessage("worker_error", {
-    error: error.message,
-    filename: error.filename,
-    lineno: error.lineno,
-  });
-});
+  // Set legacy refresh token (for compatibility during transition)
+  setRefreshToken(token, expiryTime) {
+    console.warn(
+      "[LocalStorageService] setRefreshToken called - this method is deprecated in favor of encrypted tokens",
+    );
+    if (token) {
+      localStorage.setItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN, token);
+      if (expiryTime) {
+        localStorage.setItem(
+          LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
+          expiryTime,
+        );
+      }
+    }
+  }
+}
 
-// Initialize worker
-console.log(
-  "[AuthWorker] Authentication worker initialized with encrypted token support",
-);
-
-// Send ready signal
-broadcastMessage("worker_ready", {
-  timestamp: Date.now(),
-  checkInterval: CHECK_INTERVAL,
-  refreshThreshold: REFRESH_THRESHOLD,
-  tokenSystem: "encrypted",
-});
+// Export singleton instance
+export default new LocalStorageService();

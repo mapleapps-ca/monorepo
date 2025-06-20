@@ -1,9 +1,9 @@
-// Authentication Worker - Handles token monitoring and refresh in background
+// Authentication Worker - Updated for Encrypted Token System
 // This worker runs independently and communicates with all tabs
 
 const STORAGE_KEYS = {
-  ACCESS_TOKEN: "mapleapps_access_token",
-  REFRESH_TOKEN: "mapleapps_refresh_token",
+  ENCRYPTED_TOKENS: "mapleapps_encrypted_tokens",
+  TOKEN_NONCE: "mapleapps_token_nonce",
   ACCESS_TOKEN_EXPIRY: "mapleapps_access_token_expiry",
   REFRESH_TOKEN_EXPIRY: "mapleapps_refresh_token_expiry",
   USER_EMAIL: "mapleapps_user_email",
@@ -106,10 +106,10 @@ function isTokenExpiringSoon(expiryTime, thresholdMs = REFRESH_THRESHOLD) {
   return expiry.getTime() - now.getTime() <= thresholdMs;
 }
 
-// Get current token information
+// Get current token information for encrypted tokens
 function getTokenInfo(storageData) {
-  const accessToken = storageData[STORAGE_KEYS.ACCESS_TOKEN];
-  const refreshToken = storageData[STORAGE_KEYS.REFRESH_TOKEN];
+  const encryptedTokens = storageData[STORAGE_KEYS.ENCRYPTED_TOKENS];
+  const tokenNonce = storageData[STORAGE_KEYS.TOKEN_NONCE];
   const accessTokenExpiry = storageData[STORAGE_KEYS.ACCESS_TOKEN_EXPIRY];
   const refreshTokenExpiry = storageData[STORAGE_KEYS.REFRESH_TOKEN_EXPIRY];
 
@@ -118,23 +118,23 @@ function getTokenInfo(storageData) {
   const accessTokenExpiringSoon = isTokenExpiringSoon(accessTokenExpiry);
 
   return {
-    hasAccessToken: !!accessToken,
-    hasRefreshToken: !!refreshToken,
+    hasEncryptedTokens: !!(encryptedTokens && tokenNonce),
+    hasRefreshToken: !!encryptedTokens, // Encrypted tokens serve as refresh token
     accessTokenExpired,
     refreshTokenExpired,
     accessTokenExpiringSoon,
     accessTokenExpiry,
     refreshTokenExpiry,
-    isAuthenticated: !!accessToken && !!refreshToken && !refreshTokenExpired,
+    isAuthenticated: !!(encryptedTokens && tokenNonce) && !refreshTokenExpired,
   };
 }
 
-// Make API request for token refresh
-async function refreshTokens(refreshTokenValue, storageData) {
+// Make API request for token refresh using new endpoint
+async function refreshTokens(encryptedTokens, storageData) {
   const url = `${API_BASE_URL}/token/refresh`;
 
   try {
-    console.log("[AuthWorker] Attempting token refresh...");
+    console.log("[AuthWorker] Attempting token refresh with new API...");
 
     const response = await fetch(url, {
       method: "POST",
@@ -142,7 +142,7 @@ async function refreshTokens(refreshTokenValue, storageData) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        value: refreshTokenValue,
+        value: encryptedTokens,
       }),
     });
 
@@ -150,47 +150,45 @@ async function refreshTokens(refreshTokenValue, storageData) {
       const result = await response.json();
       console.log("[AuthWorker] Token refresh successful");
 
-      // Update storage with new tokens
-      if (result.encrypted_tokens) {
-        // Handle encrypted tokens
-        setStorageItem(
-          STORAGE_KEYS.ACCESS_TOKEN,
-          "encrypted_" + result.encrypted_tokens,
-        );
-        setStorageItem(STORAGE_KEYS.REFRESH_TOKEN, "encrypted_refresh_token");
+      // Handle new encrypted tokens
+      if (result.encrypted_tokens && result.token_nonce) {
+        console.log("[AuthWorker] Received new encrypted tokens");
+
+        // Update storage with new encrypted tokens
+        setStorageItem(STORAGE_KEYS.ENCRYPTED_TOKENS, result.encrypted_tokens);
+        setStorageItem(STORAGE_KEYS.TOKEN_NONCE, result.token_nonce);
+
+        // Update expiry times
+        if (result.access_token_expiry_date) {
+          setStorageItem(
+            STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+            result.access_token_expiry_date,
+          );
+        }
+        if (result.refresh_token_expiry_date) {
+          setStorageItem(
+            STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
+            result.refresh_token_expiry_date,
+          );
+        }
+
+        // Update user email if provided
+        if (result.username) {
+          setStorageItem(STORAGE_KEYS.USER_EMAIL, result.username);
+        }
+
+        // Broadcast success
+        broadcastMessage("token_refresh_success", {
+          accessTokenExpiry: result.access_token_expiry_date,
+          refreshTokenExpiry: result.refresh_token_expiry_date,
+          username: result.username,
+        });
+
+        return true;
       } else {
-        // Handle plaintext tokens
-        if (result.access_token) {
-          setStorageItem(STORAGE_KEYS.ACCESS_TOKEN, result.access_token);
-        }
-        if (result.refresh_token) {
-          setStorageItem(STORAGE_KEYS.REFRESH_TOKEN, result.refresh_token);
-        }
+        console.error("[AuthWorker] No encrypted tokens in refresh response");
+        throw new Error("Token refresh failed: No encrypted tokens received");
       }
-
-      // Update expiry times
-      setStorageItem(
-        STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
-        result.access_token_expiry_date,
-      );
-      setStorageItem(
-        STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
-        result.refresh_token_expiry_date,
-      );
-
-      // Update user email if provided
-      if (result.username) {
-        setStorageItem(STORAGE_KEYS.USER_EMAIL, result.username);
-      }
-
-      // Broadcast success
-      broadcastMessage("token_refresh_success", {
-        accessTokenExpiry: result.access_token_expiry_date,
-        refreshTokenExpiry: result.refresh_token_expiry_date,
-        username: result.username,
-      });
-
-      return true;
     } else {
       const errorData = await response.json();
       throw new Error(errorData.message || "Token refresh failed");
@@ -213,7 +211,7 @@ async function refreshTokens(refreshTokenValue, storageData) {
   }
 }
 
-// Main token checking logic
+// Main token checking logic for encrypted tokens
 async function checkTokens(storageData) {
   const tokenInfo = getTokenInfo(storageData);
 
@@ -229,8 +227,9 @@ async function checkTokens(storageData) {
     isAuthenticated: workerState.isAuthenticated,
   });
 
-  // If no tokens, nothing to do
-  if (!tokenInfo.hasAccessToken || !tokenInfo.hasRefreshToken) {
+  // If no encrypted tokens, nothing to do
+  if (!tokenInfo.hasEncryptedTokens) {
+    console.log("[AuthWorker] No encrypted tokens available");
     return;
   }
 
@@ -262,8 +261,8 @@ async function checkTokens(storageData) {
 
     console.log("[AuthWorker] Access token needs refresh");
 
-    const refreshToken = storageData[STORAGE_KEYS.REFRESH_TOKEN];
-    const success = await refreshTokens(refreshToken, storageData);
+    const encryptedTokens = storageData[STORAGE_KEYS.ENCRYPTED_TOKENS];
+    const success = await refreshTokens(encryptedTokens, storageData);
 
     isRefreshing = false;
     workerState.isRefreshing = success;
@@ -277,7 +276,7 @@ async function checkTokens(storageData) {
 
 // Start monitoring tokens
 function startTokenMonitoring() {
-  console.log("[AuthWorker] Starting token monitoring...");
+  console.log("[AuthWorker] Starting encrypted token monitoring...");
 
   if (checkInterval) {
     clearInterval(checkInterval);
@@ -363,6 +362,7 @@ self.addEventListener("message", async (event) => {
       broadcastMessage("worker_status_response", {
         ...workerState,
         isRefreshing,
+        tokenSystem: "encrypted",
       });
       break;
 
@@ -382,11 +382,14 @@ self.addEventListener("error", (error) => {
 });
 
 // Initialize worker
-console.log("[AuthWorker] Authentication worker initialized");
+console.log(
+  "[AuthWorker] Authentication worker initialized with encrypted token support",
+);
 
 // Send ready signal
 broadcastMessage("worker_ready", {
   timestamp: Date.now(),
   checkInterval: CHECK_INTERVAL,
   refreshThreshold: REFRESH_THRESHOLD,
+  tokenSystem: "encrypted",
 });
