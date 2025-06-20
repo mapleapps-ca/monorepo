@@ -1,4 +1,4 @@
-// API Client with automatic token refresh and authentication headers
+// API Client with encrypted token support and automatic token refresh
 import authService from "./authService.js";
 import localStorageService from "./localStorageService.js";
 
@@ -23,6 +23,42 @@ class ApiClient {
     this.failedQueue = [];
   }
 
+  // Get authorization header for encrypted token system
+  async getAuthorizationHeader() {
+    try {
+      // Check if we have encrypted tokens
+      const encryptedTokens = localStorageService.getEncryptedTokens();
+      const tokenNonce = localStorageService.getTokenNonce();
+
+      if (encryptedTokens && tokenNonce) {
+        // For encrypted tokens, we need to implement token decryption
+        // For now, we'll use a placeholder approach
+        console.log("[ApiClient] Using encrypted token system");
+
+        // TODO: Implement actual token decryption here
+        // This would require:
+        // 1. User's private key (derived from password or stored securely)
+        // 2. Decryption of the encrypted tokens using the nonce
+        // 3. Extraction of the actual JWT access token
+
+        // For now, return null to indicate we have encrypted tokens but can't use them yet
+        // In a real implementation, you would decrypt and return the JWT token
+        return null;
+      }
+
+      // Fallback to legacy token system
+      const accessToken = localStorageService.getAccessToken();
+      if (accessToken && !accessToken.startsWith("encrypted_")) {
+        return `JWT ${accessToken}`;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("[ApiClient] Error getting authorization header:", error);
+      return null;
+    }
+  }
+
   // Make authenticated API request with automatic token refresh
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -33,10 +69,10 @@ class ApiClient {
       ...options.headers,
     };
 
-    // Add authorization header if access token exists
-    const accessToken = localStorageService.getAccessToken();
-    if (accessToken && !accessToken.startsWith("encrypted_")) {
-      headers["Authorization"] = `JWT ${accessToken}`;
+    // Add authorization header if we have a decrypted token
+    const authHeader = await this.getAuthorizationHeader();
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
     }
 
     const requestOptions = {
@@ -83,34 +119,39 @@ class ApiClient {
     if (this.isRefreshing) {
       return new Promise((resolve, reject) => {
         this.failedQueue.push({ resolve, reject });
-      }).then(() => {
+      }).then(async () => {
         // Retry original request with new token
-        const accessToken = localStorageService.getAccessToken();
-        if (accessToken && !accessToken.startsWith("encrypted_")) {
-          originalRequestOptions.headers["Authorization"] =
-            `JWT ${accessToken}`;
+        const authHeader = await this.getAuthorizationHeader();
+        if (authHeader) {
+          originalRequestOptions.headers["Authorization"] = authHeader;
         }
-        return fetch(url, originalRequestOptions).then((res) => res.json());
+        const response = await fetch(url, originalRequestOptions);
+        return response.json();
       });
     }
 
     this.isRefreshing = true;
 
     try {
-      console.log("Access token expired, attempting refresh...");
+      console.log("[ApiClient] Access token expired, attempting refresh...");
 
-      // Try to refresh the token
+      // Check if we have encrypted tokens to refresh
+      const encryptedTokens = localStorageService.getEncryptedTokens();
+      if (!encryptedTokens) {
+        throw new Error("No refresh tokens available");
+      }
+
+      // Try to refresh the token using the auth service
       await authService.refreshToken();
 
       // Update authorization header with new token
-      const newAccessToken = localStorageService.getAccessToken();
-      if (newAccessToken && !newAccessToken.startsWith("encrypted_")) {
-        originalRequestOptions.headers["Authorization"] =
-          `JWT ${newAccessToken}`;
+      const newAuthHeader = await this.getAuthorizationHeader();
+      if (newAuthHeader) {
+        originalRequestOptions.headers["Authorization"] = newAuthHeader;
       }
 
       this.isRefreshing = false;
-      this.processQueue(null, newAccessToken);
+      this.processQueue(null, newAuthHeader);
 
       // Retry the original request
       const response = await fetch(url, originalRequestOptions);
@@ -126,7 +167,7 @@ class ApiClient {
 
       return data;
     } catch (refreshError) {
-      console.error("Token refresh failed:", refreshError);
+      console.error("[ApiClient] Token refresh failed:", refreshError);
       this.isRefreshing = false;
       this.processQueue(refreshError, null);
 
@@ -139,6 +180,52 @@ class ApiClient {
       }
 
       throw new Error("Session expired. Please log in again.");
+    }
+  }
+
+  // Check if we can make authenticated requests
+  canMakeAuthenticatedRequests() {
+    // Check if we have any form of valid tokens
+    return localStorageService.hasValidTokens();
+  }
+
+  // Make request for public endpoints (no auth required)
+  async requestPublic(endpoint, options = {}) {
+    const url = `${API_BASE_URL}${endpoint}`;
+
+    const requestOptions = {
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+      ...options,
+    };
+
+    try {
+      console.log(
+        `Making public ${requestOptions.method || "GET"} request to:`,
+        url,
+      );
+
+      const response = await fetch(url, requestOptions);
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("API Error:", data);
+        throw new Error(
+          data.details
+            ? Object.values(data.details)[0]
+            : data.error || "Request failed",
+        );
+      }
+
+      console.log("API Response:", data);
+      return data;
+    } catch (error) {
+      if (error.name === "TypeError" && error.message.includes("fetch")) {
+        throw new Error("Network error - please check your connection");
+      }
+      throw error;
     }
   }
 
@@ -173,6 +260,38 @@ class ApiClient {
 
   async delete(endpoint, options = {}) {
     return this.request(endpoint, { ...options, method: "DELETE" });
+  }
+
+  // Public endpoint methods (no authentication)
+  async getPublic(endpoint, options = {}) {
+    return this.requestPublic(endpoint, { ...options, method: "GET" });
+  }
+
+  async postPublic(endpoint, data = null, options = {}) {
+    return this.requestPublic(endpoint, {
+      ...options,
+      method: "POST",
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  // Method to check token status
+  getTokenStatus() {
+    const encryptedTokens = localStorageService.getEncryptedTokens();
+    const tokenNonce = localStorageService.getTokenNonce();
+    const tokenInfo = localStorageService.getTokenExpiryInfo();
+
+    return {
+      hasEncryptedTokens: !!(encryptedTokens && tokenNonce),
+      ...tokenInfo,
+      canMakeAuthenticatedRequests: this.canMakeAuthenticatedRequests(),
+      tokenDecryptionImplemented: false, // Set to true when decryption is implemented
+    };
+  }
+
+  // Utility method to clear failed request queue
+  clearFailedQueue() {
+    this.failedQueue = [];
   }
 }
 

@@ -1,4 +1,4 @@
-// Worker Manager - Handles communication with the authentication worker
+// Worker Manager - Updated for Encrypted Token System
 import LocalStorageService from "./localStorageService.jsx";
 
 class WorkerManager {
@@ -73,7 +73,10 @@ class WorkerManager {
         if (data.type === "worker_ready") {
           clearTimeout(timer);
           this.removeMessageHandler("worker_ready", handleReady);
-          console.log("[WorkerManager] Worker is ready");
+          console.log(
+            "[WorkerManager] Worker is ready with token system:",
+            data.data.tokenSystem,
+          );
           resolve(data.data);
         }
       };
@@ -150,26 +153,38 @@ class WorkerManager {
     }
   }
 
-  // Send current storage data to worker
+  // Send current storage data to worker (updated for encrypted tokens)
   sendStorageDataToWorker() {
     const storageData = {
-      [LocalStorageService.constructor.STORAGE_KEYS?.ACCESS_TOKEN ||
-      "mapleapps_access_token"]: localStorage.getItem("mapleapps_access_token"),
-      [LocalStorageService.constructor.STORAGE_KEYS?.REFRESH_TOKEN ||
-      "mapleapps_refresh_token"]: localStorage.getItem(
-        "mapleapps_refresh_token",
+      // New encrypted token keys
+      mapleapps_encrypted_tokens: localStorage.getItem(
+        "mapleapps_encrypted_tokens",
       ),
-      [LocalStorageService.constructor.STORAGE_KEYS?.ACCESS_TOKEN_EXPIRY ||
-      "mapleapps_access_token_expiry"]: localStorage.getItem(
+      mapleapps_token_nonce: localStorage.getItem("mapleapps_token_nonce"),
+      mapleapps_access_token_expiry: localStorage.getItem(
         "mapleapps_access_token_expiry",
       ),
-      [LocalStorageService.constructor.STORAGE_KEYS?.REFRESH_TOKEN_EXPIRY ||
-      "mapleapps_refresh_token_expiry"]: localStorage.getItem(
+      mapleapps_refresh_token_expiry: localStorage.getItem(
         "mapleapps_refresh_token_expiry",
       ),
-      [LocalStorageService.constructor.STORAGE_KEYS?.USER_EMAIL ||
-      "mapleapps_user_email"]: localStorage.getItem("mapleapps_user_email"),
+      mapleapps_user_email: localStorage.getItem("mapleapps_user_email"),
+
+      // Legacy keys (for backward compatibility during transition)
+      mapleapps_access_token: localStorage.getItem("mapleapps_access_token"),
+      mapleapps_refresh_token: localStorage.getItem("mapleapps_refresh_token"),
     };
+
+    console.log("[WorkerManager] Sending storage data to worker:", {
+      hasEncryptedTokens: !!(
+        storageData.mapleapps_encrypted_tokens &&
+        storageData.mapleapps_token_nonce
+      ),
+      hasLegacyTokens: !!(
+        storageData.mapleapps_access_token ||
+        storageData.mapleapps_refresh_token
+      ),
+      userEmail: storageData.mapleapps_user_email,
+    });
 
     this.sendToWorker("storage_data_response", storageData);
   }
@@ -232,7 +247,7 @@ class WorkerManager {
       return;
     }
 
-    console.log("[WorkerManager] Starting token monitoring");
+    console.log("[WorkerManager] Starting encrypted token monitoring");
     this.sendToWorker("start_monitoring");
   }
 
@@ -257,7 +272,7 @@ class WorkerManager {
     this.sendToWorker("force_token_check");
   }
 
-  // Manual token refresh
+  // Manual token refresh (updated for encrypted tokens)
   async manualRefresh() {
     if (!this.isInitialized) {
       throw new Error("Worker not initialized");
@@ -287,19 +302,24 @@ class WorkerManager {
       this.addMessageHandler("token_refresh_success", successHandler);
       this.addMessageHandler("token_refresh_failed", failHandler);
 
-      // Send refresh request
+      // Send refresh request with encrypted tokens
+      const refreshToken = LocalStorageService.getRefreshToken(); // This now returns encrypted tokens
+
       this.sendToWorker("manual_refresh", {
-        refreshToken: LocalStorageService.getRefreshToken(),
+        refreshToken: refreshToken,
         storageData: this.getCurrentStorageData(),
       });
     });
   }
 
-  // Get current storage data
+  // Get current storage data (updated for encrypted tokens)
   getCurrentStorageData() {
     return {
-      mapleapps_access_token: localStorage.getItem("mapleapps_access_token"),
-      mapleapps_refresh_token: localStorage.getItem("mapleapps_refresh_token"),
+      // New encrypted token system
+      mapleapps_encrypted_tokens: localStorage.getItem(
+        "mapleapps_encrypted_tokens",
+      ),
+      mapleapps_token_nonce: localStorage.getItem("mapleapps_token_nonce"),
       mapleapps_access_token_expiry: localStorage.getItem(
         "mapleapps_access_token_expiry",
       ),
@@ -307,6 +327,10 @@ class WorkerManager {
         "mapleapps_refresh_token_expiry",
       ),
       mapleapps_user_email: localStorage.getItem("mapleapps_user_email"),
+
+      // Legacy system (for transition period)
+      mapleapps_access_token: localStorage.getItem("mapleapps_access_token"),
+      mapleapps_refresh_token: localStorage.getItem("mapleapps_refresh_token"),
     };
   }
 
@@ -330,6 +354,31 @@ class WorkerManager {
       this.addMessageHandler("worker_status_response", handler);
       this.sendToWorker("get_worker_status");
     });
+  }
+
+  // Check if we have valid tokens
+  hasValidTokens() {
+    return LocalStorageService.hasValidTokens();
+  }
+
+  // Get token information for debugging
+  getTokenInfo() {
+    return LocalStorageService.getTokenExpiryInfo();
+  }
+
+  // Migrate from legacy tokens if needed
+  migrateLegacyTokens() {
+    const migrated = LocalStorageService.migrateLegacyTokens();
+    if (migrated) {
+      console.log(
+        "[WorkerManager] Legacy tokens migrated, user needs to re-authenticate",
+      );
+      this.notifyAuthStateChange("legacy_tokens_migrated", {
+        shouldRedirect: true,
+        reason: "legacy_token_migration",
+      });
+    }
+    return migrated;
   }
 
   // Add message handler

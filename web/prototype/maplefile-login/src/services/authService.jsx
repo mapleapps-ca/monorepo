@@ -1,4 +1,4 @@
-// Authentication Service for API calls - Production Version
+// Authentication Service for API calls - Updated for New Token System
 import LocalStorageService from "./localStorageService.jsx";
 import CryptoService from "./cryptoService.jsx";
 import workerManager from "./workerManager.jsx";
@@ -122,45 +122,32 @@ class AuthService {
 
       console.log("[AuthService] Complete login response:", response);
 
-      // Handle different token response formats
+      // Handle encrypted tokens (new system)
       if (response.encrypted_tokens) {
-        // Backend sends encrypted tokens - store them for now
-        // TODO: Implement client-side token decryption later
-        console.log(
-          "[AuthService] Received encrypted tokens, storing temporarily",
-        );
+        console.log("[AuthService] Received encrypted tokens");
 
-        LocalStorageService.setAccessToken(
-          "encrypted_" + response.encrypted_tokens,
-          response.access_token_expiry_time,
+        // Store encrypted tokens and nonce
+        LocalStorageService.setEncryptedTokens(
+          response.encrypted_tokens,
+          response.token_nonce,
+          response.access_token_expiry_date,
+          response.refresh_token_expiry_date,
         );
-
-        LocalStorageService.setRefreshToken(
-          "encrypted_refresh_token", // Placeholder
-          response.refresh_token_expiry_time,
-        );
-
-        // Store the nonce for future decryption
-        if (response.token_nonce) {
-          localStorage.setItem("mapleapps_token_nonce", response.token_nonce);
-        }
 
         console.log("[AuthService] Encrypted tokens stored successfully");
       } else {
-        // Handle plain text tokens (fallback)
-        if (response.access_token) {
-          LocalStorageService.setAccessToken(
-            response.access_token,
-            response.access_token_expiry_time,
-          );
-        }
+        // This should not happen with the new system, but handle gracefully
+        console.warn(
+          "[AuthService] No encrypted tokens received - this should not happen with the new system",
+        );
+        throw new Error(
+          "Authentication system error: No encrypted tokens received",
+        );
+      }
 
-        if (response.refresh_token) {
-          LocalStorageService.setRefreshToken(
-            response.refresh_token,
-            response.refresh_token_expiry_time,
-          );
-        }
+      // Store username/email
+      if (response.username) {
+        LocalStorageService.setUserEmail(response.username);
       }
 
       // Clear login session data
@@ -191,9 +178,6 @@ class AuthService {
       if (!verifyData) {
         throw new Error("No verification data provided");
       }
-
-      // The verification response should contain the encrypted keys and challenge
-      // Let's check what fields are actually available and map them correctly
 
       // Common field name variations to check
       const fieldMappings = {
@@ -300,20 +284,79 @@ class AuthService {
     }
   }
 
-  // Refresh tokens using background worker
+  // New Token Refresh using the updated API
   async refreshToken() {
+    try {
+      console.log("[AuthService] Starting token refresh with new API");
+
+      const refreshToken = LocalStorageService.getRefreshToken();
+      if (!refreshToken) {
+        throw new Error("No refresh token available");
+      }
+
+      // Use the new API endpoint format
+      const response = await this.makeRequest("/token/refresh", {
+        method: "POST",
+        body: JSON.stringify({
+          value: refreshToken,
+        }),
+      });
+
+      console.log("[AuthService] Token refresh successful:", response);
+
+      // Handle the new encrypted token response
+      if (response.encrypted_tokens && response.token_nonce) {
+        console.log("[AuthService] Received new encrypted tokens");
+
+        // Store the new encrypted tokens
+        LocalStorageService.setEncryptedTokens(
+          response.encrypted_tokens,
+          response.token_nonce,
+          response.access_token_expiry_date,
+          response.refresh_token_expiry_date,
+        );
+
+        // Update user email if provided
+        if (response.username) {
+          LocalStorageService.setUserEmail(response.username);
+        }
+
+        console.log("[AuthService] New encrypted tokens stored successfully");
+        return response;
+      } else {
+        // This should not happen with the new system
+        console.error("[AuthService] No encrypted tokens in refresh response");
+        throw new Error("Token refresh failed: No encrypted tokens received");
+      }
+    } catch (error) {
+      console.error("[AuthService] Token refresh failed:", error);
+
+      // Clear tokens on refresh failure
+      LocalStorageService.clearAuthData();
+
+      // Stop monitoring
+      if (this.isInitialized) {
+        workerManager.stopMonitoring();
+      }
+
+      throw new Error(`Failed to refresh tokens: ${error.message}`);
+    }
+  }
+
+  // Refresh tokens using background worker (updated for new system)
+  async refreshTokenViaWorker() {
     if (!this.isInitialized) {
       await this.initializeWorker();
     }
 
     try {
-      console.log("[AuthService] Requesting manual token refresh via worker");
+      console.log("[AuthService] Requesting token refresh via worker");
       const result = await workerManager.manualRefresh();
-      console.log("[AuthService] Manual token refresh successful");
+      console.log("[AuthService] Worker token refresh successful");
       return result;
     } catch (error) {
-      console.error("[AuthService] Manual token refresh failed:", error);
-      throw new Error(`Failed to refresh tokens: ${error.message}`);
+      console.error("[AuthService] Worker token refresh failed:", error);
+      throw new Error(`Failed to refresh tokens via worker: ${error.message}`);
     }
   }
 
@@ -364,6 +407,16 @@ class AuthService {
   // Validate BIP39 mnemonic (utility method)
   validateMnemonic(mnemonic) {
     return CryptoService.validateMnemonic(mnemonic);
+  }
+
+  // Decrypt access token for API calls (when needed)
+  async getDecryptedAccessToken() {
+    return await LocalStorageService.getDecryptedAccessToken();
+  }
+
+  // Check if tokens need refresh
+  shouldRefreshTokens() {
+    return LocalStorageService.isAccessTokenExpiringSoon(5); // 5 minutes threshold
   }
 }
 
