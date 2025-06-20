@@ -447,6 +447,7 @@ self.addEventListener("message", async (event) => {
       broadcastMessage("worker_status_response", {
         ...workerState,
         isRefreshing,
+        isInitialized: true, // Worker is initialized if it can respond
         tokenSystem: "encrypted",
       });
       break;

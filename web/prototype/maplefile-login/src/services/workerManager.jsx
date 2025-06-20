@@ -374,18 +374,29 @@ class WorkerManager {
   // Get worker status
   async getWorkerStatus() {
     if (!this.isInitialized) {
-      return { isInitialized: false };
+      return {
+        isInitialized: false,
+        error: "Worker not initialized",
+      };
     }
 
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        resolve({ error: "Status request timeout" });
+        // If timeout, return current known status
+        resolve({
+          isInitialized: this.isInitialized,
+          error: "Status request timeout",
+          isRefreshing: false,
+        });
       }, 5000);
 
       const handler = (data) => {
         clearTimeout(timeout);
         this.removeMessageHandler("worker_status_response", handler);
-        resolve(data);
+        resolve({
+          ...data,
+          isInitialized: this.isInitialized || data.isInitialized,
+        });
       };
 
       this.addMessageHandler("worker_status_response", handler);

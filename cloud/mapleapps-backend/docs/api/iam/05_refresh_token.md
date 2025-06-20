@@ -2,7 +2,7 @@
 
 ## Overview
 
-This API endpoint allows users to refresh their authentication tokens using a valid refresh token. The refresh process generates new access and refresh tokens while maintaining the user's session.
+This API endpoint allows users to refresh their authentication tokens using a valid refresh token. The refresh process generates new access and refresh tokens while maintaining the user's session. The implementation includes automatic background token refresh via a web worker.
 
 ## Endpoint Details
 
@@ -24,7 +24,7 @@ This API endpoint allows users to refresh their authentication tokens using a va
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `value` | string | Yes | Valid JWT refresh token received from login or previous refresh |
+| `value` | string | Yes | Valid encrypted refresh token received from login or previous refresh |
 
 ## Response Structure
 
@@ -44,7 +44,7 @@ This API endpoint allows users to refresh their authentication tokens using a va
 ### Field Descriptions (Response)
 
 | Field | Type | Description |
-|-------|------|-------------|
+|-------|------|----------|-------------|
 | `username` | string | User's email address |
 | `encrypted_access_token` | string | Base64-encoded encrypted access token |
 | `encrypted_refresh_token` | string | Base64-encoded encrypted refresh token |
@@ -106,9 +106,10 @@ All tokens are encrypted using the user's public key with NaCl box encryption. U
 
 ## Implementation Examples
 
-### React.js/React Native
+### React.js/React Native with Background Worker
 
 ```javascript
+// Manual token refresh function
 const refreshToken = async (refreshTokenValue) => {
   try {
     const response = await fetch('https://api.mapleapps.ca/iam/api/v1/token/refresh', {
@@ -125,15 +126,13 @@ const refreshToken = async (refreshTokenValue) => {
       const result = await response.json();
       console.log('Tokens refreshed successfully');
 
-      // Decrypt tokens using private key (required)
-      const accessToken = await decryptToken(result.encrypted_access_token, privateKey);
-      const refreshToken = await decryptToken(result.encrypted_refresh_token, privateKey);
-      localStorage.setItem('access_token', accessToken);
-      localStorage.setItem('refresh_token', refreshToken);
-
-      // Store expiry times
-      localStorage.setItem('access_token_expiry', result.access_token_expiry_date);
-      localStorage.setItem('refresh_token_expiry', result.refresh_token_expiry_date);
+      // Store encrypted tokens
+      localStorage.setItem('mapleapps_encrypted_access_token', result.encrypted_access_token);
+      localStorage.setItem('mapleapps_encrypted_refresh_token', result.encrypted_refresh_token);
+      localStorage.setItem('mapleapps_token_nonce', result.token_nonce);
+      localStorage.setItem('mapleapps_access_token_expiry', result.access_token_expiry_date);
+      localStorage.setItem('mapleapps_refresh_token_expiry', result.refresh_token_expiry_date);
+      localStorage.setItem('mapleapps_user_email', result.username);
 
       return result;
     } else {
@@ -143,33 +142,105 @@ const refreshToken = async (refreshTokenValue) => {
   } catch (error) {
     console.error('Token refresh error:', error);
     // Clear tokens on refresh failure
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('mapleapps_encrypted_access_token');
+    localStorage.removeItem('mapleapps_encrypted_refresh_token');
+    localStorage.removeItem('mapleapps_token_nonce');
+    localStorage.removeItem('mapleapps_access_token_expiry');
+    localStorage.removeItem('mapleapps_refresh_token_expiry');
+    localStorage.removeItem('mapleapps_user_email');
     throw error;
   }
 };
 
-// Utility function to automatically refresh tokens
-const refreshTokenIfNeeded = async () => {
-  const accessTokenExpiry = localStorage.getItem('access_token_expiry');
-  const refreshTokenValue = localStorage.getItem('refresh_token');
+// Check if tokens need refresh
+const isAccessTokenExpiringSoon = (minutesBeforeExpiry = 5) => {
+  const expiryTime = localStorage.getItem('mapleapps_access_token_expiry');
+  if (!expiryTime) return true;
 
-  if (!accessTokenExpiry || !refreshTokenValue) {
-    throw new Error('No tokens available');
+  const expiry = new Date(expiryTime);
+  const now = new Date();
+  const timeUntilExpiry = expiry.getTime() - now.getTime();
+  const warningThreshold = minutesBeforeExpiry * 60 * 1000;
+
+  return timeUntilExpiry <= warningThreshold;
+};
+
+// Manual refresh if needed
+const refreshTokenIfNeeded = async () => {
+  const refreshTokenValue = localStorage.getItem('mapleapps_encrypted_refresh_token');
+
+  if (!refreshTokenValue) {
+    throw new Error('No refresh token available');
   }
 
-  // Check if access token expires in the next 5 minutes
-  const expiryTime = new Date(accessTokenExpiry);
-  const now = new Date();
-  const timeUntilExpiry = expiryTime.getTime() - now.getTime();
-  const fiveMinutesInMs = 5 * 60 * 1000;
-
-  if (timeUntilExpiry < fiveMinutesInMs) {
+  if (isAccessTokenExpiringSoon()) {
     console.log('Access token expiring soon, refreshing...');
     return await refreshToken(refreshTokenValue);
   }
 
   return null; // No refresh needed
+};
+```
+
+### Background Worker Integration
+
+The implementation includes an automatic background worker that monitors and refreshes tokens:
+
+```javascript
+// auth-worker.js configuration
+const STORAGE_KEYS = {
+  ENCRYPTED_ACCESS_TOKEN: "mapleapps_encrypted_access_token",
+  ENCRYPTED_REFRESH_TOKEN: "mapleapps_encrypted_refresh_token",
+  TOKEN_NONCE: "mapleapps_token_nonce",
+  ACCESS_TOKEN_EXPIRY: "mapleapps_access_token_expiry",
+  REFRESH_TOKEN_EXPIRY: "mapleapps_refresh_token_expiry",
+  USER_EMAIL: "mapleapps_user_email",
+};
+
+const CHECK_INTERVAL = 30000; // Check every 30 seconds
+const REFRESH_THRESHOLD = 5 * 60 * 1000; // Refresh 5 minutes before expiry
+
+// Worker Manager usage
+import workerManager from './services/workerManager';
+
+// Initialize and start monitoring
+const initializeBackgroundRefresh = async () => {
+  try {
+    await workerManager.initialize();
+
+    if (localStorage.getItem('mapleapps_encrypted_access_token')) {
+      workerManager.startMonitoring();
+      console.log('Background token monitoring started');
+    }
+
+    // Listen for worker events
+    workerManager.addAuthStateChangeListener((type, data) => {
+      switch (type) {
+        case 'token_refresh_success':
+          console.log('Tokens refreshed automatically by worker');
+          break;
+
+        case 'token_refresh_failed':
+          console.error('Worker token refresh failed:', data.error);
+          // Clear tokens and redirect to login
+          localStorage.clear();
+          window.location.href = '/login';
+          break;
+
+        case 'force_logout':
+          console.log('Refresh token expired, forcing logout');
+          localStorage.clear();
+          window.location.href = '/login';
+          break;
+
+        case 'token_status_update':
+          console.log('Token status:', data.tokenInfo);
+          break;
+      }
+    });
+  } catch (error) {
+    console.warn('Worker initialization failed, falling back to manual refresh:', error);
+  }
 };
 ```
 
@@ -234,10 +305,11 @@ func refreshToken(refreshTokenValue string) (*RefreshTokenResponse, error) {
 
 // TokenManager handles automatic token refresh
 type TokenManager struct {
-    accessToken   string
-    refreshToken  string
-    accessExpiry  time.Time
-    refreshExpiry time.Time
+    encryptedAccessToken  string
+    encryptedRefreshToken string
+    tokenNonce           string
+    accessExpiry         time.Time
+    refreshExpiry        time.Time
 }
 
 func (tm *TokenManager) RefreshIfNeeded() error {
@@ -245,23 +317,15 @@ func (tm *TokenManager) RefreshIfNeeded() error {
     if time.Until(tm.accessExpiry) < 5*time.Minute {
         fmt.Println("Access token expiring soon, refreshing...")
 
-        result, err := refreshToken(tm.refreshToken)
+        result, err := refreshToken(tm.encryptedRefreshToken)
         if err != nil {
             return fmt.Errorf("failed to refresh token: %w", err)
         }
 
-        // Update stored tokens (always encrypted)
-        accessToken, err := decryptToken(result.EncryptedAccessToken, privateKey)
-        if err != nil {
-            return fmt.Errorf("failed to decrypt access token: %w", err)
-        }
-        refreshToken, err := decryptToken(result.EncryptedRefreshToken, privateKey)
-        if err != nil {
-            return fmt.Errorf("failed to decrypt refresh token: %w", err)
-        }
-        tm.accessToken = accessToken
-        tm.refreshToken = refreshToken
-
+        // Update stored tokens
+        tm.encryptedAccessToken = result.EncryptedAccessToken
+        tm.encryptedRefreshToken = result.EncryptedRefreshToken
+        tm.tokenNonce = result.TokenNonce
         tm.accessExpiry = result.AccessTokenExpiryDate
         tm.refreshExpiry = result.RefreshTokenExpiryDate
 
@@ -283,10 +347,12 @@ from typing import Optional, Dict, Any
 class TokenManager:
     def __init__(self, base_url: str = "https://api.mapleapps.ca"):
         self.base_url = base_url
-        self.access_token: Optional[str] = None
-        self.refresh_token: Optional[str] = None
+        self.encrypted_access_token: Optional[str] = None
+        self.encrypted_refresh_token: Optional[str] = None
+        self.token_nonce: Optional[str] = None
         self.access_expiry: Optional[datetime] = None
         self.refresh_expiry: Optional[datetime] = None
+        self.username: Optional[str] = None
 
     def refresh_token_request(self, refresh_token_value: str) -> Dict[str, Any]:
         """Refresh authentication tokens using a refresh token."""
@@ -306,9 +372,11 @@ class TokenManager:
             if response.status_code == 201:
                 result = response.json()
 
-                # Update stored tokens (always encrypted)
-                self.access_token = self.decrypt_token(result['encrypted_access_token'], self.private_key)
-                self.refresh_token = self.decrypt_token(result['encrypted_refresh_token'], self.private_key)
+                # Update stored tokens
+                self.encrypted_access_token = result['encrypted_access_token']
+                self.encrypted_refresh_token = result['encrypted_refresh_token']
+                self.token_nonce = result['token_nonce']
+                self.username = result['username']
 
                 # Parse expiry dates
                 self.access_expiry = datetime.fromisoformat(
@@ -326,24 +394,36 @@ class TokenManager:
         except requests.RequestException as e:
             raise Exception(f"Network error during token refresh: {str(e)}")
 
+    def is_access_token_expiring_soon(self, minutes_before: int = 5) -> bool:
+        """Check if access token expires within specified minutes."""
+        if not self.access_expiry:
+            return True
+
+        time_until_expiry = self.access_expiry - datetime.now()
+        return time_until_expiry < timedelta(minutes=minutes_before)
+
     def refresh_if_needed(self) -> bool:
         """Automatically refresh tokens if access token expires soon."""
-        if not self.access_expiry or not self.refresh_token:
+        if not self.refresh_expiry or not self.encrypted_refresh_token:
             return False
 
+        # Check if refresh token is still valid
+        if datetime.now() >= self.refresh_expiry:
+            raise Exception("Refresh token has expired")
+
         # Check if access token expires in the next 5 minutes
-        time_until_expiry = self.access_expiry - datetime.now()
-        if time_until_expiry < timedelta(minutes=5):
+        if self.is_access_token_expiring_soon():
             print("Access token expiring soon, refreshing...")
             try:
-                self.refresh_token_request(self.refresh_token)
+                self.refresh_token_request(self.encrypted_refresh_token)
                 print("Tokens refreshed successfully")
                 return True
             except Exception as e:
                 print(f"Failed to refresh tokens: {e}")
                 # Clear tokens on failure
-                self.access_token = None
-                self.refresh_token = None
+                self.encrypted_access_token = None
+                self.encrypted_refresh_token = None
+                self.token_nonce = None
                 raise
 
         return False
@@ -352,11 +432,62 @@ class TokenManager:
 ### cURL Example
 
 ```bash
+# Using encrypted refresh token
 curl -X POST https://api.mapleapps.ca/iam/api/v1/token/refresh \
   -H "Content-Type: application/json" \
   -d '{
-    "value": "your_refresh_token_here"
+    "value": "your_encrypted_refresh_token_here"
   }'
+```
+
+## Worker Features
+
+The background worker (`auth-worker.js`) provides:
+
+### Automatic Token Monitoring
+- Checks token status every 30 seconds
+- Refreshes tokens 5 minutes before access token expiry
+- Handles refresh failures gracefully
+
+### Cross-Tab Synchronization
+- Uses BroadcastChannel API for multi-tab communication
+- Synchronizes token updates across all open tabs
+- Maintains consistent authentication state
+
+### Worker Events
+
+| Event | Description |
+|-------|-------------|
+| `worker_ready` | Worker initialized and ready |
+| `token_status_update` | Token status checked |
+| `token_refresh_success` | Tokens refreshed successfully |
+| `token_refresh_failed` | Token refresh failed |
+| `force_logout` | Refresh token expired, logout required |
+| `worker_error` | Worker encountered an error |
+
+### Worker Message Protocol
+
+```javascript
+// Start monitoring
+worker.postMessage({ type: 'start_monitoring' });
+
+// Stop monitoring
+worker.postMessage({ type: 'stop_monitoring' });
+
+// Force token check
+worker.postMessage({ type: 'force_token_check' });
+
+// Manual refresh
+worker.postMessage({
+  type: 'manual_refresh',
+  data: {
+    refreshToken: 'encrypted_refresh_token',
+    storageData: { /* current localStorage data */ }
+  }
+});
+
+// Get worker status
+worker.postMessage({ type: 'get_worker_status' });
 ```
 
 ## Important Notes
@@ -373,33 +504,52 @@ curl -X POST https://api.mapleapps.ca/iam/api/v1/token/refresh \
 1. **Session Rotation**: Each token refresh generates entirely new access and refresh tokens
 2. **Separate Encryption**: Access and refresh tokens are encrypted separately for enhanced security
 3. **Required Encryption**: All tokens are encrypted with the user's public key - no plaintext fallback
-4. **Secure Storage**: Store refresh tokens securely on the client side
-5. **Automatic Cleanup**: Failed refresh attempts should clear stored tokens
+4. **Secure Storage**: Store refresh tokens securely on the client side using the specified localStorage keys
+5. **Automatic Cleanup**: Failed refresh attempts should clear all stored tokens
+
+### LocalStorage Keys
+
+| Key | Description |
+|-----|-------------|
+| `mapleapps_encrypted_access_token` | Encrypted access token |
+| `mapleapps_encrypted_refresh_token` | Encrypted refresh token |
+| `mapleapps_token_nonce` | Token encryption nonce |
+| `mapleapps_access_token_expiry` | Access token expiry timestamp |
+| `mapleapps_refresh_token_expiry` | Refresh token expiry timestamp |
+| `mapleapps_user_email` | User's email address |
 
 ### Best Practices
 
-1. **Proactive Refresh**: Refresh tokens before access tokens expire (5 minutes before expiry recommended)
+1. **Proactive Refresh**: The worker automatically refreshes tokens 5 minutes before expiry
 2. **Error Handling**: Always handle refresh failures gracefully and redirect to login
 3. **Token Validation**: Validate token expiry dates before making API calls
 4. **Public Key Requirement**: Ensure users have properly configured public keys for encryption
-5. **Secure Decryption**: Always decrypt tokens on the client side using the user's private key
+5. **Worker Fallback**: Implement manual refresh as fallback if worker initialization fails
 
 ### Common Integration Patterns
 
-#### Automatic Token Refresh Middleware
+#### Axios Interceptor with Worker
 
 ```javascript
-// Axios interceptor for automatic token refresh
+// Axios interceptor that works with the background worker
 axios.interceptors.response.use(
   response => response,
   async error => {
     if (error.response?.status === 401) {
+      // Check if worker is handling the refresh
+      const workerStatus = await workerManager.getWorkerStatus();
+
+      if (workerStatus.isRefreshing) {
+        // Wait for worker to complete refresh
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return axios.request(error.config);
+      }
+
+      // Manual refresh fallback
       try {
         await refreshTokenIfNeeded();
-        // Retry original request with new token
         return axios.request(error.config);
       } catch (refreshError) {
-        // Redirect to login
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
@@ -409,19 +559,37 @@ axios.interceptors.response.use(
 );
 ```
 
-#### Token Refresh on App Start
+#### Token Health Check
 
 ```javascript
-// Check and refresh tokens when app starts
-const initializeAuth = async () => {
-  try {
-    await refreshTokenIfNeeded();
-    console.log('Authentication initialized');
-  } catch (error) {
-    console.log('No valid session, redirecting to login');
-    window.location.href = '/login';
+// Check token health and status
+const getTokenHealth = () => {
+  const accessExpiry = localStorage.getItem('mapleapps_access_token_expiry');
+  const refreshExpiry = localStorage.getItem('mapleapps_refresh_token_expiry');
+
+  if (!accessExpiry || !refreshExpiry) {
+    return { status: 'no_tokens', canRefresh: false };
   }
+
+  const now = new Date();
+  const accessExpiryDate = new Date(accessExpiry);
+  const refreshExpiryDate = new Date(refreshExpiry);
+
+  if (now >= refreshExpiryDate) {
+    return { status: 'refresh_expired', canRefresh: false };
+  }
+
+  if (now >= accessExpiryDate) {
+    return { status: 'access_expired', canRefresh: true };
+  }
+
+  const timeUntilExpiry = accessExpiryDate - now;
+  if (timeUntilExpiry < 5 * 60 * 1000) {
+    return { status: 'expiring_soon', canRefresh: true };
+  }
+
+  return { status: 'healthy', canRefresh: false };
 };
 ```
 
-This API enables seamless token management with mandatory encryption for enhanced security through separate token encryption and maintains user sessions without requiring frequent re-authentication. All users must have properly configured public keys for secure token handling.
+This API enables seamless token management with mandatory encryption and automatic background refresh for enhanced security. The implementation ensures continuous authentication without requiring frequent user interaction.

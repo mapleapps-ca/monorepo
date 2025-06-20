@@ -51,6 +51,40 @@ function App() {
         addLog(`Failed to initialize: ${error.message}`, "error");
         setIsLoading(false);
       }
+
+      TokenRefreshWorkerManager.addAuthStateChangeListener((type, data) => {
+        console.log(`[App] Worker event: ${type}`, data);
+
+        switch (type) {
+          case "token_refreshed":
+          case "token_refresh_success":
+            checkTokens();
+            setWorkerStatus((prev) => ({ ...prev, isRefreshing: false }));
+            break;
+          case "token_status_update":
+            checkTokens();
+            if (data && typeof data.isRefreshing !== "undefined") {
+              setWorkerStatus((prev) => ({
+                ...prev,
+                isRefreshing: data.isRefreshing,
+              }));
+            }
+            break;
+          case "token_refresh_failed":
+            console.error("[App] Token refresh failed:", data);
+            checkTokens();
+            setWorkerStatus((prev) => ({ ...prev, isRefreshing: false }));
+            break;
+          case "force_logout":
+            console.log("[App] Force logout received:", data.reason);
+            setHasTokens(false);
+            setIsMonitoring(false);
+            break;
+          case "worker_error":
+            console.error("[App] Worker error:", data);
+            break;
+        }
+      });
     };
 
     initializeSystem();

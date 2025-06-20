@@ -339,11 +339,13 @@ func verifyOTT(email, ott string) (*VerifyOTTResponse, error) {
 ```json
 {
   "access_token": "string",
-  "access_token_expiry_time": "2024-01-15T11:00:00Z",
+  "access_token_expiry_date": "2024-01-15T11:00:00Z",
   "refresh_token": "string",
-  "refresh_token_expiry_time": "2024-01-29T10:30:00Z",
-  "encrypted_tokens": "string",
-  "token_nonce": "string"
+  "refresh_token_expiry_date": "2024-01-29T10:30:00Z",
+  "encrypted_access_token": "string",
+  "encrypted_refresh_token": "string",
+  "token_nonce": "string",
+  "username": "user@example.com"
 }
 ```
 
@@ -352,22 +354,24 @@ func verifyOTT(email, ott string) (*VerifyOTTResponse, error) {
 | Field | Type | Description |
 |-------|------|-------------|
 | `access_token` | string | JWT access token (legacy/fallback, may be empty) |
-| `access_token_expiry_time` | string | ISO 8601 timestamp when access token expires (30 minutes) |
+| `access_token_expiry_date` | string | ISO 8601 timestamp when access token expires (30 minutes) |
 | `refresh_token` | string | JWT refresh token (legacy/fallback, may be empty) |
-| `refresh_token_expiry_time` | string | ISO 8601 timestamp when refresh token expires (14 days) |
-| `encrypted_tokens` | string | Base64-encoded encrypted token payload (preferred method) |
+| `refresh_token_expiry_date` | string | ISO 8601 timestamp when refresh token expires (14 days) |
+| `encrypted_access_token` | string | Base64-encoded encrypted access token (preferred method) |
+| `encrypted_refresh_token` | string | Base64-encoded encrypted refresh token (preferred method) |
 | `token_nonce` | string | Base64-encoded nonce used for token encryption |
+| `username` | string | User's email address |
 
-### Token Decryption
+### Token Storage
 
-If `encrypted_tokens` is provided, it contains both access and refresh tokens encrypted with the user's public key. The client must decrypt using their private key to extract the token payload:
+The response provides tokens in both encrypted and plaintext formats for backward compatibility. The encrypted tokens are preferred and should be stored using the following localStorage keys:
 
-```json
-{
-  "access_token": "string",
-  "refresh_token": "string"
-}
-```
+- `mapleapps_encrypted_access_token` - Encrypted access token
+- `mapleapps_encrypted_refresh_token` - Encrypted refresh token
+- `mapleapps_token_nonce` - Token encryption nonce
+- `mapleapps_access_token_expiry` - Access token expiry date
+- `mapleapps_refresh_token_expiry` - Refresh token expiry date
+- `mapleapps_user_email` - User's email address
 
 #### Error Responses (HTTP 400)
 
@@ -412,16 +416,21 @@ const completeLogin = async (email, challengeId, decryptedChallenge) => {
       const result = await response.json();
       console.log('Login completed successfully');
 
-      // Store tokens securely
-      if (result.encrypted_tokens) {
-        // Decrypt tokens using private key
-        const tokens = await decryptTokens(result.encrypted_tokens, privateKey);
-        localStorage.setItem('access_token', tokens.access_token);
-        localStorage.setItem('refresh_token', tokens.refresh_token);
+      // Store encrypted tokens (preferred method)
+      if (result.encrypted_access_token && result.encrypted_refresh_token) {
+        localStorage.setItem('mapleapps_encrypted_access_token', result.encrypted_access_token);
+        localStorage.setItem('mapleapps_encrypted_refresh_token', result.encrypted_refresh_token);
+        localStorage.setItem('mapleapps_token_nonce', result.token_nonce);
+        localStorage.setItem('mapleapps_access_token_expiry', result.access_token_expiry_date);
+        localStorage.setItem('mapleapps_refresh_token_expiry', result.refresh_token_expiry_date);
+        localStorage.setItem('mapleapps_user_email', result.username);
       } else {
         // Fallback to plaintext tokens
-        localStorage.setItem('access_token', result.access_token);
-        localStorage.setItem('refresh_token', result.refresh_token);
+        localStorage.setItem('mapleapps_access_token', result.access_token);
+        localStorage.setItem('mapleapps_refresh_token', result.refresh_token);
+        localStorage.setItem('mapleapps_access_token_expiry', result.access_token_expiry_date);
+        localStorage.setItem('mapleapps_refresh_token_expiry', result.refresh_token_expiry_date);
+        localStorage.setItem('mapleapps_user_email', email);
       }
 
       return result;
@@ -446,11 +455,13 @@ type CompleteLoginRequest struct {
 
 type CompleteLoginResponse struct {
     AccessToken            string    `json:"access_token,omitempty"`
-    AccessTokenExpiryTime  time.Time `json:"access_token_expiry_time"`
+    AccessTokenExpiryDate  time.Time `json:"access_token_expiry_date"`
     RefreshToken           string    `json:"refresh_token,omitempty"`
-    RefreshTokenExpiryTime time.Time `json:"refresh_token_expiry_time"`
-    EncryptedTokens        string    `json:"encrypted_tokens"`
-    TokenNonce             string    `json:"token_nonce,omitempty"`
+    RefreshTokenExpiryDate time.Time `json:"refresh_token_expiry_date"`
+    EncryptedAccessToken   string    `json:"encrypted_access_token"`
+    EncryptedRefreshToken  string    `json:"encrypted_refresh_token"`
+    TokenNonce             string    `json:"token_nonce"`
+    Username               string    `json:"username"`
 }
 
 func completeLogin(email, challengeId, decryptedData string) (*CompleteLoginResponse, error) {
@@ -485,6 +496,61 @@ func completeLogin(email, challengeId, decryptedData string) (*CompleteLoginResp
 }
 ```
 
+## Background Token Refresh Worker
+
+The implementation includes a background worker (`auth-worker.js`) that automatically monitors and refreshes tokens before they expire. The worker:
+
+- Checks token status every 30 seconds
+- Automatically refreshes tokens 5 minutes before expiry
+- Synchronizes token state across multiple browser tabs
+- Handles token refresh failures gracefully
+
+### Worker Configuration
+
+Place the worker file in your public directory:
+```
+/public/auth-worker.js
+```
+
+### Worker Integration Example
+
+```javascript
+// Initialize the worker manager
+import workerManager from './services/workerManager';
+
+// Start the worker when user is authenticated
+const initializeAuth = async () => {
+  try {
+    await workerManager.initialize();
+
+    if (localStorage.getItem('mapleapps_encrypted_access_token')) {
+      workerManager.startMonitoring();
+      console.log('Background token monitoring started');
+    }
+  } catch (error) {
+    console.error('Worker initialization failed:', error);
+    // Continue without background monitoring
+  }
+};
+
+// Listen for worker events
+workerManager.addAuthStateChangeListener((type, data) => {
+  switch (type) {
+    case 'token_refresh_success':
+      console.log('Tokens refreshed automatically');
+      break;
+    case 'token_refresh_failed':
+      console.error('Token refresh failed, redirecting to login');
+      window.location.href = '/login';
+      break;
+    case 'force_logout':
+      console.log('Session expired, redirecting to login');
+      window.location.href = '/login';
+      break;
+  }
+});
+```
+
 ## Important Notes
 
 ### Security Considerations
@@ -505,17 +571,31 @@ All APIs return structured error responses with specific field-level validation 
 
 ### Token Management
 
-- Store tokens securely (use secure storage mechanisms)
-- Implement automatic token refresh using refresh tokens
-- Clear tokens on logout or authentication errors
-- Encrypted tokens are preferred over plaintext tokens when available
+- Store tokens securely using the specified localStorage keys
+- Implement automatic token refresh using the background worker
+- Clear all tokens on logout or authentication errors
+- Encrypted tokens are preferred over plaintext tokens
 
 ### Client-Side Cryptography
 
 The login flow requires client-side implementation of:
-- Argon2ID key derivation
-- ChaCha20-Poly1305 encryption/decryption
-- X25519 key exchange
+- PBKDF2 key derivation (100,000 iterations, SHA-256)
+- ChaCha20-Poly1305 encryption/decryption (libsodium secretbox)
+- X25519 key exchange (libsodium box seal)
 - Base64 encoding/decoding
 
-Ensure your client libraries support these cryptographic primitives.
+Libraries used in the implementation:
+- `libsodium-wrappers-sumo` for encryption operations
+- `@scure/bip39` for mnemonic generation
+- Web Crypto API for PBKDF2
+
+### LocalStorage Keys Reference
+
+| Key | Description |
+|-----|-------------|
+| `mapleapps_encrypted_access_token` | Encrypted access token |
+| `mapleapps_encrypted_refresh_token` | Encrypted refresh token |
+| `mapleapps_token_nonce` | Token encryption nonce |
+| `mapleapps_access_token_expiry` | Access token expiry timestamp |
+| `mapleapps_refresh_token_expiry` | Refresh token expiry timestamp |
+| `mapleapps_user_email` | User's email address |
