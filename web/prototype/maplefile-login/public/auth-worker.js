@@ -2,11 +2,14 @@
 // This worker runs independently and communicates with all tabs
 
 const STORAGE_KEYS = {
-  ENCRYPTED_TOKENS: "mapleapps_encrypted_tokens",
+  ENCRYPTED_ACCESS_TOKEN: "mapleapps_encrypted_access_token",
+  ENCRYPTED_REFRESH_TOKEN: "mapleapps_encrypted_refresh_token",
   TOKEN_NONCE: "mapleapps_token_nonce",
   ACCESS_TOKEN_EXPIRY: "mapleapps_access_token_expiry",
   REFRESH_TOKEN_EXPIRY: "mapleapps_refresh_token_expiry",
   USER_EMAIL: "mapleapps_user_email",
+  // Legacy key for backward compatibility
+  ENCRYPTED_TOKENS: "mapleapps_encrypted_tokens",
 };
 
 const API_BASE_URL = "/iam/api/v1";
@@ -122,8 +125,15 @@ function isTokenExpiringSoon(expiryTime, thresholdMs = REFRESH_THRESHOLD) {
 
 // Get current token information for encrypted tokens
 function getTokenInfo(storageData) {
-  const encryptedTokens = storageData[STORAGE_KEYS.ENCRYPTED_TOKENS];
+  // Check for new separate encrypted tokens first
+  const encryptedAccessToken = storageData[STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN];
+  const encryptedRefreshToken =
+    storageData[STORAGE_KEYS.ENCRYPTED_REFRESH_TOKEN];
   const tokenNonce = storageData[STORAGE_KEYS.TOKEN_NONCE];
+
+  // Fallback to legacy single encrypted_tokens field
+  const legacyEncryptedTokens = storageData[STORAGE_KEYS.ENCRYPTED_TOKENS];
+
   const accessTokenExpiry = storageData[STORAGE_KEYS.ACCESS_TOKEN_EXPIRY];
   const refreshTokenExpiry = storageData[STORAGE_KEYS.REFRESH_TOKEN_EXPIRY];
 
@@ -131,20 +141,28 @@ function getTokenInfo(storageData) {
   const refreshTokenExpired = isTokenExpired(refreshTokenExpiry);
   const accessTokenExpiringSoon = isTokenExpiringSoon(accessTokenExpiry);
 
+  // Determine if we have valid encrypted tokens
+  const hasEncryptedTokens = !!(
+    (encryptedAccessToken && encryptedRefreshToken && tokenNonce) ||
+    (legacyEncryptedTokens && tokenNonce)
+  );
+
   return {
-    hasEncryptedTokens: !!(encryptedTokens && tokenNonce),
-    hasRefreshToken: !!encryptedTokens, // Encrypted tokens serve as refresh token
+    hasEncryptedTokens,
+    hasRefreshToken: !!(encryptedRefreshToken || legacyEncryptedTokens), // Either format can serve as refresh token
     accessTokenExpired,
     refreshTokenExpired,
     accessTokenExpiringSoon,
     accessTokenExpiry,
     refreshTokenExpiry,
-    isAuthenticated: !!(encryptedTokens && tokenNonce) && !refreshTokenExpired,
+    isAuthenticated: hasEncryptedTokens && !refreshTokenExpired,
+    tokenFormat:
+      encryptedAccessToken && encryptedRefreshToken ? "separate" : "legacy",
   };
 }
 
 // Make API request for token refresh using new endpoint
-async function refreshTokens(encryptedTokens, storageData) {
+async function refreshTokens(refreshTokenValue, storageData) {
   const url = `${API_BASE_URL}/token/refresh`;
 
   try {
@@ -156,7 +174,7 @@ async function refreshTokens(encryptedTokens, storageData) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        value: encryptedTokens,
+        value: refreshTokenValue,
       }),
     });
 
@@ -164,11 +182,59 @@ async function refreshTokens(encryptedTokens, storageData) {
       const result = await response.json();
       console.log("[AuthWorker] Token refresh successful");
 
-      // Handle new encrypted tokens
-      if (result.encrypted_tokens && result.token_nonce) {
-        console.log("[AuthWorker] Received new encrypted tokens");
+      // Handle new separate encrypted tokens (matching backend response)
+      if (
+        result.encrypted_access_token &&
+        result.encrypted_refresh_token &&
+        result.token_nonce
+      ) {
+        console.log(
+          "[AuthWorker] Received separate encrypted access and refresh tokens",
+        );
 
-        // Update storage with new encrypted tokens
+        // Update storage with new separate encrypted tokens
+        setStorageItem(
+          STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN,
+          result.encrypted_access_token,
+        );
+        setStorageItem(
+          STORAGE_KEYS.ENCRYPTED_REFRESH_TOKEN,
+          result.encrypted_refresh_token,
+        );
+        setStorageItem(STORAGE_KEYS.TOKEN_NONCE, result.token_nonce);
+
+        // Update expiry times
+        if (result.access_token_expiry_date) {
+          setStorageItem(
+            STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+            result.access_token_expiry_date,
+          );
+        }
+        if (result.refresh_token_expiry_date) {
+          setStorageItem(
+            STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
+            result.refresh_token_expiry_date,
+          );
+        }
+
+        // Update user email if provided
+        if (result.username) {
+          setStorageItem(STORAGE_KEYS.USER_EMAIL, result.username);
+        }
+
+        // Broadcast success
+        broadcastMessage("token_refresh_success", {
+          accessTokenExpiry: result.access_token_expiry_date,
+          refreshTokenExpiry: result.refresh_token_expiry_date,
+          username: result.username,
+          tokenFormat: "separate",
+        });
+
+        return true;
+      } else if (result.encrypted_tokens && result.token_nonce) {
+        // Handle legacy single encrypted_tokens field (fallback)
+        console.log("[AuthWorker] Received legacy single encrypted tokens");
+
         setStorageItem(STORAGE_KEYS.ENCRYPTED_TOKENS, result.encrypted_tokens);
         setStorageItem(STORAGE_KEYS.TOKEN_NONCE, result.token_nonce);
 
@@ -196,11 +262,16 @@ async function refreshTokens(encryptedTokens, storageData) {
           accessTokenExpiry: result.access_token_expiry_date,
           refreshTokenExpiry: result.refresh_token_expiry_date,
           username: result.username,
+          tokenFormat: "legacy",
         });
 
         return true;
       } else {
         console.error("[AuthWorker] No encrypted tokens in refresh response");
+        console.error(
+          "[AuthWorker] Available response fields:",
+          Object.keys(result),
+        );
         throw new Error("Token refresh failed: No encrypted tokens received");
       }
     } else {

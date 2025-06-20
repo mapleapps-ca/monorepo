@@ -134,10 +134,33 @@ class AuthService {
       console.log("[AuthService] Complete login response:", response);
 
       // Handle encrypted tokens (new system)
-      if (response.encrypted_tokens) {
-        console.log("[AuthService] Received encrypted tokens");
+      if (
+        response.encrypted_access_token &&
+        response.encrypted_refresh_token &&
+        response.token_nonce
+      ) {
+        console.log(
+          "[AuthService] Received encrypted access and refresh tokens",
+        );
 
-        // Store encrypted tokens and nonce
+        // Store encrypted tokens separately as they come from backend
+        LocalStorageService.setEncryptedAccessToken(
+          response.encrypted_access_token,
+          response.access_token_expiry_date,
+        );
+
+        LocalStorageService.setEncryptedRefreshToken(
+          response.encrypted_refresh_token,
+          response.refresh_token_expiry_date,
+        );
+
+        LocalStorageService.setTokenNonce(response.token_nonce);
+
+        console.log("[AuthService] Encrypted tokens stored successfully");
+      } else if (response.encrypted_tokens && response.token_nonce) {
+        // Fallback: handle single encrypted_tokens field (if backend changes)
+        console.log("[AuthService] Received single encrypted tokens field");
+
         LocalStorageService.setEncryptedTokens(
           response.encrypted_tokens,
           response.token_nonce,
@@ -145,12 +168,24 @@ class AuthService {
           response.refresh_token_expiry_date,
         );
 
-        console.log("[AuthService] Encrypted tokens stored successfully");
+        console.log(
+          "[AuthService] Single encrypted tokens stored successfully",
+        );
       } else {
         // This should not happen with the new system, but handle gracefully
         console.warn(
-          "[AuthService] No encrypted tokens received - this should not happen with the new system",
+          "[AuthService] No encrypted tokens received - missing fields:",
         );
+        console.warn(
+          "- encrypted_access_token:",
+          !!response.encrypted_access_token,
+        );
+        console.warn(
+          "- encrypted_refresh_token:",
+          !!response.encrypted_refresh_token,
+        );
+        console.warn("- token_nonce:", !!response.token_nonce);
+        console.warn("- encrypted_tokens:", !!response.encrypted_tokens);
         throw new Error(
           "Authentication system error: No encrypted tokens received",
         );
