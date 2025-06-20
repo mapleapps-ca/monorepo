@@ -1,35 +1,75 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
+import { ServiceProvider } from "./contexts/ServiceContext";
+import Layout from "./components/layout/Layout";
+import CollectionsPage from "./pages/CollectionsPage";
+import SharedCollectionsPage from "./pages/SharedCollectionsPage";
+import CreateCollectionPage from "./pages/CreateCollectionPage";
+import EditCollectionPage from "./pages/EditCollectionPage";
+import CollectionDetailPage from "./pages/CollectionDetailPage";
+import { ROUTES } from "./constants";
 
+/**
+ * Main App component with routing setup
+ * Follows dependency injection pattern using ServiceProvider
+ */
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <ServiceProvider>
+      <Router>
+        <Layout>
+          <Routes>
+            {/* Redirect root to collections */}
+            <Route
+              path="/"
+              element={<Navigate to={ROUTES.COLLECTIONS} replace />}
+            />
+
+            {/* Collections routes */}
+            <Route path={ROUTES.COLLECTIONS} element={<CollectionsPage />} />
+            <Route
+              path={ROUTES.CREATE_COLLECTION}
+              element={<CreateCollectionPage />}
+            />
+            <Route
+              path={ROUTES.COLLECTION_DETAIL}
+              element={<CollectionDetailPage />}
+            />
+            <Route
+              path={ROUTES.EDIT_COLLECTION}
+              element={<EditCollectionPage />}
+            />
+
+            {/* Shared collections */}
+            <Route
+              path={ROUTES.SHARED_COLLECTIONS}
+              element={<SharedCollectionsPage />}
+            />
+
+            {/* 404 fallback */}
+            <Route
+              path="*"
+              element={
+                <div className="text-center py-12">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                    Page Not Found
+                  </h1>
+                  <p className="text-gray-600 mb-6">
+                    The page you're looking for doesn't exist.
+                  </p>
+                  <a
+                    href="/collections"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    Go to Collections
+                  </a>
+                </div>
+              }
+            />
+          </Routes>
+        </Layout>
+      </Router>
+    </ServiceProvider>
+  );
 }
 
-export default App
+export default App;
