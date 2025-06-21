@@ -10,14 +10,24 @@ export default defineConfig({
     proxy: {
       // Proxy API requests to your backend server
       "/maplefile/api": {
-        target: "http://localhost:8000", // Update this to your actual backend URL
+        target: "http://localhost:8000",
         changeOrigin: true,
         secure: false,
+        rewrite: (path) => path,
+        configure: (proxy, options) => {
+          proxy.on("proxyReq", (proxyReq, req, res) => {
+            console.log("Proxying request:", req.method, req.url);
+          });
+          proxy.on("error", (err, req, res) => {
+            console.log("Proxy error:", err);
+          });
+        },
       },
       "/iam/api": {
-        target: "http://localhost:8000", // Update this to your actual backend URL
+        target: "http://localhost:8000",
         changeOrigin: true,
         secure: false,
+        rewrite: (path) => path,
       },
     },
   },

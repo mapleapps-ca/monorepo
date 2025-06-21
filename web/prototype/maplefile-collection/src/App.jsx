@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import { ServiceProvider } from "./contexts/ServiceContext";
 import Layout from "./components/layout/Layout";
+import DevTools from "./components/dev/DevTools";
 import CollectionsPage from "./pages/CollectionsPage";
 import SharedCollectionsPage from "./pages/SharedCollectionsPage";
 import CreateCollectionPage from "./pages/CreateCollectionPage";
@@ -13,6 +14,12 @@ import { ROUTES } from "./constants";
  * Follows dependency injection pattern using ServiceProvider
  */
 function App() {
+  // Debug log to verify we're in development mode
+  console.log(
+    "App running in:",
+    import.meta.env.DEV ? "DEVELOPMENT" : "PRODUCTION",
+  );
+
   return (
     <ServiceProvider>
       <Router>
@@ -67,6 +74,14 @@ function App() {
             />
           </Routes>
         </Layout>
+
+        {/* Development tools - only shown in development */}
+        {import.meta.env.DEV && (
+          <div>
+            {console.log("Rendering DevTools component...")}
+            <DevTools />
+          </div>
+        )}
       </Router>
     </ServiceProvider>
   );
