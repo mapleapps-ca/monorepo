@@ -1,5 +1,4 @@
-// web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// src/contexts/ServiceContext.js
+// monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
 import React, { createContext, useContext, useEffect } from "react"; // Added useEffect
 import AuthService from "../services/AuthService";
 import MeService from "../services/MeService";

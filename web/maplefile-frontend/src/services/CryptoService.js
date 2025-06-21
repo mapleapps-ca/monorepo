@@ -1,5 +1,4 @@
-// web/maplefile-frontend/src/services/CryptoService.js
-// src/services/CryptoService.js - LibSodium Implementation
+// monorepo/web/maplefile-frontend/src/services/CryptoService.js
 class CryptoService {
   constructor() {
     this.sodium = null;

@@ -1,3 +1,4 @@
+// monorepo/web/maplefile-frontend/src/pages/Anonymous/Index/IndexPage.jsx
 import { useState } from "react";
 // import "./App.css";
 

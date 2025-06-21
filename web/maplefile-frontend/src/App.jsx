@@ -1,4 +1,4 @@
-// src/App.js
+// monorepo/web/maplefile-frontend/src/App.js
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import { ServiceProvider } from "./contexts/ServiceContext";

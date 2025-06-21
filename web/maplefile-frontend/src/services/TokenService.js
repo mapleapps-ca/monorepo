@@ -1,4 +1,4 @@
-// src/services/TokenService.js
+// monorepo/web/maplefile-frontend/src/services/TokenService.js
 class TokenService {
   constructor() {
     this.ACCESS_TOKEN_KEY = "access_token";
