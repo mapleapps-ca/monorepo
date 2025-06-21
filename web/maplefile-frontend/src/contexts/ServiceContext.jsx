@@ -12,7 +12,7 @@ import WorkerManager from "../services/WorkerManager.js";
 const ServiceContext = createContext();
 
 // Create a custom hook to use our services
-export const useServices = () => {
+const useServices = () => {
   const context = useContext(ServiceContext);
   if (!context) {
     throw new Error("useServices must be used within a ServiceProvider");
@@ -21,7 +21,7 @@ export const useServices = () => {
 };
 
 // Create a provider component that will wrap our app
-export const ServiceProvider = ({ children }) => {
+const ServiceProvider = ({ children }) => {
   // All services are singletons that are already instantiated
   // We just need to import them and provide them via context
 
@@ -146,3 +146,6 @@ export const ServiceProvider = ({ children }) => {
     </ServiceContext.Provider>
   );
 };
+
+// Export both the provider and hook (but maintain Fast Refresh compatibility)
+export { useServices, ServiceProvider };
