@@ -21,7 +21,7 @@ const useServices = () => {
 };
 
 // Create a provider component that will wrap our app
-const ServiceProvider = ({ children }) => {
+export function ServiceProvider({ children }) {
   // All services are singletons that are already instantiated
   // We just need to import them and provide them via context
 
@@ -145,7 +145,7 @@ const ServiceProvider = ({ children }) => {
       {children}
     </ServiceContext.Provider>
   );
-};
+}
 
-// Export both the provider and hook (but maintain Fast Refresh compatibility)
-export { useServices, ServiceProvider };
+// Export the hook separately
+export { useServices };
