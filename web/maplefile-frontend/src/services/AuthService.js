@@ -241,7 +241,6 @@ class AuthService {
         "[AuthService] Available verify data fields:",
         Object.keys(verifyData),
       );
-      console.log("[AuthService] Verify data:", verifyData);
 
       // Validate required data
       if (!verifyData) {
@@ -345,7 +344,58 @@ class AuthService {
         challengeData,
       );
 
-      console.log("[AuthService] Challenge decryption successful");
+      // After successful decryption, cache the keys for token decryption
+      console.log("[AuthService] Caching session keys for token decryption");
+
+      // We need to re-derive the keys to cache them
+      await this.cryptoService.initialize();
+
+      // Decode the encrypted data
+      const salt = this.cryptoService.tryDecodeBase64(challengeData.salt);
+      const encryptedMasterKey = this.cryptoService.tryDecodeBase64(
+        challengeData.encryptedMasterKey,
+      );
+      const encryptedPrivateKey = this.cryptoService.tryDecodeBase64(
+        challengeData.encryptedPrivateKey,
+      );
+      const publicKey = challengeData.publicKey
+        ? this.cryptoService.tryDecodeBase64(challengeData.publicKey)
+        : null;
+
+      // Derive the key encryption key
+      const keyEncryptionKey = await this.cryptoService.deriveKeyFromPassword(
+        password,
+        salt,
+      );
+
+      // Decrypt the master key
+      const masterKey = this.cryptoService.decryptWithSecretBox(
+        encryptedMasterKey,
+        keyEncryptionKey,
+      );
+
+      // Decrypt the private key
+      const privateKey = this.cryptoService.decryptWithSecretBox(
+        encryptedPrivateKey,
+        masterKey,
+      );
+
+      // Derive public key if not provided
+      const derivedPublicKey =
+        publicKey ||
+        this.cryptoService.sodium.crypto_scalarmult_base(privateKey);
+
+      // Cache the keys in LocalStorageService for token decryption
+      LocalStorageService.setSessionKeys(
+        masterKey,
+        privateKey,
+        derivedPublicKey,
+        keyEncryptionKey,
+      );
+
+      console.log(
+        "[AuthService] Challenge decryption successful and session keys cached",
+      );
       return decryptedChallenge;
     } catch (error) {
       console.error("[AuthService] Challenge decryption failed:", error);
@@ -473,7 +523,7 @@ class AuthService {
       WorkerManager.stopMonitoring();
     }
 
-    // Clear all authentication data
+    // Clear all authentication data (including session keys)
     LocalStorageService.clearAuthData();
     LocalStorageService.clearAllLoginSessionData();
   }
@@ -506,6 +556,24 @@ class AuthService {
   // Check if tokens need refresh
   shouldRefreshTokens() {
     return LocalStorageService.isAccessTokenExpiringSoon(5); // 5 minutes threshold
+  }
+
+  // Check if we can make authenticated requests (have session keys)
+  canMakeAuthenticatedRequests() {
+    return (
+      LocalStorageService.hasSessionKeys() ||
+      LocalStorageService.hasValidTokens()
+    );
+  }
+
+  // Get session key status for debugging
+  getSessionKeyStatus() {
+    return {
+      hasSessionKeys: LocalStorageService.hasSessionKeys(),
+      hasEncryptedTokens: LocalStorageService.hasEncryptedTokens(),
+      isAuthenticated: this.isAuthenticated(),
+      canDecryptTokens: LocalStorageService.hasSessionKeys(),
+    };
   }
 
   // Registration method

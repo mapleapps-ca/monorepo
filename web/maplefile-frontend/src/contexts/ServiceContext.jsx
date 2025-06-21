@@ -1,4 +1,4 @@
-// Service Context with Dependency Injection for all authentication services
+// Service Context with Dependency Injection for our entire application services
 import React, { createContext, useContext, useEffect } from "react";
 import AuthService from "../services/AuthService.js";
 import MeService from "../services/MeService.js";

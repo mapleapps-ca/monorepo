@@ -128,7 +128,44 @@ class LocalStorageService {
     return localStorage.getItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE);
   }
 
-  // Decrypt and get access token (placeholder - would need crypto implementation)
+  // Session-based key storage for token decryption (in memory only)
+  _sessionKeys = {
+    masterKey: null,
+    privateKey: null,
+    publicKey: null,
+    keyEncryptionKey: null,
+  };
+
+  // Store session keys after successful login (in memory only)
+  setSessionKeys(masterKey, privateKey, publicKey, keyEncryptionKey) {
+    this._sessionKeys = {
+      masterKey,
+      privateKey,
+      publicKey,
+      keyEncryptionKey,
+    };
+    console.log(
+      "[LocalStorageService] Session keys cached for token decryption",
+    );
+  }
+
+  // Clear session keys on logout
+  clearSessionKeys() {
+    this._sessionKeys = {
+      masterKey: null,
+      privateKey: null,
+      publicKey: null,
+      keyEncryptionKey: null,
+    };
+    console.log("[LocalStorageService] Session keys cleared");
+  }
+
+  // Check if we have session keys for decryption
+  hasSessionKeys() {
+    return !!(this._sessionKeys.masterKey && this._sessionKeys.privateKey);
+  }
+
+  // Decrypt and get access token using session keys
   async getDecryptedAccessToken() {
     const encryptedAccessToken = this.getEncryptedAccessToken();
     const encryptedTokens = this.getEncryptedTokens(); // fallback to legacy
@@ -136,15 +173,82 @@ class LocalStorageService {
 
     if ((encryptedAccessToken || encryptedTokens) && tokenNonce) {
       try {
-        // TODO: Implement actual token decryption here
-        // For now, we'll indicate that tokens are encrypted
-        console.log(
-          "[LocalStorageService] Encrypted tokens available but decryption not yet implemented",
-        );
+        // Check if we have session keys for decryption
+        if (!this.hasSessionKeys()) {
+          console.warn(
+            "[LocalStorageService] No session keys available for token decryption",
+          );
+          return null;
+        }
 
-        // Return a placeholder that indicates we have encrypted tokens
-        // In a real implementation, you would decrypt the tokens here using the user's private key
-        return "encrypted_token_available";
+        // Import the crypto service for decryption
+        const { default: CryptoService } = await import("./CryptoService.js");
+        await CryptoService.initialize();
+
+        // Decode the nonce and encrypted data
+        const nonce = CryptoService.base64ToUint8Array(tokenNonce);
+        let encryptedData;
+
+        if (encryptedAccessToken) {
+          encryptedData =
+            CryptoService.base64ToUint8Array(encryptedAccessToken);
+        } else {
+          // For legacy single encrypted_tokens field, it contains both access and refresh
+          // We'll need to parse this differently - for now use the whole thing
+          encryptedData = CryptoService.base64ToUint8Array(encryptedTokens);
+        }
+
+        console.log("[LocalStorageService] Decrypting access token...");
+
+        // Try to decrypt with the public key (assuming tokens are encrypted with box.seal)
+        let decryptedTokenData;
+        try {
+          // First try sealed box decryption (anonymous encryption)
+          decryptedTokenData = await CryptoService.decryptChallenge(
+            encryptedData,
+            this._sessionKeys.privateKey,
+            this._sessionKeys.publicKey,
+          );
+        } catch (sealError) {
+          console.log(
+            "[LocalStorageService] Sealed box decryption failed, trying secretbox...",
+          );
+
+          // Fallback: try secretbox decryption with master key
+          try {
+            decryptedTokenData = CryptoService.decryptWithSecretBox(
+              encryptedData,
+              this._sessionKeys.masterKey,
+            );
+          } catch (secretError) {
+            console.error(
+              "[LocalStorageService] Both decryption methods failed",
+            );
+            throw new Error("Failed to decrypt tokens with available keys");
+          }
+        }
+
+        // Convert decrypted data to string
+        const tokenString = new TextDecoder().decode(decryptedTokenData);
+
+        // If this is a JSON object containing both tokens, parse it
+        try {
+          const tokenObj = JSON.parse(tokenString);
+          if (tokenObj.access_token) {
+            console.log(
+              "[LocalStorageService] Access token decrypted successfully",
+            );
+            return tokenObj.access_token;
+          }
+        } catch (parseError) {
+          // If it's not JSON, assume it's the raw token
+          console.log(
+            "[LocalStorageService] Access token decrypted successfully (raw)",
+          );
+          return tokenString;
+        }
+
+        return tokenString;
       } catch (error) {
         console.error(
           "[LocalStorageService] Failed to decrypt access token:",
@@ -353,6 +457,9 @@ class LocalStorageService {
     // Clear legacy plaintext tokens
     localStorage.removeItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
+
+    // Clear session keys
+    this.clearSessionKeys();
 
     console.log("[LocalStorageService] All authentication data cleared");
   }

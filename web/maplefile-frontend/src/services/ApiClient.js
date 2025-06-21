@@ -25,32 +25,40 @@ class ApiClient {
   // Get authorization header for encrypted token system
   async getAuthorizationHeader() {
     try {
-      // Check if we have encrypted tokens
+      // First try to get a decrypted access token
+      const decryptedAccessToken =
+        await LocalStorageService.getDecryptedAccessToken();
+
+      if (
+        decryptedAccessToken &&
+        decryptedAccessToken !== "encrypted_token_available"
+      ) {
+        console.log("[ApiClient] Using decrypted access token");
+        return `JWT ${decryptedAccessToken}`;
+      }
+
+      // If we have encrypted tokens but no session keys, we can't make authenticated requests
       const encryptedTokens = LocalStorageService.getEncryptedTokens();
       const tokenNonce = LocalStorageService.getTokenNonce();
 
       if (encryptedTokens && tokenNonce) {
-        // For encrypted tokens, we need to implement token decryption
-        // For now, we'll use a placeholder approach
-        console.log("[ApiClient] Using encrypted token system");
-
-        // TODO: Implement actual token decryption here
-        // This would require:
-        // 1. User's private key (derived from password or stored securely)
-        // 2. Decryption of the encrypted tokens using the nonce
-        // 3. Extraction of the actual JWT access token
-
-        // For now, return null to indicate we have encrypted tokens but can't use them yet
-        // In a real implementation, you would decrypt and return the JWT token
+        console.log(
+          "[ApiClient] Have encrypted tokens but no session keys for decryption",
+        );
+        console.log(
+          "[ApiClient] User may need to re-authenticate to establish session keys",
+        );
         return null;
       }
 
       // Fallback to legacy token system
       const accessToken = LocalStorageService.getAccessToken();
       if (accessToken && !accessToken.startsWith("encrypted_")) {
+        console.log("[ApiClient] Using legacy plaintext token");
         return `JWT ${accessToken}`;
       }
 
+      console.log("[ApiClient] No valid tokens available for authorization");
       return null;
     } catch (error) {
       console.error("[ApiClient] Error getting authorization header:", error);

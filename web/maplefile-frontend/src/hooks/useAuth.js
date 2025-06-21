@@ -268,6 +268,9 @@ const useAuth = () => {
       tokenInfo,
       workerStatus,
       tokenHealth: getTokenHealth(),
+      hasSessionKeys: tokenService.hasSessionKeys(),
+      canMakeAuthenticatedRequests: tokenService.canMakeAuthenticatedRequests(),
+      sessionKeyStatus: authService.getSessionKeyStatus(),
       storageKeys: {
         hasEncryptedTokens: !!tokenService.getEncryptedTokens(),
         hasTokenNonce: !!tokenService.getTokenNonce(),
@@ -281,6 +284,7 @@ const useAuth = () => {
     workerStatus,
     getTokenHealth,
     tokenService,
+    authService,
   ]);
 
   return {
@@ -307,6 +311,11 @@ const useAuth = () => {
     hasEncryptedTokens: tokenInfo.hasEncryptedTokens,
     hasLegacyTokens: tokenInfo.hasLegacyTokens,
     tokenSystem: tokenInfo.tokenSystem || "encrypted",
+
+    // Session key capabilities
+    hasSessionKeys: tokenService.hasSessionKeys(),
+    canMakeAuthenticatedRequests: tokenService.canMakeAuthenticatedRequests(),
+    canDecryptTokens: tokenService.hasSessionKeys(),
   };
 };
 

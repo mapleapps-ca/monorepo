@@ -235,6 +235,8 @@ class TokenService {
       tokenHealth: this.getTokenHealth(),
       tokenInfo: this.getTokenExpiryInfo(),
       userEmail: this.getUserEmail(),
+      hasSessionKeys: LocalStorageService.hasSessionKeys(),
+      canDecryptTokens: LocalStorageService.hasSessionKeys(),
       storageKeys: {
         encryptedAccessToken: !!this.getEncryptedAccessToken(),
         encryptedRefreshToken: !!this.getEncryptedRefreshToken(),
@@ -246,6 +248,26 @@ class TokenService {
         userEmail: !!this.getUserEmail(),
       },
     };
+  }
+
+  // Check if we have session keys for token decryption
+  hasSessionKeys() {
+    return LocalStorageService.hasSessionKeys();
+  }
+
+  // Get decrypted access token
+  async getDecryptedAccessToken() {
+    return await LocalStorageService.getDecryptedAccessToken();
+  }
+
+  // Check if we can make authenticated API calls
+  canMakeAuthenticatedRequests() {
+    return this.hasSessionKeys() && this.hasEncryptedTokens();
+  }
+
+  // Clear session keys (for logout)
+  clearSessionKeys() {
+    return LocalStorageService.clearSessionKeys();
   }
 
   // Legacy methods for backward compatibility
