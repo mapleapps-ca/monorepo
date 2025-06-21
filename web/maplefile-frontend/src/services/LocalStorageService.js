@@ -1,317 +1,64 @@
-// Local Storage Service for managing encrypted authentication tokens
+// Local Storage Service for managing unencrypted authentication tokens (ente.io style)
 const LOCAL_STORAGE_KEYS = {
-  ENCRYPTED_ACCESS_TOKEN: "mapleapps_encrypted_access_token",
-  ENCRYPTED_REFRESH_TOKEN: "mapleapps_encrypted_refresh_token",
-  TOKEN_NONCE: "mapleapps_token_nonce",
+  ACCESS_TOKEN: "mapleapps_access_token",
+  REFRESH_TOKEN: "mapleapps_refresh_token",
   ACCESS_TOKEN_EXPIRY: "mapleapps_access_token_expiry",
   REFRESH_TOKEN_EXPIRY: "mapleapps_refresh_token_expiry",
   USER_EMAIL: "mapleapps_user_email",
-  // Legacy keys (will be removed)
-  ACCESS_TOKEN: "mapleapps_access_token",
-  REFRESH_TOKEN: "mapleapps_refresh_token",
-  // Deprecated single encrypted tokens key
+
+  // Deprecated encrypted token keys (for cleanup)
+  ENCRYPTED_ACCESS_TOKEN: "mapleapps_encrypted_access_token",
+  ENCRYPTED_REFRESH_TOKEN: "mapleapps_encrypted_refresh_token",
+  TOKEN_NONCE: "mapleapps_token_nonce",
   ENCRYPTED_TOKENS: "mapleapps_encrypted_tokens",
 };
 
 class LocalStorageService {
-  // Store encrypted access token with expiry
-  setEncryptedAccessToken(encryptedAccessToken, accessTokenExpiry) {
-    if (encryptedAccessToken) {
+  // Store unencrypted access token with expiry
+  setAccessToken(accessToken, accessTokenExpiry) {
+    if (accessToken) {
+      localStorage.setItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN, accessToken);
+      console.log("[LocalStorageService] Access token stored");
+    }
+
+    if (accessTokenExpiry) {
       localStorage.setItem(
-        LOCAL_STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN,
-        encryptedAccessToken,
-      );
-
-      if (accessTokenExpiry) {
-        localStorage.setItem(
-          LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
-          accessTokenExpiry,
-        );
-      }
-
-      console.log(
-        "[LocalStorageService] Encrypted access token stored successfully",
+        LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+        accessTokenExpiry,
       );
     }
   }
 
-  // Store encrypted refresh token with expiry
-  setEncryptedRefreshToken(encryptedRefreshToken, refreshTokenExpiry) {
-    if (encryptedRefreshToken) {
+  // Store unencrypted refresh token with expiry
+  setRefreshToken(refreshToken, refreshTokenExpiry) {
+    if (refreshToken) {
+      localStorage.setItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+      console.log("[LocalStorageService] Refresh token stored");
+    }
+
+    if (refreshTokenExpiry) {
       localStorage.setItem(
-        LOCAL_STORAGE_KEYS.ENCRYPTED_REFRESH_TOKEN,
-        encryptedRefreshToken,
-      );
-
-      if (refreshTokenExpiry) {
-        localStorage.setItem(
-          LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
-          refreshTokenExpiry,
-        );
-      }
-
-      console.log(
-        "[LocalStorageService] Encrypted refresh token stored successfully",
+        LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
+        refreshTokenExpiry,
       );
     }
   }
 
-  // Store token nonce
-  setTokenNonce(tokenNonce) {
-    if (tokenNonce) {
-      localStorage.setItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE, tokenNonce);
-      console.log("[LocalStorageService] Token nonce stored successfully");
-    }
+  // Store both tokens with expiry times
+  setTokens(accessToken, refreshToken, accessTokenExpiry, refreshTokenExpiry) {
+    this.setAccessToken(accessToken, accessTokenExpiry);
+    this.setRefreshToken(refreshToken, refreshTokenExpiry);
+    console.log("[LocalStorageService] Both tokens stored successfully");
   }
 
-  // Store encrypted tokens with expiry times (legacy method for single encrypted_tokens field)
-  setEncryptedTokens(
-    encryptedTokens,
-    tokenNonce,
-    accessTokenExpiry,
-    refreshTokenExpiry,
-  ) {
-    if (encryptedTokens && tokenNonce) {
-      localStorage.setItem(
-        LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS,
-        encryptedTokens,
-      );
-      localStorage.setItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE, tokenNonce);
-
-      if (accessTokenExpiry) {
-        localStorage.setItem(
-          LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
-          accessTokenExpiry,
-        );
-      }
-
-      if (refreshTokenExpiry) {
-        localStorage.setItem(
-          LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
-          refreshTokenExpiry,
-        );
-      }
-
-      console.log(
-        "[LocalStorageService] Encrypted tokens stored successfully (legacy format)",
-      );
-    }
-  }
-
-  // Get encrypted access token
-  getEncryptedAccessToken() {
-    return localStorage.getItem(LOCAL_STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN);
-  }
-
-  // Get encrypted refresh token
-  getEncryptedRefreshToken() {
-    return localStorage.getItem(LOCAL_STORAGE_KEYS.ENCRYPTED_REFRESH_TOKEN);
-  }
-
-  // Get encrypted tokens blob (legacy method)
-  getEncryptedTokens() {
-    // First try the new separate tokens
-    const encryptedAccessToken = this.getEncryptedAccessToken();
-    const encryptedRefreshToken = this.getEncryptedRefreshToken();
-
-    if (encryptedAccessToken && encryptedRefreshToken) {
-      // For refresh API calls, we need to send the refresh token
-      return encryptedRefreshToken;
-    }
-
-    // Fallback to legacy single encrypted_tokens field
-    return localStorage.getItem(LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS);
-  }
-
-  // Get token nonce
-  getTokenNonce() {
-    return localStorage.getItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE);
-  }
-
-  // Session-based key storage for token decryption (in memory only)
-  _sessionKeys = {
-    masterKey: null,
-    privateKey: null,
-    publicKey: null,
-    keyEncryptionKey: null,
-  };
-
-  // Store session keys after successful login (in memory only)
-  setSessionKeys(masterKey, privateKey, publicKey, keyEncryptionKey) {
-    this._sessionKeys = {
-      masterKey,
-      privateKey,
-      publicKey,
-      keyEncryptionKey,
-    };
-    console.log(
-      "[LocalStorageService] Session keys cached for token decryption",
-    );
-  }
-
-  // Clear session keys on logout
-  clearSessionKeys() {
-    this._sessionKeys = {
-      masterKey: null,
-      privateKey: null,
-      publicKey: null,
-      keyEncryptionKey: null,
-    };
-    console.log("[LocalStorageService] Session keys cleared");
-  }
-
-  // Check if we have session keys for decryption
-  hasSessionKeys() {
-    return !!(this._sessionKeys.masterKey && this._sessionKeys.privateKey);
-  }
-
-  // Decrypt and get access token using session keys
-  async getDecryptedAccessToken() {
-    const encryptedAccessToken = this.getEncryptedAccessToken();
-    const encryptedTokens = this.getEncryptedTokens(); // fallback to legacy
-    const tokenNonce = this.getTokenNonce();
-
-    if ((encryptedAccessToken || encryptedTokens) && tokenNonce) {
-      try {
-        // Check if we have session keys for decryption
-        if (!this.hasSessionKeys()) {
-          console.warn(
-            "[LocalStorageService] No session keys available for token decryption",
-          );
-          return null;
-        }
-
-        // Import the crypto service for decryption
-        const { default: CryptoService } = await import("./CryptoService.js");
-        await CryptoService.initialize();
-
-        // Decode the nonce and encrypted data
-        const nonce = CryptoService.base64ToUint8Array(tokenNonce);
-        let encryptedData;
-
-        if (encryptedAccessToken) {
-          encryptedData =
-            CryptoService.base64ToUint8Array(encryptedAccessToken);
-        } else {
-          // For legacy single encrypted_tokens field, it contains both access and refresh
-          // We'll need to parse this differently - for now use the whole thing
-          encryptedData = CryptoService.base64ToUint8Array(encryptedTokens);
-        }
-
-        console.log("[LocalStorageService] Decrypting access token...");
-
-        // Try to decrypt with the public key (assuming tokens are encrypted with box.seal)
-        let decryptedTokenData;
-        try {
-          // First try sealed box decryption (anonymous encryption)
-          decryptedTokenData = await CryptoService.decryptChallenge(
-            encryptedData,
-            this._sessionKeys.privateKey,
-            this._sessionKeys.publicKey,
-          );
-        } catch (sealError) {
-          console.log(
-            "[LocalStorageService] Sealed box decryption failed, trying secretbox...",
-          );
-
-          // Fallback: try secretbox decryption with master key
-          try {
-            decryptedTokenData = CryptoService.decryptWithSecretBox(
-              encryptedData,
-              this._sessionKeys.masterKey,
-            );
-          } catch (secretError) {
-            console.error(
-              "[LocalStorageService] Both decryption methods failed",
-            );
-            throw new Error("Failed to decrypt tokens with available keys");
-          }
-        }
-
-        // Convert decrypted data to string
-        const tokenString = new TextDecoder().decode(decryptedTokenData);
-
-        // If this is a JSON object containing both tokens, parse it
-        try {
-          const tokenObj = JSON.parse(tokenString);
-          if (tokenObj.access_token) {
-            console.log(
-              "[LocalStorageService] Access token decrypted successfully",
-            );
-            return tokenObj.access_token;
-          }
-        } catch (parseError) {
-          // If it's not JSON, assume it's the raw token
-          console.log(
-            "[LocalStorageService] Access token decrypted successfully (raw)",
-          );
-          return tokenString;
-        }
-
-        return tokenString;
-      } catch (error) {
-        console.error(
-          "[LocalStorageService] Failed to decrypt access token:",
-          error,
-        );
-        return null;
-      }
-    }
-
-    console.warn("[LocalStorageService] No encrypted tokens available");
-    return null;
-  }
-
-  // Get refresh token for refresh API calls
-  getRefreshToken() {
-    // For token refresh, we send the encrypted refresh token
-    const encryptedRefreshToken = this.getEncryptedRefreshToken();
-
-    if (encryptedRefreshToken) {
-      console.log(
-        "[LocalStorageService] Using encrypted refresh token for refresh",
-      );
-      return encryptedRefreshToken;
-    }
-
-    // Fallback: check for legacy single encrypted_tokens field
-    const encryptedTokens = localStorage.getItem(
-      LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS,
-    );
-    if (encryptedTokens) {
-      console.log(
-        "[LocalStorageService] Using legacy encrypted tokens for refresh",
-      );
-      return encryptedTokens;
-    }
-
-    // Last fallback: check for legacy refresh token
-    const legacyRefreshToken = localStorage.getItem(
-      LOCAL_STORAGE_KEYS.REFRESH_TOKEN,
-    );
-    if (legacyRefreshToken) {
-      console.warn(
-        "[LocalStorageService] Using legacy refresh token - this should be migrated",
-      );
-      return legacyRefreshToken;
-    }
-
-    return null;
-  }
-
-  // Legacy method for backward compatibility
+  // Get unencrypted access token
   getAccessToken() {
-    // First try to get decrypted access token
-    const encryptedAccessToken = this.getEncryptedAccessToken();
-    const encryptedTokens = this.getEncryptedTokens(); // fallback to legacy
-
-    if (encryptedAccessToken || encryptedTokens) {
-      // Return indicator that we have encrypted tokens
-      return "encrypted_token_available";
-    }
-
-    // Fallback to legacy token
     return localStorage.getItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN);
+  }
+
+  // Get unencrypted refresh token
+  getRefreshToken() {
+    return localStorage.getItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
   }
 
   // Set user email
@@ -361,39 +108,10 @@ class LocalStorageService {
     return new Date() >= new Date(expiryTime);
   }
 
-  // Check if user is authenticated (has valid encrypted tokens)
+  // Check if user is authenticated (has valid tokens)
   isAuthenticated() {
-    // Check for new separate encrypted tokens first
-    const encryptedAccessToken = this.getEncryptedAccessToken();
-    const encryptedRefreshToken = this.getEncryptedRefreshToken();
-    const tokenNonce = this.getTokenNonce();
-
-    if (encryptedAccessToken && encryptedRefreshToken && tokenNonce) {
-      // We have separate encrypted tokens, check if refresh token is still valid
-      if (!this.isRefreshTokenExpired()) {
-        console.log(
-          "[LocalStorageService] Authenticated with separate encrypted tokens",
-        );
-        return true;
-      }
-    }
-
-    // Fallback: check for legacy single encrypted_tokens field
-    const encryptedTokens = localStorage.getItem(
-      LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS,
-    );
-    if (encryptedTokens && tokenNonce) {
-      if (!this.isRefreshTokenExpired()) {
-        console.log(
-          "[LocalStorageService] Authenticated with legacy encrypted tokens",
-        );
-        return true;
-      }
-    }
-
-    // Last fallback: check legacy tokens
-    const accessToken = localStorage.getItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN);
-    const refreshToken = localStorage.getItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
+    const accessToken = this.getAccessToken();
+    const refreshToken = this.getRefreshToken();
 
     if (!accessToken || !refreshToken) return false;
 
@@ -406,24 +124,9 @@ class LocalStorageService {
     return false;
   }
 
-  // Check if we have any form of valid tokens
+  // Check if we have valid tokens
   hasValidTokens() {
     return this.isAuthenticated();
-  }
-
-  // Check if we have encrypted tokens (new format)
-  hasEncryptedTokens() {
-    const encryptedAccessToken = this.getEncryptedAccessToken();
-    const encryptedRefreshToken = this.getEncryptedRefreshToken();
-    const encryptedTokens = localStorage.getItem(
-      LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS,
-    ); // legacy
-    const tokenNonce = this.getTokenNonce();
-
-    return !!(
-      (encryptedAccessToken && encryptedRefreshToken && tokenNonce) ||
-      (encryptedTokens && tokenNonce)
-    );
   }
 
   // Get token expiry information
@@ -443,25 +146,63 @@ class LocalStorageService {
 
   // Clear all authentication data
   clearAuthData() {
-    // Clear new separate encrypted tokens
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_REFRESH_TOKEN);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE);
+    // Clear unencrypted tokens
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.USER_EMAIL);
 
-    // Clear legacy single encrypted tokens
+    // Also clear any leftover encrypted token data
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_REFRESH_TOKEN);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS);
-
-    // Clear legacy plaintext tokens
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
 
     // Clear session keys
     this.clearSessionKeys();
 
     console.log("[LocalStorageService] All authentication data cleared");
+  }
+
+  // Session-based key storage for login process (in memory only)
+  _sessionKeys = {
+    masterKey: null,
+    privateKey: null,
+    publicKey: null,
+    keyEncryptionKey: null,
+  };
+
+  // Store session keys during login process (in memory only)
+  setSessionKeys(masterKey, privateKey, publicKey, keyEncryptionKey) {
+    this._sessionKeys = {
+      masterKey,
+      privateKey,
+      publicKey,
+      keyEncryptionKey,
+    };
+    console.log("[LocalStorageService] Session keys cached for login process");
+  }
+
+  // Clear session keys after login complete
+  clearSessionKeys() {
+    this._sessionKeys = {
+      masterKey: null,
+      privateKey: null,
+      publicKey: null,
+      keyEncryptionKey: null,
+    };
+    console.log("[LocalStorageService] Session keys cleared");
+  }
+
+  // Check if we have session keys (only needed during login)
+  hasSessionKeys() {
+    return !!(this._sessionKeys.masterKey && this._sessionKeys.privateKey);
+  }
+
+  // Get session keys (only used during login to decrypt tokens)
+  getSessionKeys() {
+    return this._sessionKeys;
   }
 
   // Store login session data (for multi-step login)
@@ -490,37 +231,11 @@ class LocalStorageService {
     });
   }
 
-  // Migrate legacy tokens to new system (utility method)
-  migrateLegacyTokens() {
-    const legacyAccessToken = localStorage.getItem(
-      LOCAL_STORAGE_KEYS.ACCESS_TOKEN,
-    );
-    const legacyRefreshToken = localStorage.getItem(
-      LOCAL_STORAGE_KEYS.REFRESH_TOKEN,
-    );
-
-    if (legacyAccessToken || legacyRefreshToken) {
-      console.warn(
-        "[LocalStorageService] Legacy tokens detected - user should re-authenticate with new system",
-      );
-
-      // Clear legacy tokens to force re-authentication
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN);
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
-
-      return true; // Indicates migration occurred
-    }
-
-    return false; // No migration needed
-  }
-
   // Get all storage data for worker communication
   getAllStorageData() {
     return {
-      // New separate encrypted tokens
-      encryptedAccessToken: this.getEncryptedAccessToken(),
-      encryptedRefreshToken: this.getEncryptedRefreshToken(),
-      tokenNonce: this.getTokenNonce(),
+      accessToken: this.getAccessToken(),
+      refreshToken: this.getRefreshToken(),
       accessTokenExpiry: localStorage.getItem(
         LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
       ),
@@ -528,47 +243,95 @@ class LocalStorageService {
         LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
       ),
       userEmail: this.getUserEmail(),
-
-      // Legacy single encrypted tokens (for backward compatibility)
-      encryptedTokens: localStorage.getItem(
-        LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS,
-      ),
-
-      // Include token status
       ...this.getTokenExpiryInfo(),
-      hasEncryptedTokens: this.hasEncryptedTokens(),
+      hasValidTokens: this.hasValidTokens(),
     };
   }
 
-  // Set legacy access token (for compatibility during transition)
-  setAccessToken(token, expiryTime) {
-    console.warn(
-      "[LocalStorageService] setAccessToken called - this method is deprecated in favor of encrypted tokens",
+  // Clean up any old encrypted token data (migration helper)
+  cleanupEncryptedTokenData() {
+    const hadEncryptedData = !!(
+      localStorage.getItem(LOCAL_STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN) ||
+      localStorage.getItem(LOCAL_STORAGE_KEYS.ENCRYPTED_REFRESH_TOKEN) ||
+      localStorage.getItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE) ||
+      localStorage.getItem(LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS)
     );
-    if (token) {
-      localStorage.setItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN, token);
-      if (expiryTime) {
-        localStorage.setItem(
-          LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
-          expiryTime,
-        );
-      }
+
+    if (hadEncryptedData) {
+      console.log("[LocalStorageService] Cleaning up old encrypted token data");
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN);
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_REFRESH_TOKEN);
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE);
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS);
+      return true;
     }
+
+    return false;
   }
 
-  // Set legacy refresh token (for compatibility during transition)
-  setRefreshToken(token, expiryTime) {
-    console.warn(
-      "[LocalStorageService] setRefreshToken called - this method is deprecated in favor of encrypted tokens",
-    );
-    if (token) {
-      localStorage.setItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN, token);
-      if (expiryTime) {
-        localStorage.setItem(
-          LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
-          expiryTime,
+  // Decrypt encrypted tokens using session keys (used during login)
+  async decryptTokensFromLogin(encryptedTokensData, tokenNonce) {
+    if (!this.hasSessionKeys()) {
+      throw new Error("No session keys available for token decryption");
+    }
+
+    try {
+      console.log(
+        "[LocalStorageService] Decrypting tokens from login response",
+      );
+
+      // Import the crypto service for decryption
+      const { default: CryptoService } = await import("./CryptoService.js");
+      await CryptoService.initialize();
+
+      // Decode the nonce and encrypted data
+      const nonce = CryptoService.base64ToUint8Array(tokenNonce);
+      const encryptedData =
+        CryptoService.base64ToUint8Array(encryptedTokensData);
+
+      console.log("[LocalStorageService] Attempting token decryption...");
+
+      // Try sealed box decryption first (anonymous encryption)
+      let decryptedTokenData;
+      try {
+        decryptedTokenData = await CryptoService.decryptChallenge(
+          encryptedData,
+          this._sessionKeys.privateKey,
+          this._sessionKeys.publicKey,
         );
+        console.log("[LocalStorageService] Tokens decrypted using sealed box");
+      } catch (sealError) {
+        console.log(
+          "[LocalStorageService] Sealed box failed, trying secretbox...",
+        );
+
+        // Fallback: try secretbox decryption with master key
+        try {
+          decryptedTokenData = CryptoService.decryptWithSecretBox(
+            encryptedData,
+            this._sessionKeys.masterKey,
+          );
+          console.log("[LocalStorageService] Tokens decrypted using secretbox");
+        } catch (secretError) {
+          console.error("[LocalStorageService] Both decryption methods failed");
+          throw new Error("Failed to decrypt tokens with available keys");
+        }
       }
+
+      // Convert decrypted data to string and parse JSON
+      const tokenString = new TextDecoder().decode(decryptedTokenData);
+      const tokenObj = JSON.parse(tokenString);
+
+      console.log("[LocalStorageService] Token decryption successful");
+      console.log(
+        "[LocalStorageService] Decrypted token object keys:",
+        Object.keys(tokenObj),
+      );
+
+      return tokenObj;
+    } catch (error) {
+      console.error("[LocalStorageService] Failed to decrypt tokens:", error);
+      throw error;
     }
   }
 }

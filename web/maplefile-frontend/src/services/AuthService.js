@@ -1,4 +1,4 @@
-// Authentication Service for API calls - Updated for New Token System
+// Authentication Service for API calls - Updated for Unencrypted Token Storage (ente.io style)
 import LocalStorageService from "./LocalStorageService.js";
 import CryptoService from "./CryptoService.js";
 import WorkerManager from "./WorkerManager.js";
@@ -119,7 +119,7 @@ class AuthService {
     }
   }
 
-  // Step 3: Complete Login with Real Decryption
+  // Step 3: Complete Login with Token Decryption and Storage
   async completeLogin(email, challengeId, decryptedChallenge) {
     try {
       const response = await this.makeRequest("/complete-login", {
@@ -133,62 +133,92 @@ class AuthService {
 
       console.log("[AuthService] Complete login response:", response);
 
-      // Handle encrypted tokens (new system)
+      // Handle encrypted tokens from backend - decrypt and store unencrypted
       if (
-        response.encrypted_access_token &&
-        response.encrypted_refresh_token &&
-        response.token_nonce
+        (response.encrypted_access_token &&
+          response.encrypted_refresh_token &&
+          response.token_nonce) ||
+        (response.encrypted_tokens && response.token_nonce)
       ) {
+        console.log("[AuthService] Received encrypted tokens - decrypting...");
+
+        // Check if we have session keys for decryption
+        if (!LocalStorageService.hasSessionKeys()) {
+          throw new Error("No session keys available for token decryption");
+        }
+
+        let decryptedTokens;
+
+        if (
+          response.encrypted_access_token &&
+          response.encrypted_refresh_token
+        ) {
+          // Handle separate encrypted tokens
+          console.log(
+            "[AuthService] Decrypting separate access and refresh tokens",
+          );
+
+          const accessTokenData =
+            await LocalStorageService.decryptTokensFromLogin(
+              response.encrypted_access_token,
+              response.token_nonce,
+            );
+
+          const refreshTokenData =
+            await LocalStorageService.decryptTokensFromLogin(
+              response.encrypted_refresh_token,
+              response.token_nonce,
+            );
+
+          decryptedTokens = {
+            access_token:
+              typeof accessTokenData === "string"
+                ? accessTokenData
+                : accessTokenData.access_token,
+            refresh_token:
+              typeof refreshTokenData === "string"
+                ? refreshTokenData
+                : refreshTokenData.refresh_token,
+          };
+        } else {
+          // Handle single encrypted_tokens field containing both tokens
+          console.log("[AuthService] Decrypting combined token blob");
+
+          decryptedTokens = await LocalStorageService.decryptTokensFromLogin(
+            response.encrypted_tokens,
+            response.token_nonce,
+          );
+        }
+
+        console.log("[AuthService] Token decryption successful");
         console.log(
-          "[AuthService] Received encrypted access and refresh tokens",
+          "[AuthService] Decrypted token keys:",
+          Object.keys(decryptedTokens),
         );
 
-        // Store encrypted tokens separately as they come from backend
-        LocalStorageService.setEncryptedAccessToken(
-          response.encrypted_access_token,
+        // Store unencrypted tokens in localStorage
+        LocalStorageService.setTokens(
+          decryptedTokens.access_token,
+          decryptedTokens.refresh_token,
           response.access_token_expiry_date,
-        );
-
-        LocalStorageService.setEncryptedRefreshToken(
-          response.encrypted_refresh_token,
           response.refresh_token_expiry_date,
         );
 
-        LocalStorageService.setTokenNonce(response.token_nonce);
-
-        console.log("[AuthService] Encrypted tokens stored successfully");
-      } else if (response.encrypted_tokens && response.token_nonce) {
-        // Fallback: handle single encrypted_tokens field (if backend changes)
-        console.log("[AuthService] Received single encrypted tokens field");
-
-        LocalStorageService.setEncryptedTokens(
-          response.encrypted_tokens,
-          response.token_nonce,
-          response.access_token_expiry_date,
-          response.refresh_token_expiry_date,
-        );
-
-        console.log(
-          "[AuthService] Single encrypted tokens stored successfully",
-        );
+        console.log("[AuthService] Unencrypted tokens stored successfully");
       } else {
-        // This should not happen with the new system, but handle gracefully
-        console.warn(
-          "[AuthService] No encrypted tokens received - missing fields:",
-        );
-        console.warn(
-          "- encrypted_access_token:",
-          !!response.encrypted_access_token,
-        );
-        console.warn(
-          "- encrypted_refresh_token:",
-          !!response.encrypted_refresh_token,
-        );
-        console.warn("- token_nonce:", !!response.token_nonce);
-        console.warn("- encrypted_tokens:", !!response.encrypted_tokens);
-        throw new Error(
-          "Authentication system error: No encrypted tokens received",
-        );
+        // Fallback: handle already unencrypted tokens (for testing/legacy)
+        console.log("[AuthService] Received unencrypted tokens");
+
+        if (response.access_token && response.refresh_token) {
+          LocalStorageService.setTokens(
+            response.access_token,
+            response.refresh_token,
+            response.access_token_expiry_date,
+            response.refresh_token_expiry_date,
+          );
+        } else {
+          throw new Error("No valid tokens received from login response");
+        }
       }
 
       // Store username/email
@@ -196,16 +226,25 @@ class AuthService {
         LocalStorageService.setUserEmail(response.username);
       }
 
-      // Clear login session data
+      // Clear login session data and session keys (no longer needed)
       LocalStorageService.clearAllLoginSessionData();
+      LocalStorageService.clearSessionKeys();
+
+      // Clean up any old encrypted token data
+      LocalStorageService.cleanupEncryptedTokenData();
 
       // Start background monitoring after successful login
       if (this.isInitialized) {
         WorkerManager.startMonitoring();
       }
 
+      console.log(
+        "[AuthService] Login completed successfully with unencrypted tokens",
+      );
       return response;
     } catch (error) {
+      // Clear session keys on error
+      LocalStorageService.clearSessionKeys();
       throw new Error(`Failed to complete login: ${error.message}`);
     }
   }
@@ -218,7 +257,6 @@ class AuthService {
         "[AuthService] Available verify data fields:",
         Object.keys(verifyData),
       );
-      console.log("[AuthService] Verify data:", verifyData);
 
       // Validate required data
       if (!verifyData) {
@@ -271,12 +309,8 @@ class AuthService {
           }
         }
         if (!found && expectedField !== "publicKey") {
-          // publicKey is optional
           console.error(
             `[AuthService] Could not find field for ${expectedField}`,
-          );
-          console.error(
-            `[AuthService] Looked for: ${possibleNames.join(", ")}`,
           );
         }
       }
@@ -297,24 +331,12 @@ class AuthService {
       }
 
       if (missingFields.length > 0) {
-        console.error("[AuthService] Missing required fields:", missingFields);
-        console.error(
-          "[AuthService] Available verify data:",
-          Object.keys(verifyData),
-        );
-        console.error(
-          "[AuthService] Mapped challenge data:",
-          Object.keys(challengeData),
-        );
         throw new Error(
           `Missing required encrypted data: ${missingFields.join(", ")}`,
         );
       }
 
       console.log("[AuthService] Successfully mapped all required fields");
-      if (challengeData.publicKey) {
-        console.log("[AuthService] Public key also available for verification");
-      }
 
       // Use CryptoService to decrypt the challenge
       const decryptedChallenge = await CryptoService.decryptLoginChallenge(
@@ -362,7 +384,7 @@ class AuthService {
       const derivedPublicKey =
         publicKey || CryptoService.sodium.crypto_scalarmult_base(privateKey);
 
-      // Cache the keys in LocalStorageService for token decryption
+      // Cache the keys in LocalStorageService for token decryption during login
       LocalStorageService.setSessionKeys(
         masterKey,
         privateKey,
@@ -371,7 +393,7 @@ class AuthService {
       );
 
       console.log(
-        "[AuthService] Challenge decryption successful and session keys cached",
+        "[AuthService] Challenge decryption successful and session keys cached for token decryption",
       );
       return decryptedChallenge;
     } catch (error) {
@@ -380,10 +402,12 @@ class AuthService {
     }
   }
 
-  // New Token Refresh using the updated API
+  // Token Refresh using unencrypted tokens
   async refreshToken() {
     try {
-      console.log("[AuthService] Starting token refresh with new API");
+      console.log(
+        "[AuthService] Starting token refresh with unencrypted tokens",
+      );
 
       const refreshToken = LocalStorageService.getRefreshToken();
       if (!refreshToken) {
@@ -400,14 +424,24 @@ class AuthService {
 
       console.log("[AuthService] Token refresh successful:", response);
 
-      // Handle the new encrypted token response
+      // Handle refreshed tokens - they might be encrypted or unencrypted
       if (response.encrypted_tokens && response.token_nonce) {
-        console.log("[AuthService] Received new encrypted tokens");
+        console.log(
+          "[AuthService] Received encrypted tokens from refresh - this shouldn't happen",
+        );
+        console.warn(
+          "[AuthService] Backend should return unencrypted tokens after initial login",
+        );
+        throw new Error(
+          "Unexpected encrypted tokens in refresh response - backend configuration issue",
+        );
+      } else if (response.access_token && response.refresh_token) {
+        // Handle unencrypted tokens (expected)
+        console.log("[AuthService] Received unencrypted tokens from refresh");
 
-        // Store the new encrypted tokens
-        LocalStorageService.setEncryptedTokens(
-          response.encrypted_tokens,
-          response.token_nonce,
+        LocalStorageService.setTokens(
+          response.access_token,
+          response.refresh_token,
           response.access_token_expiry_date,
           response.refresh_token_expiry_date,
         );
@@ -417,12 +451,11 @@ class AuthService {
           LocalStorageService.setUserEmail(response.username);
         }
 
-        console.log("[AuthService] New encrypted tokens stored successfully");
+        console.log("[AuthService] Refreshed tokens stored successfully");
         return response;
       } else {
-        // This should not happen with the new system
-        console.error("[AuthService] No encrypted tokens in refresh response");
-        throw new Error("Token refresh failed: No encrypted tokens received");
+        console.error("[AuthService] No valid tokens in refresh response");
+        throw new Error("Token refresh failed: No valid tokens received");
       }
     } catch (error) {
       console.error("[AuthService] Token refresh failed:", error);
@@ -439,7 +472,7 @@ class AuthService {
     }
   }
 
-  // Refresh tokens using background worker (updated for new system)
+  // Refresh tokens using background worker
   async refreshTokenViaWorker() {
     if (!this.isInitialized) {
       await this.initializeWorker();
@@ -500,7 +533,7 @@ class AuthService {
       WorkerManager.stopMonitoring();
     }
 
-    // Clear all authentication data (including session keys)
+    // Clear all authentication data
     LocalStorageService.clearAuthData();
     LocalStorageService.clearAllLoginSessionData();
   }
@@ -515,19 +548,9 @@ class AuthService {
     return LocalStorageService.getUserEmail();
   }
 
-  // Generate verification ID from public key (utility method)
-  async generateVerificationID(publicKey) {
-    return await CryptoService.generateVerificationID(publicKey);
-  }
-
-  // Validate BIP39 mnemonic (utility method)
-  validateMnemonic(mnemonic) {
-    return CryptoService.validateMnemonic(mnemonic);
-  }
-
-  // Decrypt access token for API calls (when needed)
-  async getDecryptedAccessToken() {
-    return await LocalStorageService.getDecryptedAccessToken();
+  // Get access token for API calls
+  getAccessToken() {
+    return LocalStorageService.getAccessToken();
   }
 
   // Check if tokens need refresh
@@ -535,25 +558,21 @@ class AuthService {
     return LocalStorageService.isAccessTokenExpiringSoon(5); // 5 minutes threshold
   }
 
-  // Check if we can make authenticated requests (have session keys)
+  // Check if we can make authenticated requests
   canMakeAuthenticatedRequests() {
-    return (
-      LocalStorageService.hasSessionKeys() ||
-      LocalStorageService.hasValidTokens()
-    );
+    return LocalStorageService.hasValidTokens();
   }
 
-  // Get session key status for debugging
+  // Get session key status for debugging (only used during login)
   getSessionKeyStatus() {
     return {
       hasSessionKeys: LocalStorageService.hasSessionKeys(),
-      hasEncryptedTokens: LocalStorageService.hasEncryptedTokens(),
       isAuthenticated: this.isAuthenticated(),
-      canDecryptTokens: LocalStorageService.hasSessionKeys(),
+      canMakeRequests: this.canMakeAuthenticatedRequests(),
     };
   }
 
-  // Registration method (from registration prototype)
+  // Registration method
   async registerUser(userData) {
     try {
       const url = `${API_BASE_URL}/register`;
@@ -568,10 +587,6 @@ class AuthService {
       });
 
       console.log("Registration response status:", response.status);
-      console.log(
-        "Registration response headers:",
-        Object.fromEntries(response.headers),
-      );
 
       const result = await response.json();
 
@@ -592,7 +607,7 @@ class AuthService {
     }
   }
 
-  // Email verification method (from registration prototype)
+  // Email verification method
   async verifyEmail(verificationCode) {
     try {
       const url = `${API_BASE_URL}/verify-email-code`;
@@ -607,8 +622,6 @@ class AuthService {
           code: verificationCode.trim(),
         }),
       });
-
-      console.log("Email verification response status:", response.status);
 
       const result = await response.json();
 
@@ -630,9 +643,18 @@ class AuthService {
     }
   }
 
-  // Generate E2EE data for registration (from registration prototype)
+  // Generate E2EE data for registration
   async generateE2EEData(password) {
     return await CryptoService.generateE2EEData(password);
+  }
+
+  // Utility methods for debugging
+  generateVerificationID(publicKey) {
+    return CryptoService.generateVerificationID(publicKey);
+  }
+
+  validateMnemonic(mnemonic) {
+    return CryptoService.validateMnemonic(mnemonic);
   }
 }
 

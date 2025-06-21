@@ -1,10 +1,10 @@
-// Custom hook for authentication management with encrypted token system
+// Custom hook for authentication management with unencrypted token system (ente.io style)
 import { useState, useEffect, useCallback } from "react";
 import AuthService from "../services/AuthService.js";
 import LocalStorageService from "../services/LocalStorageService.js";
 import WorkerManager from "../services/WorkerManager.js";
 
-// Custom hook for authentication management with encrypted token system
+// Custom hook for authentication management with unencrypted token system
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -12,36 +12,38 @@ const useAuth = () => {
   const [tokenInfo, setTokenInfo] = useState({});
   const [workerStatus, setWorkerStatus] = useState({ isInitialized: false });
 
-  // Update authentication state for encrypted token system
+  // Update authentication state for unencrypted token system
   const updateAuthState = useCallback(() => {
-    const authenticated = AuthService.isAuthenticated();
-    const userEmail = AuthService.getCurrentUserEmail();
+    try {
+      const authenticated = AuthService.isAuthenticated();
+      const userEmail = AuthService.getCurrentUserEmail();
 
-    setIsAuthenticated(authenticated);
-    setUser(userEmail ? { email: userEmail } : null);
+      setIsAuthenticated(authenticated);
+      setUser(userEmail ? { email: userEmail } : null);
 
-    // Update token information for encrypted tokens
-    const encryptedTokens = LocalStorageService.getEncryptedTokens();
-    const tokenNonce = LocalStorageService.getTokenNonce();
-    const tokenExpiryInfo = LocalStorageService.getTokenExpiryInfo();
+      // Update token information for unencrypted tokens
+      const tokenExpiryInfo = LocalStorageService.getTokenExpiryInfo();
+      const hasTokens = !!(
+        LocalStorageService.getAccessToken() &&
+        LocalStorageService.getRefreshToken()
+      );
 
-    setTokenInfo({
-      hasEncryptedTokens: !!(encryptedTokens && tokenNonce),
-      tokenSystem: "encrypted",
-      ...tokenExpiryInfo,
-      // Legacy support during transition
-      hasLegacyTokens: !!(
-        localStorage.getItem("mapleapps_access_token") ||
-        localStorage.getItem("mapleapps_refresh_token")
-      ),
-    });
+      setTokenInfo({
+        hasTokens,
+        tokenSystem: "unencrypted",
+        ...tokenExpiryInfo,
+      });
 
-    console.log("[useAuth] Auth state updated:", {
-      authenticated,
-      userEmail,
-      hasEncryptedTokens: !!(encryptedTokens && tokenNonce),
-      tokenExpiryInfo,
-    });
+      console.log("[useAuth] Auth state updated:", {
+        authenticated,
+        userEmail,
+        hasTokens,
+        tokenExpiryInfo,
+      });
+    } catch (error) {
+      console.error("[useAuth] Error updating auth state:", error);
+      // Don't clear state on error, just log it
+    }
   }, []);
 
   // Handle worker messages
@@ -71,17 +73,6 @@ const useAuth = () => {
           // Worker manager will handle redirect
           break;
 
-        case "legacy_tokens_migrated":
-          console.log("[useAuth] Legacy tokens migrated, updating state");
-          updateAuthState();
-          if (data.shouldRedirect) {
-            // User needs to re-authenticate
-            setIsAuthenticated(false);
-            setUser(null);
-            setTokenInfo({});
-          }
-          break;
-
         case "worker_error":
           console.error("[useAuth] Worker error:", data);
           break;
@@ -98,9 +89,9 @@ const useAuth = () => {
     try {
       console.log("[useAuth] Initiating manual token refresh");
 
-      // Check if we have encrypted tokens to refresh
-      if (!LocalStorageService.getEncryptedTokens()) {
-        throw new Error("No encrypted tokens available for refresh");
+      // Check if we have a refresh token
+      if (!LocalStorageService.getRefreshToken()) {
+        throw new Error("No refresh token available for refresh");
       }
 
       await AuthService.refreshTokenViaWorker();
@@ -140,39 +131,29 @@ const useAuth = () => {
       needsReauth: false,
     };
 
-    if (!tokenInfo.hasEncryptedTokens && tokenInfo.hasLegacyTokens) {
-      health.status = "legacy_migration_needed";
-      health.recommendations.push(
-        "Migrate to encrypted token system by re-authenticating",
-      );
-      health.needsReauth = true;
-    } else if (tokenInfo.hasEncryptedTokens) {
-      if (tokenInfo.refreshTokenExpired) {
-        health.status = "expired";
-        health.recommendations.push(
-          "Refresh token expired - re-authentication required",
-        );
-        health.needsReauth = true;
-      } else if (tokenInfo.accessTokenExpired) {
-        health.status = "needs_refresh";
-        health.recommendations.push(
-          "Access token expired - refresh recommended",
-        );
-        health.canRefresh = true;
-      } else if (tokenInfo.accessTokenExpiringSoon) {
-        health.status = "expiring_soon";
-        health.recommendations.push(
-          "Access token expiring soon - refresh recommended",
-        );
-        health.canRefresh = true;
-      } else {
-        health.status = "healthy";
-        health.recommendations.push("Tokens are valid and healthy");
-      }
-    } else {
+    if (!tokenInfo.hasTokens) {
       health.status = "no_tokens";
       health.recommendations.push("No authentication tokens found");
       health.needsReauth = true;
+    } else if (tokenInfo.refreshTokenExpired) {
+      health.status = "expired";
+      health.recommendations.push(
+        "Refresh token expired - re-authentication required",
+      );
+      health.needsReauth = true;
+    } else if (tokenInfo.accessTokenExpired) {
+      health.status = "needs_refresh";
+      health.recommendations.push("Access token expired - refresh recommended");
+      health.canRefresh = true;
+    } else if (tokenInfo.accessTokenExpiringSoon) {
+      health.status = "expiring_soon";
+      health.recommendations.push(
+        "Access token expiring soon - refresh recommended",
+      );
+      health.canRefresh = true;
+    } else {
+      health.status = "healthy";
+      health.recommendations.push("Tokens are valid and healthy");
     }
 
     return health;
@@ -186,13 +167,8 @@ const useAuth = () => {
       try {
         console.log("[useAuth] Initializing authentication system");
 
-        // Check for legacy token migration
-        const migrated = LocalStorageService.migrateLegacyTokens();
-        if (migrated) {
-          console.log(
-            "[useAuth] Legacy tokens migrated, user needs to re-authenticate",
-          );
-        }
+        // Clean up any old encrypted token data
+        LocalStorageService.cleanupEncryptedTokenData();
 
         // Initialize the worker
         await AuthService.initializeWorker();
@@ -247,7 +223,7 @@ const useAuth = () => {
     };
   }, [updateAuthState]);
 
-  // API call wrapper with encrypted token management
+  // API call wrapper with token management
   const apiCall = useCallback(
     async (apiFunction) => {
       try {
@@ -310,12 +286,10 @@ const useAuth = () => {
       tokenInfo,
       workerStatus,
       tokenHealth: getTokenHealth(),
-      hasSessionKeys: LocalStorageService.hasSessionKeys(),
       canMakeAuthenticatedRequests: AuthService.canMakeAuthenticatedRequests(),
-      sessionKeyStatus: AuthService.getSessionKeyStatus(),
       storageKeys: {
-        hasEncryptedTokens: !!LocalStorageService.getEncryptedTokens(),
-        hasTokenNonce: !!LocalStorageService.getTokenNonce(),
+        hasAccessToken: !!LocalStorageService.getAccessToken(),
+        hasRefreshToken: !!LocalStorageService.getRefreshToken(),
         hasUserEmail: !!LocalStorageService.getUserEmail(),
       },
     };
@@ -342,14 +316,11 @@ const useAuth = () => {
     isAccessTokenExpired: tokenInfo.accessTokenExpired,
     isRefreshTokenExpired: tokenInfo.refreshTokenExpired,
     isAccessTokenExpiringSoon: tokenInfo.accessTokenExpiringSoon,
-    hasEncryptedTokens: tokenInfo.hasEncryptedTokens,
-    hasLegacyTokens: tokenInfo.hasLegacyTokens,
-    tokenSystem: tokenInfo.tokenSystem || "encrypted",
+    hasTokens: tokenInfo.hasTokens,
+    tokenSystem: tokenInfo.tokenSystem || "unencrypted",
 
-    // Session key capabilities
-    hasSessionKeys: LocalStorageService.hasSessionKeys(),
+    // Simplified capabilities
     canMakeAuthenticatedRequests: AuthService.canMakeAuthenticatedRequests(),
-    canDecryptTokens: LocalStorageService.hasSessionKeys(),
   };
 };
 

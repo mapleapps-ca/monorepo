@@ -1,5 +1,5 @@
-// Updated monorepo/web/maplefile-frontend/src/services/MeService.js
-// Me Service for managing current user information - SIMPLIFIED to avoid token corruption
+// Simple monorepo/web/maplefile-frontend/src/services/MeService.js
+// Me Service for managing current user information - Using ApiClient
 
 class MeService {
   constructor(authService) {
@@ -9,56 +9,13 @@ class MeService {
     this.isLoading = false;
   }
 
-  // Simple helper method that doesn't interfere with existing auth system
-  async makeMapleFileRequest(endpoint, options = {}) {
-    const url = `/maplefile/api/v1${endpoint}`;
-
-    try {
-      console.log(
-        `[MeService] Making ${options.method || "GET"} request to:`,
-        url,
-      );
-
-      // Make a simple fetch request without any auth logic
-      // Let the browser handle authentication cookies/headers automatically
-      const requestOptions = {
-        method: options.method || "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...options.headers,
-        },
-        credentials: "include", // Include cookies for session-based auth
-        ...options,
-      };
-
-      const response = await fetch(url, requestOptions);
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error("Authentication required - please log in again");
-        }
-
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.details
-            ? Object.values(errorData.details)[0]
-            : errorData.error ||
-              `Request failed with status ${response.status}`,
-        );
-      }
-
-      // For DELETE requests, might return no content
-      if (response.status === 204) {
-        return null;
-      }
-
-      const data = await response.json();
-      console.log("[MeService] API Response:", data);
-      return data;
-    } catch (error) {
-      console.error("[MeService] Request failed:", error);
-      throw error;
+  // Import ApiClient for authenticated requests
+  async getApiClient() {
+    if (!this._apiClient) {
+      const { default: ApiClient } = await import("./ApiClient.js");
+      this._apiClient = ApiClient;
     }
+    return this._apiClient;
   }
 
   // Get current user information
@@ -71,7 +28,8 @@ class MeService {
       this.isLoading = true;
       console.log("[MeService] Fetching current user information");
 
-      const userData = await this.makeMapleFileRequest("/me");
+      const apiClient = await this.getApiClient();
+      const userData = await apiClient.getMapleFile("/me");
 
       this.currentUser = userData;
       console.log("[MeService] Current user data retrieved:", userData);
@@ -95,10 +53,8 @@ class MeService {
       this.isLoading = true;
       console.log("[MeService] Updating current user information");
 
-      const updatedUser = await this.makeMapleFileRequest("/me", {
-        method: "PUT",
-        body: JSON.stringify(updateData),
-      });
+      const apiClient = await this.getApiClient();
+      const updatedUser = await apiClient.putMapleFile("/me", updateData);
 
       this.currentUser = updatedUser;
       console.log("[MeService] User data updated:", updatedUser);
@@ -126,8 +82,8 @@ class MeService {
       this.isLoading = true;
       console.log("[MeService] Deleting current user account");
 
-      await this.makeMapleFileRequest("/me", {
-        method: "DELETE",
+      const apiClient = await this.getApiClient();
+      await apiClient.deleteMapleFile("/me", {
         body: JSON.stringify({
           password: password,
         }),
@@ -308,6 +264,8 @@ class MeService {
       subscriptionInfo: this.getSubscriptionInfo(),
       isLoading: this.isLoading,
       hasUserData: this.hasUserData(),
+      authTokensAvailable: this.authService.canMakeAuthenticatedRequests(),
+      hasSessionKeys: this.authService.getSessionKeyStatus(),
     };
   }
 }
