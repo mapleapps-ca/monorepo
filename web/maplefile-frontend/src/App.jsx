@@ -2,25 +2,15 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import { ServiceProvider } from "./contexts/ServiceContext";
-import Navigation from "./components/Navigation";
-import Login from "./components/Login";
-import Register from "./components/Register";
-import Profile from "./components/Profile";
-import Dashboard from "./components/Dashboard";
-import EmailVerification from "./components/EmailVerification";
-import RegistrationSuccess from "./components/RegistrationSuccess";
-import ProtectedRoute from "./components/ProtectedRoute";
-
-// Home component - simple landing page
-const Home = () => {
-  return (
-    <div style={styles.home}>
-      <h1>Welcome to MapleFile</h1>
-      <p>Secure file storage and sharing with end-to-end encryption.</p>
-      <p>Please login or register to access your account.</p>
-    </div>
-  );
-};
+// import Navigation from "./components/Navigation";
+import IndexPage from "./pages/anonymous/Index/IndexPage";
+// import Login from "./components/Login";
+// import Register from "./components/Register";
+// import Profile from "./components/Profile";
+// import Dashboard from "./components/Dashboard";
+// import EmailVerification from "./components/EmailVerification";
+// import RegistrationSuccess from "./components/RegistrationSuccess";
+// import ProtectedRoute from "./components/ProtectedRoute";
 
 // Main App component
 function App() {
@@ -30,11 +20,12 @@ function App() {
       <Router>
         <div style={styles.app}>
           {/* Navigation will be shown on all pages */}
-          <Navigation />
+          {/*<Navigation />*/}
 
           {/* Define all routes */}
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<IndexPage />} />
+            {/*
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/verify-email" element={<EmailVerification />} />
@@ -42,8 +33,10 @@ function App() {
               path="/registration-success"
               element={<RegistrationSuccess />}
             />
+            */}
 
             {/* Protected routes */}
+            {/*
             <Route
               path="/dashboard"
               element={
@@ -60,6 +53,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            */}
 
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />
