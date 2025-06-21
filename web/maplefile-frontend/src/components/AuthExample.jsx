@@ -1,6 +1,6 @@
 // Example component demonstrating usage of authentication services
 import React, { useState, useEffect } from "react";
-import { useServices } from "../contexts/ServiceContext.jsx";
+import { useServices } from "../hooks/useServices.js";
 import useAuth from "../hooks/useAuth.js";
 
 const AuthExample = () => {

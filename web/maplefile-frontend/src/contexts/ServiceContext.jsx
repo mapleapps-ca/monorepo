@@ -1,5 +1,5 @@
 // Service Context with Dependency Injection for all authentication services
-import React, { createContext, useContext, useEffect } from "react";
+import React, { createContext, useEffect } from "react";
 import AuthService from "../services/AuthService.js";
 import MeService from "../services/MeService.js";
 import TokenService from "../services/TokenService.js";
@@ -9,16 +9,7 @@ import ApiClient from "../services/ApiClient.js";
 import WorkerManager from "../services/WorkerManager.js";
 
 // Create a context for our services
-const ServiceContext = createContext();
-
-// Create a custom hook to use our services
-const useServices = () => {
-  const context = useContext(ServiceContext);
-  if (!context) {
-    throw new Error("useServices must be used within a ServiceProvider");
-  }
-  return context;
-};
+export const ServiceContext = createContext();
 
 // Create a provider component that will wrap our app
 export function ServiceProvider({ children }) {
@@ -146,6 +137,3 @@ export function ServiceProvider({ children }) {
     </ServiceContext.Provider>
   );
 }
-
-// Export the hook separately
-export { useServices };
