@@ -1,3 +1,4 @@
+// monorepo/web/prototype/maplefile-register/src/App.jsx
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import Register from "./pages/Register";

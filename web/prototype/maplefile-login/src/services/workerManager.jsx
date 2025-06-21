@@ -1,3 +1,5 @@
+// monorepo/web/prototype/maplefile-login/src/services/workerManager.jsx
+
 // Worker Manager - Updated for Encrypted Token System
 import LocalStorageService from "./localStorageService.jsx";
 

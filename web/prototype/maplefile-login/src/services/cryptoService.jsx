@@ -1,3 +1,5 @@
+// monorepo/web/prototype/maplefile-login/src/services/cryptoService.jsx
+
 // Production Crypto Service for E2EE operations
 import sodium from "libsodium-wrappers-sumo";
 import * as bip39 from "@scure/bip39";

@@ -1,3 +1,5 @@
+// monorepo/web/prototype/maplefile-login/src/services/localStorageService.jsx
+
 // Local Storage Service for managing encrypted authentication tokens
 const LOCAL_STORAGE_KEYS = {
   ENCRYPTED_ACCESS_TOKEN: "mapleapps_encrypted_access_token",

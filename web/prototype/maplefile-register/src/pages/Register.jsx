@@ -1,3 +1,4 @@
+// monorepo/web/prototype/maplefile-register/src/pages/Register.js
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { registerUser } from "../api";

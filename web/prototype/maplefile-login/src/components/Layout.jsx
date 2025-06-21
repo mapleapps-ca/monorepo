@@ -1,3 +1,4 @@
+// monorepo/web/prototype/maplefile-login/src/components/Layout.jsx
 import React from "react";
 
 const Layout = ({ children, title, subtitle }) => {

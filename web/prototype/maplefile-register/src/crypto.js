@@ -1,3 +1,5 @@
+// monorepo/web/prototype/maplefile-register/src/crypto.jsx
+
 // Crypto utility functions for E2EE using libsodium-wrappers-sumo
 import sodium from "libsodium-wrappers-sumo";
 import * as bip39 from "@scure/bip39";

@@ -1,3 +1,5 @@
+// monorepo/web/prototype/maplefile-register/src/api.js
+
 // API utility functions for MapleApps backend
 
 // Use relative URLs in development (goes through Vite proxy) and full URLs in production

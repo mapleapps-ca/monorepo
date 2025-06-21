@@ -1,3 +1,4 @@
+// monorepo/web/prototype/maplefile-login/src/hooks/useAuth.jsx
 import { useState, useEffect, useCallback } from "react";
 import AuthService from "../services/authService.jsx";
 import LocalStorageService from "../services/localStorageService.jsx";

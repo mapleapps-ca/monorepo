@@ -1,3 +1,4 @@
+// monorepo/web/prototype/maplefile-register/src/pages/VerifyEmail.js
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { verifyEmail } from "../api";
