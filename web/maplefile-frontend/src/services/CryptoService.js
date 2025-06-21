@@ -32,7 +32,8 @@ class CryptoService {
         crypto_pwhash: typeof sodium.crypto_pwhash,
         crypto_secretbox_easy: typeof sodium.crypto_secretbox_easy,
         crypto_box_easy: typeof sodium.crypto_box_easy,
-        crypto_pwhash_ALG_ARGON2ID: typeof sodium.crypto_pwhash_ALG_ARGON2ID, // Add this line to log
+        crypto_pwhash_ALG_ARGON2ID13:
+          typeof sodium.crypto_pwhash_ALG_ARGON2ID13,
       });
     } catch (error) {
       console.error("❌ Failed to initialize LibSodium:", error);
