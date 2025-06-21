@@ -1,3 +1,4 @@
+// monorepo/web/prototype/maplefile-login/src/pages/CompleteLogin.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import Layout from "../components/Layout.jsx";

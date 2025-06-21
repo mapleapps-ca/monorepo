@@ -1,3 +1,4 @@
+// monorepo/web/prototype/maplefile-login/src/pages/RequestOTT.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import Layout from "../components/Layout.jsx";

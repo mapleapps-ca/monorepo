@@ -4,13 +4,22 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import { ServiceProvider } from "./contexts/ServiceContext";
 // import Navigation from "./components/Navigation";
 import IndexPage from "./pages/Anonymous/Index/IndexPage";
+
+// Registration pages
 import Register from "./pages/Anonymous/Register/Register";
 import RecoveryCode from "./pages/Anonymous/Register/RecoveryCode";
 import VerifyEmail from "./pages/Anonymous/Register/VerifyEmail";
 import VerifySuccess from "./pages/Anonymous/Register/VerifySuccess";
-// import Login from "./components/Login";
+
+// Login pages
+import RequestOTT from "./pages/Anonymous/Login/RequestOTT";
+import VerifyOTT from "./pages/Anonymous/Login/VerifyOTT";
+import CompleteLogin from "./pages/Anonymous/Login/CompleteLogin";
+
+// User pages
+import Dashboard from "./pages/User/Dashboard/Dashboard";
+
 // import Profile from "./components/Profile";
-// import Dashboard from "./components/Dashboard";
 // import EmailVerification from "./components/EmailVerification";
 // import RegistrationSuccess from "./components/RegistrationSuccess";
 // import ProtectedRoute from "./components/ProtectedRoute";
@@ -38,8 +47,16 @@ function App() {
               element={<VerifySuccess />}
             />
 
+            {/* Login routes */}
+            <Route path="/login" element={<RequestOTT />} />
+            <Route path="/login/request-ott" element={<RequestOTT />} />
+            <Route path="/login/verify-ott" element={<VerifyOTT />} />
+            <Route path="/login/complete" element={<CompleteLogin />} />
+
+            {/* User routes */}
+            <Route path="/dashboard" element={<Dashboard />} />
+
             {/*
-            <Route path="/login" element={<Login />} />
             <Route path="/verify-email" element={<EmailVerification />} />
             <Route
               path="/registration-success"
@@ -49,14 +66,6 @@ function App() {
 
             {/* Protected routes */}
             {/*
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
             <Route
               path="/profile"
               element={
