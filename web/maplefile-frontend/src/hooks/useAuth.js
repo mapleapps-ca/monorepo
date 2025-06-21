@@ -1,11 +1,11 @@
 // Custom hook for authentication management with encrypted token system
 import { useState, useEffect, useCallback } from "react";
-import { useServices } from "../contexts/ServiceContext.jsx";
+import AuthService from "../services/AuthService.js";
+import LocalStorageService from "../services/LocalStorageService.js";
 import WorkerManager from "../services/WorkerManager.js";
 
+// Custom hook for authentication management with encrypted token system
 const useAuth = () => {
-  const { authService, tokenService } = useServices();
-
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
@@ -14,16 +14,16 @@ const useAuth = () => {
 
   // Update authentication state for encrypted token system
   const updateAuthState = useCallback(() => {
-    const authenticated = authService.isAuthenticated();
-    const userEmail = authService.getCurrentUserEmail();
+    const authenticated = AuthService.isAuthenticated();
+    const userEmail = AuthService.getCurrentUserEmail();
 
     setIsAuthenticated(authenticated);
     setUser(userEmail ? { email: userEmail } : null);
 
     // Update token information for encrypted tokens
-    const encryptedTokens = tokenService.getEncryptedTokens();
-    const tokenNonce = tokenService.getTokenNonce();
-    const tokenExpiryInfo = tokenService.getTokenExpiryInfo();
+    const encryptedTokens = LocalStorageService.getEncryptedTokens();
+    const tokenNonce = LocalStorageService.getTokenNonce();
+    const tokenExpiryInfo = LocalStorageService.getTokenExpiryInfo();
 
     setTokenInfo({
       hasEncryptedTokens: !!(encryptedTokens && tokenNonce),
@@ -42,7 +42,7 @@ const useAuth = () => {
       hasEncryptedTokens: !!(encryptedTokens && tokenNonce),
       tokenExpiryInfo,
     });
-  }, [authService, tokenService]);
+  }, []);
 
   // Handle worker messages
   const handleWorkerMessage = useCallback(
@@ -99,11 +99,11 @@ const useAuth = () => {
       console.log("[useAuth] Initiating manual token refresh");
 
       // Check if we have encrypted tokens to refresh
-      if (!tokenService.getEncryptedTokens()) {
+      if (!LocalStorageService.getEncryptedTokens()) {
         throw new Error("No encrypted tokens available for refresh");
       }
 
-      await authService.refreshTokenViaWorker();
+      await AuthService.refreshTokenViaWorker();
       updateAuthState();
       console.log("[useAuth] Manual token refresh successful");
       return true;
@@ -114,27 +114,69 @@ const useAuth = () => {
       setTokenInfo({});
       throw error;
     }
-  }, [authService, tokenService, updateAuthState]);
+  }, [updateAuthState]);
 
   // Force token check
   const forceTokenCheck = useCallback(() => {
     console.log("[useAuth] Forcing token check");
-    authService.forceTokenCheck();
-  }, [authService]);
+    AuthService.forceTokenCheck();
+  }, []);
 
   // Logout function
   const logout = useCallback(() => {
     console.log("[useAuth] Logging out user");
-    authService.logout();
+    AuthService.logout();
     setIsAuthenticated(false);
     setUser(null);
     setTokenInfo({});
-  }, [authService]);
+  }, []);
 
   // Check token health and suggest actions
   const getTokenHealth = useCallback(() => {
-    return tokenService.getTokenHealth();
-  }, [tokenService]);
+    const health = {
+      status: "unknown",
+      recommendations: [],
+      canRefresh: false,
+      needsReauth: false,
+    };
+
+    if (!tokenInfo.hasEncryptedTokens && tokenInfo.hasLegacyTokens) {
+      health.status = "legacy_migration_needed";
+      health.recommendations.push(
+        "Migrate to encrypted token system by re-authenticating",
+      );
+      health.needsReauth = true;
+    } else if (tokenInfo.hasEncryptedTokens) {
+      if (tokenInfo.refreshTokenExpired) {
+        health.status = "expired";
+        health.recommendations.push(
+          "Refresh token expired - re-authentication required",
+        );
+        health.needsReauth = true;
+      } else if (tokenInfo.accessTokenExpired) {
+        health.status = "needs_refresh";
+        health.recommendations.push(
+          "Access token expired - refresh recommended",
+        );
+        health.canRefresh = true;
+      } else if (tokenInfo.accessTokenExpiringSoon) {
+        health.status = "expiring_soon";
+        health.recommendations.push(
+          "Access token expiring soon - refresh recommended",
+        );
+        health.canRefresh = true;
+      } else {
+        health.status = "healthy";
+        health.recommendations.push("Tokens are valid and healthy");
+      }
+    } else {
+      health.status = "no_tokens";
+      health.recommendations.push("No authentication tokens found");
+      health.needsReauth = true;
+    }
+
+    return health;
+  }, [tokenInfo]);
 
   // Initialize authentication and worker
   useEffect(() => {
@@ -145,7 +187,7 @@ const useAuth = () => {
         console.log("[useAuth] Initializing authentication system");
 
         // Check for legacy token migration
-        const migrated = tokenService.migrateLegacyTokens();
+        const migrated = LocalStorageService.migrateLegacyTokens();
         if (migrated) {
           console.log(
             "[useAuth] Legacy tokens migrated, user needs to re-authenticate",
@@ -153,13 +195,13 @@ const useAuth = () => {
         }
 
         // Initialize the worker
-        await authService.initializeWorker();
+        await AuthService.initializeWorker();
 
         // Update initial authentication state
         updateAuthState();
 
         // Get worker status
-        const status = await authService.getWorkerStatus();
+        const status = await AuthService.getWorkerStatus();
         setWorkerStatus(status);
 
         console.log("[useAuth] Authentication system initialized successfully");
@@ -175,7 +217,7 @@ const useAuth = () => {
     };
 
     initAuth();
-  }, [authService, tokenService, updateAuthState]);
+  }, [updateAuthState]);
 
   // Set up worker message listener
   useEffect(() => {
@@ -268,24 +310,16 @@ const useAuth = () => {
       tokenInfo,
       workerStatus,
       tokenHealth: getTokenHealth(),
-      hasSessionKeys: tokenService.hasSessionKeys(),
-      canMakeAuthenticatedRequests: tokenService.canMakeAuthenticatedRequests(),
-      sessionKeyStatus: authService.getSessionKeyStatus(),
+      hasSessionKeys: LocalStorageService.hasSessionKeys(),
+      canMakeAuthenticatedRequests: AuthService.canMakeAuthenticatedRequests(),
+      sessionKeyStatus: AuthService.getSessionKeyStatus(),
       storageKeys: {
-        hasEncryptedTokens: !!tokenService.getEncryptedTokens(),
-        hasTokenNonce: !!tokenService.getTokenNonce(),
-        hasUserEmail: !!tokenService.getUserEmail(),
+        hasEncryptedTokens: !!LocalStorageService.getEncryptedTokens(),
+        hasTokenNonce: !!LocalStorageService.getTokenNonce(),
+        hasUserEmail: !!LocalStorageService.getUserEmail(),
       },
     };
-  }, [
-    isAuthenticated,
-    user,
-    tokenInfo,
-    workerStatus,
-    getTokenHealth,
-    tokenService,
-    authService,
-  ]);
+  }, [isAuthenticated, user, tokenInfo, workerStatus, getTokenHealth]);
 
   return {
     // State
@@ -313,9 +347,9 @@ const useAuth = () => {
     tokenSystem: tokenInfo.tokenSystem || "encrypted",
 
     // Session key capabilities
-    hasSessionKeys: tokenService.hasSessionKeys(),
-    canMakeAuthenticatedRequests: tokenService.canMakeAuthenticatedRequests(),
-    canDecryptTokens: tokenService.hasSessionKeys(),
+    hasSessionKeys: LocalStorageService.hasSessionKeys(),
+    canMakeAuthenticatedRequests: AuthService.canMakeAuthenticatedRequests(),
+    canDecryptTokens: LocalStorageService.hasSessionKeys(),
   };
 };
 

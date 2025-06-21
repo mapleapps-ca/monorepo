@@ -6,32 +6,9 @@ import WorkerManager from "./WorkerManager.js";
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config
 
 class AuthService {
-  constructor(cryptoService) {
-    this.cryptoService = cryptoService || CryptoService;
+  constructor() {
     this.isInitialized = false;
     this.workerDisabled = false;
-
-    // Use proxy paths in development, full URLs in production
-    const isDevelopment = import.meta.env.DEV;
-
-    if (isDevelopment) {
-      // Use Vite proxy paths (no protocol/domain needed)
-      this.apiBaseUrl = "";
-      console.log("Using Vite dev proxy for API calls");
-    } else {
-      // Use full URLs in production
-      this.apiBaseUrl = `${import.meta.env.VITE_API_PROTOCOL}://${import.meta.env.VITE_API_DOMAIN}`;
-      console.log("Using full API URL:", this.apiBaseUrl);
-    }
-
-    // Configure axios timeout
-    this.axiosConfig = {
-      timeout: 30000,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    };
-
     this.initializeWorker();
   }
 
@@ -66,7 +43,7 @@ class AuthService {
 
   // Helper method to make API requests
   async makeRequest(endpoint, options = {}) {
-    const url = `${this.apiBaseUrl}${API_BASE_URL}${endpoint}`;
+    const url = `${API_BASE_URL}${endpoint}`;
 
     const defaultOptions = {
       headers: {
@@ -241,6 +218,7 @@ class AuthService {
         "[AuthService] Available verify data fields:",
         Object.keys(verifyData),
       );
+      console.log("[AuthService] Verify data:", verifyData);
 
       // Validate required data
       if (!verifyData) {
@@ -339,7 +317,7 @@ class AuthService {
       }
 
       // Use CryptoService to decrypt the challenge
-      const decryptedChallenge = await this.cryptoService.decryptLoginChallenge(
+      const decryptedChallenge = await CryptoService.decryptLoginChallenge(
         password,
         challengeData,
       );
@@ -348,42 +326,41 @@ class AuthService {
       console.log("[AuthService] Caching session keys for token decryption");
 
       // We need to re-derive the keys to cache them
-      await this.cryptoService.initialize();
+      await CryptoService.initialize();
 
       // Decode the encrypted data
-      const salt = this.cryptoService.tryDecodeBase64(challengeData.salt);
-      const encryptedMasterKey = this.cryptoService.tryDecodeBase64(
+      const salt = CryptoService.tryDecodeBase64(challengeData.salt);
+      const encryptedMasterKey = CryptoService.tryDecodeBase64(
         challengeData.encryptedMasterKey,
       );
-      const encryptedPrivateKey = this.cryptoService.tryDecodeBase64(
+      const encryptedPrivateKey = CryptoService.tryDecodeBase64(
         challengeData.encryptedPrivateKey,
       );
       const publicKey = challengeData.publicKey
-        ? this.cryptoService.tryDecodeBase64(challengeData.publicKey)
+        ? CryptoService.tryDecodeBase64(challengeData.publicKey)
         : null;
 
       // Derive the key encryption key
-      const keyEncryptionKey = await this.cryptoService.deriveKeyFromPassword(
+      const keyEncryptionKey = await CryptoService.deriveKeyFromPassword(
         password,
         salt,
       );
 
       // Decrypt the master key
-      const masterKey = this.cryptoService.decryptWithSecretBox(
+      const masterKey = CryptoService.decryptWithSecretBox(
         encryptedMasterKey,
         keyEncryptionKey,
       );
 
       // Decrypt the private key
-      const privateKey = this.cryptoService.decryptWithSecretBox(
+      const privateKey = CryptoService.decryptWithSecretBox(
         encryptedPrivateKey,
         masterKey,
       );
 
       // Derive public key if not provided
       const derivedPublicKey =
-        publicKey ||
-        this.cryptoService.sodium.crypto_scalarmult_base(privateKey);
+        publicKey || CryptoService.sodium.crypto_scalarmult_base(privateKey);
 
       // Cache the keys in LocalStorageService for token decryption
       LocalStorageService.setSessionKeys(
@@ -540,12 +517,12 @@ class AuthService {
 
   // Generate verification ID from public key (utility method)
   async generateVerificationID(publicKey) {
-    return await this.cryptoService.generateVerificationID(publicKey);
+    return await CryptoService.generateVerificationID(publicKey);
   }
 
   // Validate BIP39 mnemonic (utility method)
   validateMnemonic(mnemonic) {
-    return this.cryptoService.validateMnemonic(mnemonic);
+    return CryptoService.validateMnemonic(mnemonic);
   }
 
   // Decrypt access token for API calls (when needed)
@@ -576,10 +553,10 @@ class AuthService {
     };
   }
 
-  // Registration method
+  // Registration method (from registration prototype)
   async registerUser(userData) {
     try {
-      const url = `${this.apiBaseUrl}${API_BASE_URL}/register`;
+      const url = `${API_BASE_URL}/register`;
       console.log("Making registration request to:", url);
 
       const response = await fetch(url, {
@@ -615,10 +592,10 @@ class AuthService {
     }
   }
 
-  // Email verification method
+  // Email verification method (from registration prototype)
   async verifyEmail(verificationCode) {
     try {
-      const url = `${this.apiBaseUrl}${API_BASE_URL}/verify-email-code`;
+      const url = `${API_BASE_URL}/verify-email-code`;
       console.log("Making email verification request to:", url);
 
       const response = await fetch(url, {
@@ -653,10 +630,11 @@ class AuthService {
     }
   }
 
-  // Generate E2EE data for registration
+  // Generate E2EE data for registration (from registration prototype)
   async generateE2EEData(password) {
-    return await this.cryptoService.generateE2EEData(password);
+    return await CryptoService.generateE2EEData(password);
   }
 }
 
-export default AuthService;
+// Export singleton instance
+export default new AuthService();

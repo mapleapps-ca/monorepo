@@ -6,9 +6,10 @@ import { wordlist } from "@scure/bip39/wordlists/english";
 class CryptoService {
   constructor() {
     this.isInitialized = false;
+    console.log("Initializing CryptoService with libsodium-wrappers-sumo");
   }
 
-  // Initialize libsodium
+  // Initialize libsodium (matching the original exactly)
   async initialize() {
     if (this.isInitialized) return;
 
@@ -17,7 +18,7 @@ class CryptoService {
     console.log("[CryptoService] Libsodium initialized");
   }
 
-  // Initialize method (alias for compatibility)
+  // Legacy compatibility method
   async init() {
     return this.initialize();
   }
@@ -619,6 +620,22 @@ class CryptoService {
     return bip39.mnemonicToSeedSync(mnemonic);
   }
 
+  // Convert BIP39 mnemonic to recovery key (from registration prototype)
+  async mnemonicToRecoveryKey(mnemonic) {
+    // Validate the mnemonic
+    if (!bip39.validateMnemonic(mnemonic, wordlist)) {
+      throw new Error("Invalid mnemonic");
+    }
+
+    // Convert mnemonic to seed (this gives us 64 bytes)
+    // This uses the BIP39 standard seed derivation (HMAC-SHA512)
+    const seed = bip39.mnemonicToSeedSync(mnemonic);
+
+    // Use first 32 bytes as our recovery key (sodium expects 32 bytes)
+    // This is a non-standard derivation, but matches the original logic
+    return seed.slice(0, 32);
+  }
+
   // Generate E2EE data for registration (from registration prototype)
   async generateE2EEData(password) {
     try {
@@ -774,22 +791,6 @@ class CryptoService {
       console.error("Error generating E2EE data:", error);
       throw new Error("Failed to generate encryption data: " + error.message);
     }
-  }
-
-  // Convert BIP39 mnemonic to recovery key
-  async mnemonicToRecoveryKey(mnemonic) {
-    // Validate the mnemonic
-    if (!bip39.validateMnemonic(mnemonic, wordlist)) {
-      throw new Error("Invalid mnemonic");
-    }
-
-    // Convert mnemonic to seed (this gives us 64 bytes)
-    // This uses the BIP39 standard seed derivation (HMAC-SHA512)
-    const seed = bip39.mnemonicToSeedSync(mnemonic);
-
-    // Use first 32 bytes as our recovery key (sodium expects 32 bytes)
-    // This is a non-standard derivation, but matches the original logic
-    return seed.slice(0, 32);
   }
 }
 

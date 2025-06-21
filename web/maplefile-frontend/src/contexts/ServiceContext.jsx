@@ -1,4 +1,4 @@
-// Service Context with Dependency Injection for our entire application services
+// Service Context with Dependency Injection for all authentication services
 import React, { createContext, useContext, useEffect } from "react";
 import AuthService from "../services/AuthService.js";
 import MeService from "../services/MeService.js";
@@ -22,46 +22,27 @@ export const useServices = () => {
 
 // Create a provider component that will wrap our app
 export const ServiceProvider = ({ children }) => {
-  // Initialize all services here following dependency injection principles
+  // All services are singletons that are already instantiated
+  // We just need to import them and provide them via context
 
-  // 1. Initialize CryptoService first (no dependencies)
-  const cryptoService = CryptoService;
+  // Initialize MeService with AuthService dependency
+  const meService = new MeService(AuthService);
 
-  // Initialize the cryptoService early
-  useEffect(() => {
-    cryptoService.init().catch(console.error); // Handle errors during initialization
-  }, [cryptoService]);
-
-  // 2. Initialize LocalStorageService (no dependencies)
-  const localStorageService = LocalStorageService;
-
-  // 3. Initialize TokenService (depends on LocalStorageService)
+  // Initialize TokenService
   const tokenService = new TokenService();
 
-  // 4. Initialize ApiClient (depends on LocalStorageService)
-  const apiClient = ApiClient;
-
-  // 5. Initialize WorkerManager (depends on LocalStorageService)
-  const workerManager = WorkerManager;
-
-  // 6. Initialize AuthService (depends on CryptoService)
-  const authService = new AuthService(cryptoService);
-
-  // 7. Initialize MeService (depends on AuthService)
-  const meService = new MeService(authService);
-
-  // Create services object
+  // Create services object with all singleton services
   const services = {
-    // Core services
-    authService,
+    // Core services (singletons)
+    authService: AuthService,
+    cryptoService: CryptoService,
+    localStorageService: LocalStorageService,
+    apiClient: ApiClient,
+    workerManager: WorkerManager,
+
+    // Services that need dependency injection
     meService,
     tokenService,
-    cryptoService,
-
-    // Storage and utility services
-    localStorageService,
-    apiClient,
-    workerManager,
   };
 
   // Initialize services that need async initialization
@@ -71,12 +52,12 @@ export const ServiceProvider = ({ children }) => {
         console.log("[ServiceProvider] Initializing services...");
 
         // Initialize crypto service
-        await cryptoService.init();
+        await CryptoService.initialize();
         console.log("[ServiceProvider] CryptoService initialized");
 
         // Initialize worker manager (this will also initialize the auth worker)
         try {
-          await workerManager.initialize();
+          await WorkerManager.initialize();
           console.log("[ServiceProvider] WorkerManager initialized");
         } catch (error) {
           console.warn(
@@ -87,7 +68,7 @@ export const ServiceProvider = ({ children }) => {
 
         // Initialize auth service worker
         try {
-          await authService.initializeWorker();
+          await AuthService.initializeWorker();
           console.log("[ServiceProvider] AuthService worker initialized");
         } catch (error) {
           console.warn(
@@ -106,7 +87,7 @@ export const ServiceProvider = ({ children }) => {
     };
 
     initializeServices();
-  }, [cryptoService, authService, workerManager]);
+  }, []);
 
   // Set up error handling for services
   useEffect(() => {
@@ -144,11 +125,11 @@ export const ServiceProvider = ({ children }) => {
       );
       console.log(
         "[ServiceProvider] CryptoService ready:",
-        cryptoService.isInitialized,
+        CryptoService.isInitialized,
       );
       console.log(
         "[ServiceProvider] AuthService authenticated:",
-        authService.isAuthenticated(),
+        AuthService.isAuthenticated(),
       );
 
       // Add services to window for debugging in development
@@ -157,7 +138,7 @@ export const ServiceProvider = ({ children }) => {
         "[ServiceProvider] Services added to window.mapleAppsServices for debugging",
       );
     }
-  }, [services, cryptoService, authService]);
+  }, [services]);
 
   return (
     <ServiceContext.Provider value={services}>
