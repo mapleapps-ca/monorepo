@@ -1,11 +1,14 @@
-// monorepo/web/maplefile-frontend/src/App.js
+// monorepo/web/maplefile-frontend/src/App.jsx
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import { ServiceProvider } from "./contexts/ServiceContext";
 // import Navigation from "./components/Navigation";
-import IndexPage from "./pages/anonymous/Index/IndexPage";
+import IndexPage from "./pages/Anonymous/Index/IndexPage";
+import Register from "./pages/Anonymous/Register/Register";
+import RecoveryCode from "./pages/Anonymous/Register/RecoveryCode";
+import VerifyEmail from "./pages/Anonymous/Register/VerifyEmail";
+import VerifySuccess from "./pages/Anonymous/Register/VerifySuccess";
 // import Login from "./components/Login";
-// import Register from "./components/Register";
 // import Profile from "./components/Profile";
 // import Dashboard from "./components/Dashboard";
 // import EmailVerification from "./components/EmailVerification";
@@ -25,9 +28,18 @@ function App() {
           {/* Define all routes */}
           <Routes>
             <Route path="/" element={<IndexPage />} />
+
+            {/* Registration routes */}
+            <Route path="/register" element={<Register />} />
+            <Route path="/register/recovery" element={<RecoveryCode />} />
+            <Route path="/register/verify-email" element={<VerifyEmail />} />
+            <Route
+              path="/register/verify-success"
+              element={<VerifySuccess />}
+            />
+
             {/*
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
             <Route path="/verify-email" element={<EmailVerification />} />
             <Route
               path="/registration-success"
