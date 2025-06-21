@@ -1,5 +1,4 @@
 // monorepo/prototype/maplefile-login/public/auth-worker.js
-
 // Authentication Worker - Updated for Encrypted Token System
 // This worker runs independently and communicates with all tabs
 
