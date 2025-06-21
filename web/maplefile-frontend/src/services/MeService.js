@@ -1,13 +1,64 @@
-// Me Service for managing current user information
-import ApiClient from "./ApiClient.js";
+// Updated monorepo/web/maplefile-frontend/src/services/MeService.js
+// Me Service for managing current user information - SIMPLIFIED to avoid token corruption
 
 class MeService {
   constructor(authService) {
     // MeService depends on AuthService to get the current user
     this.authService = authService;
-    this.apiClient = ApiClient;
     this.currentUser = null;
     this.isLoading = false;
+  }
+
+  // Simple helper method that doesn't interfere with existing auth system
+  async makeMapleFileRequest(endpoint, options = {}) {
+    const url = `/maplefile/api/v1${endpoint}`;
+
+    try {
+      console.log(
+        `[MeService] Making ${options.method || "GET"} request to:`,
+        url,
+      );
+
+      // Make a simple fetch request without any auth logic
+      // Let the browser handle authentication cookies/headers automatically
+      const requestOptions = {
+        method: options.method || "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+        credentials: "include", // Include cookies for session-based auth
+        ...options,
+      };
+
+      const response = await fetch(url, requestOptions);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Authentication required - please log in again");
+        }
+
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.details
+            ? Object.values(errorData.details)[0]
+            : errorData.error ||
+              `Request failed with status ${response.status}`,
+        );
+      }
+
+      // For DELETE requests, might return no content
+      if (response.status === 204) {
+        return null;
+      }
+
+      const data = await response.json();
+      console.log("[MeService] API Response:", data);
+      return data;
+    } catch (error) {
+      console.error("[MeService] Request failed:", error);
+      throw error;
+    }
   }
 
   // Get current user information
@@ -20,8 +71,7 @@ class MeService {
       this.isLoading = true;
       console.log("[MeService] Fetching current user information");
 
-      // Make authenticated request to get user profile
-      const userData = await this.apiClient.get("/me");
+      const userData = await this.makeMapleFileRequest("/me");
 
       this.currentUser = userData;
       console.log("[MeService] Current user data retrieved:", userData);
@@ -29,15 +79,6 @@ class MeService {
       return userData;
     } catch (error) {
       console.error("[MeService] Failed to get current user:", error);
-
-      // If unauthorized, clear auth data
-      if (
-        error.message.includes("401") ||
-        error.message.includes("Unauthorized")
-      ) {
-        this.authService.logout();
-      }
-
       throw error;
     } finally {
       this.isLoading = false;
@@ -54,8 +95,10 @@ class MeService {
       this.isLoading = true;
       console.log("[MeService] Updating current user information");
 
-      // Make authenticated request to update user profile
-      const updatedUser = await this.apiClient.patch("/me", updateData);
+      const updatedUser = await this.makeMapleFileRequest("/me", {
+        method: "PUT",
+        body: JSON.stringify(updateData),
+      });
 
       this.currentUser = updatedUser;
       console.log("[MeService] User data updated:", updatedUser);
@@ -63,15 +106,38 @@ class MeService {
       return updatedUser;
     } catch (error) {
       console.error("[MeService] Failed to update current user:", error);
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
 
-      // If unauthorized, clear auth data
-      if (
-        error.message.includes("401") ||
-        error.message.includes("Unauthorized")
-      ) {
-        this.authService.logout();
-      }
+  // Delete current user account
+  async deleteCurrentUser(password) {
+    if (!this.authService.isAuthenticated()) {
+      throw new Error("User not authenticated");
+    }
 
+    if (!password) {
+      throw new Error("Password is required to delete account");
+    }
+
+    try {
+      this.isLoading = true;
+      console.log("[MeService] Deleting current user account");
+
+      await this.makeMapleFileRequest("/me", {
+        method: "DELETE",
+        body: JSON.stringify({
+          password: password,
+        }),
+      });
+
+      // Clear cached user data
+      this.currentUser = null;
+      console.log("[MeService] User account deleted successfully");
+    } catch (error) {
+      console.error("[MeService] Failed to delete current user:", error);
       throw error;
     } finally {
       this.isLoading = false;
@@ -151,10 +217,13 @@ class MeService {
     if (this.currentUser.role) {
       // Simple role-based permission check
       switch (this.currentUser.role) {
-        case "admin":
-        case "root":
-          return true; // Admin has all permissions
-        case "user":
+        case 1: // Root
+          return true; // Root has all permissions
+        case 2: // Company
+          return ["read", "write", "upload", "download", "manage"].includes(
+            permission,
+          );
+        case 3: // Individual
           return ["read", "write", "upload", "download"].includes(permission);
         default:
           return false;
@@ -171,10 +240,9 @@ class MeService {
     }
 
     return (
-      this.currentUser.role === "admin" ||
-      this.currentUser.role === "root" ||
+      this.currentUser.role === 1 || // Root role
       this.currentUser.user_role === 1
-    ); // Root role from API
+    );
   }
 
   // Get user's subscription or plan information
@@ -222,45 +290,11 @@ class MeService {
     return await this.updateCurrentUser({ settings });
   }
 
-  // Change user password (if supported by API)
+  // Change user password (not implemented in backend yet)
   async changePassword(currentPassword, newPassword) {
-    if (!this.authService.isAuthenticated()) {
-      throw new Error("User not authenticated");
-    }
-
-    try {
-      console.log("[MeService] Changing user password");
-
-      const result = await this.apiClient.post("/me/change-password", {
-        current_password: currentPassword,
-        new_password: newPassword,
-      });
-
-      console.log("[MeService] Password changed successfully");
-      return result;
-    } catch (error) {
-      console.error("[MeService] Failed to change password:", error);
-      throw error;
-    }
-  }
-
-  // Get user activity or session information
-  async getUserActivity() {
-    if (!this.authService.isAuthenticated()) {
-      throw new Error("User not authenticated");
-    }
-
-    try {
-      console.log("[MeService] Fetching user activity");
-
-      const activity = await this.apiClient.get("/me/activity");
-
-      console.log("[MeService] User activity retrieved");
-      return activity;
-    } catch (error) {
-      console.error("[MeService] Failed to get user activity:", error);
-      throw error;
-    }
+    throw new Error(
+      "Password change functionality is not yet implemented in the backend",
+    );
   }
 
   // Get debug information

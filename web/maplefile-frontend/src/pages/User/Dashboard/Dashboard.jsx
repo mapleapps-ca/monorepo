@@ -437,8 +437,11 @@ const Dashboard = () => {
 
         {/* Actions */}
         <div>
-          <button onClick={handleLogout}>Logout</button>
-          <button onClick={() => window.location.reload()}>Refresh Page</button>
+          <button onClick={() => navigate("/me")}>👤 My Profile</button>
+          <button onClick={handleLogout}>🚪 Logout</button>
+          <button onClick={() => window.location.reload()}>
+            🔄 Refresh Page
+          </button>
         </div>
 
         {/* Footer Note */}

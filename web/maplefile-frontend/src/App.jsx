@@ -18,6 +18,7 @@ import CompleteLogin from "./pages/Anonymous/Login/CompleteLogin";
 
 // User pages
 import Dashboard from "./pages/User/Dashboard/Dashboard";
+import MeDetail from "./pages/User/Me/Detail";
 
 // import Profile from "./components/Profile";
 // import EmailVerification from "./components/EmailVerification";
@@ -55,6 +56,8 @@ function App() {
 
             {/* User routes */}
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/me" element={<MeDetail />} />
+            <Route path="/profile" element={<MeDetail />} />
 
             {/*
             <Route path="/verify-email" element={<EmailVerification />} />
