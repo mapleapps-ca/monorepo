@@ -5,6 +5,7 @@ import { useServices } from "../../../hooks/useService.jsx";
 import useAuth from "../../../hooks/useAuth.js";
 
 // Simple inline debug component
+// Simple inline debug component
 const TokenDebugComponent = () => {
   const { localStorageService, authService } = useServices();
   const [tokenInfo, setTokenInfo] = useState({});
@@ -14,12 +15,12 @@ const TokenDebugComponent = () => {
 
   const refreshTokenInfo = () => {
     const info = {
-      // Encrypted token system
-      encryptedTokens: localStorageService.getEncryptedTokens(),
-      tokenNonce: localStorageService.getTokenNonce(),
-      hasEncryptedTokens: !!(
-        localStorageService.getEncryptedTokens() &&
-        localStorageService.getTokenNonce()
+      // Unencrypted token system (ente.io style)
+      accessToken: localStorageService.getAccessToken(),
+      refreshToken: localStorageService.getRefreshToken(),
+      hasTokens: !!(
+        localStorageService.getAccessToken() &&
+        localStorageService.getRefreshToken()
       ),
 
       // Token expiry info
@@ -29,9 +30,11 @@ const TokenDebugComponent = () => {
       isAuthenticated: localStorageService.isAuthenticated(),
       userEmail: localStorageService.getUserEmail(),
 
-      // Legacy tokens (should be empty)
-      legacyAccessToken: localStorage.getItem("mapleapps_access_token"),
-      legacyRefreshToken: localStorage.getItem("mapleapps_refresh_token"),
+      // Show token previews (first 20 chars)
+      accessTokenPreview:
+        localStorageService.getAccessToken()?.substring(0, 20) + "...",
+      refreshTokenPreview:
+        localStorageService.getRefreshToken()?.substring(0, 20) + "...",
     };
     setTokenInfo(info);
   };
@@ -93,12 +96,12 @@ const TokenDebugComponent = () => {
       )}
 
       <div>
-        <h4>Encrypted Token Status</h4>
+        <h4>Token Status (Unencrypted - ente.io style)</h4>
         <div>
           <div>
-            <strong>Has Encrypted Tokens:</strong>
+            <strong>Has Tokens:</strong>
           </div>
-          <div>{tokenInfo.hasEncryptedTokens ? "✅ YES" : "❌ NO"}</div>
+          <div>{tokenInfo.hasTokens ? "✅ YES" : "❌ NO"}</div>
 
           <div>
             <strong>Is Authenticated:</strong>
@@ -121,6 +124,16 @@ const TokenDebugComponent = () => {
             <strong>Refresh Token Expired:</strong>
           </div>
           <div>{tokenInfo.refreshTokenExpired ? "❌ YES" : "✅ NO"}</div>
+
+          <div>
+            <strong>Access Token Preview:</strong>
+          </div>
+          <div>{tokenInfo.accessTokenPreview || "No token"}</div>
+
+          <div>
+            <strong>Refresh Token Preview:</strong>
+          </div>
+          <div>{tokenInfo.refreshTokenPreview || "No token"}</div>
         </div>
       </div>
 
@@ -134,7 +147,7 @@ const TokenDebugComponent = () => {
 
         <button
           onClick={testTokenRefresh}
-          disabled={isRefreshing || !tokenInfo.hasEncryptedTokens}
+          disabled={isRefreshing || !tokenInfo.hasTokens}
         >
           {isRefreshing ? "⏳ Refreshing..." : "🔄 Test Token Refresh"}
         </button>
