@@ -133,6 +133,35 @@ class AuthService {
 
       console.log("[AuthService] Complete login response:", response);
 
+      // Log the actual token data without truncation
+      if (response.encrypted_access_token) {
+        console.log(
+          "[AuthService] Full encrypted_access_token:",
+          response.encrypted_access_token,
+        );
+        console.log(
+          "[AuthService] encrypted_access_token first 50 chars:",
+          response.encrypted_access_token.substring(0, 50),
+        );
+        console.log(
+          "[AuthService] encrypted_access_token last 50 chars:",
+          response.encrypted_access_token.substring(
+            response.encrypted_access_token.length - 50,
+          ),
+        );
+      }
+
+      if (response.encrypted_refresh_token) {
+        console.log(
+          "[AuthService] Full encrypted_refresh_token:",
+          response.encrypted_refresh_token,
+        );
+      }
+
+      if (response.token_nonce) {
+        console.log("[AuthService] Full token_nonce:", response.token_nonce);
+      }
+
       // Handle encrypted tokens from backend - decrypt and store unencrypted
       if (
         (response.encrypted_access_token &&
@@ -141,6 +170,18 @@ class AuthService {
         (response.encrypted_tokens && response.token_nonce)
       ) {
         console.log("[AuthService] Received encrypted tokens - decrypting...");
+        console.log(
+          "[AuthService] Encrypted access token length:",
+          response.encrypted_access_token?.length,
+        );
+        console.log(
+          "[AuthService] Encrypted refresh token length:",
+          response.encrypted_refresh_token?.length,
+        );
+        console.log(
+          "[AuthService] Token nonce length:",
+          response.token_nonce?.length,
+        );
 
         // Check if we have session keys for decryption
         if (!LocalStorageService.hasSessionKeys()) {
@@ -153,6 +194,27 @@ class AuthService {
           response.encrypted_access_token &&
           response.encrypted_refresh_token
         ) {
+          // Validate encrypted tokens before attempting decryption
+          if (
+            !response.encrypted_access_token ||
+            !response.encrypted_refresh_token
+          ) {
+            throw new Error("Missing encrypted tokens in response");
+          }
+
+          if (
+            response.encrypted_access_token.includes("…") ||
+            response.encrypted_refresh_token.includes("…")
+          ) {
+            console.error(
+              "[AuthService] ERROR: Encrypted tokens appear to be truncated!",
+            );
+            console.error(
+              "This might be a console display issue or actual data truncation",
+            );
+            throw new Error("Encrypted tokens appear to be truncated");
+          }
+
           // Handle separate encrypted tokens
           console.log(
             "[AuthService] Decrypting separate access and refresh tokens",
@@ -170,15 +232,16 @@ class AuthService {
               response.token_nonce,
             );
 
+          // Handle both string and object responses
           decryptedTokens = {
             access_token:
               typeof accessTokenData === "string"
                 ? accessTokenData
-                : accessTokenData.access_token,
+                : accessTokenData.access_token || accessTokenData,
             refresh_token:
               typeof refreshTokenData === "string"
                 ? refreshTokenData
-                : refreshTokenData.refresh_token,
+                : refreshTokenData.refresh_token || refreshTokenData,
           };
         } else {
           // Handle single encrypted_tokens field containing both tokens
@@ -249,6 +312,7 @@ class AuthService {
     }
   }
 
+  // Real challenge decryption using CryptoService
   // Real challenge decryption using CryptoService
   async decryptChallenge(password, verifyData) {
     try {

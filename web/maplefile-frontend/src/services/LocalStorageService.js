@@ -279,21 +279,36 @@ class LocalStorageService {
       console.log(
         "[LocalStorageService] Decrypting tokens from login response",
       );
+      console.log(
+        "[LocalStorageService] Encrypted tokens length:",
+        encryptedTokensData?.length,
+      );
+      console.log(
+        "[LocalStorageService] Token nonce length:",
+        tokenNonce?.length,
+      );
 
       // Import the crypto service for decryption
       const { default: CryptoService } = await import("./CryptoService.js");
       await CryptoService.initialize();
 
-      // Decode the nonce and encrypted data
-      const nonce = CryptoService.base64ToUint8Array(tokenNonce);
-      const encryptedData =
-        CryptoService.base64ToUint8Array(encryptedTokensData);
+      // Decode the nonce and encrypted data using tryDecodeBase64 to handle different encoding variants
+      const nonce = CryptoService.tryDecodeBase64(tokenNonce);
+      const encryptedData = CryptoService.tryDecodeBase64(encryptedTokensData);
 
+      console.log("[LocalStorageService] Decoded nonce length:", nonce.length);
+      console.log(
+        "[LocalStorageService] Decoded encrypted data length:",
+        encryptedData.length,
+      );
       console.log("[LocalStorageService] Attempting token decryption...");
 
       // Try sealed box decryption first (anonymous encryption)
       let decryptedTokenData;
       try {
+        console.log(
+          "[LocalStorageService] Trying sealed box decryption with private key",
+        );
         decryptedTokenData = await CryptoService.decryptChallenge(
           encryptedData,
           this._sessionKeys.privateKey,
@@ -302,7 +317,11 @@ class LocalStorageService {
         console.log("[LocalStorageService] Tokens decrypted using sealed box");
       } catch (sealError) {
         console.log(
-          "[LocalStorageService] Sealed box failed, trying secretbox...",
+          "[LocalStorageService] Sealed box failed:",
+          sealError.message,
+        );
+        console.log(
+          "[LocalStorageService] Trying secretbox with master key...",
         );
 
         // Fallback: try secretbox decryption with master key
@@ -311,24 +330,69 @@ class LocalStorageService {
             encryptedData,
             this._sessionKeys.masterKey,
           );
-          console.log("[LocalStorageService] Tokens decrypted using secretbox");
+          console.log(
+            "[LocalStorageService] Tokens decrypted using secretbox with master key",
+          );
         } catch (secretError) {
-          console.error("[LocalStorageService] Both decryption methods failed");
-          throw new Error("Failed to decrypt tokens with available keys");
+          console.log(
+            "[LocalStorageService] Secretbox with master key failed:",
+            secretError.message,
+          );
+
+          // Try with KEK as another option
+          if (this._sessionKeys.keyEncryptionKey) {
+            try {
+              console.log("[LocalStorageService] Trying secretbox with KEK...");
+              decryptedTokenData = CryptoService.decryptWithSecretBox(
+                encryptedData,
+                this._sessionKeys.keyEncryptionKey,
+              );
+              console.log(
+                "[LocalStorageService] Tokens decrypted using secretbox with KEK",
+              );
+            } catch (kekError) {
+              console.error(
+                "[LocalStorageService] All decryption methods failed",
+              );
+              console.error("Sealed box error:", sealError.message);
+              console.error("Master key error:", secretError.message);
+              console.error("KEK error:", kekError.message);
+              throw new Error(
+                "Failed to decrypt tokens with any available keys",
+              );
+            }
+          } else {
+            console.error(
+              "[LocalStorageService] Both decryption methods failed",
+            );
+            throw new Error("Failed to decrypt tokens with available keys");
+          }
         }
       }
 
-      // Convert decrypted data to string and parse JSON
+      // Convert decrypted data to string
       const tokenString = new TextDecoder().decode(decryptedTokenData);
-      const tokenObj = JSON.parse(tokenString);
 
-      console.log("[LocalStorageService] Token decryption successful");
-      console.log(
-        "[LocalStorageService] Decrypted token object keys:",
-        Object.keys(tokenObj),
-      );
+      // Try to parse as JSON, but if it fails, assume it's a plain token string
+      let result;
+      try {
+        result = JSON.parse(tokenString);
+        console.log(
+          "[LocalStorageService] Token decryption successful (JSON format)",
+        );
+        console.log(
+          "[LocalStorageService] Decrypted token object keys:",
+          Object.keys(result),
+        );
+      } catch (parseError) {
+        // If JSON parsing fails, assume it's a plain token string
+        console.log(
+          "[LocalStorageService] Token decryption successful (plain string format)",
+        );
+        result = tokenString;
+      }
 
-      return tokenObj;
+      return result;
     } catch (error) {
       console.error("[LocalStorageService] Failed to decrypt tokens:", error);
       throw error;

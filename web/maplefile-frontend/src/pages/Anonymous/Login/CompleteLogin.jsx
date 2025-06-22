@@ -100,31 +100,33 @@ const CompleteLogin = () => {
       // Wait a moment for tokens to be fully stored
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Check if we have encrypted tokens (new system)
-      const encryptedTokens = localStorageService.getEncryptedTokens();
-      const tokenNonce = localStorageService.getTokenNonce();
+      // Check if we have unencrypted tokens (ente.io style)
+      const accessToken = localStorageService.getAccessToken();
+      const refreshToken = localStorageService.getRefreshToken();
 
       console.log("[CompleteLogin] Stored tokens check:");
-      console.log("- Encrypted tokens exist:", !!encryptedTokens);
-      console.log("- Token nonce exists:", !!tokenNonce);
+      console.log("- Access token exists:", !!accessToken);
+      console.log("- Refresh token exists:", !!refreshToken);
 
-      if (encryptedTokens && tokenNonce) {
+      if (accessToken) {
         console.log(
-          "- Encrypted tokens preview:",
-          encryptedTokens.substring(0, 30) + "...",
+          "- Access token preview:",
+          accessToken.substring(0, 30) + "...",
         );
       }
 
-      // For encrypted tokens, we just need to verify they exist
-      const hasTokens = !!(encryptedTokens && tokenNonce);
+      // For unencrypted tokens, verify both tokens exist
+      const hasTokens = !!(accessToken && refreshToken);
 
       if (hasTokens) {
         console.log(
-          "[CompleteLogin] Encrypted tokens found, navigating to dashboard...",
+          "[CompleteLogin] Unencrypted tokens found, navigating to dashboard...",
         );
         navigate("/dashboard", { replace: true });
       } else {
-        console.error("[CompleteLogin] No encrypted tokens found after login");
+        console.error(
+          "[CompleteLogin] No authentication tokens found after login",
+        );
         setError(
           "Login completed but no authentication tokens were received. Please try again.",
         );
@@ -229,8 +231,8 @@ const CompleteLogin = () => {
               <p>⚠️ Your encryption parameters will be upgraded after login</p>
             )}
             <p>
-              <strong>Token System:</strong> Encrypted tokens with client-side
-              decryption
+              <strong>Token System:</strong> Unencrypted tokens stored locally
+              (ente.io style)
             </p>
           </div>
         </div>
@@ -250,9 +252,10 @@ const CompleteLogin = () => {
             <li>No passwords or private keys are ever sent to the server</li>
             <li>All decryption happens locally in your browser</li>
             <li>
-              <strong>NEW:</strong> Authentication tokens are encrypted
-              end-to-end
+              Authentication tokens are decrypted during login and stored
+              unencrypted locally (like ente.io)
             </li>
+            <li>Automatic background token refresh maintains your session</li>
           </ul>
         </div>
 
