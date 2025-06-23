@@ -20,10 +20,9 @@ import CompleteLogin from "./pages/Anonymous/Login/CompleteLogin";
 import Dashboard from "./pages/User/Dashboard/Dashboard";
 import MeDetail from "./pages/User/Me/Detail";
 
-// import Profile from "./components/Profile";
-// import EmailVerification from "./components/EmailVerification";
-// import RegistrationSuccess from "./components/RegistrationSuccess";
-// import ProtectedRoute from "./components/ProtectedRoute";
+// Collection pages
+import CollectionList from "./pages/User/Collection/List";
+// import CollectionDetail from "./pages/User/Collection/Detail";
 
 // Main App component
 function App() {
@@ -58,6 +57,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/me" element={<MeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
+            <Route path="/collections" element={<CollectionList />} />
 
             {/*
             <Route path="/verify-email" element={<EmailVerification />} />
