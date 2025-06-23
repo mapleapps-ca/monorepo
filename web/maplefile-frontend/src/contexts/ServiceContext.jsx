@@ -8,6 +8,7 @@ import LocalStorageService from "../services/LocalStorageService.js";
 import ApiClient from "../services/ApiClient.js";
 import WorkerManager from "../services/WorkerManager.js";
 import CollectionService from "../services/CollectionService.js";
+import FileService from "../services/FileService.js";
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -32,6 +33,7 @@ export function ServiceProvider({ children }) {
     apiClient: ApiClient,
     workerManager: WorkerManager,
     collectionService: CollectionService,
+    fileService: FileService,
 
     // Services that need dependency injection
     meService,
