@@ -15,7 +15,7 @@ const TokenDebugComponent = () => {
 
   const refreshTokenInfo = () => {
     const info = {
-      // Unencrypted token system (ente.io style)
+      // Unencrypted token system
       accessToken: localStorageService.getAccessToken(),
       refreshToken: localStorageService.getRefreshToken(),
       hasTokens: !!(
@@ -96,7 +96,7 @@ const TokenDebugComponent = () => {
       )}
 
       <div>
-        <h4>Token Status (Unencrypted - ente.io style)</h4>
+        <h4>Token Status (Unencrypted)</h4>
         <div>
           <div>
             <strong>Has Tokens:</strong>

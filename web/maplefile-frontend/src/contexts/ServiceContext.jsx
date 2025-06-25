@@ -1,9 +1,10 @@
-// Service Context with Dependency Injection for all authentication services
+// Updated ServiceContext.jsx with CollectionCryptoService
 import React, { createContext, useEffect } from "react";
 import AuthService from "../services/AuthService.js";
 import MeService from "../services/MeService.js";
 import TokenService from "../services/TokenService.js";
 import CryptoService from "../services/CryptoService.js";
+import CollectionCryptoService from "../services/CollectionCryptoService.js";
 import LocalStorageService from "../services/LocalStorageService.js";
 import ApiClient from "../services/ApiClient.js";
 import WorkerManager from "../services/WorkerManager.js";
@@ -29,6 +30,7 @@ export function ServiceProvider({ children }) {
     // Core services (singletons)
     authService: AuthService,
     cryptoService: CryptoService,
+    collectionCryptoService: CollectionCryptoService,
     localStorageService: LocalStorageService,
     apiClient: ApiClient,
     workerManager: WorkerManager,
@@ -49,6 +51,10 @@ export function ServiceProvider({ children }) {
         // Initialize crypto service
         await CryptoService.initialize();
         console.log("[ServiceProvider] CryptoService initialized");
+
+        // Initialize collection crypto service
+        await CollectionCryptoService.initialize();
+        console.log("[ServiceProvider] CollectionCryptoService initialized");
 
         // Initialize worker manager (this will also initialize the auth worker)
         try {
@@ -121,6 +127,10 @@ export function ServiceProvider({ children }) {
       console.log(
         "[ServiceProvider] CryptoService ready:",
         CryptoService.isInitialized,
+      );
+      console.log(
+        "[ServiceProvider] CollectionCryptoService ready:",
+        CollectionCryptoService.isInitialized,
       );
       console.log(
         "[ServiceProvider] AuthService authenticated:",

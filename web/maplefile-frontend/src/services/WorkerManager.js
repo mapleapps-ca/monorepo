@@ -1,4 +1,4 @@
-// Worker Manager - Updated for Unencrypted Token System (ente.io style)
+// Worker Manager - Updated for Unencrypted Token System
 import LocalStorageService from "./LocalStorageService.js";
 
 class WorkerManager {

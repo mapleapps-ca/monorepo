@@ -1,4 +1,4 @@
-// API Client with unencrypted token support (ente.io style)
+// API Client with unencrypted token support
 import LocalStorageService from "./LocalStorageService.js";
 
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config

@@ -1,4 +1,4 @@
-// Local Storage Service for managing unencrypted authentication tokens (ente.io style)
+// Local Storage Service for managing unencrypted authentication tokens
 const LOCAL_STORAGE_KEYS = {
   ACCESS_TOKEN: "mapleapps_access_token",
   REFRESH_TOKEN: "mapleapps_refresh_token",

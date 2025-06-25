@@ -1,4 +1,4 @@
-// Authentication Service for API calls - Updated for Unencrypted Token Storage (ente.io style)
+// Authentication Service for API calls - Updated for Unencrypted Token Storage
 import LocalStorageService from "./LocalStorageService.js";
 import CryptoService from "./CryptoService.js";
 import WorkerManager from "./WorkerManager.js";
@@ -291,7 +291,19 @@ class AuthService {
 
       // Clear login session data and session keys (no longer needed)
       LocalStorageService.clearAllLoginSessionData();
-      LocalStorageService.clearSessionKeys();
+      // LocalStorageService.clearSessionKeys();
+      //
+      console.log(
+        "[CompleteLogin] Preserving session keys for collection encryption",
+      );
+
+      // Log that we're keeping the keys
+      const sessionKeys = LocalStorageService.getSessionKeys();
+      if (sessionKeys.masterKey && sessionKeys.privateKey) {
+        console.log(
+          "[CompleteLogin] Session keys preserved for E2EE operations",
+        );
+      }
 
       // Clean up any old encrypted token data
       LocalStorageService.cleanupEncryptedTokenData();
@@ -600,6 +612,7 @@ class AuthService {
     // Clear all authentication data
     LocalStorageService.clearAuthData();
     LocalStorageService.clearAllLoginSessionData();
+    LocalStorageService.clearSessionKeys();
   }
 
   // Check if user is authenticated

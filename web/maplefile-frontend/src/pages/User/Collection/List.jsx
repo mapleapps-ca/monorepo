@@ -1,900 +1,449 @@
-import React, { useState, useEffect, useCallback } from "react";
+// Updated pages/User/Collection/List.jsx
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
 import useAuth from "../../../hooks/useAuth.js";
 
-const CollectionsList = () => {
+const CollectionList = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { collectionService } = useServices();
   const { isAuthenticated } = useAuth();
 
-  // State management
-  const [ownedCollections, setOwnedCollections] = useState([]);
+  // State
+  const [collections, setCollections] = useState([]);
   const [sharedCollections, setSharedCollections] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'list'
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [filter, setFilter] = useState("all"); // all, owned, shared
 
-  // Client-side pagination (API endpoints don't support server-side pagination for rich data)
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
-
-  // Filter state - only what's supported by GET /collections/filtered
-  const [includeOwned, setIncludeOwned] = useState(true);
-  const [includeShared, setIncludeShared] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all"); // 'all', 'folder', 'album'
-
-  // Load collections using GET /collections/filtered
-  const loadCollections = useCallback(async () => {
-    if (!isAuthenticated) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // API: GET /collections/filtered?include_owned={bool}&include_shared={bool}
-      const response = await collectionService.getFilteredCollections(
-        includeOwned,
-        includeShared,
-      );
-
-      console.log("Collections API response:", response);
-
-      // Validate response structure
-      const ownedData = response.owned_collections || [];
-      const sharedData = response.shared_collections || [];
-
-      // Log any collections missing IDs for debugging
-      ownedData.forEach((collection, index) => {
-        if (!collection || !collection.id) {
-          console.warn(
-            `Owned collection at index ${index} missing ID:`,
-            collection,
-          );
-        }
-      });
-
-      sharedData.forEach((collection, index) => {
-        if (!collection || !collection.id) {
-          console.warn(
-            `Shared collection at index ${index} missing ID:`,
-            collection,
-          );
-        }
-      });
-
-      setOwnedCollections(ownedData);
-      setSharedCollections(sharedData);
-    } catch (err) {
-      console.error("Failed to load collections:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [collectionService, isAuthenticated, includeOwned, includeShared]);
-
-  // Refresh collections
-  const refresh = useCallback(() => {
-    setCurrentPage(1);
-    loadCollections();
-  }, [loadCollections]);
-
-  // Initial load and when filters change
+  // Load collections on mount
   useEffect(() => {
     if (isAuthenticated) {
-      refresh();
+      loadCollections();
+    } else {
+      navigate("/login");
     }
-  }, [isAuthenticated, includeOwned, includeShared, refresh]);
+  }, [isAuthenticated]);
 
-  // Combine and filter collections (client-side since API doesn't support filtering)
-  const allCollections = [...ownedCollections, ...sharedCollections].filter(
-    (collection) => collection && collection.id, // Only include collections with valid IDs
-  );
-
-  const filteredCollections = allCollections.filter((collection) => {
-    // Safety check
-    if (!collection || !collection.id) {
-      return false;
+  // Handle success message from navigation state
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      // Clear the message after 5 seconds
+      const timer = setTimeout(() => {
+        setSuccessMessage("");
+      }, 5000);
+      return () => clearTimeout(timer);
     }
+  }, [location.state]);
 
-    // Collection type filter (API supports 'folder' and 'album')
-    if (typeFilter !== "all" && collection.collection_type !== typeFilter) {
-      return false;
-    }
-
-    // Search filter (client-side since API doesn't support search)
-    if (
-      searchTerm &&
-      collection.encrypted_name &&
-      !collection.encrypted_name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
-    ) {
-      return false;
-    }
-
-    return true;
-  });
-
-  // Client-side pagination
-  const totalPages = Math.ceil(filteredCollections.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedCollections = filteredCollections.slice(startIndex, endIndex);
-
-  // Collection actions - using exact API endpoints
-  const handleDelete = async (collectionId) => {
-    if (!collectionId) {
-      console.error("Cannot delete collection: missing ID");
-      return;
-    }
-
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this collection? This action will soft-delete the collection, making it recoverable for 30 days.",
-      )
-    ) {
-      return;
-    }
-
+  // Load collections based on filter
+  const loadCollections = async () => {
     try {
       setLoading(true);
-      // API: DELETE /collections/{collection_id}
-      await collectionService.deleteCollection(collectionId);
-      refresh(); // Reload to reflect changes
+      setError("");
+
+      console.log("[CollectionList] Loading collections...");
+
+      const result = await collectionService.getFilteredCollections(true, true);
+
+      setCollections(result.owned_collections || []);
+      setSharedCollections(result.shared_collections || []);
+
+      console.log("[CollectionList] Collections loaded:", {
+        owned: result.owned_collections?.length || 0,
+        shared: result.shared_collections?.length || 0,
+      });
     } catch (err) {
-      console.error("Failed to delete collection:", err);
-      alert(`Failed to delete collection: ${err.message}`);
+      console.error("[CollectionList] Failed to load collections:", err);
+
+      // Handle specific error cases
+      if (err.message.includes("User encryption keys not available")) {
+        setError(
+          "Encryption keys not available. Please log out and log in again.",
+        );
+      } else {
+        setError(err.message || "Failed to load collections");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleArchive = async (collectionId) => {
-    if (!collectionId) {
-      console.error("Cannot archive collection: missing ID");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      // API: POST /collections/{collection_id}/archive
-      await collectionService.archiveCollection(collectionId);
-      refresh(); // Reload to reflect changes
-    } catch (err) {
-      console.error("Failed to archive collection:", err);
-      alert(`Failed to archive collection: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRestore = async (collectionId) => {
-    if (!collectionId) {
-      console.error("Cannot restore collection: missing ID");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      // API: POST /collections/{collection_id}/restore
-      await collectionService.restoreCollection(collectionId);
-      refresh(); // Reload to reflect changes
-    } catch (err) {
-      console.error("Failed to restore collection:", err);
-      alert(`Failed to restore collection: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Get icon for collection type (API documentation specifies 'folder' and 'album')
-  const getCollectionIcon = (collection) => {
-    switch (collection.collection_type) {
-      case "album":
-        return "🖼️"; // Album for photo/media collections
-      case "folder":
-        return "📁"; // Folder for organizing files
+  // Get filtered collections based on current filter
+  const getFilteredCollections = () => {
+    switch (filter) {
+      case "owned":
+        return collections;
+      case "shared":
+        return sharedCollections;
+      case "all":
       default:
-        return "📄"; // Default for unknown types
+        return [...collections, ...sharedCollections];
     }
   };
 
-  // Determine collection ownership
-  const isOwnedCollection = (collection) => {
-    if (!collection || !collection.id) return false;
-    return ownedCollections.some(
-      (owned) => owned && owned.id === collection.id,
-    );
+  // Handle collection click
+  const handleCollectionClick = (collection) => {
+    // Navigate to collection detail page
+    console.log("[CollectionList] Opening collection:", collection.id);
+    // navigate(`/collections/${collection.id}`);
   };
 
-  // Get ownership badge
-  const getOwnershipBadge = (collection) => {
-    return isOwnedCollection(collection) ? (
-      <span style={{ color: "blue", fontSize: "11px" }}>👤 Owned</span>
-    ) : (
-      <span style={{ color: "purple", fontSize: "11px" }}>🤝 Shared</span>
-    );
+  // Handle delete collection
+  const handleDeleteCollection = async (collectionId, collectionName) => {
+    if (
+      !window.confirm(`Are you sure you want to delete "${collectionName}"?`)
+    ) {
+      return;
+    }
+
+    try {
+      await collectionService.deleteCollection(collectionId);
+      setSuccessMessage(`Collection "${collectionName}" deleted successfully`);
+      // Reload collections
+      await loadCollections();
+    } catch (err) {
+      console.error("[CollectionList] Failed to delete collection:", err);
+      setError(err.message || "Failed to delete collection");
+    }
   };
 
-  // Handle page changes
-  const goToPage = (page) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-  };
+  // Render collection item
+  const renderCollectionItem = (collection) => {
+    const isOwned =
+      collection.owner_id ===
+      collections.find((c) => c.id === collection.id)?.owner_id;
+    const hasDecryptError = collection.decrypt_error;
 
-  if (!isAuthenticated) {
     return (
-      <div>
-        <h2>Collections</h2>
-        <p>Please log in to view your collections.</p>
+      <div key={collection.id} style={styles.collectionItem}>
+        <div
+          style={styles.collectionInfo}
+          onClick={() => handleCollectionClick(collection)}
+        >
+          <div style={styles.collectionIcon}>
+            {collection.collection_type === "album" ? "🖼️" : "📁"}
+          </div>
+          <div style={styles.collectionDetails}>
+            <h3 style={styles.collectionName}>
+              {collection.name}
+              {hasDecryptError && " 🔒"}
+            </h3>
+            <div style={styles.collectionMeta}>
+              <span>{collection.collection_type}</span>
+              <span> • </span>
+              <span>{isOwned ? "Owned" : "Shared"}</span>
+              <span> • </span>
+              <span>
+                Modified:{" "}
+                {new Date(collection.modified_at).toLocaleDateString()}
+              </span>
+            </div>
+            {hasDecryptError && (
+              <div style={styles.decryptError}>
+                Unable to decrypt: {collection.decrypt_error}
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={styles.collectionActions}>
+          {isOwned && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteCollection(collection.id, collection.name);
+              }}
+              style={styles.deleteButton}
+            >
+              🗑️
+            </button>
+          )}
+        </div>
       </div>
     );
-  }
+  };
+
+  const filteredCollections = getFilteredCollections();
 
   return (
-    <div style={{ padding: "20px" }}>
-      <div>
+    <div style={styles.container}>
+      <div style={styles.header}>
         <h1>My Collections</h1>
-
-        {/* Controls - strictly following API capabilities */}
-        <div
-          style={{
-            marginBottom: "20px",
-            padding: "15px",
-            border: "1px solid #ddd",
-            borderRadius: "5px",
-          }}
+        <button
+          onClick={() => navigate("/dashboard")}
+          style={styles.backButton}
         >
-          <div
+          ← Back to Dashboard
+        </button>
+      </div>
+
+      {successMessage && (
+        <div style={styles.successMessage}>✅ {successMessage}</div>
+      )}
+
+      {error && <div style={styles.errorMessage}>❌ {error}</div>}
+
+      <div style={styles.toolbar}>
+        <div style={styles.filterButtons}>
+          <button
+            onClick={() => setFilter("all")}
             style={{
-              display: "flex",
-              gap: "15px",
-              alignItems: "center",
-              flexWrap: "wrap",
-              marginBottom: "15px",
+              ...styles.filterButton,
+              ...(filter === "all" ? styles.filterButtonActive : {}),
             }}
           >
-            {/* View mode toggle */}
-            <div>
-              <label>
-                <strong>View: </strong>
-              </label>
-              <select
-                value={viewMode}
-                onChange={(e) => setViewMode(e.target.value)}
-              >
-                <option value="grid">📋 Grid</option>
-                <option value="list">📄 List</option>
-              </select>
-            </div>
-
-            {/* Collection source - API: GET /collections/filtered parameters */}
-            <div>
-              <label>
-                <strong>Include: </strong>
-              </label>
-              <label style={{ marginLeft: "5px" }}>
-                <input
-                  type="checkbox"
-                  checked={includeOwned}
-                  onChange={(e) => setIncludeOwned(e.target.checked)}
-                />
-                Owned Collections
-              </label>
-              <label style={{ marginLeft: "10px" }}>
-                <input
-                  type="checkbox"
-                  checked={includeShared}
-                  onChange={(e) => setIncludeShared(e.target.checked)}
-                />
-                Shared Collections
-              </label>
-            </div>
-
-            {/* Collection type filter - API supports 'folder' and 'album' */}
-            <div>
-              <label>
-                <strong>Type: </strong>
-              </label>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-              >
-                <option value="all">All Types</option>
-                <option value="folder">📁 Folders</option>
-                <option value="album">🖼️ Albums</option>
-              </select>
-            </div>
-
-            {/* Page size */}
-            <div>
-              <label>
-                <strong>Per page: </strong>
-              </label>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-              >
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-            </div>
-          </div>
-
-          <div
+            All ({collections.length + sharedCollections.length})
+          </button>
+          <button
+            onClick={() => setFilter("owned")}
             style={{
-              display: "flex",
-              gap: "15px",
-              alignItems: "center",
-              flexWrap: "wrap",
+              ...styles.filterButton,
+              ...(filter === "owned" ? styles.filterButtonActive : {}),
             }}
           >
-            {/* Client-side search (API doesn't provide search capability) */}
-            <div>
-              <label>
-                <strong>Search: </strong>
-              </label>
-              <input
-                type="text"
-                placeholder="Search collection names..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ width: "200px", padding: "5px" }}
-              />
-              <small style={{ marginLeft: "5px", color: "#666" }}>
-                (client-side filter)
-              </small>
-            </div>
-
-            {/* Refresh button */}
-            <button onClick={refresh} disabled={loading}>
-              {loading ? "⏳ Loading..." : "🔄 Refresh"}
-            </button>
-          </div>
+            Owned ({collections.length})
+          </button>
+          <button
+            onClick={() => setFilter("shared")}
+            style={{
+              ...styles.filterButton,
+              ...(filter === "shared" ? styles.filterButtonActive : {}),
+            }}
+          >
+            Shared ({sharedCollections.length})
+          </button>
         </div>
 
-        {/* Error display */}
-        {error && (
-          <div
-            style={{
-              backgroundColor: "#fee",
-              border: "1px solid #fcc",
-              padding: "15px",
-              marginBottom: "20px",
-              borderRadius: "5px",
-            }}
-          >
-            <strong>❌ Error:</strong> {error}
-            <button onClick={refresh} style={{ marginLeft: "10px" }}>
-              🔄 Retry
+        <button
+          onClick={() => navigate("/collections/create")}
+          style={styles.createButton}
+        >
+          + Create Collection
+        </button>
+      </div>
+
+      <div style={styles.content}>
+        {loading ? (
+          <div style={styles.loading}>
+            <p>Loading collections...</p>
+            <p>Decrypting collection names...</p>
+          </div>
+        ) : filteredCollections.length === 0 ? (
+          <div style={styles.empty}>
+            <p>No collections found.</p>
+            <button
+              onClick={() => navigate("/collections/create")}
+              style={styles.createButton}
+            >
+              Create Your First Collection
             </button>
-          </div>
-        )}
-
-        {/* Collection count and pagination info */}
-        {filteredCollections.length > 0 && (
-          <div
-            style={{ marginBottom: "15px", fontSize: "14px", color: "#666" }}
-          >
-            Showing {startIndex + 1}-
-            {Math.min(endIndex, filteredCollections.length)} of{" "}
-            {filteredCollections.length} collections
-            {totalPages > 1 && (
-              <span>
-                {" "}
-                • Page {currentPage} of {totalPages}
-              </span>
-            )}
-            {searchTerm && <span> • Filtered by: "{searchTerm}"</span>}
-          </div>
-        )}
-
-        {/* Collections display */}
-        {viewMode === "grid" ? (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
-              gap: "20px",
-              marginBottom: "20px",
-            }}
-          >
-            {paginatedCollections
-              .map((collection, index) => {
-                // Safety check for collection data
-                if (!collection || !collection.id) {
-                  console.warn(
-                    "Skipping invalid collection at index",
-                    index,
-                    ":",
-                    collection,
-                  );
-                  return null;
-                }
-
-                const collectionId = collection.id;
-
-                return (
-                  <div
-                    key={collectionId}
-                    style={{
-                      border: "1px solid #ddd",
-                      padding: "15px",
-                      borderRadius: "8px",
-                      backgroundColor: "#fafafa",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "48px",
-                        textAlign: "center",
-                        marginBottom: "10px",
-                      }}
-                    >
-                      {getCollectionIcon(collection)}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: "bold",
-                        marginBottom: "8px",
-                        textAlign: "center",
-                      }}
-                    >
-                      {collection.encrypted_name || "Untitled Collection"}
-                    </div>
-                    <div style={{ fontSize: "12px", marginBottom: "5px" }}>
-                      <strong>Type:</strong>{" "}
-                      {collection.collection_type || "unknown"}
-                    </div>
-                    <div style={{ fontSize: "12px", marginBottom: "5px" }}>
-                      {getOwnershipBadge(collection)}
-                    </div>
-                    {collection.created_at && (
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          color: "#666",
-                          marginBottom: "5px",
-                        }}
-                      >
-                        <strong>Created:</strong>{" "}
-                        {new Date(collection.created_at).toLocaleDateString()}
-                      </div>
-                    )}
-                    {collection.modified_at && (
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          color: "#666",
-                          marginBottom: "10px",
-                        }}
-                      >
-                        <strong>Modified:</strong>{" "}
-                        {new Date(collection.modified_at).toLocaleDateString()}
-                      </div>
-                    )}
-                    {collection.members && collection.members.length > 0 && (
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          color: "#666",
-                          marginBottom: "10px",
-                        }}
-                      >
-                        👥 {collection.members.length} member
-                        {collection.members.length !== 1 ? "s" : ""}
-                      </div>
-                    )}
-                    {collection.parent_id && (
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          color: "#666",
-                          marginBottom: "10px",
-                        }}
-                      >
-                        📂 Has parent folder
-                      </div>
-                    )}
-
-                    {/* Actions - API-defined endpoints */}
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "5px",
-                        flexWrap: "wrap",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <button
-                        onClick={() => handleArchive(collectionId)}
-                        style={{ fontSize: "11px", padding: "4px 8px" }}
-                        title="Archive collection (make read-only)"
-                        disabled={loading}
-                      >
-                        📦 Archive
-                      </button>
-                      <button
-                        onClick={() => handleRestore(collectionId)}
-                        style={{ fontSize: "11px", padding: "4px 8px" }}
-                        title="Restore archived collection to active state"
-                        disabled={loading}
-                      >
-                        🔄 Restore
-                      </button>
-                      <button
-                        onClick={() => handleDelete(collectionId)}
-                        style={{
-                          fontSize: "11px",
-                          padding: "4px 8px",
-                          color: "red",
-                        }}
-                        title="Soft delete (recoverable for 30 days)"
-                        disabled={loading}
-                      >
-                        🗑️ Delete
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-              .filter(Boolean)}
           </div>
         ) : (
-          <div style={{ marginBottom: "20px" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                border: "1px solid #ddd",
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    backgroundColor: "#f5f5f5",
-                    borderBottom: "2px solid #ddd",
-                  }}
-                >
-                  <th
-                    style={{ textAlign: "left", padding: "12px", width: "30%" }}
-                  >
-                    Name
-                  </th>
-                  <th
-                    style={{ textAlign: "left", padding: "12px", width: "10%" }}
-                  >
-                    Type
-                  </th>
-                  <th
-                    style={{ textAlign: "left", padding: "12px", width: "10%" }}
-                  >
-                    Ownership
-                  </th>
-                  <th
-                    style={{ textAlign: "left", padding: "12px", width: "8%" }}
-                  >
-                    Members
-                  </th>
-                  <th
-                    style={{ textAlign: "left", padding: "12px", width: "12%" }}
-                  >
-                    Created
-                  </th>
-                  <th
-                    style={{ textAlign: "left", padding: "12px", width: "12%" }}
-                  >
-                    Modified
-                  </th>
-                  <th
-                    style={{
-                      textAlign: "center",
-                      padding: "12px",
-                      width: "18%",
-                    }}
-                  >
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedCollections
-                  .map((collection, index) => {
-                    // Safety check for collection data
-                    if (!collection || !collection.id) {
-                      console.warn(
-                        "Skipping invalid collection in table at index",
-                        index,
-                        ":",
-                        collection,
-                      );
-                      return null;
-                    }
-
-                    const collectionId = collection.id;
-
-                    return (
-                      <tr
-                        key={collectionId}
-                        style={{ borderBottom: "1px solid #eee" }}
-                      >
-                        <td
-                          style={{ padding: "12px", verticalAlign: "middle" }}
-                        >
-                          <div
-                            style={{ display: "flex", alignItems: "center" }}
-                          >
-                            <span
-                              style={{ marginRight: "10px", fontSize: "20px" }}
-                            >
-                              {getCollectionIcon(collection)}
-                            </span>
-                            <div>
-                              <div style={{ fontWeight: "bold" }}>
-                                {collection.encrypted_name ||
-                                  "Untitled Collection"}
-                              </div>
-                              {collection.parent_id && (
-                                <div
-                                  style={{ fontSize: "10px", color: "#999" }}
-                                >
-                                  📂 Nested collection
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td
-                          style={{ padding: "12px", verticalAlign: "middle" }}
-                        >
-                          {collection.collection_type || "unknown"}
-                        </td>
-                        <td
-                          style={{ padding: "12px", verticalAlign: "middle" }}
-                        >
-                          {getOwnershipBadge(collection)}
-                        </td>
-                        <td
-                          style={{ padding: "12px", verticalAlign: "middle" }}
-                        >
-                          {collection.members ? collection.members.length : 0}
-                        </td>
-                        <td
-                          style={{ padding: "12px", verticalAlign: "middle" }}
-                        >
-                          {collection.created_at
-                            ? new Date(
-                                collection.created_at,
-                              ).toLocaleDateString()
-                            : "—"}
-                        </td>
-                        <td
-                          style={{ padding: "12px", verticalAlign: "middle" }}
-                        >
-                          {collection.modified_at
-                            ? new Date(
-                                collection.modified_at,
-                              ).toLocaleDateString()
-                            : "—"}
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px",
-                            textAlign: "center",
-                            verticalAlign: "middle",
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: "5px",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <button
-                              onClick={() => handleArchive(collectionId)}
-                              style={{ fontSize: "11px", padding: "4px 6px" }}
-                              title="Archive"
-                              disabled={loading}
-                            >
-                              📦
-                            </button>
-                            <button
-                              onClick={() => handleRestore(collectionId)}
-                              style={{ fontSize: "11px", padding: "4px 6px" }}
-                              title="Restore"
-                              disabled={loading}
-                            >
-                              🔄
-                            </button>
-                            <button
-                              onClick={() => handleDelete(collectionId)}
-                              style={{
-                                fontSize: "11px",
-                                padding: "4px 6px",
-                                color: "red",
-                              }}
-                              title="Delete"
-                              disabled={loading}
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                  .filter(Boolean)}
-              </tbody>
-            </table>
+          <div style={styles.collectionsList}>
+            {filteredCollections.map(renderCollectionItem)}
           </div>
         )}
-
-        {/* Loading indicator */}
-        {loading && (
-          <div style={{ textAlign: "center", padding: "40px" }}>
-            <div style={{ fontSize: "24px", marginBottom: "10px" }}>⏳</div>
-            <div>Loading collections...</div>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!loading && filteredCollections.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px" }}>
-            <div style={{ fontSize: "64px", marginBottom: "20px" }}>📁</div>
-            <h3>No collections found</h3>
-            {!includeOwned && !includeShared ? (
-              <p>
-                Please select at least one collection source (Owned or Shared
-                Collections).
-              </p>
-            ) : searchTerm || typeFilter !== "all" ? (
-              <p>No collections match your current filters.</p>
-            ) : (
-              <p>You don't have any collections yet.</p>
-            )}
-            {(searchTerm || typeFilter !== "all") && (
-              <button
-                onClick={() => {
-                  setSearchTerm("");
-                  setTypeFilter("all");
-                  setCurrentPage(1);
-                }}
-              >
-                Clear filters
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Client-side pagination controls */}
-        {!loading && totalPages > 1 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: "10px",
-              padding: "20px",
-              borderTop: "1px solid #eee",
-            }}
-          >
-            <button
-              onClick={() => goToPage(1)}
-              disabled={currentPage === 1}
-              title="First page"
-            >
-              ⏮️
-            </button>
-            <button
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 1}
-              title="Previous page"
-            >
-              ⬅️ Prev
-            </button>
-
-            <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
-              {/* Show page numbers */}
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => goToPage(pageNum)}
-                    style={{
-                      backgroundColor:
-                        currentPage === pageNum ? "#007bff" : "white",
-                      color: currentPage === pageNum ? "white" : "black",
-                      border: "1px solid #ddd",
-                      padding: "8px 12px",
-                      fontSize: "14px",
-                    }}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              title="Next page"
-            >
-              Next ➡️
-            </button>
-            <button
-              onClick={() => goToPage(totalPages)}
-              disabled={currentPage === totalPages}
-              title="Last page"
-            >
-              ⏭️
-            </button>
-
-            <div
-              style={{ marginLeft: "15px", fontSize: "14px", color: "#666" }}
-            >
-              Page {currentPage} of {totalPages}
-            </div>
-          </div>
-        )}
-
-        {/* API Compliance Footer */}
-        <div
-          style={{
-            marginTop: "20px",
-            padding: "15px",
-            backgroundColor: "#f8f9fa",
-            borderRadius: "5px",
-            border: "1px solid #e9ecef",
-          }}
-        >
-          <div style={{ fontSize: "12px", color: "#666" }}>
-            <strong>📡 API Endpoints Used:</strong>
-            <ul style={{ margin: "5px 0", paddingLeft: "20px" }}>
-              <li>
-                <strong>GET /collections/filtered</strong> - Main data source
-                with include_owned/include_shared parameters
-              </li>
-              <li>
-                <strong>DELETE /collections/{"{collection_id}"}</strong> - Soft
-                delete (30-day recovery)
-              </li>
-              <li>
-                <strong>POST /collections/{"{collection_id}"}/archive</strong> -
-                Make collection read-only
-              </li>
-              <li>
-                <strong>POST /collections/{"{collection_id}"}/restore</strong> -
-                Restore archived collection to active state
-              </li>
-            </ul>
-            <div style={{ marginTop: "10px" }}>
-              <strong>Data Available:</strong> id, owner_id, encrypted_name,
-              collection_type, parent_id, ancestor_ids, created_at, modified_at,
-              members
-            </div>
-          </div>
-        </div>
       </div>
+
+      <div style={styles.info}>
+        <h3>🔐 Encryption Status</h3>
+        <p>
+          All collection names are encrypted end-to-end. Only you can decrypt
+          your collection names.
+          {sharedCollections.length > 0 && (
+            <span>
+              {" "}
+              Shared collections are decrypted using keys shared with you by
+              their owners.
+            </span>
+          )}
+        </p>
+      </div>
+
+      {/* Debug info in development */}
+      {import.meta.env.DEV && (
+        <details style={styles.debug}>
+          <summary>🔍 Debug Information</summary>
+          <div>
+            <h4>Collections State:</h4>
+            <pre>
+              {JSON.stringify(
+                {
+                  ownedCount: collections.length,
+                  sharedCount: sharedCollections.length,
+                  filter,
+                  loading,
+                  error,
+                },
+                null,
+                2,
+              )}
+            </pre>
+
+            <h4>Sample Collection (if any):</h4>
+            <pre>
+              {JSON.stringify(collections[0] || sharedCollections[0], null, 2)}
+            </pre>
+          </div>
+        </details>
+      )}
     </div>
   );
 };
 
-export default CollectionsList;
+const styles = {
+  container: {
+    padding: "20px",
+    maxWidth: "1200px",
+    margin: "0 auto",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "20px",
+  },
+  backButton: {
+    padding: "8px 16px",
+    background: "#f0f0f0",
+    border: "1px solid #ddd",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+  successMessage: {
+    background: "#d4edda",
+    border: "1px solid #c3e6cb",
+    color: "#155724",
+    padding: "12px",
+    borderRadius: "4px",
+    marginBottom: "20px",
+  },
+  errorMessage: {
+    background: "#f8d7da",
+    border: "1px solid #f5c6cb",
+    color: "#721c24",
+    padding: "12px",
+    borderRadius: "4px",
+    marginBottom: "20px",
+  },
+  toolbar: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "20px",
+  },
+  filterButtons: {
+    display: "flex",
+    gap: "10px",
+  },
+  filterButton: {
+    padding: "8px 16px",
+    background: "#f0f0f0",
+    border: "1px solid #ddd",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+  filterButtonActive: {
+    background: "#007bff",
+    color: "white",
+    border: "1px solid #007bff",
+  },
+  createButton: {
+    padding: "8px 16px",
+    background: "#28a745",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+  content: {
+    minHeight: "400px",
+  },
+  loading: {
+    textAlign: "center",
+    padding: "40px",
+    color: "#666",
+  },
+  empty: {
+    textAlign: "center",
+    padding: "40px",
+    color: "#666",
+  },
+  collectionsList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+  },
+  collectionItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "15px",
+    background: "#f8f9fa",
+    border: "1px solid #dee2e6",
+    borderRadius: "4px",
+    cursor: "pointer",
+    transition: "background 0.2s",
+    ":hover": {
+      background: "#e9ecef",
+    },
+  },
+  collectionInfo: {
+    display: "flex",
+    alignItems: "center",
+    gap: "15px",
+    flex: 1,
+  },
+  collectionIcon: {
+    fontSize: "24px",
+  },
+  collectionDetails: {
+    flex: 1,
+  },
+  collectionName: {
+    margin: 0,
+    fontSize: "16px",
+    fontWeight: "500",
+  },
+  collectionMeta: {
+    fontSize: "14px",
+    color: "#666",
+    marginTop: "4px",
+  },
+  decryptError: {
+    fontSize: "12px",
+    color: "#dc3545",
+    marginTop: "4px",
+  },
+  collectionActions: {
+    display: "flex",
+    gap: "10px",
+  },
+  deleteButton: {
+    padding: "4px 8px",
+    background: "transparent",
+    border: "1px solid #dc3545",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: "16px",
+  },
+  info: {
+    marginTop: "40px",
+    padding: "20px",
+    background: "#f8f9fa",
+    border: "1px solid #dee2e6",
+    borderRadius: "4px",
+  },
+  debug: {
+    marginTop: "20px",
+    padding: "10px",
+    background: "#f8f9fa",
+    border: "1px solid #dee2e6",
+    borderRadius: "4px",
+  },
+};
+
+export default CollectionList;

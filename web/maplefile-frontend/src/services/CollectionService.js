@@ -1,5 +1,5 @@
-// CollectionService for managing MapleFile collections (folders and albums)
-// Supports all collection operations with end-to-end encryption
+// Updated CollectionService.js with proper encryption
+import CollectionCryptoService from "./CollectionCryptoService.js";
 
 class CollectionService {
   constructor() {
@@ -17,23 +17,48 @@ class CollectionService {
     return this._apiClient;
   }
 
-  // 1. Create Collection
+  // 1. Create Collection (with encryption)
   async createCollection(collectionData) {
     try {
       this.isLoading = true;
-      console.log("[CollectionService] Creating new collection");
-
-      const apiClient = await this.getApiClient();
-      const collection = await apiClient.postMapleFile(
-        "/collections",
-        collectionData,
+      console.log(
+        "[CollectionService] Creating new collection with encryption",
       );
 
-      // Cache the new collection
-      this.cache.set(collection.id, collection);
-      console.log("[CollectionService] Collection created:", collection.id);
+      // Prepare encrypted data for API
+      const { apiData, collectionKey } =
+        await CollectionCryptoService.prepareCollectionForAPI(collectionData);
 
-      return collection;
+      console.log(
+        "[CollectionService] Collection data encrypted, sending to API",
+      );
+
+      const apiClient = await this.getApiClient();
+      const encryptedCollection = await apiClient.postMapleFile(
+        "/collections",
+        apiData,
+      );
+
+      // Decrypt the response for local use
+      const decryptedCollection =
+        await CollectionCryptoService.decryptCollectionFromAPI(
+          encryptedCollection,
+        );
+
+      // Cache the collection key
+      CollectionCryptoService.cacheCollectionKey(
+        decryptedCollection.id,
+        collectionKey,
+      );
+
+      // Cache the decrypted collection
+      this.cache.set(decryptedCollection.id, decryptedCollection);
+      console.log(
+        "[CollectionService] Collection created:",
+        decryptedCollection.id,
+      );
+
+      return decryptedCollection;
     } catch (error) {
       console.error("[CollectionService] Failed to create collection:", error);
       throw error;
@@ -42,7 +67,7 @@ class CollectionService {
     }
   }
 
-  // 2. Get Collection by ID
+  // 2. Get Collection by ID (with decryption)
   async getCollection(collectionId) {
     try {
       this.isLoading = true;
@@ -55,15 +80,24 @@ class CollectionService {
       }
 
       const apiClient = await this.getApiClient();
-      const collection = await apiClient.getMapleFile(
+      const encryptedCollection = await apiClient.getMapleFile(
         `/collections/${collectionId}`,
       );
 
-      // Cache the collection
-      this.cache.set(collectionId, collection);
-      console.log("[CollectionService] Collection retrieved:", collectionId);
+      // Decrypt the collection
+      const decryptedCollection =
+        await CollectionCryptoService.decryptCollectionFromAPI(
+          encryptedCollection,
+        );
 
-      return collection;
+      // Cache the decrypted collection
+      this.cache.set(collectionId, decryptedCollection);
+      console.log(
+        "[CollectionService] Collection retrieved and decrypted:",
+        collectionId,
+      );
+
+      return decryptedCollection;
     } catch (error) {
       console.error("[CollectionService] Failed to get collection:", error);
       throw error;
@@ -72,28 +106,65 @@ class CollectionService {
     }
   }
 
-  // 3. Update Collection
+  // 3. Update Collection (with encryption)
   async updateCollection(collectionId, updateData) {
     try {
       this.isLoading = true;
       console.log("[CollectionService] Updating collection:", collectionId);
 
-      // Ensure the ID matches
-      if (updateData.id && updateData.id !== collectionId) {
-        throw new Error("Collection ID mismatch");
+      // Get the cached collection to retrieve its key
+      const cachedCollection = this.cache.get(collectionId);
+      let collectionKey =
+        cachedCollection?.collection_key ||
+        CollectionCryptoService.getCachedCollectionKey(collectionId);
+
+      if (!collectionKey && cachedCollection?._encrypted_collection_key) {
+        // Try to decrypt the collection key
+        const userKeys = await CollectionCryptoService.getUserKeys();
+        collectionKey = await CollectionCryptoService.decryptCollectionKey(
+          cachedCollection._encrypted_collection_key,
+          userKeys.masterKey,
+        );
+      }
+
+      if (!collectionKey) {
+        throw new Error("Collection key not found for update");
+      }
+
+      // Encrypt the updated name if provided
+      const apiData = {
+        id: collectionId,
+        version: updateData.version || cachedCollection?.version || 1,
+      };
+
+      if (updateData.name) {
+        apiData.encrypted_name = CollectionCryptoService.encryptCollectionName(
+          updateData.name,
+          collectionKey,
+        );
+      }
+
+      if (updateData.collection_type) {
+        apiData.collection_type = updateData.collection_type;
       }
 
       const apiClient = await this.getApiClient();
-      const updatedCollection = await apiClient.putMapleFile(
+      const encryptedCollection = await apiClient.putMapleFile(
         `/collections/${collectionId}`,
-        { ...updateData, id: collectionId },
+        apiData,
       );
 
+      // Decrypt the response
+      const decryptedCollection =
+        await CollectionCryptoService.decryptCollectionFromAPI(
+          encryptedCollection,
+        );
+
       // Update cache
-      this.cache.set(collectionId, updatedCollection);
+      this.cache.set(collectionId, decryptedCollection);
       console.log("[CollectionService] Collection updated:", collectionId);
 
-      return updatedCollection;
+      return decryptedCollection;
     } catch (error) {
       console.error("[CollectionService] Failed to update collection:", error);
       throw error;
@@ -102,6 +173,268 @@ class CollectionService {
     }
   }
 
+  // 7. List User Collections (with decryption)
+  async listUserCollections() {
+    try {
+      this.isLoading = true;
+      console.log("[CollectionService] Listing user collections");
+
+      const apiClient = await this.getApiClient();
+      const response = await apiClient.getMapleFile("/collections");
+
+      // Decrypt all collections
+      const decryptedCollections =
+        await CollectionCryptoService.decryptCollections(
+          response.collections || [],
+        );
+
+      // Cache collections
+      decryptedCollections.forEach((collection) => {
+        this.cache.set(collection.id, collection);
+      });
+
+      console.log(
+        "[CollectionService] User collections retrieved and decrypted:",
+        decryptedCollections.length,
+      );
+      return decryptedCollections;
+    } catch (error) {
+      console.error(
+        "[CollectionService] Failed to list user collections:",
+        error,
+      );
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // 8. List Shared Collections (with decryption)
+  async listSharedCollections() {
+    try {
+      this.isLoading = true;
+      console.log("[CollectionService] Listing shared collections");
+
+      const apiClient = await this.getApiClient();
+      const response = await apiClient.getMapleFile("/collections/shared");
+
+      // Decrypt all collections
+      const decryptedCollections =
+        await CollectionCryptoService.decryptCollections(
+          response.collections || [],
+        );
+
+      // Cache collections
+      decryptedCollections.forEach((collection) => {
+        this.cache.set(collection.id, collection);
+      });
+
+      console.log(
+        "[CollectionService] Shared collections retrieved and decrypted:",
+        decryptedCollections.length,
+      );
+      return decryptedCollections;
+    } catch (error) {
+      console.error(
+        "[CollectionService] Failed to list shared collections:",
+        error,
+      );
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // 9. Get Filtered Collections (with decryption)
+  async getFilteredCollections(includeOwned = true, includeShared = false) {
+    try {
+      this.isLoading = true;
+      console.log("[CollectionService] Getting filtered collections", {
+        includeOwned,
+        includeShared,
+      });
+
+      const apiClient = await this.getApiClient();
+      const params = new URLSearchParams({
+        include_owned: includeOwned.toString(),
+        include_shared: includeShared.toString(),
+      });
+
+      const response = await apiClient.getMapleFile(
+        `/collections/filtered?${params}`,
+      );
+
+      // Decrypt all collections
+      const decryptedOwned = await CollectionCryptoService.decryptCollections(
+        response.owned_collections || [],
+      );
+      const decryptedShared = await CollectionCryptoService.decryptCollections(
+        response.shared_collections || [],
+      );
+
+      // Cache all collections
+      [...decryptedOwned, ...decryptedShared].forEach((collection) => {
+        this.cache.set(collection.id, collection);
+      });
+
+      console.log(
+        "[CollectionService] Filtered collections retrieved and decrypted:",
+        {
+          owned: decryptedOwned.length,
+          shared: decryptedShared.length,
+          total: response.total_count || 0,
+        },
+      );
+
+      return {
+        owned_collections: decryptedOwned,
+        shared_collections: decryptedShared,
+        total_count: response.total_count || 0,
+      };
+    } catch (error) {
+      console.error(
+        "[CollectionService] Failed to get filtered collections:",
+        error,
+      );
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // 10. Find Root Collections (with decryption)
+  async findRootCollections() {
+    try {
+      this.isLoading = true;
+      console.log("[CollectionService] Finding root collections");
+
+      const apiClient = await this.getApiClient();
+      const response = await apiClient.getMapleFile("/collections/root");
+
+      // Decrypt all collections
+      const decryptedCollections =
+        await CollectionCryptoService.decryptCollections(
+          response.collections || [],
+        );
+
+      // Cache collections
+      decryptedCollections.forEach((collection) => {
+        this.cache.set(collection.id, collection);
+      });
+
+      console.log(
+        "[CollectionService] Root collections found and decrypted:",
+        decryptedCollections.length,
+      );
+      return decryptedCollections;
+    } catch (error) {
+      console.error(
+        "[CollectionService] Failed to find root collections:",
+        error,
+      );
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // 11. Find Collections by Parent (with decryption)
+  async findCollectionsByParent(parentId) {
+    try {
+      this.isLoading = true;
+      console.log(
+        "[CollectionService] Finding collections by parent:",
+        parentId,
+      );
+
+      const apiClient = await this.getApiClient();
+      const response = await apiClient.getMapleFile(
+        `/collections-by-parent/${parentId}`,
+      );
+
+      // Decrypt all collections
+      const decryptedCollections =
+        await CollectionCryptoService.decryptCollections(
+          response.collections || [],
+        );
+
+      // Cache collections
+      decryptedCollections.forEach((collection) => {
+        this.cache.set(collection.id, collection);
+      });
+
+      console.log(
+        "[CollectionService] Child collections found and decrypted:",
+        decryptedCollections.length,
+      );
+      return decryptedCollections;
+    } catch (error) {
+      console.error(
+        "[CollectionService] Failed to find collections by parent:",
+        error,
+      );
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // 12. Share Collection (with key encryption for recipient)
+  async shareCollection(collectionId, shareData) {
+    try {
+      this.isLoading = true;
+      console.log("[CollectionService] Sharing collection:", collectionId);
+
+      // Get the collection key
+      const collection = await this.getCollection(collectionId);
+      const collectionKey =
+        collection.collection_key ||
+        CollectionCryptoService.getCachedCollectionKey(collectionId);
+
+      if (!collectionKey) {
+        throw new Error("Collection key not found for sharing");
+      }
+
+      // Encrypt collection key for recipient
+      const encryptedKeyForRecipient =
+        await CollectionCryptoService.encryptCollectionKeyForRecipient(
+          collectionKey,
+          shareData.recipient_public_key,
+        );
+
+      // Prepare request data
+      const requestData = {
+        collection_id: collectionId,
+        recipient_id: shareData.recipient_id,
+        recipient_email: shareData.recipient_email,
+        permission_level: shareData.permission_level || "read_only",
+        encrypted_collection_key: encryptedKeyForRecipient,
+        share_with_descendants: shareData.share_with_descendants || false,
+      };
+
+      const apiClient = await this.getApiClient();
+      const result = await apiClient.postMapleFile(
+        `/collections/${collectionId}/share`,
+        requestData,
+      );
+
+      // Invalidate cache for this collection since members changed
+      this.cache.delete(collectionId);
+
+      console.log(
+        "[CollectionService] Collection shared successfully:",
+        result,
+      );
+      return result;
+    } catch (error) {
+      console.error("[CollectionService] Failed to share collection:", error);
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // Keep all other methods unchanged but ensure they handle decrypted data
   // 4. Delete Collection (Soft Delete)
   async deleteCollection(collectionId) {
     try {
@@ -115,8 +448,9 @@ class CollectionService {
 
       // Remove from cache
       this.cache.delete(collectionId);
-      console.log("[CollectionService] Collection deleted:", collectionId);
+      CollectionCryptoService.cacheCollectionKey(collectionId, null);
 
+      console.log("[CollectionService] Collection deleted:", collectionId);
       return result;
     } catch (error) {
       console.error("[CollectionService] Failed to delete collection:", error);
@@ -182,221 +516,7 @@ class CollectionService {
     }
   }
 
-  // 7. List User Collections (owned by authenticated user)
-  async listUserCollections() {
-    try {
-      this.isLoading = true;
-      console.log("[CollectionService] Listing user collections");
-
-      const apiClient = await this.getApiClient();
-      const response = await apiClient.getMapleFile("/collections");
-
-      // Cache collections
-      if (response.collections) {
-        response.collections.forEach((collection) => {
-          this.cache.set(collection.id, collection);
-        });
-      }
-
-      console.log(
-        "[CollectionService] User collections retrieved:",
-        response.collections?.length || 0,
-      );
-      return response.collections || [];
-    } catch (error) {
-      console.error(
-        "[CollectionService] Failed to list user collections:",
-        error,
-      );
-      throw error;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  // 8. List Shared Collections
-  async listSharedCollections() {
-    try {
-      this.isLoading = true;
-      console.log("[CollectionService] Listing shared collections");
-
-      const apiClient = await this.getApiClient();
-      const response = await apiClient.getMapleFile("/collections/shared");
-
-      // Cache collections
-      if (response.collections) {
-        response.collections.forEach((collection) => {
-          this.cache.set(collection.id, collection);
-        });
-      }
-
-      console.log(
-        "[CollectionService] Shared collections retrieved:",
-        response.collections?.length || 0,
-      );
-      return response.collections || [];
-    } catch (error) {
-      console.error(
-        "[CollectionService] Failed to list shared collections:",
-        error,
-      );
-      throw error;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  // 9. Get Filtered Collections
-  async getFilteredCollections(includeOwned = true, includeShared = false) {
-    try {
-      this.isLoading = true;
-      console.log("[CollectionService] Getting filtered collections", {
-        includeOwned,
-        includeShared,
-      });
-
-      const apiClient = await this.getApiClient();
-      const params = new URLSearchParams({
-        include_owned: includeOwned.toString(),
-        include_shared: includeShared.toString(),
-      });
-
-      const response = await apiClient.getMapleFile(
-        `/collections/filtered?${params}`,
-      );
-
-      // Cache all collections
-      const allCollections = [
-        ...(response.owned_collections || []),
-        ...(response.shared_collections || []),
-      ];
-
-      allCollections.forEach((collection) => {
-        this.cache.set(collection.id, collection);
-      });
-
-      console.log("[CollectionService] Filtered collections retrieved:", {
-        owned: response.owned_collections?.length || 0,
-        shared: response.shared_collections?.length || 0,
-        total: response.total_count || 0,
-      });
-
-      return response;
-    } catch (error) {
-      console.error(
-        "[CollectionService] Failed to get filtered collections:",
-        error,
-      );
-      throw error;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  // 10. Find Root Collections
-  async findRootCollections() {
-    try {
-      this.isLoading = true;
-      console.log("[CollectionService] Finding root collections");
-
-      const apiClient = await this.getApiClient();
-      const response = await apiClient.getMapleFile("/collections/root");
-
-      // Cache collections
-      if (response.collections) {
-        response.collections.forEach((collection) => {
-          this.cache.set(collection.id, collection);
-        });
-      }
-
-      console.log(
-        "[CollectionService] Root collections found:",
-        response.collections?.length || 0,
-      );
-      return response.collections || [];
-    } catch (error) {
-      console.error(
-        "[CollectionService] Failed to find root collections:",
-        error,
-      );
-      throw error;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  // 11. Find Collections by Parent
-  async findCollectionsByParent(parentId) {
-    try {
-      this.isLoading = true;
-      console.log(
-        "[CollectionService] Finding collections by parent:",
-        parentId,
-      );
-
-      const apiClient = await this.getApiClient();
-      const response = await apiClient.getMapleFile(
-        `/collections-by-parent/${parentId}`,
-      );
-
-      // Cache collections
-      if (response.collections) {
-        response.collections.forEach((collection) => {
-          this.cache.set(collection.id, collection);
-        });
-      }
-
-      console.log(
-        "[CollectionService] Child collections found:",
-        response.collections?.length || 0,
-      );
-      return response.collections || [];
-    } catch (error) {
-      console.error(
-        "[CollectionService] Failed to find collections by parent:",
-        error,
-      );
-      throw error;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  // 12. Share Collection
-  async shareCollection(collectionId, shareData) {
-    try {
-      this.isLoading = true;
-      console.log("[CollectionService] Sharing collection:", collectionId);
-
-      // Ensure collection_id is set
-      const requestData = {
-        ...shareData,
-        collection_id: collectionId,
-      };
-
-      const apiClient = await this.getApiClient();
-      const result = await apiClient.postMapleFile(
-        `/collections/${collectionId}/share`,
-        requestData,
-      );
-
-      // Invalidate cache for this collection since members changed
-      this.cache.delete(collectionId);
-
-      console.log(
-        "[CollectionService] Collection shared successfully:",
-        result,
-      );
-      return result;
-    } catch (error) {
-      console.error("[CollectionService] Failed to share collection:", error);
-      throw error;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  // 13. Remove Member from Collection
+  // 13. Remove Member
   async removeMember(collectionId, recipientId, removeFromDescendants = true) {
     try {
       this.isLoading = true;
@@ -463,7 +583,7 @@ class CollectionService {
     }
   }
 
-  // 15. Sync Collections (for offline clients)
+  // 15. Sync Collections
   async syncCollections(cursor = null, limit = 1000) {
     try {
       this.isLoading = true;
@@ -494,7 +614,7 @@ class CollectionService {
     }
   }
 
-  // Utility method: Get all collections (owned + shared)
+  // Utility methods remain the same
   async getAllCollections() {
     try {
       const result = await this.getFilteredCollections(true, true);
@@ -511,13 +631,11 @@ class CollectionService {
     }
   }
 
-  // Utility method: Get collection hierarchy
   async getCollectionHierarchy(collectionId) {
     try {
       const collection = await this.getCollection(collectionId);
       const hierarchy = [collection];
 
-      // Walk up the ancestor chain
       if (collection.ancestor_ids && collection.ancestor_ids.length > 0) {
         for (const ancestorId of collection.ancestor_ids.reverse()) {
           const ancestor = await this.getCollection(ancestorId);
@@ -535,14 +653,12 @@ class CollectionService {
     }
   }
 
-  // Utility method: Get collection tree (with children)
   async getCollectionTree(parentId = null) {
     try {
       const collections = parentId
         ? await this.findCollectionsByParent(parentId)
         : await this.findRootCollections();
 
-      // Recursively build tree
       const tree = await Promise.all(
         collections.map(async (collection) => {
           const children = await this.getCollectionTree(collection.id);
@@ -563,7 +679,6 @@ class CollectionService {
     }
   }
 
-  // Utility method: Batch create collections
   async batchCreateCollections(collectionsData) {
     try {
       console.log(
@@ -583,9 +698,9 @@ class CollectionService {
     }
   }
 
-  // Cache management methods
   clearCache() {
     this.cache.clear();
+    CollectionCryptoService.clearCollectionKeyCache();
     console.log("[CollectionService] Cache cleared");
   }
 
@@ -597,12 +712,10 @@ class CollectionService {
     return this.cache.size;
   }
 
-  // Check if service is loading
   isLoadingData() {
     return this.isLoading;
   }
 
-  // Get debug information
   getDebugInfo() {
     return {
       cacheSize: this.cache.size,

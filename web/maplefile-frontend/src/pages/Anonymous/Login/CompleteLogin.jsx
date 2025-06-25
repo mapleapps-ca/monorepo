@@ -100,7 +100,7 @@ const CompleteLogin = () => {
       // Wait a moment for tokens to be fully stored
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Check if we have unencrypted tokens (ente.io style)
+      // Check if we have unencrypted tokens
       const accessToken = localStorageService.getAccessToken();
       const refreshToken = localStorageService.getRefreshToken();
 
@@ -232,7 +232,6 @@ const CompleteLogin = () => {
             )}
             <p>
               <strong>Token System:</strong> Unencrypted tokens stored locally
-              (ente.io style)
             </p>
           </div>
         </div>
@@ -253,7 +252,7 @@ const CompleteLogin = () => {
             <li>All decryption happens locally in your browser</li>
             <li>
               Authentication tokens are decrypted during login and stored
-              unencrypted locally (like ente.io)
+              unencrypted locally
             </li>
             <li>Automatic background token refresh maintains your session</li>
           </ul>

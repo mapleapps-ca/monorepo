@@ -6,14 +6,16 @@ import { wordlist } from "@scure/bip39/wordlists/english";
 class CryptoService {
   constructor() {
     this.isInitialized = false;
+    this.sodium = null;
     console.log("Initializing CryptoService with libsodium-wrappers-sumo");
   }
 
-  // Initialize libsodium (matching the original exactly)
+  // Initialize libsodium
   async initialize() {
     if (this.isInitialized) return;
 
     await sodium.ready;
+    this.sodium = sodium;
     this.isInitialized = true;
     console.log("[CryptoService] Libsodium initialized");
   }
@@ -23,7 +25,7 @@ class CryptoService {
     return this.initialize();
   }
 
-  // Derive key from password using PBKDF2 (keeping current working approach)
+  // Derive key from password using PBKDF2
   async deriveKeyFromPassword(password, salt) {
     console.log(
       `[CryptoService] PBKDF2 - password length: ${password.length}, salt length: ${salt.length}`,
@@ -45,7 +47,7 @@ class CryptoService {
       {
         name: "PBKDF2",
         salt: salt,
-        iterations: 100000, // Same as registration
+        iterations: 100000,
         hash: "SHA-256",
       },
       cryptoKey,
@@ -75,15 +77,15 @@ class CryptoService {
       );
 
       // Validate key length
-      if (key.length !== sodium.crypto_secretbox_KEYBYTES) {
+      if (key.length !== this.sodium.crypto_secretbox_KEYBYTES) {
         throw new Error(
-          `Invalid key length: ${key.length}, expected: ${sodium.crypto_secretbox_KEYBYTES}`,
+          `Invalid key length: ${key.length}, expected: ${this.sodium.crypto_secretbox_KEYBYTES}`,
         );
       }
 
       // encryptedData format: nonce (24 bytes) + ciphertext + mac (16 bytes)
-      const nonceLength = sodium.crypto_secretbox_NONCEBYTES; // 24 bytes
-      const macLength = sodium.crypto_secretbox_MACBYTES; // 16 bytes
+      const nonceLength = this.sodium.crypto_secretbox_NONCEBYTES; // 24 bytes
+      const macLength = this.sodium.crypto_secretbox_MACBYTES; // 16 bytes
 
       if (encryptedData.length <= nonceLength + macLength) {
         throw new Error(
@@ -103,7 +105,7 @@ class CryptoService {
       this.hexDump(ciphertext, "Ciphertext", 48);
 
       // Decrypt using libsodium
-      const decrypted = sodium.crypto_secretbox_open_easy(
+      const decrypted = this.sodium.crypto_secretbox_open_easy(
         ciphertext,
         nonce,
         key,
@@ -140,9 +142,9 @@ class CryptoService {
       );
 
       // Validate private key length
-      if (privateKey.length !== sodium.crypto_box_SECRETKEYBYTES) {
+      if (privateKey.length !== this.sodium.crypto_box_SECRETKEYBYTES) {
         throw new Error(
-          `Invalid private key length: ${privateKey.length}, expected: ${sodium.crypto_box_SECRETKEYBYTES}`,
+          `Invalid private key length: ${privateKey.length}, expected: ${this.sodium.crypto_box_SECRETKEYBYTES}`,
         );
       }
 
@@ -150,7 +152,7 @@ class CryptoService {
       // It should just be: ephemeral_public_key + ciphertext (no separate nonce)
       // The total overhead is 48 bytes (32 bytes ephemeral key + 16 bytes MAC)
 
-      const expectedMinLength = sodium.crypto_box_SEALBYTES; // Should be 48
+      const expectedMinLength = this.sodium.crypto_box_SEALBYTES; // Should be 48
       if (encryptedChallenge.length < expectedMinLength) {
         throw new Error(
           `Invalid encrypted challenge length: ${encryptedChallenge.length}, minimum required: ${expectedMinLength}`,
@@ -167,7 +169,7 @@ class CryptoService {
         // Try anonymous box decryption first (matches backend's SealAnonymous)
         // For sealed box, we need to derive the public key from the private key
         // Using the correct libsodium method
-        const derivedPublicKey = sodium.crypto_scalarmult_base(privateKey);
+        const derivedPublicKey = this.sodium.crypto_scalarmult_base(privateKey);
 
         console.log("[CryptoService] Derived public key for sealed box");
         this.hexDump(derivedPublicKey, "Derived Public Key");
@@ -175,7 +177,7 @@ class CryptoService {
         // Try with derived public key first
         let decrypted;
         try {
-          decrypted = sodium.crypto_box_seal_open(
+          decrypted = this.sodium.crypto_box_seal_open(
             encryptedChallenge,
             derivedPublicKey,
             privateKey,
@@ -193,7 +195,7 @@ class CryptoService {
           // If we have a stored public key, try that too
           if (storedPublicKey) {
             try {
-              decrypted = sodium.crypto_box_seal_open(
+              decrypted = this.sodium.crypto_box_seal_open(
                 encryptedChallenge,
                 storedPublicKey,
                 privateKey,
@@ -234,9 +236,9 @@ class CryptoService {
 
           // Fallback: try regular box format
           // Format: ephemeral_public_key (32 bytes) + nonce (24 bytes) + ciphertext + mac
-          const ephemeralPubKeyLength = sodium.crypto_box_PUBLICKEYBYTES; // 32 bytes
-          const nonceLength = sodium.crypto_box_NONCEBYTES; // 24 bytes
-          const macLength = sodium.crypto_box_MACBYTES; // 16 bytes
+          const ephemeralPubKeyLength = this.sodium.crypto_box_PUBLICKEYBYTES; // 32 bytes
+          const nonceLength = this.sodium.crypto_box_NONCEBYTES; // 24 bytes
+          const macLength = this.sodium.crypto_box_MACBYTES; // 16 bytes
 
           const minLength = ephemeralPubKeyLength + nonceLength + macLength + 1;
           if (encryptedChallenge.length < minLength) {
@@ -286,7 +288,7 @@ class CryptoService {
           );
 
           // Decrypt using regular box
-          const decrypted = sodium.crypto_box_open_easy(
+          const decrypted = this.sodium.crypto_box_open_easy(
             ciphertext,
             nonce,
             ephemeralPublicKey,
@@ -327,31 +329,41 @@ class CryptoService {
   // Convert base64 to Uint8Array
   base64ToUint8Array(
     base64String,
-    variant = sodium.base64_variants.URLSAFE_NO_PADDING,
+    variant = this.sodium?.base64_variants?.URLSAFE_NO_PADDING,
   ) {
-    return sodium.from_base64(base64String, variant);
+    if (!this.sodium) {
+      throw new Error("CryptoService not initialized");
+    }
+    return this.sodium.from_base64(base64String, variant);
   }
 
   // Convert Uint8Array to base64
   uint8ArrayToBase64(
     uint8Array,
-    variant = sodium.base64_variants.URLSAFE_NO_PADDING,
+    variant = this.sodium?.base64_variants?.URLSAFE_NO_PADDING,
   ) {
-    return sodium.to_base64(uint8Array, variant);
+    if (!this.sodium) {
+      throw new Error("CryptoService not initialized");
+    }
+    return this.sodium.to_base64(uint8Array, variant);
   }
 
   // Try different base64 variants for decoding
   tryDecodeBase64(base64String) {
+    if (!this.sodium) {
+      throw new Error("CryptoService not initialized");
+    }
+
     const variants = [
-      sodium.base64_variants.URLSAFE_NO_PADDING,
-      sodium.base64_variants.ORIGINAL,
-      sodium.base64_variants.URLSAFE,
-      sodium.base64_variants.ORIGINAL_NO_PADDING,
+      this.sodium.base64_variants.URLSAFE_NO_PADDING,
+      this.sodium.base64_variants.ORIGINAL,
+      this.sodium.base64_variants.URLSAFE,
+      this.sodium.base64_variants.ORIGINAL_NO_PADDING,
     ];
 
     for (const variant of variants) {
       try {
-        const decoded = sodium.from_base64(base64String, variant);
+        const decoded = this.sodium.from_base64(base64String, variant);
         console.log(
           `[CryptoService] Successfully decoded with variant ${variant}, length: ${decoded.length}`,
         );
@@ -491,9 +503,9 @@ class CryptoService {
 
       // Encrypted data should be at least nonce + some ciphertext + MAC
       const minSecretBoxLength =
-        sodium.crypto_secretbox_NONCEBYTES +
+        this.sodium.crypto_secretbox_NONCEBYTES +
         1 +
-        sodium.crypto_secretbox_MACBYTES;
+        this.sodium.crypto_secretbox_MACBYTES;
       if (encryptedMasterKey.length < minSecretBoxLength) {
         throw new Error(
           `Encrypted master key too short: ${encryptedMasterKey.length}, minimum: ${minSecretBoxLength}`,
@@ -533,14 +545,14 @@ class CryptoService {
       );
 
       // Validate private key length
-      if (privateKey.length !== sodium.crypto_box_SECRETKEYBYTES) {
+      if (privateKey.length !== this.sodium.crypto_box_SECRETKEYBYTES) {
         throw new Error(
-          `Invalid private key length: ${privateKey.length}, expected: ${sodium.crypto_box_SECRETKEYBYTES}`,
+          `Invalid private key length: ${privateKey.length}, expected: ${this.sodium.crypto_box_SECRETKEYBYTES}`,
         );
       }
 
       // Derive public key from private key and compare with stored one
-      const derivedPublicKey = sodium.crypto_scalarmult_base(privateKey);
+      const derivedPublicKey = this.sodium.crypto_scalarmult_base(privateKey);
       console.log(
         `[CryptoService] Derived public key from private key, length: ${derivedPublicKey.length}`,
       );
@@ -592,7 +604,7 @@ class CryptoService {
 
     if (
       !(publicKey instanceof Uint8Array) ||
-      publicKey.length !== sodium.crypto_box_PUBLICKEYBYTES
+      publicKey.length !== this.sodium.crypto_box_PUBLICKEYBYTES
     ) {
       throw new Error("Invalid public key for verification ID generation");
     }
@@ -644,7 +656,7 @@ class CryptoService {
       console.log("Libsodium ready!");
 
       // 1. Generate BIP39 mnemonic (12 words) for account recovery
-      const mnemonicEntropy = sodium.randombytes_buf(16); // 128 bits = 12 words
+      const mnemonicEntropy = this.sodium.randombytes_buf(16); // 128 bits = 12 words
       const recoveryMnemonic = bip39.entropyToMnemonic(
         mnemonicEntropy,
         wordlist,
@@ -656,7 +668,7 @@ class CryptoService {
       console.log("Derived recovery key from mnemonic");
 
       // 3. Generate salt for password key derivation
-      const salt = sodium.randombytes_buf(16);
+      const salt = this.sodium.randombytes_buf(16);
       console.log("Generated salt");
 
       // 4. Derive key encryption key from password using PBKDF2 (AES-GCM key)
@@ -664,7 +676,7 @@ class CryptoService {
       console.log("Derived key encryption key from password");
 
       // 5. Generate X25519 key pair
-      const keyPair = sodium.crypto_box_keypair();
+      const keyPair = this.sodium.crypto_box_keypair();
       const publicKey = keyPair.publicKey; // 32 bytes
       const privateKey = keyPair.privateKey; // 32 bytes
       console.log("Generated X25519 key pair");
@@ -676,14 +688,14 @@ class CryptoService {
       );
 
       // 7. Generate master key (used for symmetric encryption of sensitive keys)
-      const masterKey = sodium.randombytes_buf(32); // 32-byte secretbox key
+      const masterKey = this.sodium.randombytes_buf(32); // 32-byte secretbox key
       console.log("Generated master key");
 
       // 8. Encrypt master key with KEK using ChaCha20-Poly1305 (libsodium secretbox)
-      const masterKeyNonce = sodium.randombytes_buf(
-        sodium.crypto_secretbox_NONCEBYTES,
+      const masterKeyNonce = this.sodium.randombytes_buf(
+        this.sodium.crypto_secretbox_NONCEBYTES,
       ); // 24 bytes nonce
-      const encryptedMasterKeyData = sodium.crypto_secretbox_easy(
+      const encryptedMasterKeyData = this.sodium.crypto_secretbox_easy(
         masterKey,
         masterKeyNonce,
         keyEncryptionKey, // 32 bytes KEK (from PBKDF2 AES-GCM derivation)
@@ -696,10 +708,10 @@ class CryptoService {
       console.log("Encrypted master key with KEK");
 
       // 9. Encrypt private key with master key (ChaCha20-Poly1305)
-      const privateKeyNonce = sodium.randombytes_buf(
-        sodium.crypto_secretbox_NONCEBYTES,
+      const privateKeyNonce = this.sodium.randombytes_buf(
+        this.sodium.crypto_secretbox_NONCEBYTES,
       ); // 24 bytes nonce
-      const encryptedPrivateKeyData = sodium.crypto_secretbox_easy(
+      const encryptedPrivateKeyData = this.sodium.crypto_secretbox_easy(
         privateKey, // 32 bytes private key
         privateKeyNonce,
         masterKey, // 32 bytes master key
@@ -712,10 +724,10 @@ class CryptoService {
       console.log("Encrypted private key with master key");
 
       // 10. Encrypt recovery key with master key (ChaCha20-Poly1305)
-      const recoveryKeyNonce = sodium.randombytes_buf(
-        sodium.crypto_secretbox_NONCEBYTES,
+      const recoveryKeyNonce = this.sodium.randombytes_buf(
+        this.sodium.crypto_secretbox_NONCEBYTES,
       ); // 24 bytes nonce
-      const encryptedRecoveryKeyData = sodium.crypto_secretbox_easy(
+      const encryptedRecoveryKeyData = this.sodium.crypto_secretbox_easy(
         recoveryKey, // 32 bytes recovery key
         recoveryKeyNonce,
         masterKey, // 32 bytes master key
@@ -731,10 +743,10 @@ class CryptoService {
       console.log("Encrypted recovery key with master key");
 
       // 11. Encrypt master key with recovery key (ChaCha20-Poly1305) - for recovery path
-      const masterWithRecoveryNonce = sodium.randombytes_buf(
-        sodium.crypto_secretbox_NONCEBYTES,
+      const masterWithRecoveryNonce = this.sodium.randombytes_buf(
+        this.sodium.crypto_secretbox_NONCEBYTES,
       ); // 24 bytes nonce
-      const masterWithRecoveryData = sodium.crypto_secretbox_easy(
+      const masterWithRecoveryData = this.sodium.crypto_secretbox_easy(
         masterKey, // 32 bytes master key
         masterWithRecoveryNonce,
         recoveryKey, // 32 bytes recovery key
@@ -751,26 +763,29 @@ class CryptoService {
 
       // 12. Encode everything to base64 URL safe without padding
       const result = {
-        salt: sodium.to_base64(salt, sodium.base64_variants.URLSAFE_NO_PADDING),
-        publicKey: sodium.to_base64(
+        salt: this.sodium.to_base64(
+          salt,
+          this.sodium.base64_variants.URLSAFE_NO_PADDING,
+        ),
+        publicKey: this.sodium.to_base64(
           publicKey,
-          sodium.base64_variants.URLSAFE_NO_PADDING,
+          this.sodium.base64_variants.URLSAFE_NO_PADDING,
         ),
-        encryptedMasterKey: sodium.to_base64(
+        encryptedMasterKey: this.sodium.to_base64(
           encryptedMasterKey,
-          sodium.base64_variants.URLSAFE_NO_PADDING,
+          this.sodium.base64_variants.URLSAFE_NO_PADDING,
         ),
-        encryptedPrivateKey: sodium.to_base64(
+        encryptedPrivateKey: this.sodium.to_base64(
           encryptedPrivateKey,
-          sodium.base64_variants.URLSAFE_NO_PADDING,
+          this.sodium.base64_variants.URLSAFE_NO_PADDING,
         ),
-        encryptedRecoveryKey: sodium.to_base64(
+        encryptedRecoveryKey: this.sodium.to_base64(
           encryptedRecoveryKeyResult,
-          sodium.base64_variants.URLSAFE_NO_PADDING,
+          this.sodium.base64_variants.URLSAFE_NO_PADDING,
         ),
-        masterKeyEncryptedWithRecoveryKey: sodium.to_base64(
+        masterKeyEncryptedWithRecoveryKey: this.sodium.to_base64(
           masterKeyEncryptedWithRecoveryKey,
-          sodium.base64_variants.URLSAFE_NO_PADDING,
+          this.sodium.base64_variants.URLSAFE_NO_PADDING,
         ),
         verificationID: verificationID, // Now generated from public key
         // Include the recovery mnemonic so it can be displayed to the user
