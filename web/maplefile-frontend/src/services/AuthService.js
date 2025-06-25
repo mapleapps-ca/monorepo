@@ -474,8 +474,16 @@ class AuthService {
       return decryptedChallenge;
     } catch (error) {
       console.error("[AuthService] Challenge decryption failed:", error);
-      throw new Error(`Challenge decryption failed: ${error.message}`);
+      throw new Error(`Decryption failed: ${error.message}`);
     }
+
+    // All session keys are now available
+    LocalStorageService.setSessionKeys(
+      masterKey,
+      privateKey,
+      derivedPublicKey,
+      keyEncryptionKey,
+    );
   }
 
   // Token Refresh using unencrypted tokens

@@ -1,4 +1,6 @@
 // Local Storage Service for managing unencrypted authentication tokens
+import CryptoService from "./CryptoService.js";
+
 const LOCAL_STORAGE_KEYS = {
   ACCESS_TOKEN: "mapleapps_access_token",
   REFRESH_TOKEN: "mapleapps_refresh_token",
@@ -21,12 +23,15 @@ const LOCAL_STORAGE_KEYS = {
 class LocalStorageService {
   // Load session keys from localStorage on initialization
   constructor() {
+    this.isInitialized = false;
     this._sessionKeys = {
       masterKey: null,
       privateKey: null,
       publicKey: null,
       keyEncryptionKey: null,
     };
+
+    this.initializeCryptoService();
     this.loadSessionKeys(); // Load keys from localStorage on service initialization
     console.log(
       "[LocalStorageService] Initialized. Session keys loaded:",
@@ -51,14 +56,17 @@ class LocalStorageService {
       const keyEncryptionKey = localStorage.getItem(
         LOCAL_STORAGE_KEYS.SESSION_KEY_ENCRYPTION_KEY,
       );
-
       // Only update if essential keys are present
       if (masterKey && privateKey) {
         this._sessionKeys = {
-          masterKey,
-          privateKey,
-          publicKey,
-          keyEncryptionKey,
+          masterKey: CryptoService.base64ToUint8Array(masterKey),
+          privateKey: CryptoService.base64ToUint8Array(privateKey),
+          publicKey: publicKey
+            ? CryptoService.base64ToUint8Array(publicKey)
+            : null,
+          keyEncryptionKey: keyEncryptionKey
+            ? CryptoService.base64ToUint8Array(keyEncryptionKey)
+            : null,
         };
         console.log(
           "[LocalStorageService] Session keys loaded from localStorage.",
@@ -85,25 +93,45 @@ class LocalStorageService {
     }
   }
 
+  async initializeCryptoService() {
+    if (this.isInitialized) return;
+
+    try {
+      await CryptoService.initialize();
+      this.isInitialized = true;
+      console.log(
+        "[LocalStorageService] CryptoService initialized for localStorage operations",
+      );
+    } catch (error) {
+      console.error(
+        "[LocalStorageService] Failed to initialize CryptoService:",
+        error,
+      );
+      // Handle initialization error appropriately, possibly disabling crypto-dependent functionalities
+    }
+  }
+
   // Modify setSessionKeys to save to localStorage reliably
   setSessionKeys(masterKey, privateKey, publicKey, keyEncryptionKey) {
     this._sessionKeys = { masterKey, privateKey, publicKey, keyEncryptionKey };
     try {
       localStorage.setItem(
         LOCAL_STORAGE_KEYS.SESSION_MASTER_KEY,
-        masterKey || "",
+        masterKey ? CryptoService.uint8ArrayToBase64(masterKey) : "",
       );
       localStorage.setItem(
         LOCAL_STORAGE_KEYS.SESSION_PRIVATE_KEY,
-        privateKey || "",
+        privateKey ? CryptoService.uint8ArrayToBase64(privateKey) : "",
       );
       localStorage.setItem(
         LOCAL_STORAGE_KEYS.SESSION_PUBLIC_KEY,
-        publicKey || "",
+        publicKey ? CryptoService.uint8ArrayToBase64(publicKey) : "",
       );
       localStorage.setItem(
         LOCAL_STORAGE_KEYS.SESSION_KEY_ENCRYPTION_KEY,
-        keyEncryptionKey || "",
+        keyEncryptionKey
+          ? CryptoService.uint8ArrayToBase64(keyEncryptionKey)
+          : "",
       );
       console.log("[LocalStorageService] Session keys saved to localStorage");
     } catch (error) {
@@ -314,22 +342,25 @@ class LocalStorageService {
       );
       localStorage.setItem(
         LOCAL_STORAGE_KEYS.SESSION_PRIVATE_KEY,
-        privateKey || "",
+        privateKey ? CryptoService.uint8ArrayToBase64(privateKey) : "",
       );
       localStorage.setItem(
         LOCAL_STORAGE_KEYS.SESSION_PUBLIC_KEY,
-        publicKey || "",
+        publicKey ? CryptoService.uint8ArrayToBase64(publicKey) : "",
       );
       localStorage.setItem(
         LOCAL_STORAGE_KEYS.SESSION_KEY_ENCRYPTION_KEY,
-        keyEncryptionKey || "",
+        keyEncryptionKey
+          ? CryptoService.uint8ArrayToBase64(keyEncryptionKey)
+          : "",
       );
-      console.log("[LocalStorageService] Session keys saved to localStorage.");
+      console.log("[LocalStorageService] Session keys saved to localStorage");
     } catch (error) {
       console.error(
         "[LocalStorageService] Failed to save session keys to localStorage:",
         error,
       );
+      // If saving fails, ensure our in-memory state reflects that
       // If saving fails, reset in-memory state to prevent inconsistency
       this._sessionKeys = {
         masterKey: null,
