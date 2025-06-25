@@ -462,10 +462,10 @@ class AuthService {
 
       // Cache the keys in LocalStorageService for token decryption during login
       LocalStorageService.setSessionKeys(
-        masterKey,
-        privateKey,
-        derivedPublicKey,
-        keyEncryptionKey,
+        masterKey, // decrypted master key
+        privateKey, // decrypted private key
+        derivedPublicKey, // derived public key
+        keyEncryptionKey, // derived from password
       );
 
       console.log(

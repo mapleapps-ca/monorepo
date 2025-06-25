@@ -18,6 +18,18 @@ class CryptoService {
     this.sodium = sodium;
     this.isInitialized = true;
     console.log("[CryptoService] Libsodium initialized");
+
+    if (this.isInitialized) return;
+
+    try {
+      await sodium.ready;
+      this.sodium = sodium;
+      this.isInitialized = true;
+      console.log("[CryptoService] Libsodium initialized");
+    } catch (error) {
+      console.error("[CryptoService] Failed to initialize sodium:", error);
+      throw new Error("Failed to initialize cryptography library");
+    }
   }
 
   // Legacy compatibility method
@@ -166,9 +178,6 @@ class CryptoService {
       this.hexDump(privateKey, "Private Key");
 
       try {
-        // Try anonymous box decryption first (matches backend's SealAnonymous)
-        // For sealed box, we need to derive the public key from the private key
-        // Using the correct libsodium method
         const derivedPublicKey = this.sodium.crypto_scalarmult_base(privateKey);
 
         console.log("[CryptoService] Derived public key for sealed box");
