@@ -363,6 +363,9 @@ class CollectionCryptoService {
     // Generate collection key
     const collectionKey = this.generateCollectionKey();
 
+    // Generate collection ID
+    const collectionId = CryptoService.generateUUID();
+
     // Encrypt collection name with collection key
     const encryptedName = this.encryptCollectionName(
       collectionData.name || "Untitled Collection",
@@ -377,13 +380,19 @@ class CollectionCryptoService {
 
     // Prepare the API request
     const apiData = {
-      id: collectionData.id,
+      id: collectionId,
       encrypted_name: encryptedName,
       collection_type: collectionData.collection_type || "folder",
       encrypted_collection_key: encryptedCollectionKey,
-      parent_id: collectionData.parent_id || null,
-      ancestor_ids: collectionData.ancestor_ids || [],
     };
+
+    // Only add optional fields if they have values
+    if (collectionData.parent_id) {
+      apiData.parent_id = collectionData.parent_id;
+    }
+    if (collectionData.ancestor_ids && collectionData.ancestor_ids.length > 0) {
+      apiData.ancestor_ids = collectionData.ancestor_ids;
+    }
 
     // If sharing during creation, add members
     if (collectionData.members && collectionData.members.length > 0) {
@@ -413,7 +422,7 @@ class CollectionCryptoService {
       );
     }
 
-    return { apiData, collectionKey };
+    return { apiData, collectionKey, collectionId };
   }
 
   // Original method updated to require password if no session keys
