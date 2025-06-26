@@ -1,4 +1,4 @@
-// Updated pages/User/Collection/List.jsx
+// Fixed pages/User/Collection/List.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
@@ -8,7 +8,7 @@ const CollectionList = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { collectionService, localStorageService } = useServices();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   // State
   const [collections, setCollections] = useState([]);
@@ -24,25 +24,108 @@ const CollectionList = () => {
   const [passwordError, setPasswordError] = useState("");
   const [decryptionAttempted, setDecryptionAttempted] = useState(false);
 
+  // Cache management
+  const CACHE_KEY = "mapleapps_decrypted_collections";
+  const CACHE_EXPIRY_KEY = "mapleapps_collections_cache_expiry";
+  const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+  // Load cached collections from localStorage
+  const loadCachedCollections = () => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      const expiry = localStorage.getItem(CACHE_EXPIRY_KEY);
+
+      if (cached && expiry) {
+        const expiryTime = new Date(expiry);
+        if (new Date() < expiryTime) {
+          const data = JSON.parse(cached);
+          console.log("[CollectionList] Loading collections from cache");
+          return data;
+        } else {
+          // Cache expired, clear it
+          localStorage.removeItem(CACHE_KEY);
+          localStorage.removeItem(CACHE_EXPIRY_KEY);
+        }
+      }
+    } catch (error) {
+      console.error(
+        "[CollectionList] Failed to load cached collections:",
+        error,
+      );
+    }
+    return null;
+  };
+
+  // Save collections to localStorage cache
+  const saveCachedCollections = (owned, shared) => {
+    try {
+      const cacheData = {
+        owned_collections: owned,
+        shared_collections: shared,
+        cached_at: new Date().toISOString(),
+      };
+
+      const expiryTime = new Date(Date.now() + CACHE_DURATION);
+
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+      localStorage.setItem(CACHE_EXPIRY_KEY, expiryTime.toISOString());
+
+      console.log("[CollectionList] Collections cached until", expiryTime);
+    } catch (error) {
+      console.error("[CollectionList] Failed to cache collections:", error);
+    }
+  };
+
+  // Clear cache
+  const clearCache = () => {
+    localStorage.removeItem(CACHE_KEY);
+    localStorage.removeItem(CACHE_EXPIRY_KEY);
+    console.log("[CollectionList] Collections cache cleared");
+  };
+
   // Check if we need password on mount
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) {
+      return;
+    }
+
     if (isAuthenticated) {
-      // Check if we have session keys or encrypted user data
-      if (
-        !localStorageService.hasSessionKeys() &&
-        localStorageService.hasUserEncryptedData()
-      ) {
-        // We have encrypted data but no session keys - need password
-        setShowPasswordPrompt(true);
+      // Try to load from cache first
+      const cachedData = loadCachedCollections();
+      if (cachedData) {
+        setCollections(cachedData.owned_collections || []);
+        setSharedCollections(cachedData.shared_collections || []);
         setLoading(false);
+
+        // Check if any collections need decryption
+        const needsDecryption = [
+          ...cachedData.owned_collections,
+          ...cachedData.shared_collections,
+        ].some((c) => c.decrypt_error);
+
+        if (needsDecryption && !localStorageService.hasSessionKeys()) {
+          setShowPasswordPrompt(true);
+        }
       } else {
-        // Try to load collections
-        loadCollections();
+        // No cache, check if we need password
+        if (
+          !localStorageService.hasSessionKeys() &&
+          localStorageService.hasUserEncryptedData()
+        ) {
+          // We have encrypted data but no session keys - need password
+          setShowPasswordPrompt(true);
+          setLoading(false);
+        } else {
+          // Try to load collections
+          loadCollections();
+        }
       }
     } else {
+      // Only redirect if auth is not loading and user is not authenticated
       navigate("/login");
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, authLoading, navigate]);
 
   // Handle success message from navigation state
   useEffect(() => {
@@ -57,12 +140,26 @@ const CollectionList = () => {
   }, [location.state]);
 
   // Load collections based on filter
-  const loadCollections = async (passwordParam = null) => {
+  const loadCollections = async (
+    passwordParam = null,
+    forceRefresh = false,
+  ) => {
     try {
       setLoading(true);
       setError("");
 
-      console.log("[CollectionList] Loading collections...");
+      // Check cache first unless forcing refresh
+      if (!forceRefresh && !passwordParam) {
+        const cachedData = loadCachedCollections();
+        if (cachedData) {
+          setCollections(cachedData.owned_collections || []);
+          setSharedCollections(cachedData.shared_collections || []);
+          setLoading(false);
+          return;
+        }
+      }
+
+      console.log("[CollectionList] Loading collections from server...");
 
       const result = await collectionService.getFilteredCollections(
         true,
@@ -72,6 +169,19 @@ const CollectionList = () => {
 
       setCollections(result.owned_collections || []);
       setSharedCollections(result.shared_collections || []);
+
+      // Save to cache if all collections are decrypted successfully
+      const hasDecryptErrors = [
+        ...result.owned_collections,
+        ...result.shared_collections,
+      ].some((c) => c.decrypt_error);
+
+      if (!hasDecryptErrors) {
+        saveCachedCollections(
+          result.owned_collections,
+          result.shared_collections,
+        );
+      }
 
       console.log("[CollectionList] Collections loaded:", {
         owned: result.owned_collections?.length || 0,
@@ -128,7 +238,7 @@ const CollectionList = () => {
 
     try {
       console.log("[CollectionList] Loading collections with password");
-      await loadCollections(password);
+      await loadCollections(password, true); // Force refresh with password
 
       // Success - hide password prompt
       setShowPasswordPrompt(false);
@@ -138,6 +248,12 @@ const CollectionList = () => {
       setPasswordError("Invalid password. Please try again.");
       setPassword("");
     }
+  };
+
+  // Force refresh collections
+  const handleRefreshCollections = async () => {
+    clearCache();
+    await loadCollections(null, true);
   };
 
   // Get filtered collections based on current filter
@@ -171,8 +287,10 @@ const CollectionList = () => {
     try {
       await collectionService.deleteCollection(collectionId);
       setSuccessMessage(`Collection "${collectionName}" deleted successfully`);
-      // Reload collections
-      await loadCollections();
+
+      // Clear cache and reload
+      clearCache();
+      await loadCollections(null, true);
     } catch (err) {
       console.error("[CollectionList] Failed to delete collection:", err);
       setError(err.message || "Failed to delete collection");
@@ -244,6 +362,17 @@ const CollectionList = () => {
   };
 
   const filteredCollections = getFilteredCollections();
+
+  // Show loading while auth is loading
+  if (authLoading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loading}>
+          <p>Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Show password prompt if needed
   if (showPasswordPrompt && !loading) {
@@ -347,12 +476,21 @@ const CollectionList = () => {
           </button>
         </div>
 
-        <button
-          onClick={() => navigate("/collections/create")}
-          style={styles.createButton}
-        >
-          + Create Collection
-        </button>
+        <div style={styles.actionButtons}>
+          <button
+            onClick={handleRefreshCollections}
+            style={styles.refreshButton}
+            title="Refresh collections"
+          >
+            🔄 Refresh
+          </button>
+          <button
+            onClick={() => navigate("/collections/create")}
+            style={styles.createButton}
+          >
+            + Create Collection
+          </button>
+        </div>
       </div>
 
       <div style={styles.content}>
@@ -402,6 +540,17 @@ const CollectionList = () => {
             </button>
           </p>
         )}
+        {loadCachedCollections() && (
+          <p style={styles.cacheInfo}>
+            📦 Collections loaded from cache.
+            <button
+              onClick={handleRefreshCollections}
+              style={styles.linkButton}
+            >
+              Refresh from server
+            </button>
+          </p>
+        )}
       </div>
 
       {/* Debug info in development */}
@@ -422,6 +571,9 @@ const CollectionList = () => {
                     localStorageService?.hasSessionKeys?.() || false,
                   hasUserEncryptedData:
                     localStorageService?.hasUserEncryptedData?.() || false,
+                  hasCachedData: !!loadCachedCollections(),
+                  authLoading,
+                  isAuthenticated,
                 },
                 null,
                 2,
@@ -432,6 +584,13 @@ const CollectionList = () => {
             <pre>
               {JSON.stringify(collections[0] || sharedCollections[0], null, 2)}
             </pre>
+
+            <button
+              onClick={clearCache}
+              style={{ ...styles.refreshButton, marginTop: "10px" }}
+            >
+              Clear Cache
+            </button>
           </div>
         </details>
       )}
@@ -496,9 +655,21 @@ const styles = {
     color: "white",
     border: "1px solid #007bff",
   },
+  actionButtons: {
+    display: "flex",
+    gap: "10px",
+  },
   createButton: {
     padding: "8px 16px",
     background: "#28a745",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+  refreshButton: {
+    padding: "8px 16px",
+    background: "#6c757d",
     color: "white",
     border: "none",
     borderRadius: "4px",
@@ -578,6 +749,10 @@ const styles = {
     background: "#f8f9fa",
     border: "1px solid #dee2e6",
     borderRadius: "4px",
+  },
+  cacheInfo: {
+    marginTop: "10px",
+    color: "#17a2b8",
   },
   debug: {
     marginTop: "20px",
