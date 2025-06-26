@@ -1,4 +1,4 @@
-// CollectionCryptoService.js
+// CollectionCryptoService.js - Updated for password-based decryption
 import CryptoService from "./CryptoService.js";
 import LocalStorageService from "./LocalStorageService.js";
 import sodium from "libsodium-wrappers-sumo";
@@ -99,23 +99,95 @@ class CollectionCryptoService {
     }
   }
 
-  // Get user's encryption keys from session
-  async getUserKeys() {
-    // Get session keys that were stored during login
-    const sessionKeys = LocalStorageService.getSessionKeys();
+  // Decrypt user keys with password (on-demand)
+  async decryptUserKeysWithPassword(password) {
+    try {
+      await this.initialize();
 
-    if (!sessionKeys.masterKey || !sessionKeys.publicKey) {
-      // This should not happen in production - user must be logged in
+      // Get stored encrypted user data
+      const encryptedData = LocalStorageService.getUserEncryptedData();
+
+      if (
+        !encryptedData.salt ||
+        !encryptedData.encryptedMasterKey ||
+        !encryptedData.encryptedPrivateKey
+      ) {
+        throw new Error("Missing encrypted user data. Please log in again.");
+      }
+
+      console.log("[CollectionCrypto] Decrypting user keys with password");
+
+      // Decode the encrypted data
+      const salt = CryptoService.tryDecodeBase64(encryptedData.salt);
+      const encryptedMasterKey = CryptoService.tryDecodeBase64(
+        encryptedData.encryptedMasterKey,
+      );
+      const encryptedPrivateKey = CryptoService.tryDecodeBase64(
+        encryptedData.encryptedPrivateKey,
+      );
+      const publicKey = encryptedData.publicKey
+        ? CryptoService.tryDecodeBase64(encryptedData.publicKey)
+        : null;
+
+      // Derive key encryption key from password
+      const keyEncryptionKey = await CryptoService.deriveKeyFromPassword(
+        password,
+        salt,
+      );
+
+      // Decrypt master key with KEK
+      const masterKey = CryptoService.decryptWithSecretBox(
+        encryptedMasterKey,
+        keyEncryptionKey,
+      );
+
+      // Decrypt private key with master key
+      const privateKey = CryptoService.decryptWithSecretBox(
+        encryptedPrivateKey,
+        masterKey,
+      );
+
+      // Derive public key if not provided
+      const derivedPublicKey =
+        publicKey || CryptoService.sodium.crypto_scalarmult_base(privateKey);
+
+      console.log("[CollectionCrypto] User keys decrypted successfully");
+
+      return {
+        masterKey,
+        privateKey,
+        publicKey: derivedPublicKey,
+        keyEncryptionKey,
+      };
+    } catch (error) {
+      console.error("[CollectionCrypto] Failed to decrypt user keys:", error);
       throw new Error(
-        "User encryption keys not available. Please log in again.",
+        `Failed to decrypt keys: ${error.message}. Please check your password.`,
       );
     }
+  }
 
-    return {
-      masterKey: sessionKeys.masterKey,
-      publicKey: sessionKeys.publicKey,
-      privateKey: sessionKeys.privateKey,
-    };
+  // Get user's encryption keys from session or decrypt with password
+  async getUserKeys(password = null) {
+    // First check if we have session keys in memory
+    const sessionKeys = LocalStorageService.getSessionKeys();
+
+    if (sessionKeys.masterKey && sessionKeys.publicKey) {
+      console.log("[CollectionCrypto] Using session keys from memory");
+      return {
+        masterKey: sessionKeys.masterKey,
+        publicKey: sessionKeys.publicKey,
+        privateKey: sessionKeys.privateKey,
+      };
+    }
+
+    // If no session keys and no password provided, throw error
+    if (!password) {
+      throw new Error("Password required to decrypt collection keys");
+    }
+
+    // Decrypt keys with password
+    return await this.decryptUserKeysWithPassword(password);
   }
 
   // Encrypt collection key with user's master key
@@ -281,12 +353,12 @@ class CollectionCryptoService {
     }
   }
 
-  // Prepare collection data for API
-  async prepareCollectionForAPI(collectionData) {
+  // Prepare collection data for API with password
+  async prepareCollectionForAPIWithPassword(collectionData, password) {
     await this.initialize();
 
-    // Get user's encryption keys from session
-    const userKeys = await this.getUserKeys();
+    // Get user's encryption keys by decrypting with password
+    const userKeys = await this.getUserKeys(password);
 
     // Generate collection key
     const collectionKey = this.generateCollectionKey();
@@ -305,6 +377,7 @@ class CollectionCryptoService {
 
     // Prepare the API request
     const apiData = {
+      id: collectionData.id,
       encrypted_name: encryptedName,
       collection_type: collectionData.collection_type || "folder",
       encrypted_collection_key: encryptedCollectionKey,
@@ -332,18 +405,40 @@ class CollectionCryptoService {
       );
     }
 
+    // Clear the decrypted keys from memory if we decrypted them
+    if (password) {
+      // We decrypted keys on-demand, so don't store them
+      console.log(
+        "[CollectionCrypto] Clearing temporary decrypted keys from memory",
+      );
+    }
+
     return { apiData, collectionKey };
   }
 
-  // Decrypt collection data from API
-  async decryptCollectionFromAPI(encryptedCollection) {
+  // Original method updated to require password if no session keys
+  async prepareCollectionForAPI(collectionData) {
+    // Check if we have session keys
+    const sessionKeys = LocalStorageService.getSessionKeys();
+    if (!sessionKeys.masterKey) {
+      throw new Error(
+        "Password required to create collection - session keys not available",
+      );
+    }
+
+    // Use the password-based method with null password (will use session keys)
+    return this.prepareCollectionForAPIWithPassword(collectionData, null);
+  }
+
+  // Decrypt collection data from API (with optional password)
+  async decryptCollectionFromAPI(encryptedCollection, password = null) {
     if (!encryptedCollection) return null;
 
     await this.initialize();
 
     try {
-      // Get user keys from session
-      const userKeys = await this.getUserKeys();
+      // Get user keys - either from session or by decrypting with password
+      const userKeys = await this.getUserKeys(password);
 
       // Determine if this is our collection or shared with us
       const isOwnCollection =
@@ -409,17 +504,39 @@ class CollectionCryptoService {
     }
   }
 
-  // Batch decrypt collections
-  async decryptCollections(encryptedCollections) {
+  // Batch decrypt collections (with optional password)
+  async decryptCollections(encryptedCollections, password = null) {
     if (!encryptedCollections || !Array.isArray(encryptedCollections)) {
       return [];
     }
 
-    return Promise.all(
-      encryptedCollections.map((collection) =>
-        this.decryptCollectionFromAPI(collection),
-      ),
-    );
+    // If password provided, decrypt keys once and use for all collections
+    let userKeys = null;
+    if (password) {
+      userKeys = await this.getUserKeys(password);
+      // Temporarily store in session for batch operation
+      LocalStorageService.setSessionKeys(
+        userKeys.masterKey,
+        userKeys.privateKey,
+        userKeys.publicKey,
+        userKeys.keyEncryptionKey,
+      );
+    }
+
+    try {
+      const results = await Promise.all(
+        encryptedCollections.map((collection) =>
+          this.decryptCollectionFromAPI(collection),
+        ),
+      );
+
+      return results;
+    } finally {
+      // Clear temporary session keys if we set them
+      if (password) {
+        LocalStorageService.clearSessionKeys();
+      }
+    }
   }
 
   // Store collection keys in memory (not localStorage!)

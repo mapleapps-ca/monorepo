@@ -1,4 +1,5 @@
 // Local Storage Service for managing unencrypted authentication tokens
+// Session keys are kept in memory only and NOT persisted to localStorage
 import CryptoService from "./CryptoService.js";
 
 const LOCAL_STORAGE_KEYS = {
@@ -8,22 +9,23 @@ const LOCAL_STORAGE_KEYS = {
   REFRESH_TOKEN_EXPIRY: "mapleapps_refresh_token_expiry",
   USER_EMAIL: "mapleapps_user_email",
 
+  // Store encrypted user data from login (for password-based decryption)
+  USER_SALT: "mapleapps_user_salt",
+  USER_ENCRYPTED_MASTER_KEY: "mapleapps_user_encrypted_master_key",
+  USER_ENCRYPTED_PRIVATE_KEY: "mapleapps_user_encrypted_private_key",
+  USER_PUBLIC_KEY: "mapleapps_user_public_key",
+
   // Deprecated encrypted token keys (for cleanup)
   ENCRYPTED_ACCESS_TOKEN: "mapleapps_encrypted_access_token",
   ENCRYPTED_REFRESH_TOKEN: "mapleapps_encrypted_refresh_token",
   TOKEN_NONCE: "mapleapps_token_nonce",
   ENCRYPTED_TOKENS: "mapleapps_encrypted_tokens",
-
-  SESSION_MASTER_KEY: "mapleapps_session_master_key",
-  SESSION_PRIVATE_KEY: "mapleapps_session_private_key",
-  SESSION_PUBLIC_KEY: "mapleapps_session_public_key", // Optional, but good to store
-  SESSION_KEY_ENCRYPTION_KEY: "mapleapps_session_key_encryption_key", // KEK derived from password
 };
 
 class LocalStorageService {
-  // Load session keys from localStorage on initialization
   constructor() {
     this.isInitialized = false;
+    // Session keys stored in memory only - never persisted
     this._sessionKeys = {
       masterKey: null,
       privateKey: null,
@@ -32,65 +34,9 @@ class LocalStorageService {
     };
 
     this.initializeCryptoService();
-    this.loadSessionKeys(); // Load keys from localStorage on service initialization
     console.log(
-      "[LocalStorageService] Initialized. Session keys loaded:",
-      this.hasSessionKeys(),
+      "[LocalStorageService] Initialized with in-memory session keys only",
     );
-  }
-
-  // --- Session Key Management ---
-
-  // Load session keys from localStorage
-  loadSessionKeys() {
-    try {
-      const masterKey = localStorage.getItem(
-        LOCAL_STORAGE_KEYS.SESSION_MASTER_KEY,
-      );
-      const privateKey = localStorage.getItem(
-        LOCAL_STORAGE_KEYS.SESSION_PRIVATE_KEY,
-      );
-      const publicKey = localStorage.getItem(
-        LOCAL_STORAGE_KEYS.SESSION_PUBLIC_KEY,
-      );
-      const keyEncryptionKey = localStorage.getItem(
-        LOCAL_STORAGE_KEYS.SESSION_KEY_ENCRYPTION_KEY,
-      );
-      // Only update if essential keys are present
-      if (masterKey && privateKey) {
-        this._sessionKeys = {
-          masterKey: CryptoService.base64ToUint8Array(masterKey),
-          privateKey: CryptoService.base64ToUint8Array(privateKey),
-          publicKey: publicKey
-            ? CryptoService.base64ToUint8Array(publicKey)
-            : null,
-          keyEncryptionKey: keyEncryptionKey
-            ? CryptoService.base64ToUint8Array(keyEncryptionKey)
-            : null,
-        };
-        console.log(
-          "[LocalStorageService] Session keys loaded from localStorage.",
-        );
-      } else {
-        // If keys are missing, ensure _sessionKeys is reset
-        this._sessionKeys = {
-          masterKey: null,
-          privateKey: null,
-          publicKey: null,
-          keyEncryptionKey: null,
-        };
-        console.log(
-          "[LocalStorageService] Session keys not found in localStorage, resetting.",
-        );
-      }
-    } catch (error) {
-      console.error(
-        "[LocalStorageService] Error loading session keys from localStorage:",
-        error,
-      );
-      // Clear potentially corrupted keys if an error occurs during loading
-      this.clearSessionKeys();
-    }
   }
 
   async initializeCryptoService() {
@@ -107,58 +53,84 @@ class LocalStorageService {
         "[LocalStorageService] Failed to initialize CryptoService:",
         error,
       );
-      // Handle initialization error appropriately, possibly disabling crypto-dependent functionalities
     }
   }
 
-  // Modify setSessionKeys to save to localStorage reliably
-  setSessionKeys(masterKey, privateKey, publicKey, keyEncryptionKey) {
-    this._sessionKeys = { masterKey, privateKey, publicKey, keyEncryptionKey };
+  // --- User Encrypted Data Storage (for password-based decryption) ---
+
+  // Store user's encrypted keys from login (these are safe to persist)
+  storeUserEncryptedData(
+    salt,
+    encryptedMasterKey,
+    encryptedPrivateKey,
+    publicKey,
+  ) {
     try {
-      localStorage.setItem(
-        LOCAL_STORAGE_KEYS.SESSION_MASTER_KEY,
-        masterKey ? CryptoService.uint8ArrayToBase64(masterKey) : "",
+      if (salt) localStorage.setItem(LOCAL_STORAGE_KEYS.USER_SALT, salt);
+      if (encryptedMasterKey)
+        localStorage.setItem(
+          LOCAL_STORAGE_KEYS.USER_ENCRYPTED_MASTER_KEY,
+          encryptedMasterKey,
+        );
+      if (encryptedPrivateKey)
+        localStorage.setItem(
+          LOCAL_STORAGE_KEYS.USER_ENCRYPTED_PRIVATE_KEY,
+          encryptedPrivateKey,
+        );
+      if (publicKey)
+        localStorage.setItem(LOCAL_STORAGE_KEYS.USER_PUBLIC_KEY, publicKey);
+
+      console.log(
+        "[LocalStorageService] User encrypted data stored for future password-based decryption",
       );
-      localStorage.setItem(
-        LOCAL_STORAGE_KEYS.SESSION_PRIVATE_KEY,
-        privateKey ? CryptoService.uint8ArrayToBase64(privateKey) : "",
-      );
-      localStorage.setItem(
-        LOCAL_STORAGE_KEYS.SESSION_PUBLIC_KEY,
-        publicKey ? CryptoService.uint8ArrayToBase64(publicKey) : "",
-      );
-      localStorage.setItem(
-        LOCAL_STORAGE_KEYS.SESSION_KEY_ENCRYPTION_KEY,
-        keyEncryptionKey
-          ? CryptoService.uint8ArrayToBase64(keyEncryptionKey)
-          : "",
-      );
-      console.log("[LocalStorageService] Session keys saved to localStorage");
     } catch (error) {
       console.error(
-        "[LocalStorageService] Failed to save session keys to localStorage:",
+        "[LocalStorageService] Failed to store user encrypted data:",
         error,
       );
-      // If saving fails, ensure our in-memory state reflects that
-      this._sessionKeys = {
-        masterKey: null,
-        privateKey: null,
-        publicKey: null,
-        keyEncryptionKey: null,
-      };
     }
   }
 
-  // Ensure hasSessionKeys checks the loaded keys
+  // Get user's encrypted data for password-based decryption
+  getUserEncryptedData() {
+    return {
+      salt: localStorage.getItem(LOCAL_STORAGE_KEYS.USER_SALT),
+      encryptedMasterKey: localStorage.getItem(
+        LOCAL_STORAGE_KEYS.USER_ENCRYPTED_MASTER_KEY,
+      ),
+      encryptedPrivateKey: localStorage.getItem(
+        LOCAL_STORAGE_KEYS.USER_ENCRYPTED_PRIVATE_KEY,
+      ),
+      publicKey: localStorage.getItem(LOCAL_STORAGE_KEYS.USER_PUBLIC_KEY),
+    };
+  }
+
+  // Check if we have user's encrypted data
+  hasUserEncryptedData() {
+    const data = this.getUserEncryptedData();
+    return !!(data.salt && data.encryptedMasterKey && data.encryptedPrivateKey);
+  }
+
+  // --- Session Key Management (Memory Only) ---
+
+  // Set session keys (in memory only - NEVER persisted)
+  setSessionKeys(masterKey, privateKey, publicKey, keyEncryptionKey) {
+    this._sessionKeys = { masterKey, privateKey, publicKey, keyEncryptionKey };
+    console.log(
+      "[LocalStorageService] Session keys set in memory only (not persisted)",
+    );
+  }
+
+  // Check if session keys are available
   hasSessionKeys() {
     return !!(this._sessionKeys.masterKey && this._sessionKeys.privateKey);
   }
 
-  // Ensure getSessionKeys returns the persisted keys
+  // Get session keys
   getSessionKeys() {
     if (!this.hasSessionKeys()) {
       console.warn(
-        "[LocalStorageService] getSessionKeys called but keys are not available.",
+        "[LocalStorageService] No session keys in memory - password required",
       );
       return {
         masterKey: null,
@@ -169,6 +141,19 @@ class LocalStorageService {
     }
     return this._sessionKeys;
   }
+
+  // Clear session keys
+  clearSessionKeys() {
+    this._sessionKeys = {
+      masterKey: null,
+      privateKey: null,
+      publicKey: null,
+      keyEncryptionKey: null,
+    };
+    console.log("[LocalStorageService] Session keys cleared from memory");
+  }
+
+  // --- Token Management ---
 
   // Store unencrypted access token with expiry
   setAccessToken(accessToken, accessTokenExpiry) {
@@ -309,113 +294,22 @@ class LocalStorageService {
     localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.USER_EMAIL);
 
+    // Clear user encrypted data
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.USER_SALT);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.USER_ENCRYPTED_MASTER_KEY);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.USER_ENCRYPTED_PRIVATE_KEY);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.USER_PUBLIC_KEY);
+
     // Also clear any leftover encrypted token data
     localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_REFRESH_TOKEN);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS);
 
-    // Clear session keys
+    // Clear session keys from memory
     this.clearSessionKeys();
 
     console.log("[LocalStorageService] All authentication data cleared");
-  }
-
-  // Session-based key storage for login process (in memory only)
-  _sessionKeys = {
-    masterKey: null,
-    privateKey: null,
-    publicKey: null,
-    keyEncryptionKey: null,
-  };
-
-  // Store session keys during login process (in memory only)
-  setSessionKeys(masterKey, privateKey, publicKey, keyEncryptionKey) {
-    // Update in-memory state immediately
-    this._sessionKeys = { masterKey, privateKey, publicKey, keyEncryptionKey };
-
-    try {
-      // Persist to localStorage
-      localStorage.setItem(
-        LOCAL_STORAGE_KEYS.SESSION_MASTER_KEY,
-        masterKey || "",
-      );
-      localStorage.setItem(
-        LOCAL_STORAGE_KEYS.SESSION_PRIVATE_KEY,
-        privateKey ? CryptoService.uint8ArrayToBase64(privateKey) : "",
-      );
-      localStorage.setItem(
-        LOCAL_STORAGE_KEYS.SESSION_PUBLIC_KEY,
-        publicKey ? CryptoService.uint8ArrayToBase64(publicKey) : "",
-      );
-      localStorage.setItem(
-        LOCAL_STORAGE_KEYS.SESSION_KEY_ENCRYPTION_KEY,
-        keyEncryptionKey
-          ? CryptoService.uint8ArrayToBase64(keyEncryptionKey)
-          : "",
-      );
-      console.log("[LocalStorageService] Session keys saved to localStorage");
-    } catch (error) {
-      console.error(
-        "[LocalStorageService] Failed to save session keys to localStorage:",
-        error,
-      );
-      // If saving fails, ensure our in-memory state reflects that
-      // If saving fails, reset in-memory state to prevent inconsistency
-      this._sessionKeys = {
-        masterKey: null,
-        privateKey: null,
-        publicKey: null,
-        keyEncryptionKey: null,
-      };
-    }
-  }
-
-  // Clear session keys after login complete
-  clearSessionKeys() {
-    this._sessionKeys = {
-      masterKey: null,
-      privateKey: null,
-      publicKey: null,
-      keyEncryptionKey: null,
-    };
-    try {
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.SESSION_MASTER_KEY);
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.SESSION_PRIVATE_KEY);
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.SESSION_PUBLIC_KEY);
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.SESSION_KEY_ENCRYPTION_KEY);
-      console.log(
-        "[LocalStorageService] Session keys cleared from localStorage and memory.",
-      );
-    } catch (error) {
-      console.error(
-        "[LocalStorageService] Failed to clear session keys from localStorage:",
-        error,
-      );
-    }
-  }
-
-  // Check if essential session keys are available in memory
-  hasSessionKeys() {
-    // We check the in-memory store, which is populated by loadSessionKeys() or setSessionKeys()
-    return !!(this._sessionKeys.masterKey && this._sessionKeys.privateKey);
-  }
-
-  // Return the currently loaded session keys
-  getSessionKeys() {
-    if (!this.hasSessionKeys()) {
-      // This warning means loadSessionKeys() or setSessionKeys() did not populate them correctly
-      console.warn(
-        "[LocalStorageService] getSessionKeys called but keys are not available in memory.",
-      );
-      return {
-        masterKey: null,
-        privateKey: null,
-        publicKey: null,
-        keyEncryptionKey: null,
-      };
-    }
-    return this._sessionKeys;
   }
 
   // Store login session data (for multi-step login)
@@ -477,22 +371,8 @@ class LocalStorageService {
       localStorage.removeItem(LOCAL_STORAGE_KEYS.TOKEN_NONCE);
       localStorage.removeItem(LOCAL_STORAGE_KEYS.ENCRYPTED_TOKENS);
     }
-    // Always ensure session keys are cleared during this process
-    this.clearSessionKeys();
-    console.log(
-      "[LocalStorageService] Cleaned up encrypted tokens and session keys.",
-    );
-    return true; // Indicate cleanup was attempted
-  }
 
-  // Make sure cleanupEncryptedTokenData also removes session keys if they exist there
-  cleanupEncryptedTokenData() {
-    // ... existing cleanup logic ...
-    this.clearSessionKeys(); // Ensure session keys are also cleared
-    console.log(
-      "[LocalStorageService] Cleaned up encrypted tokens and session keys.",
-    );
-    return true; // Indicate cleanup was attempted
+    return hadEncryptedData;
   }
 
   // Decrypt encrypted tokens using session keys (used during login)

@@ -14,13 +14,6 @@ class CryptoService {
   async initialize() {
     if (this.isInitialized) return;
 
-    await sodium.ready;
-    this.sodium = sodium;
-    this.isInitialized = true;
-    console.log("[CryptoService] Libsodium initialized");
-
-    if (this.isInitialized) return;
-
     try {
       await sodium.ready;
       this.sodium = sodium;
@@ -333,6 +326,177 @@ class CryptoService {
     console.log(
       `[CryptoService] ${label} (${data.length} bytes): ${hex}${data.length > maxBytes ? "..." : ""}`,
     );
+  }
+
+  // Generate a UUID v4 (for Cassandra compatibility)
+  generateUUID() {
+    // Use native implementation if available (most modern browsers)
+    if (crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+
+    // Fallback to manual implementation
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+
+    // Set version (4) and variant bits according to UUID v4 spec
+    array[6] = (array[6] & 0x0f) | 0x40; // Version 4
+    array[8] = (array[8] & 0x3f) | 0x80; // Variant 10
+
+    // Convert to hex string
+    const hex = Array.from(array, (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
+
+    // Format as UUID: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+  }
+
+  // Generate a random 32-byte key
+  generateRandomKey() {
+    if (!this.sodium) {
+      throw new Error("CryptoService not initialized");
+    }
+    return this.sodium.randombytes_buf(32);
+  }
+
+  // Hash data using SHA-256
+  async hashData(data) {
+    if (!this.sodium) {
+      throw new Error("CryptoService not initialized");
+    }
+
+    // Convert data to Uint8Array if it's not already
+    let dataBytes;
+    if (data instanceof Uint8Array) {
+      dataBytes = data;
+    } else if (typeof data === "string") {
+      const encoder = new TextEncoder();
+      dataBytes = encoder.encode(data);
+    } else {
+      throw new Error("Data must be Uint8Array or string");
+    }
+
+    // Use libsodium's crypto_hash_sha256
+    return this.sodium.crypto_hash_sha256(dataBytes);
+  }
+
+  // Encrypt data with a key (for file/data encryption)
+  async encryptWithKey(data, key) {
+    if (!this.sodium) {
+      throw new Error("CryptoService not initialized");
+    }
+
+    // Convert data to Uint8Array if needed
+    let dataBytes;
+    if (data instanceof Uint8Array) {
+      dataBytes = data;
+    } else if (typeof data === "string") {
+      const encoder = new TextEncoder();
+      dataBytes = encoder.encode(data);
+    } else {
+      throw new Error("Data must be Uint8Array or string");
+    }
+
+    // Generate nonce
+    const nonce = this.sodium.randombytes_buf(
+      this.sodium.crypto_secretbox_NONCEBYTES,
+    );
+
+    // Encrypt data
+    const encrypted = this.sodium.crypto_secretbox_easy(dataBytes, nonce, key);
+
+    // Combine nonce + encrypted data
+    const combined = new Uint8Array(nonce.length + encrypted.length);
+    combined.set(nonce, 0);
+    combined.set(encrypted, nonce.length);
+
+    // Return base64 encoded
+    return this.uint8ArrayToBase64(combined);
+  }
+
+  // Decrypt data with a key
+  async decryptWithKey(encryptedData, key) {
+    if (!this.sodium) {
+      throw new Error("CryptoService not initialized");
+    }
+
+    // Decode from base64
+    const combined = this.tryDecodeBase64(encryptedData);
+
+    // Extract nonce and ciphertext
+    const nonceLength = this.sodium.crypto_secretbox_NONCEBYTES;
+    const nonce = combined.slice(0, nonceLength);
+    const ciphertext = combined.slice(nonceLength);
+
+    // Decrypt
+    const decrypted = this.sodium.crypto_secretbox_open_easy(
+      ciphertext,
+      nonce,
+      key,
+    );
+
+    return decrypted;
+  }
+
+  // Encrypt file key with collection key
+  async encryptFileKey(fileKey, collectionKey) {
+    if (!this.sodium) {
+      throw new Error("CryptoService not initialized");
+    }
+
+    if (!fileKey || !collectionKey) {
+      throw new Error("File key and collection key are required");
+    }
+
+    // Generate nonce
+    const nonce = this.sodium.randombytes_buf(
+      this.sodium.crypto_secretbox_NONCEBYTES,
+    );
+
+    // Encrypt file key with collection key
+    const encrypted = this.sodium.crypto_secretbox_easy(
+      fileKey,
+      nonce,
+      collectionKey,
+    );
+
+    // Return in the format expected by the API
+    return {
+      ciphertext: encrypted,
+      nonce: nonce,
+    };
+  }
+
+  // Decrypt file key with collection key
+  async decryptFileKey(encryptedFileKey, collectionKey) {
+    if (!this.sodium) {
+      throw new Error("CryptoService not initialized");
+    }
+
+    if (!encryptedFileKey || !collectionKey) {
+      throw new Error("Encrypted file key and collection key are required");
+    }
+
+    // Handle different formats
+    let ciphertext, nonce;
+
+    if (encryptedFileKey.ciphertext && encryptedFileKey.nonce) {
+      // Separate ciphertext and nonce
+      ciphertext = new Uint8Array(encryptedFileKey.ciphertext);
+      nonce = new Uint8Array(encryptedFileKey.nonce);
+    } else {
+      throw new Error("Invalid encrypted file key format");
+    }
+
+    // Decrypt file key
+    const fileKey = this.sodium.crypto_secretbox_open_easy(
+      ciphertext,
+      nonce,
+      collectionKey,
+    );
+
+    return fileKey;
   }
 
   // Convert base64 to Uint8Array

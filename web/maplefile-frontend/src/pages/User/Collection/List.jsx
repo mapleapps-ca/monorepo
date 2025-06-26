@@ -7,7 +7,7 @@ import useAuth from "../../../hooks/useAuth.js";
 const CollectionList = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { collectionService } = useServices();
+  const { collectionService, localStorageService } = useServices();
   const { isAuthenticated } = useAuth();
 
   // State
@@ -18,10 +18,27 @@ const CollectionList = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [filter, setFilter] = useState("all"); // all, owned, shared
 
-  // Load collections on mount
+  // Password prompt state
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [decryptionAttempted, setDecryptionAttempted] = useState(false);
+
+  // Check if we need password on mount
   useEffect(() => {
     if (isAuthenticated) {
-      loadCollections();
+      // Check if we have session keys or encrypted user data
+      if (
+        !localStorageService.hasSessionKeys() &&
+        localStorageService.hasUserEncryptedData()
+      ) {
+        // We have encrypted data but no session keys - need password
+        setShowPasswordPrompt(true);
+        setLoading(false);
+      } else {
+        // Try to load collections
+        loadCollections();
+      }
     } else {
       navigate("/login");
     }
@@ -40,14 +57,18 @@ const CollectionList = () => {
   }, [location.state]);
 
   // Load collections based on filter
-  const loadCollections = async () => {
+  const loadCollections = async (passwordParam = null) => {
     try {
       setLoading(true);
       setError("");
 
       console.log("[CollectionList] Loading collections...");
 
-      const result = await collectionService.getFilteredCollections(true, true);
+      const result = await collectionService.getFilteredCollections(
+        true,
+        true,
+        passwordParam,
+      );
 
       setCollections(result.owned_collections || []);
       setSharedCollections(result.shared_collections || []);
@@ -56,11 +77,34 @@ const CollectionList = () => {
         owned: result.owned_collections?.length || 0,
         shared: result.shared_collections?.length || 0,
       });
+
+      // Check if any collections failed to decrypt
+      const failedDecryptions = [
+        ...result.owned_collections,
+        ...result.shared_collections,
+      ].filter((c) => c.decrypt_error);
+
+      if (
+        failedDecryptions.length > 0 &&
+        !decryptionAttempted &&
+        !passwordParam
+      ) {
+        console.log(
+          "[CollectionList] Some collections failed to decrypt, may need password",
+        );
+        setShowPasswordPrompt(true);
+      }
     } catch (err) {
       console.error("[CollectionList] Failed to load collections:", err);
 
       // Handle specific error cases
-      if (err.message.includes("User encryption keys not available")) {
+      if (
+        err.message.includes("Password required") ||
+        err.message.includes("session keys not available")
+      ) {
+        setShowPasswordPrompt(true);
+        setError("");
+      } else if (err.message.includes("User encryption keys not available")) {
         setError(
           "Encryption keys not available. Please log out and log in again.",
         );
@@ -69,6 +113,30 @@ const CollectionList = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle password submission
+  const handlePasswordSubmit = async () => {
+    if (!password) {
+      setPasswordError("Password is required");
+      return;
+    }
+
+    setPasswordError("");
+    setDecryptionAttempted(true);
+
+    try {
+      console.log("[CollectionList] Loading collections with password");
+      await loadCollections(password);
+
+      // Success - hide password prompt
+      setShowPasswordPrompt(false);
+      setPassword("");
+    } catch (err) {
+      console.error("[CollectionList] Failed to decrypt with password:", err);
+      setPasswordError("Invalid password. Please try again.");
+      setPassword("");
     }
   };
 
@@ -111,6 +179,15 @@ const CollectionList = () => {
     }
   };
 
+  // Handle skip password
+  const handleSkipPassword = () => {
+    setShowPasswordPrompt(false);
+    setPasswordError("");
+    setPassword("");
+    // Try to load without password - will show encrypted collections
+    loadCollections();
+  };
+
   // Render collection item
   const renderCollectionItem = (collection) => {
     const isOwned =
@@ -122,7 +199,7 @@ const CollectionList = () => {
       <div key={collection.id} style={styles.collectionItem}>
         <div
           style={styles.collectionInfo}
-          onClick={() => handleCollectionClick(collection)}
+          onClick={() => !hasDecryptError && handleCollectionClick(collection)}
         >
           <div style={styles.collectionIcon}>
             {collection.collection_type === "album" ? "🖼️" : "📁"}
@@ -150,7 +227,7 @@ const CollectionList = () => {
           </div>
         </div>
         <div style={styles.collectionActions}>
-          {isOwned && (
+          {isOwned && !hasDecryptError && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -167,6 +244,59 @@ const CollectionList = () => {
   };
 
   const filteredCollections = getFilteredCollections();
+
+  // Show password prompt if needed
+  if (showPasswordPrompt && !loading) {
+    return (
+      <div style={styles.container}>
+        <h1>Enter Password to Decrypt Collections</h1>
+
+        <div style={styles.passwordCard}>
+          <p style={styles.info}>
+            Your collections are encrypted. Please enter your password to
+            decrypt them.
+          </p>
+
+          {passwordError && (
+            <div style={styles.errorMessage}>❌ {passwordError}</div>
+          )}
+
+          <div style={styles.passwordForm}>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handlePasswordSubmit()}
+              placeholder="Enter your password"
+              autoFocus
+              style={styles.passwordInput}
+            />
+
+            <div style={styles.passwordButtons}>
+              <button
+                onClick={handlePasswordSubmit}
+                disabled={!password}
+                style={{ ...styles.submitButton, opacity: !password ? 0.6 : 1 }}
+              >
+                Decrypt Collections
+              </button>
+
+              <button onClick={handleSkipPassword} style={styles.skipButton}>
+                Skip (View Encrypted)
+              </button>
+            </div>
+          </div>
+
+          <div style={styles.securityNote}>
+            <p>
+              🔐 Your password is never stored and is only used to decrypt your
+              data.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -261,6 +391,17 @@ const CollectionList = () => {
             </span>
           )}
         </p>
+        {filteredCollections.some((c) => c.decrypt_error) && (
+          <p style={styles.warningText}>
+            Some collections could not be decrypted.
+            <button
+              onClick={() => setShowPasswordPrompt(true)}
+              style={styles.linkButton}
+            >
+              Enter password to decrypt
+            </button>
+          </p>
+        )}
       </div>
 
       {/* Debug info in development */}
@@ -277,6 +418,10 @@ const CollectionList = () => {
                   filter,
                   loading,
                   error,
+                  hasSessionKeys:
+                    localStorageService?.hasSessionKeys?.() || false,
+                  hasUserEncryptedData:
+                    localStorageService?.hasUserEncryptedData?.() || false,
                 },
                 null,
                 2,
@@ -387,9 +532,6 @@ const styles = {
     borderRadius: "4px",
     cursor: "pointer",
     transition: "background 0.2s",
-    ":hover": {
-      background: "#e9ecef",
-    },
   },
   collectionInfo: {
     display: "flex",
@@ -443,6 +585,72 @@ const styles = {
     background: "#f8f9fa",
     border: "1px solid #dee2e6",
     borderRadius: "4px",
+  },
+  passwordCard: {
+    background: "white",
+    border: "1px solid #e0e0e0",
+    borderRadius: "8px",
+    padding: "30px",
+    maxWidth: "500px",
+    margin: "40px auto",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+  },
+  passwordForm: {
+    marginTop: "20px",
+  },
+  passwordInput: {
+    width: "100%",
+    padding: "12px",
+    fontSize: "16px",
+    border: "1px solid #ddd",
+    borderRadius: "4px",
+    marginBottom: "20px",
+  },
+  passwordButtons: {
+    display: "flex",
+    gap: "10px",
+    justifyContent: "space-between",
+  },
+  submitButton: {
+    flex: 1,
+    padding: "12px 20px",
+    background: "#007bff",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    fontSize: "16px",
+    cursor: "pointer",
+  },
+  skipButton: {
+    flex: 1,
+    padding: "12px 20px",
+    background: "#6c757d",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    fontSize: "16px",
+    cursor: "pointer",
+  },
+  securityNote: {
+    marginTop: "20px",
+    padding: "15px",
+    background: "#f8f9fa",
+    borderRadius: "4px",
+    fontSize: "14px",
+    color: "#666",
+  },
+  warningText: {
+    marginTop: "10px",
+    color: "#856404",
+  },
+  linkButton: {
+    background: "none",
+    border: "none",
+    color: "#007bff",
+    textDecoration: "underline",
+    cursor: "pointer",
+    padding: "0",
+    marginLeft: "5px",
   },
 };
 

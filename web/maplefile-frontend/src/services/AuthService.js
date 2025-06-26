@@ -1,4 +1,4 @@
-// Authentication Service for API calls - Updated for Unencrypted Token Storage
+// Authentication Service for API calls - Updated to store encrypted user data
 import LocalStorageService from "./LocalStorageService.js";
 import CryptoService from "./CryptoService.js";
 import WorkerManager from "./WorkerManager.js";
@@ -112,6 +112,53 @@ class AuthService {
 
       // Store verification data for the final step
       LocalStorageService.setLoginSessionData("verify_response", response);
+
+      // IMPORTANT: Store the user's encrypted data for future password-based decryption
+      if (
+        response.salt &&
+        response.encryptedMasterKey &&
+        response.encryptedPrivateKey
+      ) {
+        console.log(
+          "[AuthService] Storing user's encrypted data for future use",
+        );
+        LocalStorageService.storeUserEncryptedData(
+          response.salt,
+          response.encryptedMasterKey,
+          response.encryptedPrivateKey,
+          response.publicKey || response.userPublicKey,
+        );
+      } else {
+        // Try alternative field names
+        const salt = response.salt || response.Salt || response.password_salt;
+        const encryptedMasterKey =
+          response.encryptedMasterKey ||
+          response.encrypted_master_key ||
+          response.masterKey ||
+          response.master_key;
+        const encryptedPrivateKey =
+          response.encryptedPrivateKey ||
+          response.encrypted_private_key ||
+          response.privateKey ||
+          response.private_key;
+        const publicKey =
+          response.publicKey ||
+          response.public_key ||
+          response.userPublicKey ||
+          response.user_public_key;
+
+        if (salt && encryptedMasterKey && encryptedPrivateKey) {
+          console.log(
+            "[AuthService] Storing user's encrypted data (alternative field names)",
+          );
+          LocalStorageService.storeUserEncryptedData(
+            salt,
+            encryptedMasterKey,
+            encryptedPrivateKey,
+            publicKey,
+          );
+        }
+      }
 
       return response;
     } catch (error) {
@@ -289,21 +336,15 @@ class AuthService {
         LocalStorageService.setUserEmail(response.username);
       }
 
-      // Clear login session data and session keys (no longer needed)
+      // Clear login session data but NOT session keys
       LocalStorageService.clearAllLoginSessionData();
-      // LocalStorageService.clearSessionKeys();
-      //
-      console.log(
-        "[CompleteLogin] Preserving session keys for collection encryption",
-      );
 
-      // Log that we're keeping the keys
-      const sessionKeys = LocalStorageService.getSessionKeys();
-      if (sessionKeys.masterKey && sessionKeys.privateKey) {
-        console.log(
-          "[CompleteLogin] Session keys preserved for E2EE operations",
-        );
-      }
+      // IMPORTANT: Clear session keys after successful login
+      // They were only needed temporarily for token decryption
+      console.log(
+        "[AuthService] Clearing session keys after login - they will be re-derived from password when needed",
+      );
+      LocalStorageService.clearSessionKeys();
 
       // Clean up any old encrypted token data
       LocalStorageService.cleanupEncryptedTokenData();
@@ -324,7 +365,6 @@ class AuthService {
     }
   }
 
-  // Real challenge decryption using CryptoService
   // Real challenge decryption using CryptoService
   async decryptChallenge(password, verifyData) {
     try {
@@ -476,14 +516,6 @@ class AuthService {
       console.error("[AuthService] Challenge decryption failed:", error);
       throw new Error(`Decryption failed: ${error.message}`);
     }
-
-    // All session keys are now available
-    LocalStorageService.setSessionKeys(
-      masterKey,
-      privateKey,
-      derivedPublicKey,
-      keyEncryptionKey,
-    );
   }
 
   // Token Refresh using unencrypted tokens
@@ -652,6 +684,7 @@ class AuthService {
   getSessionKeyStatus() {
     return {
       hasSessionKeys: LocalStorageService.hasSessionKeys(),
+      hasUserEncryptedData: LocalStorageService.hasUserEncryptedData(),
       isAuthenticated: this.isAuthenticated(),
       canMakeRequests: this.canMakeAuthenticatedRequests(),
     };

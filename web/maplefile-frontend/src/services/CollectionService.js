@@ -1,4 +1,4 @@
-// Updated CollectionService.js with proper encryption
+// Updated CollectionService.js with password-based collection creation
 import CollectionCryptoService from "./CollectionCryptoService.js";
 
 class CollectionService {
@@ -17,21 +17,101 @@ class CollectionService {
     return this._apiClient;
   }
 
-  // 1. Create Collection (with encryption)
+  // 1. Create Collection with Password (NEW METHOD)
+  async createCollectionWithPassword(collectionData, password) {
+    try {
+      this.isLoading = true;
+      console.log(
+        "[CollectionService] Creating new collection with password-based encryption",
+      );
+
+      // Prepare encrypted data for API using password
+      const { apiData, collectionKey, collectionId } =
+        await CollectionCryptoService.prepareCollectionForAPIWithPassword(
+          collectionData,
+          password,
+        );
+
+      console.log(
+        "[CollectionService] Collection data encrypted with password, sending to API",
+      );
+
+      // Clean up the API data - remove null values that Go doesn't handle well
+      if (apiData.parent_id === null || apiData.parent_id === undefined) {
+        delete apiData.parent_id;
+      }
+      if (!apiData.ancestor_ids || apiData.ancestor_ids.length === 0) {
+        delete apiData.ancestor_ids;
+      }
+
+      const apiClient = await this.getApiClient();
+      const encryptedCollection = await apiClient.postMapleFile(
+        "/collections",
+        apiData,
+      );
+
+      // Decrypt the response for local use (pass password for decryption)
+      const decryptedCollection =
+        await CollectionCryptoService.decryptCollectionFromAPI(
+          encryptedCollection,
+          password,
+        );
+
+      // Cache the collection key using the generated ID
+      CollectionCryptoService.cacheCollectionKey(collectionId, collectionKey);
+
+      // Cache the decrypted collection
+      this.cache.set(collectionId, decryptedCollection);
+      console.log(
+        "[CollectionService] Collection created with password:",
+        collectionId,
+      );
+
+      return decryptedCollection;
+    } catch (error) {
+      console.error(
+        "[CollectionService] Failed to create collection with password:",
+        error,
+      );
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // 1a. Create Collection (original method - requires session keys)
   async createCollection(collectionData) {
     try {
       this.isLoading = true;
       console.log(
-        "[CollectionService] Creating new collection with encryption",
+        "[CollectionService] Creating new collection with session keys",
       );
 
+      // Check if we have session keys
+      const { default: LocalStorageService } = await import(
+        "./LocalStorageService.js"
+      );
+      if (!LocalStorageService.hasSessionKeys()) {
+        throw new Error(
+          "Session keys not available. Please use createCollectionWithPassword method.",
+        );
+      }
+
       // Prepare encrypted data for API
-      const { apiData, collectionKey } =
+      const { apiData, collectionKey, collectionId } =
         await CollectionCryptoService.prepareCollectionForAPI(collectionData);
 
       console.log(
         "[CollectionService] Collection data encrypted, sending to API",
       );
+
+      // Clean up the API data - remove null values that Go doesn't handle well
+      if (apiData.parent_id === null || apiData.parent_id === undefined) {
+        delete apiData.parent_id;
+      }
+      if (!apiData.ancestor_ids || apiData.ancestor_ids.length === 0) {
+        delete apiData.ancestor_ids;
+      }
 
       const apiClient = await this.getApiClient();
       const encryptedCollection = await apiClient.postMapleFile(
@@ -45,18 +125,12 @@ class CollectionService {
           encryptedCollection,
         );
 
-      // Cache the collection key
-      CollectionCryptoService.cacheCollectionKey(
-        decryptedCollection.id,
-        collectionKey,
-      );
+      // Cache the collection key using the generated ID
+      CollectionCryptoService.cacheCollectionKey(collectionId, collectionKey);
 
       // Cache the decrypted collection
-      this.cache.set(decryptedCollection.id, decryptedCollection);
-      console.log(
-        "[CollectionService] Collection created:",
-        decryptedCollection.id,
-      );
+      this.cache.set(collectionId, decryptedCollection);
+      console.log("[CollectionService] Collection created:", collectionId);
 
       return decryptedCollection;
     } catch (error) {
@@ -67,14 +141,14 @@ class CollectionService {
     }
   }
 
-  // 2. Get Collection by ID (with decryption)
-  async getCollection(collectionId) {
+  // 2. Get Collection by ID (with optional password for decryption)
+  async getCollection(collectionId, password = null) {
     try {
       this.isLoading = true;
       console.log("[CollectionService] Getting collection:", collectionId);
 
       // Check cache first
-      if (this.cache.has(collectionId)) {
+      if (this.cache.has(collectionId) && !password) {
         console.log("[CollectionService] Collection found in cache");
         return this.cache.get(collectionId);
       }
@@ -88,6 +162,7 @@ class CollectionService {
       const decryptedCollection =
         await CollectionCryptoService.decryptCollectionFromAPI(
           encryptedCollection,
+          password,
         );
 
       // Cache the decrypted collection
@@ -119,7 +194,7 @@ class CollectionService {
         CollectionCryptoService.getCachedCollectionKey(collectionId);
 
       if (!collectionKey && cachedCollection?._encrypted_collection_key) {
-        // Try to decrypt the collection key
+        // Try to decrypt the collection key - this will require session keys
         const userKeys = await CollectionCryptoService.getUserKeys();
         collectionKey = await CollectionCryptoService.decryptCollectionKey(
           cachedCollection._encrypted_collection_key,
@@ -173,8 +248,8 @@ class CollectionService {
     }
   }
 
-  // 7. List User Collections (with decryption)
-  async listUserCollections() {
+  // 7. List User Collections (with optional password for decryption)
+  async listUserCollections(password = null) {
     try {
       this.isLoading = true;
       console.log("[CollectionService] Listing user collections");
@@ -186,6 +261,7 @@ class CollectionService {
       const decryptedCollections =
         await CollectionCryptoService.decryptCollections(
           response.collections || [],
+          password,
         );
 
       // Cache collections
@@ -209,8 +285,8 @@ class CollectionService {
     }
   }
 
-  // 8. List Shared Collections (with decryption)
-  async listSharedCollections() {
+  // 8. List Shared Collections (with optional password for decryption)
+  async listSharedCollections(password = null) {
     try {
       this.isLoading = true;
       console.log("[CollectionService] Listing shared collections");
@@ -222,6 +298,7 @@ class CollectionService {
       const decryptedCollections =
         await CollectionCryptoService.decryptCollections(
           response.collections || [],
+          password,
         );
 
       // Cache collections
@@ -245,8 +322,12 @@ class CollectionService {
     }
   }
 
-  // 9. Get Filtered Collections (with decryption)
-  async getFilteredCollections(includeOwned = true, includeShared = false) {
+  // 9. Get Filtered Collections (with optional password for decryption)
+  async getFilteredCollections(
+    includeOwned = true,
+    includeShared = false,
+    password = null,
+  ) {
     try {
       this.isLoading = true;
       console.log("[CollectionService] Getting filtered collections", {
@@ -267,9 +348,11 @@ class CollectionService {
       // Decrypt all collections
       const decryptedOwned = await CollectionCryptoService.decryptCollections(
         response.owned_collections || [],
+        password,
       );
       const decryptedShared = await CollectionCryptoService.decryptCollections(
         response.shared_collections || [],
+        password,
       );
 
       // Cache all collections
@@ -302,8 +385,8 @@ class CollectionService {
     }
   }
 
-  // 10. Find Root Collections (with decryption)
-  async findRootCollections() {
+  // 10. Find Root Collections (with optional password for decryption)
+  async findRootCollections(password = null) {
     try {
       this.isLoading = true;
       console.log("[CollectionService] Finding root collections");
@@ -315,6 +398,7 @@ class CollectionService {
       const decryptedCollections =
         await CollectionCryptoService.decryptCollections(
           response.collections || [],
+          password,
         );
 
       // Cache collections
@@ -338,8 +422,8 @@ class CollectionService {
     }
   }
 
-  // 11. Find Collections by Parent (with decryption)
-  async findCollectionsByParent(parentId) {
+  // 11. Find Collections by Parent (with optional password for decryption)
+  async findCollectionsByParent(parentId, password = null) {
     try {
       this.isLoading = true;
       console.log(
@@ -356,6 +440,7 @@ class CollectionService {
       const decryptedCollections =
         await CollectionCryptoService.decryptCollections(
           response.collections || [],
+          password,
         );
 
       // Cache collections
@@ -615,9 +700,9 @@ class CollectionService {
   }
 
   // Utility methods remain the same
-  async getAllCollections() {
+  async getAllCollections(password = null) {
     try {
-      const result = await this.getFilteredCollections(true, true);
+      const result = await this.getFilteredCollections(true, true, password);
       return [
         ...(result.owned_collections || []),
         ...(result.shared_collections || []),
@@ -631,14 +716,14 @@ class CollectionService {
     }
   }
 
-  async getCollectionHierarchy(collectionId) {
+  async getCollectionHierarchy(collectionId, password = null) {
     try {
-      const collection = await this.getCollection(collectionId);
+      const collection = await this.getCollection(collectionId, password);
       const hierarchy = [collection];
 
       if (collection.ancestor_ids && collection.ancestor_ids.length > 0) {
         for (const ancestorId of collection.ancestor_ids.reverse()) {
-          const ancestor = await this.getCollection(ancestorId);
+          const ancestor = await this.getCollection(ancestorId, password);
           hierarchy.unshift(ancestor);
         }
       }
@@ -653,15 +738,18 @@ class CollectionService {
     }
   }
 
-  async getCollectionTree(parentId = null) {
+  async getCollectionTree(parentId = null, password = null) {
     try {
       const collections = parentId
-        ? await this.findCollectionsByParent(parentId)
-        : await this.findRootCollections();
+        ? await this.findCollectionsByParent(parentId, password)
+        : await this.findRootCollections(password);
 
       const tree = await Promise.all(
         collections.map(async (collection) => {
-          const children = await this.getCollectionTree(collection.id);
+          const children = await this.getCollectionTree(
+            collection.id,
+            password,
+          );
           return {
             ...collection,
             children,
