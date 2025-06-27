@@ -3,8 +3,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
 import useAuth from "../../../hooks/useAuth.js";
+import withPasswordProtection from "../../../hocs/withPasswordProtection.jsx";
 
-// Simple inline debug component
 // Simple inline debug component
 const TokenDebugComponent = () => {
   const { localStorageService, authService, passwordStorageService } =
@@ -487,4 +487,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default withPasswordProtection(Dashboard);

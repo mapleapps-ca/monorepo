@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
 import useAuth from "../../../hooks/useAuth.js";
+import withPasswordProtection from "../../../hocs/withPasswordProtection.jsx";
 
 const MeDetail = () => {
   const navigate = useNavigate();
@@ -654,4 +655,4 @@ const MeDetail = () => {
   );
 };
 
-export default MeDetail;
+export default withPasswordProtection(MeDetail);

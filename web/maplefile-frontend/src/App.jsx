@@ -61,26 +61,6 @@ function App() {
             <Route path="/collections" element={<CollectionList />} />
             <Route path="/collections/create" element={<CollectionCreate />} />
 
-            {/*
-            <Route path="/verify-email" element={<EmailVerification />} />
-            <Route
-              path="/registration-success"
-              element={<RegistrationSuccess />}
-            />
-            */}
-
-            {/* Protected routes */}
-            {/*
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
-            */}
-
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

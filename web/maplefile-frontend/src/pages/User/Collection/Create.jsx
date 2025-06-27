@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
 import useAuth from "../../../hooks/useAuth.js";
+import withPasswordProtection from "../../../hocs/withPasswordProtection.jsx";
 
 const CollectionCreate = () => {
   const navigate = useNavigate();
@@ -330,4 +331,4 @@ const CollectionCreate = () => {
   );
 };
 
-export default CollectionCreate;
+export default withPasswordProtection(CollectionCreate);
