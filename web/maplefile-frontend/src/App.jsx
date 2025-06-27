@@ -24,6 +24,7 @@ import MeDetail from "./pages/User/Me/Detail";
 import CollectionList from "./pages/User/Collection/List";
 import CollectionCreate from "./pages/User/Collection/Create";
 import CollectionDetail from "./pages/User/Collection/Detail";
+import CollectionFiles from "./pages/User/Collection/Files";
 
 // Main App component
 function App() {
@@ -65,6 +66,10 @@ function App() {
             <Route
               path="/collections/:collectionId"
               element={<CollectionDetail />}
+            />
+            <Route
+              path="/collections/:collectionId/files"
+              element={<CollectionFiles />}
             />
 
             {/* Redirect any unknown routes to home */}

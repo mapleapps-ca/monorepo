@@ -223,6 +223,19 @@ const CollectionDetail = () => {
           >
             🗑️ Delete Collection
           </button>
+          <button
+            onClick={() => navigate(`/collections/${collectionId}/files`)}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#17a2b8",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            📄 View Files
+          </button>
         </div>
       </div>
       {collection.members && collection.members.length > 0 && (

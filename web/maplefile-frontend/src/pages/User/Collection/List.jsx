@@ -571,29 +571,53 @@ const CollectionList = () => {
                   {/* Action buttons */}
                   <div style={{ position: "relative", zIndex: 3 }}>
                     {isOwned && !hasDecryptError && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          console.log("[CollectionList] Delete button clicked");
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleDeleteCollection(
-                            collection.id,
-                            collection.name,
-                          );
-                        }}
-                        style={{
-                          color: "red",
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          padding: "5px",
-                          fontSize: "16px",
-                        }}
-                        title="Delete collection"
-                      >
-                        🗑️
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            console.log(
+                              "[CollectionList] Delete button clicked",
+                            );
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDeleteCollection(
+                              collection.id,
+                              collection.name,
+                            );
+                          }}
+                          style={{
+                            color: "red",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "5px",
+                            fontSize: "16px",
+                          }}
+                          title="Delete collection"
+                        >
+                          🗑️
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            navigate(`/collections/${collection.id}/files`);
+                          }}
+                          style={{
+                            color: "#17a2b8",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "5px",
+                            fontSize: "16px",
+                            marginRight: "10px",
+                          }}
+                          title="View files"
+                        >
+                          📄
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
