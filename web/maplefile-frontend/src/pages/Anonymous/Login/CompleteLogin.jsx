@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
+import passwordService from "../../../services/passwordStorage.js";
 
 const CompleteLogin = () => {
   const navigate = useNavigate();
@@ -119,6 +120,16 @@ const CompleteLogin = () => {
       const hasTokens = !!(accessToken && refreshToken);
 
       if (hasTokens) {
+        console.log(
+          "[CompleteLogin] Saving password to session storage for better convenience...",
+        );
+
+        // Store the password after successful login
+        passwordService.setPassword(password);
+
+        // Now you can use it for refresh tokens, etc.
+        console.log("[CompleteLogin] Password stored!");
+
         console.log(
           "[CompleteLogin] Unencrypted tokens found, navigating to dashboard...",
         );
