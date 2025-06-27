@@ -7,11 +7,17 @@ import useAuth from "../../../hooks/useAuth.js";
 // Simple inline debug component
 // Simple inline debug component
 const TokenDebugComponent = () => {
-  const { localStorageService, authService } = useServices();
+  const { localStorageService, authService, passwordStorageService } =
+    useServices();
   const [tokenInfo, setTokenInfo] = useState({});
   const [workerStatus, setWorkerStatus] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
+
+  console.log(
+    "[DEBUG] Password service has password:",
+    passwordStorageService.hasPassword(),
+  );
 
   const refreshTokenInfo = () => {
     const info = {
@@ -451,6 +457,9 @@ const Dashboard = () => {
         {/* Actions */}
         <div>
           <button onClick={() => navigate("/me")}>👤 My Profile</button>
+          <button onClick={() => navigate("/collections")}>
+            🗂️ Collections
+          </button>
           <button onClick={handleLogout}>🚪 Logout</button>
           <button onClick={() => window.location.reload()}>
             🔄 Refresh Page

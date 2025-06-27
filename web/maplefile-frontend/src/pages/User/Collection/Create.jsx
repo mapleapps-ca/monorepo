@@ -49,6 +49,11 @@ const CollectionCreate = () => {
       return;
     }
 
+    console.log(
+      "[DEBUG] Password service has password:",
+      passwordStorageService.hasPassword(),
+    );
+
     // Check if we already have a stored password
     const storedPassword = passwordStorageService.getPassword();
     if (storedPassword) {

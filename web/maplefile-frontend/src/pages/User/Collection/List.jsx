@@ -179,6 +179,11 @@ const CollectionList = () => {
     if (authLoading) return;
 
     if (isAuthenticated) {
+      console.log(
+        "[DEBUG] Password service has password:",
+        passwordStorageService.hasPassword(),
+      );
+
       // Check for stored password first
       const storedPassword = passwordStorageService.getPassword();
 
