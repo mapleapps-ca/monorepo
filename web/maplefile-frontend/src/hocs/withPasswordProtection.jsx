@@ -1,17 +1,17 @@
-// File: src/hoc/withPasswordProtection.jsx
+// File: src/hocs/withPasswordProtection.jsx - FIXED VERSION
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import passwordStorageService from "../services/PasswordStorageService.js";
 
 /**
  * HOC that protects components by checking if password is available
- * Redirects to login if no password is stored
+ * FIXED: Now waits for service initialization and password restoration
  */
 const withPasswordProtection = (WrappedComponent, options = {}) => {
   const {
     redirectTo = "/login",
     showLoadingWhileChecking = true,
-    checkInterval = null, // Optional: check password periodically
+    checkInterval = null,
     customMessage = "Password required. Redirecting to login...",
   } = options;
 
@@ -21,55 +21,114 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
     const [isChecking, setIsChecking] = useState(true);
     const [hasPassword, setHasPassword] = useState(false);
 
-    const checkPassword = () => {
-      const passwordAvailable = passwordStorageService.hasPassword();
-      console.log(
-        `[withPasswordProtection] Password check for ${location.pathname}:`,
-        passwordAvailable,
-      );
-
-      setHasPassword(passwordAvailable);
-
-      if (!passwordAvailable) {
-        console.log(
-          `[withPasswordProtection] No password found, redirecting to ${redirectTo}`,
-        );
-        // Store the attempted path for redirect after login
-        navigate(redirectTo, {
-          state: {
-            from: location,
-            message: customMessage,
-          },
-          replace: true,
-        });
-        return false;
-      }
-
-      return true;
-    };
-
     useEffect(() => {
-      const isPasswordAvailable = checkPassword();
-      setIsChecking(false);
+      let mounted = true;
+      let intervalId = null;
 
-      // Set up periodic checking if specified
-      let intervalId;
-      if (checkInterval && isPasswordAvailable) {
-        intervalId = setInterval(checkPassword, checkInterval);
-      }
+      const checkPasswordAsync = async () => {
+        console.log(
+          `[withPasswordProtection] Starting password check for ${location.pathname}`,
+        );
+
+        // Wait a bit for service initialization if needed
+        if (!passwordStorageService.isInitialized) {
+          console.log(
+            "[withPasswordProtection] Waiting for service initialization...",
+          );
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        // In development with localStorage, explicitly try to restore
+        const storageInfo = passwordStorageService.getStorageInfo();
+        if (storageInfo.isDevelopment && storageInfo.mode === "localStorage") {
+          console.log(
+            "[withPasswordProtection] Dev mode detected, attempting restore...",
+          );
+
+          // Give the service a chance to restore from localStorage
+          if (!passwordStorageService.password) {
+            try {
+              const restored =
+                await passwordStorageService.restorePasswordFromStorage();
+              console.log(
+                "[withPasswordProtection] Restore attempt result:",
+                restored,
+              );
+            } catch (error) {
+              console.error("[withPasswordProtection] Restore error:", error);
+            }
+          }
+        }
+
+        // Now check for password
+        const passwordAvailable = passwordStorageService.hasPassword();
+        console.log(
+          `[withPasswordProtection] Password check result for ${location.pathname}:`,
+          passwordAvailable,
+        );
+
+        if (!mounted) return false;
+
+        setHasPassword(passwordAvailable);
+
+        if (!passwordAvailable) {
+          console.log(
+            `[withPasswordProtection] No password found, redirecting to ${redirectTo}`,
+          );
+          navigate(redirectTo, {
+            state: {
+              from: location,
+              message: customMessage,
+            },
+            replace: true,
+          });
+          return false;
+        }
+
+        return true;
+      };
+
+      // Initial check
+      checkPasswordAsync().then((hasPass) => {
+        if (!mounted) return;
+
+        setIsChecking(false);
+
+        // Set up periodic checking if specified and password exists
+        if (checkInterval && hasPass) {
+          intervalId = setInterval(() => {
+            const stillHasPassword = passwordStorageService.hasPassword();
+            if (!stillHasPassword && mounted) {
+              console.log(
+                "[withPasswordProtection] Password lost, redirecting...",
+              );
+              navigate(redirectTo, {
+                state: { from: location, message: "Session expired" },
+                replace: true,
+              });
+            }
+          }, checkInterval);
+        }
+      });
 
       return () => {
+        mounted = false;
         if (intervalId) {
           clearInterval(intervalId);
         }
       };
-    }, [navigate, location]);
+    }, [navigate, location, redirectTo, checkInterval, customMessage]);
 
     // Show loading while checking
     if (isChecking && showLoadingWhileChecking) {
       return (
         <div style={{ padding: "20px", textAlign: "center" }}>
           <p>Checking authentication...</p>
+          {import.meta.env.DEV && (
+            <p style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
+              Dev mode: Attempting to restore password from localStorage...
+            </p>
+          )}
         </div>
       );
     }
@@ -88,26 +147,43 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
   };
 
   // Set display name for debugging
-  PasswordProtectedComponent.displayName = `withPasswordProtection(${WrappedComponent.displayName || WrappedComponent.name})`;
+  PasswordProtectedComponent.displayName = `withPasswordProtection(${
+    WrappedComponent.displayName || WrappedComponent.name
+  })`;
 
   return PasswordProtectedComponent;
 };
 
 export default withPasswordProtection;
 
-// ================================================================
-// USAGE - Just wrap your component exports:
+// Additional debug helper
+export const debugPasswordProtection = () => {
+  const service = passwordStorageService;
+  const info = service.getStorageInfo();
 
-// In Collection/Create.jsx:
-// import withPasswordProtection from '../../../hoc/withPasswordProtection.jsx';
-// export default withPasswordProtection(CollectionCreate);
+  console.log("Password Protection Debug Info:");
+  console.log("Service initialized:", service.isInitialized);
+  console.log("Storage mode:", info.mode);
+  console.log("Is development:", info.isDevelopment);
+  console.log("Has password in memory:", service.password !== null);
+  console.log(
+    "Storage type:",
+    service.storage === localStorage
+      ? "localStorage"
+      : service.storage === sessionStorage
+        ? "sessionStorage"
+        : "unknown",
+  );
 
-// In Collection/List.jsx:
-// import withPasswordProtection from '../../../hoc/withPasswordProtection.jsx';
-// export default withPasswordProtection(CollectionList);
+  // Check localStorage directly
+  const keys = Object.keys(localStorage).filter(
+    (k) => k.includes("pwd") || k.includes("session"),
+  );
+  console.log("Password-related localStorage keys:", keys);
 
-// With custom options:
-// export default withPasswordProtection(SomePage, {
-//   checkInterval: 60000, // Check every minute for password expiration
-//   customMessage: 'Session expired. Redirecting...'
-// });
+  return {
+    serviceInfo: info,
+    hasPasswordInMemory: service.password !== null,
+    localStorageKeys: keys,
+  };
+};

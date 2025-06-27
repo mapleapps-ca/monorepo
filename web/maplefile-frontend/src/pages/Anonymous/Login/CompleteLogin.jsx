@@ -127,6 +127,10 @@ const CompleteLogin = () => {
         // AFTER successful login, store the password
         passwordStorageService.setPassword(password);
         console.log("[CompleteLogin] Password stored for session");
+        console.log(
+          "[CompleteLogin] Password stored in",
+          passwordStorageService.getStorageInfo().mode,
+        );
 
         console.log(
           "[CompleteLogin] Unencrypted tokens found, navigating to dashboard...",
