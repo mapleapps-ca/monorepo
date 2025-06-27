@@ -171,7 +171,60 @@ const CollectionDetail = () => {
         </table>
       </div>
 
-      {/* Members */}
+      {/* Action Buttons */}
+      <div
+        style={{
+          backgroundColor: "#f8f9fa",
+          padding: "20px",
+          marginBottom: "20px",
+          borderLeft: "4px solid #007bff",
+        }}
+      >
+        <h3>Collection Actions</h3>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <button
+            onClick={() => navigate(`/collections/${collectionId}/edit`)}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#007bff",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            ✏️ Edit Collection
+          </button>
+
+          <button
+            onClick={() => navigate(`/collections/${collectionId}/share`)}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#28a745",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            🔗 Share Collection
+          </button>
+
+          <button
+            onClick={() => navigate(`/collections/${collectionId}/delete`)}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#dc3545",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            🗑️ Delete Collection
+          </button>
+        </div>
+      </div>
       {collection.members && collection.members.length > 0 && (
         <div
           style={{
