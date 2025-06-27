@@ -1,4 +1,5 @@
-// Fixed pages/User/Collection/List.jsx
+// ================================================================
+// File: src/pages/User/Collection/List.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
@@ -23,7 +24,6 @@ const CollectionList = () => {
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
-  const [decryptionAttempted, setDecryptionAttempted] = useState(false);
 
   // Cache management
   const CACHE_KEY = "mapleapps_decrypted_collections";
@@ -43,7 +43,6 @@ const CollectionList = () => {
           console.log("[CollectionList] Loading collections from cache");
           return data;
         } else {
-          // Cache expired, clear it
           localStorage.removeItem(CACHE_KEY);
           localStorage.removeItem(CACHE_EXPIRY_KEY);
         }
@@ -67,7 +66,6 @@ const CollectionList = () => {
       };
 
       const expiryTime = new Date(Date.now() + CACHE_DURATION);
-
       localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
       localStorage.setItem(CACHE_EXPIRY_KEY, expiryTime.toISOString());
 
@@ -84,63 +82,7 @@ const CollectionList = () => {
     console.log("[CollectionList] Collections cache cleared");
   };
 
-  // Check if we need password on mount
-  useEffect(() => {
-    // Wait for auth to finish loading
-    if (authLoading) {
-      return;
-    }
-
-    if (isAuthenticated) {
-      // Try to load from cache first
-      const cachedData = loadCachedCollections();
-      if (cachedData) {
-        setCollections(cachedData.owned_collections || []);
-        setSharedCollections(cachedData.shared_collections || []);
-        setLoading(false);
-
-        // Check if any collections need decryption
-        const needsDecryption = [
-          ...cachedData.owned_collections,
-          ...cachedData.shared_collections,
-        ].some((c) => c.decrypt_error);
-
-        if (needsDecryption && !localStorageService.hasSessionKeys()) {
-          setShowPasswordPrompt(true);
-        }
-      } else {
-        // No cache, check if we need password
-        if (
-          !localStorageService.hasSessionKeys() &&
-          localStorageService.hasUserEncryptedData()
-        ) {
-          // We have encrypted data but no session keys - need password
-          setShowPasswordPrompt(true);
-          setLoading(false);
-        } else {
-          // Try to load collections
-          loadCollections();
-        }
-      }
-    } else {
-      // Only redirect if auth is not loading and user is not authenticated
-      navigate("/login");
-    }
-  }, [isAuthenticated, authLoading, navigate]);
-
-  // Handle success message from navigation state
-  useEffect(() => {
-    if (location.state?.message) {
-      setSuccessMessage(location.state.message);
-      // Clear the message after 5 seconds
-      const timer = setTimeout(() => {
-        setSuccessMessage("");
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [location.state]);
-
-  // Load collections based on filter
+  // Load collections
   const loadCollections = async (
     passwordParam = null,
     forceRefresh = false,
@@ -148,6 +90,12 @@ const CollectionList = () => {
     try {
       setLoading(true);
       setError("");
+
+      // Check for stored password if no parameter provided
+      let passwordToUse = passwordParam;
+      if (!passwordToUse) {
+        passwordToUse = passwordStorageService.getPassword();
+      }
 
       // Check cache first unless forcing refresh
       if (!forceRefresh && !passwordParam) {
@@ -165,7 +113,7 @@ const CollectionList = () => {
       const result = await collectionService.getFilteredCollections(
         true,
         true,
-        passwordParam,
+        passwordToUse,
       );
 
       setCollections(result.owned_collections || []);
@@ -189,7 +137,7 @@ const CollectionList = () => {
         shared: result.shared_collections?.length || 0,
       });
 
-      // Check if any collections failed to decrypt
+      // Check if any collections failed to decrypt and we haven't tried password yet
       const failedDecryptions = [
         ...result.owned_collections,
         ...result.shared_collections,
@@ -197,18 +145,17 @@ const CollectionList = () => {
 
       if (
         failedDecryptions.length > 0 &&
-        !decryptionAttempted &&
-        !passwordParam
+        !passwordParam &&
+        !passwordStorageService.hasPassword()
       ) {
         console.log(
-          "[CollectionList] Some collections failed to decrypt, may need password",
+          "[CollectionList] Some collections failed to decrypt, need password",
         );
         setShowPasswordPrompt(true);
       }
     } catch (err) {
       console.error("[CollectionList] Failed to load collections:", err);
 
-      // Handle specific error cases
       if (
         err.message.includes("Password required") ||
         err.message.includes("session keys not available")
@@ -227,19 +174,72 @@ const CollectionList = () => {
     }
   };
 
+  // Initial load
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (isAuthenticated) {
+      // Check for stored password first
+      const storedPassword = passwordStorageService.getPassword();
+
+      if (storedPassword) {
+        console.log(
+          "[CollectionList] Using stored password to load collections",
+        );
+        loadCollections(storedPassword);
+      } else {
+        // Try to load from cache first
+        const cachedData = loadCachedCollections();
+        if (cachedData) {
+          setCollections(cachedData.owned_collections || []);
+          setSharedCollections(cachedData.shared_collections || []);
+          setLoading(false);
+
+          // Check if any collections need decryption
+          const needsDecryption = [
+            ...cachedData.owned_collections,
+            ...cachedData.shared_collections,
+          ].some((c) => c.decrypt_error);
+
+          if (needsDecryption) {
+            setShowPasswordPrompt(true);
+          }
+        } else if (localStorageService.hasUserEncryptedData()) {
+          // Need password
+          setShowPasswordPrompt(true);
+          setLoading(false);
+        } else {
+          loadCollections();
+        }
+      }
+    } else {
+      navigate("/login");
+    }
+  }, [isAuthenticated, authLoading, navigate]);
+
+  // Handle success message
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      const timer = setTimeout(() => setSuccessMessage(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [location.state]);
+
   // Handle password submission
-  const handlePasswordSubmit = async () => {
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+
     if (!password) {
       setPasswordError("Password is required");
       return;
     }
 
     setPasswordError("");
-    setDecryptionAttempted(true);
 
     try {
       console.log("[CollectionList] Loading collections with password");
-      await loadCollections(password, true); // Force refresh with password
+      await loadCollections(password, true);
 
       // Success - hide password prompt
       setShowPasswordPrompt(false);
@@ -257,7 +257,7 @@ const CollectionList = () => {
     await loadCollections(null, true);
   };
 
-  // Get filtered collections based on current filter
+  // Get filtered collections
   const getFilteredCollections = () => {
     switch (filter) {
       case "owned":
@@ -272,7 +272,6 @@ const CollectionList = () => {
 
   // Handle collection click
   const handleCollectionClick = (collection) => {
-    // Navigate to collection detail page
     console.log("[CollectionList] Opening collection:", collection.id);
     // navigate(`/collections/${collection.id}`);
   };
@@ -288,8 +287,6 @@ const CollectionList = () => {
     try {
       await collectionService.deleteCollection(collectionId);
       setSuccessMessage(`Collection "${collectionName}" deleted successfully`);
-
-      // Clear cache and reload
       clearCache();
       await loadCollections(null, true);
     } catch (err) {
@@ -303,63 +300,7 @@ const CollectionList = () => {
     setShowPasswordPrompt(false);
     setPasswordError("");
     setPassword("");
-    // Try to load without password - will show encrypted collections
     loadCollections();
-  };
-
-  // Render collection item
-  const renderCollectionItem = (collection) => {
-    const isOwned =
-      collection.owner_id ===
-      collections.find((c) => c.id === collection.id)?.owner_id;
-    const hasDecryptError = collection.decrypt_error;
-
-    return (
-      <div key={collection.id} style={styles.collectionItem}>
-        <div
-          style={styles.collectionInfo}
-          onClick={() => !hasDecryptError && handleCollectionClick(collection)}
-        >
-          <div style={styles.collectionIcon}>
-            {collection.collection_type === "album" ? "🖼️" : "📁"}
-          </div>
-          <div style={styles.collectionDetails}>
-            <h3 style={styles.collectionName}>
-              {collection.name}
-              {hasDecryptError && " 🔒"}
-            </h3>
-            <div style={styles.collectionMeta}>
-              <span>{collection.collection_type}</span>
-              <span> • </span>
-              <span>{isOwned ? "Owned" : "Shared"}</span>
-              <span> • </span>
-              <span>
-                Modified:{" "}
-                {new Date(collection.modified_at).toLocaleDateString()}
-              </span>
-            </div>
-            {hasDecryptError && (
-              <div style={styles.decryptError}>
-                Unable to decrypt: {collection.decrypt_error}
-              </div>
-            )}
-          </div>
-        </div>
-        <div style={styles.collectionActions}>
-          {isOwned && !hasDecryptError && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteCollection(collection.id, collection.name);
-              }}
-              style={styles.deleteButton}
-            >
-              🗑️
-            </button>
-          )}
-        </div>
-      </div>
-    );
   };
 
   const filteredCollections = getFilteredCollections();
@@ -367,10 +308,9 @@ const CollectionList = () => {
   // Show loading while auth is loading
   if (authLoading) {
     return (
-      <div style={styles.container}>
-        <div style={styles.loading}>
-          <p>Checking authentication...</p>
-        </div>
+      <div>
+        <h1>My Collections</h1>
+        <p>Checking authentication...</p>
       </div>
     );
   }
@@ -378,81 +318,104 @@ const CollectionList = () => {
   // Show password prompt if needed
   if (showPasswordPrompt && !loading) {
     return (
-      <div style={styles.container}>
+      <div>
         <h1>Enter Password to Decrypt Collections</h1>
 
-        <div style={styles.passwordCard}>
-          <p style={styles.info}>
-            Your collections are encrypted. Please enter your password to
-            decrypt them.
-          </p>
+        <p>
+          Your collections are encrypted. Please enter your password to decrypt
+          them.
+        </p>
 
-          {passwordError && (
-            <div style={styles.errorMessage}>❌ {passwordError}</div>
-          )}
+        {passwordError && (
+          <div style={{ color: "red", marginBottom: "10px" }}>
+            ❌ {passwordError}
+          </div>
+        )}
 
-          <div style={styles.passwordForm}>
+        <form onSubmit={handlePasswordSubmit}>
+          <div>
+            <label htmlFor="password">Password:</label>
             <input
               type="password"
+              id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handlePasswordSubmit()}
               placeholder="Enter your password"
               autoFocus
-              style={styles.passwordInput}
+              style={{ marginLeft: "10px", width: "200px" }}
             />
-
-            <div style={styles.passwordButtons}>
-              <button
-                onClick={handlePasswordSubmit}
-                disabled={!password}
-                style={{ ...styles.submitButton, opacity: !password ? 0.6 : 1 }}
-              >
-                Decrypt Collections
-              </button>
-
-              <button onClick={handleSkipPassword} style={styles.skipButton}>
-                Skip (View Encrypted)
-              </button>
-            </div>
           </div>
 
-          <div style={styles.securityNote}>
-            <p>
-              🔐 Your password is never stored and is only used to decrypt your
-              data.
-            </p>
+          <div style={{ marginTop: "15px" }}>
+            <button type="submit" disabled={!password}>
+              Decrypt Collections
+            </button>
+            <button
+              type="button"
+              onClick={handleSkipPassword}
+              style={{ marginLeft: "10px" }}
+            >
+              Skip (View Encrypted)
+            </button>
           </div>
+        </form>
+
+        <div
+          style={{
+            marginTop: "20px",
+            padding: "10px",
+            backgroundColor: "#f8f9fa",
+          }}
+        >
+          <p>
+            🔐 Your password is never stored and is only used to decrypt your
+            data.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
+    <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+        }}
+      >
         <h1>My Collections</h1>
-        <button
-          onClick={() => navigate("/dashboard")}
-          style={styles.backButton}
-        >
+        <button onClick={() => navigate("/dashboard")}>
           ← Back to Dashboard
         </button>
       </div>
 
       {successMessage && (
-        <div style={styles.successMessage}>✅ {successMessage}</div>
+        <div style={{ color: "green", marginBottom: "10px" }}>
+          ✅ {successMessage}
+        </div>
       )}
 
-      {error && <div style={styles.errorMessage}>❌ {error}</div>}
+      {error && (
+        <div style={{ color: "red", marginBottom: "10px" }}>❌ {error}</div>
+      )}
 
-      <div style={styles.toolbar}>
-        <div style={styles.filterButtons}>
+      <div
+        style={{
+          marginBottom: "20px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div>
           <button
             onClick={() => setFilter("all")}
             style={{
-              ...styles.filterButton,
-              ...(filter === "all" ? styles.filterButtonActive : {}),
+              marginRight: "10px",
+              fontWeight: filter === "all" ? "bold" : "normal",
             }}
           >
             All ({collections.length + sharedCollections.length})
@@ -460,64 +423,131 @@ const CollectionList = () => {
           <button
             onClick={() => setFilter("owned")}
             style={{
-              ...styles.filterButton,
-              ...(filter === "owned" ? styles.filterButtonActive : {}),
+              marginRight: "10px",
+              fontWeight: filter === "owned" ? "bold" : "normal",
             }}
           >
             Owned ({collections.length})
           </button>
           <button
             onClick={() => setFilter("shared")}
-            style={{
-              ...styles.filterButton,
-              ...(filter === "shared" ? styles.filterButtonActive : {}),
-            }}
+            style={{ fontWeight: filter === "shared" ? "bold" : "normal" }}
           >
             Shared ({sharedCollections.length})
           </button>
         </div>
 
-        <div style={styles.actionButtons}>
+        <div>
           <button
             onClick={handleRefreshCollections}
-            style={styles.refreshButton}
             title="Refresh collections"
+            style={{ marginRight: "10px" }}
           >
             🔄 Refresh
           </button>
-          <button
-            onClick={() => navigate("/collections/create")}
-            style={styles.createButton}
-          >
+          <button onClick={() => navigate("/collections/create")}>
             + Create Collection
           </button>
         </div>
       </div>
 
-      <div style={styles.content}>
+      <div>
         {loading ? (
-          <div style={styles.loading}>
+          <div>
             <p>Loading collections...</p>
             <p>Decrypting collection names...</p>
           </div>
         ) : filteredCollections.length === 0 ? (
-          <div style={styles.empty}>
+          <div>
             <p>No collections found.</p>
-            <button
-              onClick={() => navigate("/collections/create")}
-              style={styles.createButton}
-            >
+            <button onClick={() => navigate("/collections/create")}>
               Create Your First Collection
             </button>
           </div>
         ) : (
-          <div style={styles.collectionsList}>
-            {filteredCollections.map(renderCollectionItem)}
+          <div>
+            {filteredCollections.map((collection) => {
+              const isOwned =
+                collection.owner_id ===
+                collections.find((c) => c.id === collection.id)?.owner_id;
+              const hasDecryptError = collection.decrypt_error;
+
+              return (
+                <div
+                  key={collection.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "15px",
+                    marginBottom: "10px",
+                    backgroundColor: "#f8f9fa",
+                    border: "1px solid #ddd",
+                    cursor: hasDecryptError ? "default" : "pointer",
+                  }}
+                  onClick={() =>
+                    !hasDecryptError && handleCollectionClick(collection)
+                  }
+                >
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <span style={{ fontSize: "24px", marginRight: "15px" }}>
+                      {collection.collection_type === "album" ? "🖼️" : "📁"}
+                    </span>
+                    <div>
+                      <h3 style={{ margin: "0 0 5px 0" }}>
+                        {collection.name}
+                        {hasDecryptError && " 🔒"}
+                      </h3>
+                      <div style={{ fontSize: "14px", color: "#666" }}>
+                        {collection.collection_type} •{" "}
+                        {isOwned ? "Owned" : "Shared"} • Modified:{" "}
+                        {new Date(collection.modified_at).toLocaleDateString()}
+                      </div>
+                      {hasDecryptError && (
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "red",
+                            marginTop: "4px",
+                          }}
+                        >
+                          Unable to decrypt: {collection.decrypt_error}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    {isOwned && !hasDecryptError && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCollection(
+                            collection.id,
+                            collection.name,
+                          );
+                        }}
+                        style={{ color: "red" }}
+                        title="Delete collection"
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      <div style={styles.info}>
+      <div
+        style={{
+          marginTop: "40px",
+          padding: "20px",
+          backgroundColor: "#f8f9fa",
+          border: "1px solid #ddd",
+        }}
+      >
         <h3>🔐 Encryption Status</h3>
         <p>
           All collection names are encrypted end-to-end. Only you can decrypt
@@ -531,22 +561,34 @@ const CollectionList = () => {
           )}
         </p>
         {filteredCollections.some((c) => c.decrypt_error) && (
-          <p style={styles.warningText}>
+          <p style={{ color: "#856404" }}>
             Some collections could not be decrypted.
             <button
               onClick={() => setShowPasswordPrompt(true)}
-              style={styles.linkButton}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#007bff",
+                textDecoration: "underline",
+                cursor: "pointer",
+              }}
             >
               Enter password to decrypt
             </button>
           </p>
         )}
         {loadCachedCollections() && (
-          <p style={styles.cacheInfo}>
+          <p style={{ color: "#17a2b8" }}>
             📦 Collections loaded from cache.
             <button
               onClick={handleRefreshCollections}
-              style={styles.linkButton}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#007bff",
+                textDecoration: "underline",
+                cursor: "pointer",
+              }}
             >
               Refresh from server
             </button>
@@ -556,7 +598,13 @@ const CollectionList = () => {
 
       {/* Debug info in development */}
       {import.meta.env.DEV && (
-        <details style={styles.debug}>
+        <details
+          style={{
+            marginTop: "20px",
+            padding: "10px",
+            backgroundColor: "#f8f9fa",
+          }}
+        >
           <summary>🔍 Debug Information</summary>
           <div>
             <h4>Collections State:</h4>
@@ -568,6 +616,7 @@ const CollectionList = () => {
                   filter,
                   loading,
                   error,
+                  hasStoredPassword: passwordStorageService.hasPassword(),
                   hasSessionKeys:
                     localStorageService?.hasSessionKeys?.() || false,
                   hasUserEncryptedData:
@@ -580,16 +629,7 @@ const CollectionList = () => {
                 2,
               )}
             </pre>
-
-            <h4>Sample Collection (if any):</h4>
-            <pre>
-              {JSON.stringify(collections[0] || sharedCollections[0], null, 2)}
-            </pre>
-
-            <button
-              onClick={clearCache}
-              style={{ ...styles.refreshButton, marginTop: "10px" }}
-            >
+            <button onClick={clearCache} style={{ marginTop: "10px" }}>
               Clear Cache
             </button>
           </div>
@@ -597,237 +637,6 @@ const CollectionList = () => {
       )}
     </div>
   );
-};
-
-const styles = {
-  container: {
-    padding: "20px",
-    maxWidth: "1200px",
-    margin: "0 auto",
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  backButton: {
-    padding: "8px 16px",
-    background: "#f0f0f0",
-    border: "1px solid #ddd",
-    borderRadius: "4px",
-    cursor: "pointer",
-  },
-  successMessage: {
-    background: "#d4edda",
-    border: "1px solid #c3e6cb",
-    color: "#155724",
-    padding: "12px",
-    borderRadius: "4px",
-    marginBottom: "20px",
-  },
-  errorMessage: {
-    background: "#f8d7da",
-    border: "1px solid #f5c6cb",
-    color: "#721c24",
-    padding: "12px",
-    borderRadius: "4px",
-    marginBottom: "20px",
-  },
-  toolbar: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  filterButtons: {
-    display: "flex",
-    gap: "10px",
-  },
-  filterButton: {
-    padding: "8px 16px",
-    background: "#f0f0f0",
-    border: "1px solid #ddd",
-    borderRadius: "4px",
-    cursor: "pointer",
-  },
-  filterButtonActive: {
-    background: "#007bff",
-    color: "white",
-    border: "1px solid #007bff",
-  },
-  actionButtons: {
-    display: "flex",
-    gap: "10px",
-  },
-  createButton: {
-    padding: "8px 16px",
-    background: "#28a745",
-    color: "white",
-    border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
-  },
-  refreshButton: {
-    padding: "8px 16px",
-    background: "#6c757d",
-    color: "white",
-    border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
-  },
-  content: {
-    minHeight: "400px",
-  },
-  loading: {
-    textAlign: "center",
-    padding: "40px",
-    color: "#666",
-  },
-  empty: {
-    textAlign: "center",
-    padding: "40px",
-    color: "#666",
-  },
-  collectionsList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-  },
-  collectionItem: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "15px",
-    background: "#f8f9fa",
-    border: "1px solid #dee2e6",
-    borderRadius: "4px",
-    cursor: "pointer",
-    transition: "background 0.2s",
-  },
-  collectionInfo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "15px",
-    flex: 1,
-  },
-  collectionIcon: {
-    fontSize: "24px",
-  },
-  collectionDetails: {
-    flex: 1,
-  },
-  collectionName: {
-    margin: 0,
-    fontSize: "16px",
-    fontWeight: "500",
-  },
-  collectionMeta: {
-    fontSize: "14px",
-    color: "#666",
-    marginTop: "4px",
-  },
-  decryptError: {
-    fontSize: "12px",
-    color: "#dc3545",
-    marginTop: "4px",
-  },
-  collectionActions: {
-    display: "flex",
-    gap: "10px",
-  },
-  deleteButton: {
-    padding: "4px 8px",
-    background: "transparent",
-    border: "1px solid #dc3545",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontSize: "16px",
-  },
-  info: {
-    marginTop: "40px",
-    padding: "20px",
-    background: "#f8f9fa",
-    border: "1px solid #dee2e6",
-    borderRadius: "4px",
-  },
-  cacheInfo: {
-    marginTop: "10px",
-    color: "#17a2b8",
-  },
-  debug: {
-    marginTop: "20px",
-    padding: "10px",
-    background: "#f8f9fa",
-    border: "1px solid #dee2e6",
-    borderRadius: "4px",
-  },
-  passwordCard: {
-    background: "white",
-    border: "1px solid #e0e0e0",
-    borderRadius: "8px",
-    padding: "30px",
-    maxWidth: "500px",
-    margin: "40px auto",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-  },
-  passwordForm: {
-    marginTop: "20px",
-  },
-  passwordInput: {
-    width: "100%",
-    padding: "12px",
-    fontSize: "16px",
-    border: "1px solid #ddd",
-    borderRadius: "4px",
-    marginBottom: "20px",
-  },
-  passwordButtons: {
-    display: "flex",
-    gap: "10px",
-    justifyContent: "space-between",
-  },
-  submitButton: {
-    flex: 1,
-    padding: "12px 20px",
-    background: "#007bff",
-    color: "white",
-    border: "none",
-    borderRadius: "4px",
-    fontSize: "16px",
-    cursor: "pointer",
-  },
-  skipButton: {
-    flex: 1,
-    padding: "12px 20px",
-    background: "#6c757d",
-    color: "white",
-    border: "none",
-    borderRadius: "4px",
-    fontSize: "16px",
-    cursor: "pointer",
-  },
-  securityNote: {
-    marginTop: "20px",
-    padding: "15px",
-    background: "#f8f9fa",
-    borderRadius: "4px",
-    fontSize: "14px",
-    color: "#666",
-  },
-  warningText: {
-    marginTop: "10px",
-    color: "#856404",
-  },
-  linkButton: {
-    background: "none",
-    border: "none",
-    color: "#007bff",
-    textDecoration: "underline",
-    cursor: "pointer",
-    padding: "0",
-    marginLeft: "5px",
-  },
 };
 
 export default CollectionList;

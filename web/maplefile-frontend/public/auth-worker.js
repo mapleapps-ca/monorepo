@@ -395,6 +395,11 @@ self.addEventListener("message", async (event) => {
       });
       break;
 
+    case "password_response":
+      // This is handled by the requestPasswordFromMainThread promise
+      // No additional action needed here - just don't throw unknown message error
+      break;
+
     default:
       console.log("[AuthWorker] Unknown message type:", type);
   }
