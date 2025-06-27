@@ -23,7 +23,7 @@ import MeDetail from "./pages/User/Me/Detail";
 // Collection pages
 import CollectionList from "./pages/User/Collection/List";
 import CollectionCreate from "./pages/User/Collection/Create";
-// import CollectionDetail from "./pages/User/Collection/Detail";
+import CollectionDetail from "./pages/User/Collection/Detail";
 
 // Main App component
 function App() {
@@ -58,8 +58,14 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/me" element={<MeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
+
+            {/* Collection routes */}
             <Route path="/collections" element={<CollectionList />} />
             <Route path="/collections/create" element={<CollectionCreate />} />
+            <Route
+              path="/collections/:collectionId"
+              element={<CollectionDetail />}
+            />
 
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />

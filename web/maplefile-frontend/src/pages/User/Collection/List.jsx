@@ -1,7 +1,7 @@
 // ================================================================
 // File: src/pages/User/Collection/List.jsx
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate, useLocation, Link } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
 import useAuth from "../../../hooks/useAuth.js";
 import withPasswordProtection from "../../../hocs/withPasswordProtection.jsx";
@@ -276,12 +276,6 @@ const CollectionList = () => {
     }
   };
 
-  // Handle collection click
-  const handleCollectionClick = (collection) => {
-    console.log("[CollectionList] Opening collection:", collection.id);
-    // navigate(`/collections/${collection.id}`);
-  };
-
   // Handle delete collection
   const handleDeleteCollection = async (collectionId, collectionName) => {
     if (
@@ -489,13 +483,57 @@ const CollectionList = () => {
                     marginBottom: "10px",
                     backgroundColor: "#f8f9fa",
                     border: "1px solid #ddd",
-                    cursor: hasDecryptError ? "default" : "pointer",
+                    borderRadius: "4px",
+                    position: "relative",
                   }}
-                  onClick={() =>
-                    !hasDecryptError && handleCollectionClick(collection)
-                  }
                 >
-                  <div style={{ display: "flex", alignItems: "center" }}>
+                  {/* Main clickable area using React Router Link */}
+                  {!hasDecryptError ? (
+                    <Link
+                      to={`/collections/${collection.id}`}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        textDecoration: "none",
+                        color: "inherit",
+                        zIndex: 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.parentElement.style.backgroundColor =
+                          "#e9ecef";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.parentElement.style.backgroundColor =
+                          "#f8f9fa";
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        cursor: "not-allowed",
+                        zIndex: 1,
+                      }}
+                    />
+                  )}
+
+                  {/* Content area */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      position: "relative",
+                      zIndex: 2,
+                      pointerEvents: "none",
+                    }}
+                  >
                     <span style={{ fontSize: "24px", marginRight: "15px" }}>
                       {collection.collection_type === "album" ? "🖼️" : "📁"}
                     </span>
@@ -508,6 +546,13 @@ const CollectionList = () => {
                         {collection.collection_type} •{" "}
                         {isOwned ? "Owned" : "Shared"} • Modified:{" "}
                         {new Date(collection.modified_at).toLocaleDateString()}
+                        {!hasDecryptError && (
+                          <span
+                            style={{ marginLeft: "10px", color: "#007bff" }}
+                          >
+                            Click to open →
+                          </span>
+                        )}
                       </div>
                       {hasDecryptError && (
                         <div
@@ -522,17 +567,29 @@ const CollectionList = () => {
                       )}
                     </div>
                   </div>
-                  <div>
+
+                  {/* Action buttons */}
+                  <div style={{ position: "relative", zIndex: 3 }}>
                     {isOwned && !hasDecryptError && (
                       <button
+                        type="button"
                         onClick={(e) => {
+                          console.log("[CollectionList] Delete button clicked");
+                          e.preventDefault();
                           e.stopPropagation();
                           handleDeleteCollection(
                             collection.id,
                             collection.name,
                           );
                         }}
-                        style={{ color: "red" }}
+                        style={{
+                          color: "red",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: "5px",
+                          fontSize: "16px",
+                        }}
                         title="Delete collection"
                       >
                         🗑️
