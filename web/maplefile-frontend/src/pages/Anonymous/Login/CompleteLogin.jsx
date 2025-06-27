@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
-import passwordService from "../../../services/passwordStorage.js";
 
 const CompleteLogin = () => {
   const navigate = useNavigate();
-  const { authService, localStorageService } = useServices();
+  const { authService, localStorageService, passwordStorageService } =
+    useServices();
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -124,11 +124,9 @@ const CompleteLogin = () => {
           "[CompleteLogin] Saving password to session storage for better convenience...",
         );
 
-        // Store the password after successful login
-        passwordService.setPassword(password);
-
-        // Now you can use it for refresh tokens, etc.
-        console.log("[CompleteLogin] Password stored!");
+        // AFTER successful login, store the password
+        passwordStorageService.setPassword(password);
+        console.log("[CompleteLogin] Password stored for session");
 
         console.log(
           "[CompleteLogin] Unencrypted tokens found, navigating to dashboard...",

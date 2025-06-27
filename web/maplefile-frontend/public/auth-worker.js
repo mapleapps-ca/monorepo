@@ -1,4 +1,4 @@
-// Authentication Worker - Updated for Unencrypted Token System (ente.io style)
+// Authentication Worker - Updated for Unencrypted Token System
 // This worker runs independently and communicates with all tabs
 
 const STORAGE_KEYS = {
@@ -451,3 +451,116 @@ try {
 console.log(
   "[AuthWorker] Authentication worker initialized with unencrypted token support",
 );
+
+async function refreshTokensWithPassword(refreshTokenValue, storageData) {
+  const url = `${API_BASE_URL}/token/refresh`;
+
+  try {
+    console.log("[AuthWorker] Attempting token refresh...");
+
+    // Check if we need password for this refresh
+    const needsPassword =
+      storageData.encrypted_tokens || storageData.requires_decryption;
+
+    let password = null;
+    if (needsPassword) {
+      // Request password from main thread
+      password = await requestPasswordFromMainThread();
+
+      if (!password) {
+        throw new Error(
+          "Password required for token refresh but not available",
+        );
+      }
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        value: refreshTokenValue,
+        // Include password if needed for E2EE token decryption
+        ...(password && { password: password }),
+      }),
+    });
+
+    if (response.status === 201) {
+      const result = await response.json();
+      console.log("[AuthWorker] Token refresh successful");
+
+      // Handle the response based on your existing logic
+      if (result.access_token && result.refresh_token) {
+        // Store new tokens
+        setStorageItem(STORAGE_KEYS.ACCESS_TOKEN, result.access_token);
+        setStorageItem(STORAGE_KEYS.REFRESH_TOKEN, result.refresh_token);
+
+        // Update expiry times
+        if (result.access_token_expiry_date) {
+          setStorageItem(
+            STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+            result.access_token_expiry_date,
+          );
+        }
+        if (result.refresh_token_expiry_date) {
+          setStorageItem(
+            STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
+            result.refresh_token_expiry_date,
+          );
+        }
+
+        // Broadcast success
+        broadcastMessage("token_refresh_success", {
+          accessTokenExpiry: result.access_token_expiry_date,
+          refreshTokenExpiry: result.refresh_token_expiry_date,
+        });
+
+        return true;
+      } else {
+        throw new Error("No valid tokens in refresh response");
+      }
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Token refresh failed");
+    }
+  } catch (error) {
+    console.error("[AuthWorker] Token refresh failed:", error);
+
+    // Broadcast failure
+    broadcastMessage("token_refresh_failed", {
+      error: error.message,
+      shouldRedirect: error.message.includes("Password required"),
+    });
+
+    return false;
+  }
+}
+
+// Function to request password from main thread
+function requestPasswordFromMainThread() {
+  return new Promise((resolve) => {
+    const requestId = Date.now() + Math.random();
+
+    const handlePasswordResponse = (event) => {
+      if (
+        event.data.type === "password_response" &&
+        event.data.requestId === requestId
+      ) {
+        self.removeEventListener("message", handlePasswordResponse);
+        resolve(event.data.password);
+      }
+    };
+
+    self.addEventListener("message", handlePasswordResponse);
+
+    // Send password request
+    broadcastMessage("password_request", { requestId });
+
+    // Timeout after 10 seconds
+    setTimeout(() => {
+      self.removeEventListener("message", handlePasswordResponse);
+      resolve(null);
+    }, 10000);
+  });
+}
