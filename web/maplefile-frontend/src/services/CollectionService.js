@@ -365,8 +365,25 @@ class CollectionService {
       this.isLoading = true;
       console.log("[CollectionService] Updating collection:", collectionId);
 
-      // Get the cached collection to retrieve its key
+      // Get the cached collection to retrieve its key and encrypted collection key
       const cachedCollection = this.cache.get(collectionId);
+
+      // We need the original encrypted collection key for the update
+      let encryptedCollectionKey = cachedCollection?._encrypted_collection_key;
+
+      if (!encryptedCollectionKey) {
+        // If not in cache, we need to fetch the collection first
+        const currentCollection = await this.getCollection(collectionId);
+        encryptedCollectionKey =
+          currentCollection._encrypted_collection_key ||
+          currentCollection.encrypted_collection_key;
+      }
+
+      if (!encryptedCollectionKey) {
+        throw new Error("Cannot find encrypted collection key for update");
+      }
+
+      // Get the decrypted collection key for encrypting the new name
       let collectionKey =
         cachedCollection?.collection_key ||
         CollectionCryptoService.getCachedCollectionKey(collectionId);
@@ -384,12 +401,15 @@ class CollectionService {
         throw new Error("Collection key not found for update");
       }
 
-      // Encrypt the updated name if provided
+      // Prepare the update data
       const apiData = {
         id: collectionId,
         version: updateData.version || cachedCollection?.version || 1,
+        // IMPORTANT: Include the encrypted collection key as backend expects
+        encrypted_collection_key: encryptedCollectionKey,
       };
 
+      // Encrypt the updated name if provided
       if (updateData.name) {
         apiData.encrypted_name = CollectionCryptoService.encryptCollectionName(
           updateData.name,
@@ -400,6 +420,10 @@ class CollectionService {
       if (updateData.collection_type) {
         apiData.collection_type = updateData.collection_type;
       }
+
+      console.log(
+        "[CollectionService] Sending update with encrypted_collection_key",
+      );
 
       const apiClient = await this.getApiClient();
       const encryptedCollection = await apiClient.putMapleFile(
@@ -415,6 +439,10 @@ class CollectionService {
 
       // Update cache
       this.cache.set(collectionId, decryptedCollection);
+
+      // Clear localStorage cache as data has changed
+      this.clearLocalStorageCache();
+
       console.log("[CollectionService] Collection updated:", collectionId);
 
       return decryptedCollection;

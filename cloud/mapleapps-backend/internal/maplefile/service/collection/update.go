@@ -65,6 +65,9 @@ func (svc *updateCollectionServiceImpl) Execute(ctx context.Context, req *Update
 	if req.CollectionType != "" && req.CollectionType != dom_collection.CollectionTypeFolder && req.CollectionType != dom_collection.CollectionTypeAlbum {
 		e["collection_type"] = "Collection type must be either 'folder' or 'album'"
 	}
+	if req.EncryptedCollectionKey == nil {
+		e["encrypted_collection_key"] = "Encrypted collection key is required"
+	}
 
 	if len(e) != 0 {
 		svc.logger.Warn("Failed validation",
