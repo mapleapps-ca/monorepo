@@ -42,6 +42,24 @@ const CollectionList = () => {
         if (new Date() < expiryTime) {
           const data = JSON.parse(cached);
           console.log("[CollectionList] Loading collections from cache");
+
+          // The new service stores all collections together with ownership markers
+          if (data.collections) {
+            const ownedCollections = data.collections.filter(
+              (c) => c._isOwned === true,
+            );
+            const sharedCollections = data.collections.filter(
+              (c) => c._isOwned === false,
+            );
+
+            return {
+              owned_collections: ownedCollections,
+              shared_collections: sharedCollections,
+              cached_at: data.cached_at,
+            };
+          }
+
+          // Fallback for old cache format
           return data;
         } else {
           localStorage.removeItem(CACHE_KEY);
@@ -102,9 +120,18 @@ const CollectionList = () => {
       if (!forceRefresh && !passwordParam) {
         const cachedData = loadCachedCollections();
         if (cachedData) {
-          setCollections(cachedData.owned_collections || []);
-          setSharedCollections(cachedData.shared_collections || []);
+          // Ensure proper separation of owned vs shared
+          const ownedCollections = cachedData.owned_collections || [];
+          const sharedCollections = cachedData.shared_collections || [];
+
+          setCollections(ownedCollections);
+          setSharedCollections(sharedCollections);
           setLoading(false);
+
+          console.log("[CollectionList] Loaded from cache:", {
+            owned: ownedCollections.length,
+            shared: sharedCollections.length,
+          });
           return;
         }
       }
@@ -115,34 +142,27 @@ const CollectionList = () => {
         true,
         true,
         passwordToUse,
+        forceRefresh,
       );
 
+      // Set collections from the properly deduplicated results
       setCollections(result.owned_collections || []);
       setSharedCollections(result.shared_collections || []);
 
-      // Save to cache if all collections are decrypted successfully
-      const hasDecryptErrors = [
-        ...result.owned_collections,
-        ...result.shared_collections,
-      ].some((c) => c.decrypt_error);
-
-      if (!hasDecryptErrors) {
-        saveCachedCollections(
-          result.owned_collections,
-          result.shared_collections,
-        );
-      }
-
+      // The service now handles caching internally with deduplication
       console.log("[CollectionList] Collections loaded:", {
         owned: result.owned_collections?.length || 0,
         shared: result.shared_collections?.length || 0,
+        fromCache: result.from_cache || false,
       });
 
       // Check if any collections failed to decrypt and we haven't tried password yet
-      const failedDecryptions = [
-        ...result.owned_collections,
-        ...result.shared_collections,
-      ].filter((c) => c.decrypt_error);
+      const allCollections = [
+        ...(result.owned_collections || []),
+        ...(result.shared_collections || []),
+      ];
+
+      const failedDecryptions = allCollections.filter((c) => c.decrypt_error);
 
       if (
         failedDecryptions.length > 0 &&
@@ -272,6 +292,7 @@ const CollectionList = () => {
         return sharedCollections;
       case "all":
       default:
+        // The collections are already deduplicated by the service
         return [...collections, ...sharedCollections];
     }
   };
@@ -467,14 +488,12 @@ const CollectionList = () => {
         ) : (
           <div>
             {filteredCollections.map((collection) => {
-              const isOwned =
-                collection.owner_id ===
-                collections.find((c) => c.id === collection.id)?.owner_id;
+              const isOwned = collections.some((c) => c.id === collection.id);
               const hasDecryptError = collection.decrypt_error;
 
               return (
                 <div
-                  key={collection.id}
+                  key={collection.id} // Ensure we're using the id as key
                   style={{
                     display: "flex",
                     justifyContent: "space-between",

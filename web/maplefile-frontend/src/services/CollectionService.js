@@ -10,6 +10,9 @@ class CollectionService {
     this.CACHE_KEY = "mapleapps_decrypted_collections";
     this.CACHE_EXPIRY_KEY = "mapleapps_collections_cache_expiry";
     this.CACHE_DURATION = 30 * 60 * 1000; // 30 minutes default
+
+    // Track decryption state to avoid redundant decryptions
+    this.decryptionTracker = new Map(); // Track by id -> modified_at
   }
 
   // Import ApiClient for authenticated requests
@@ -19,6 +22,23 @@ class CollectionService {
       this._apiClient = ApiClient;
     }
     return this._apiClient;
+  }
+
+  // Check if collection needs decryption based on modified_at
+  needsDecryption(collectionId, modifiedAt) {
+    const lastDecrypted = this.decryptionTracker.get(collectionId);
+    if (!lastDecrypted) return true;
+
+    // Compare timestamps
+    const lastModified = new Date(lastDecrypted).getTime();
+    const currentModified = new Date(modifiedAt).getTime();
+
+    return currentModified > lastModified;
+  }
+
+  // Update decryption tracker
+  markAsDecrypted(collectionId, modifiedAt) {
+    this.decryptionTracker.set(collectionId, modifiedAt);
   }
 
   // Load collections from localStorage cache
@@ -35,14 +55,24 @@ class CollectionService {
             "[CollectionService] Loading collections from localStorage cache",
           );
 
-          // Also populate in-memory cache
-          if (data.collections) {
-            data.collections.forEach((collection) => {
-              this.cache.set(collection.id, collection);
-            });
-          }
+          // Deduplicate by ID and populate caches
+          const deduplicatedCollections = this.deduplicateCollections(
+            data.collections || [],
+          );
 
-          return data;
+          // Populate in-memory cache
+          deduplicatedCollections.forEach((collection) => {
+            this.cache.set(collection.id, collection);
+            // Also update decryption tracker
+            if (collection.modified_at) {
+              this.markAsDecrypted(collection.id, collection.modified_at);
+            }
+          });
+
+          return {
+            ...data,
+            collections: deduplicatedCollections,
+          };
         } else {
           // Cache expired, clear it
           this.clearLocalStorageCache();
@@ -61,6 +91,28 @@ class CollectionService {
     return null;
   }
 
+  // Deduplicate collections by ID
+  deduplicateCollections(collections) {
+    const seen = new Map();
+
+    collections.forEach((collection) => {
+      if (!seen.has(collection.id)) {
+        seen.set(collection.id, collection);
+      } else {
+        // If duplicate, keep the one with the latest modified_at
+        const existing = seen.get(collection.id);
+        const existingTime = new Date(existing.modified_at || 0).getTime();
+        const currentTime = new Date(collection.modified_at || 0).getTime();
+
+        if (currentTime > existingTime) {
+          seen.set(collection.id, collection);
+        }
+      }
+    });
+
+    return Array.from(seen.values());
+  }
+
   // Save collections to localStorage cache
   saveToLocalStorageCache(collections, metadata = {}) {
     try {
@@ -73,12 +125,15 @@ class CollectionService {
         return;
       }
 
+      // Deduplicate before saving
+      const deduplicatedCollections = this.deduplicateCollections(collections);
+
       const cacheData = {
-        collections: collections,
+        collections: deduplicatedCollections,
         metadata: {
           ...metadata,
           cached_at: new Date().toISOString(),
-          count: collections.length,
+          count: deduplicatedCollections.length,
         },
       };
 
@@ -88,7 +143,7 @@ class CollectionService {
       localStorage.setItem(this.CACHE_EXPIRY_KEY, expiryTime.toISOString());
 
       console.log(
-        `[CollectionService] ${collections.length} collections cached until`,
+        `[CollectionService] ${deduplicatedCollections.length} collections cached until`,
         expiryTime,
       );
     } catch (error) {
@@ -103,6 +158,7 @@ class CollectionService {
   clearLocalStorageCache() {
     localStorage.removeItem(this.CACHE_KEY);
     localStorage.removeItem(this.CACHE_EXPIRY_KEY);
+    this.decryptionTracker.clear();
     console.log("[CollectionService] localStorage cache cleared");
   }
 
@@ -123,6 +179,42 @@ class CollectionService {
   setCacheDuration(duration) {
     this.CACHE_DURATION = duration;
     console.log(`[CollectionService] Cache duration set to ${duration}ms`);
+  }
+
+  // Decrypt collection with modified_at check
+  async decryptCollectionWithCheck(encryptedCollection, password = null) {
+    // Check if we need to decrypt based on modified_at
+    if (
+      !this.needsDecryption(
+        encryptedCollection.id,
+        encryptedCollection.modified_at,
+      )
+    ) {
+      // Get from cache if available
+      const cached = this.cache.get(encryptedCollection.id);
+      if (cached) {
+        console.log(
+          `[CollectionService] Using cached decryption for ${encryptedCollection.id}`,
+        );
+        return cached;
+      }
+    }
+
+    // Decrypt the collection
+    const decrypted = await CollectionCryptoService.decryptCollectionFromAPI(
+      encryptedCollection,
+      password,
+    );
+
+    // Mark as decrypted with current modified_at
+    if (encryptedCollection.modified_at) {
+      this.markAsDecrypted(
+        encryptedCollection.id,
+        encryptedCollection.modified_at,
+      );
+    }
+
+    return decrypted;
   }
 
   // 1. Create Collection with Password (includes caching)
@@ -159,11 +251,10 @@ class CollectionService {
       );
 
       // Decrypt the response for local use (pass password for decryption)
-      const decryptedCollection =
-        await CollectionCryptoService.decryptCollectionFromAPI(
-          encryptedCollection,
-          password,
-        );
+      const decryptedCollection = await this.decryptCollectionWithCheck(
+        encryptedCollection,
+        password,
+      );
 
       // Cache the collection key using the generated ID
       CollectionCryptoService.cacheCollectionKey(collectionId, collectionKey);
@@ -233,9 +324,7 @@ class CollectionService {
 
       // Decrypt the response for local use
       const decryptedCollection =
-        await CollectionCryptoService.decryptCollectionFromAPI(
-          encryptedCollection,
-        );
+        await this.decryptCollectionWithCheck(encryptedCollection);
 
       // Cache the collection key using the generated ID
       CollectionCryptoService.cacheCollectionKey(collectionId, collectionKey);
@@ -246,68 +335,6 @@ class CollectionService {
       // Clear localStorage cache as we have new data
       this.clearLocalStorageCache();
 
-      console.log("[CollectionService] Collection created:", collectionId);
-
-      return decryptedCollection;
-    } catch (error) {
-      console.error("[CollectionService] Failed to create collection:", error);
-      throw error;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  // 1a. Create Collection (original method - requires session keys)
-  async createCollection(collectionData) {
-    try {
-      this.isLoading = true;
-      console.log(
-        "[CollectionService] Creating new collection with session keys",
-      );
-
-      // Check if we have session keys
-      const { default: LocalStorageService } = await import(
-        "./LocalStorageService.js"
-      );
-      if (!LocalStorageService.hasSessionKeys()) {
-        throw new Error(
-          "Session keys not available. Please use createCollectionWithPassword method.",
-        );
-      }
-
-      // Prepare encrypted data for API
-      const { apiData, collectionKey, collectionId } =
-        await CollectionCryptoService.prepareCollectionForAPI(collectionData);
-
-      console.log(
-        "[CollectionService] Collection data encrypted, sending to API",
-      );
-
-      // Clean up the API data - remove null values that Go doesn't handle well
-      if (apiData.parent_id === null || apiData.parent_id === undefined) {
-        delete apiData.parent_id;
-      }
-      if (!apiData.ancestor_ids || apiData.ancestor_ids.length === 0) {
-        delete apiData.ancestor_ids;
-      }
-
-      const apiClient = await this.getApiClient();
-      const encryptedCollection = await apiClient.postMapleFile(
-        "/collections",
-        apiData,
-      );
-
-      // Decrypt the response for local use
-      const decryptedCollection =
-        await CollectionCryptoService.decryptCollectionFromAPI(
-          encryptedCollection,
-        );
-
-      // Cache the collection key using the generated ID
-      CollectionCryptoService.cacheCollectionKey(collectionId, collectionKey);
-
-      // Cache the decrypted collection
-      this.cache.set(collectionId, decryptedCollection);
       console.log("[CollectionService] Collection created:", collectionId);
 
       return decryptedCollection;
@@ -336,12 +363,11 @@ class CollectionService {
         `/collections/${collectionId}`,
       );
 
-      // Decrypt the collection
-      const decryptedCollection =
-        await CollectionCryptoService.decryptCollectionFromAPI(
-          encryptedCollection,
-          password,
-        );
+      // Decrypt the collection with modified_at check
+      const decryptedCollection = await this.decryptCollectionWithCheck(
+        encryptedCollection,
+        password,
+      );
 
       // Cache the decrypted collection
       this.cache.set(collectionId, decryptedCollection);
@@ -437,11 +463,9 @@ class CollectionService {
         apiData,
       );
 
-      // Decrypt the response
+      // Decrypt the response with modified_at check
       const decryptedCollection =
-        await CollectionCryptoService.decryptCollectionFromAPI(
-          encryptedCollection,
-        );
+        await this.decryptCollectionWithCheck(encryptedCollection);
 
       // Update cache with new version
       this.cache.set(collectionId, decryptedCollection);
@@ -483,12 +507,12 @@ class CollectionService {
       const apiClient = await this.getApiClient();
       const response = await apiClient.getMapleFile("/collections");
 
-      // Decrypt all collections
-      const decryptedCollections =
-        await CollectionCryptoService.decryptCollections(
-          response.collections || [],
-          password,
-        );
+      // Decrypt all collections with modified_at check
+      const decryptedCollections = await Promise.all(
+        (response.collections || []).map((collection) =>
+          this.decryptCollectionWithCheck(collection, password),
+        ),
+      );
 
       // Cache collections
       decryptedCollections.forEach((collection) => {
@@ -520,12 +544,12 @@ class CollectionService {
       const apiClient = await this.getApiClient();
       const response = await apiClient.getMapleFile("/collections/shared");
 
-      // Decrypt all collections
-      const decryptedCollections =
-        await CollectionCryptoService.decryptCollections(
-          response.collections || [],
-          password,
-        );
+      // Decrypt all collections with modified_at check
+      const decryptedCollections = await Promise.all(
+        (response.collections || []).map((collection) =>
+          this.decryptCollectionWithCheck(collection, password),
+        ),
+      );
 
       // Cache collections
       decryptedCollections.forEach((collection) => {
@@ -548,7 +572,7 @@ class CollectionService {
     }
   }
 
-  // 9. Get Filtered Collections (with enhanced caching)
+  // 9. Get Filtered Collections (with enhanced caching and deduplication)
   async getFilteredCollections(
     includeOwned = true,
     includeShared = false,
@@ -567,13 +591,20 @@ class CollectionService {
       if (!forceRefresh && !password && this.hasValidLocalStorageCache()) {
         const cachedData = this.loadFromLocalStorageCache();
         if (cachedData && cachedData.collections) {
-          // Filter based on requested types
-          const owned = includeOwned
-            ? cachedData.collections.filter((c) => c._isOwned !== false)
-            : [];
-          const shared = includeShared
-            ? cachedData.collections.filter((c) => c._isOwned === false)
-            : [];
+          // Properly filter based on ownership markers
+          const allCollections = cachedData.collections || [];
+
+          // Separate owned and shared based on the _isOwned marker
+          const ownedCollections = allCollections.filter(
+            (c) => c._isOwned === true,
+          );
+          const sharedCollections = allCollections.filter(
+            (c) => c._isOwned === false,
+          );
+
+          // Return requested collections
+          const owned = includeOwned ? ownedCollections : [];
+          const shared = includeShared ? sharedCollections : [];
 
           console.log("[CollectionService] Returning cached collections:", {
             owned: owned.length,
@@ -599,31 +630,54 @@ class CollectionService {
         `/collections/filtered?${params}`,
       );
 
-      // Decrypt all collections
-      const decryptedOwned = await CollectionCryptoService.decryptCollections(
-        response.owned_collections || [],
-        password,
-      );
-      const decryptedShared = await CollectionCryptoService.decryptCollections(
-        response.shared_collections || [],
-        password,
+      // Decrypt all collections with modified_at check
+      const decryptedOwned = await Promise.all(
+        (response.owned_collections || []).map((collection) =>
+          this.decryptCollectionWithCheck(collection, password),
+        ),
       );
 
-      // Mark ownership for caching
-      decryptedOwned.forEach((c) => (c._isOwned = true));
-      decryptedShared.forEach((c) => (c._isOwned = false));
+      const decryptedShared = await Promise.all(
+        (response.shared_collections || []).map((collection) =>
+          this.decryptCollectionWithCheck(collection, password),
+        ),
+      );
+
+      // Mark ownership for caching - use explicit boolean values
+      decryptedOwned.forEach((c) => {
+        c._isOwned = true;
+        c._isShared = false;
+      });
+      decryptedShared.forEach((c) => {
+        c._isOwned = false;
+        c._isShared = true;
+      });
+
+      // Deduplicate across owned and shared (in case a collection appears in both)
+      const allCollections = [...decryptedOwned, ...decryptedShared];
+      const deduplicatedCollections =
+        this.deduplicateCollections(allCollections);
+
+      // Separate deduplicated collections back into owned and shared
+      const finalOwned = deduplicatedCollections.filter(
+        (c) => c._isOwned === true,
+      );
+      const finalShared = deduplicatedCollections.filter(
+        (c) => c._isOwned === false,
+      );
 
       // Cache all collections in memory
-      [...decryptedOwned, ...decryptedShared].forEach((collection) => {
+      deduplicatedCollections.forEach((collection) => {
         this.cache.set(collection.id, collection);
       });
 
       // Save to localStorage if no decryption errors
-      const allCollections = [...decryptedOwned, ...decryptedShared];
-      const hasDecryptErrors = allCollections.some((c) => c.decrypt_error);
+      const hasDecryptErrors = deduplicatedCollections.some(
+        (c) => c.decrypt_error,
+      );
 
-      if (!hasDecryptErrors && allCollections.length > 0) {
-        this.saveToLocalStorageCache(allCollections, {
+      if (!hasDecryptErrors && deduplicatedCollections.length > 0) {
+        this.saveToLocalStorageCache(deduplicatedCollections, {
           includeOwned,
           includeShared,
         });
@@ -632,16 +686,16 @@ class CollectionService {
       console.log(
         "[CollectionService] Filtered collections retrieved and decrypted:",
         {
-          owned: decryptedOwned.length,
-          shared: decryptedShared.length,
-          total: response.total_count || 0,
+          owned: finalOwned.length,
+          shared: finalShared.length,
+          total: deduplicatedCollections.length,
         },
       );
 
       return {
-        owned_collections: decryptedOwned,
-        shared_collections: decryptedShared,
-        total_count: response.total_count || 0,
+        owned_collections: finalOwned,
+        shared_collections: finalShared,
+        total_count: deduplicatedCollections.length,
         from_cache: false,
       };
     } catch (error) {
@@ -664,12 +718,12 @@ class CollectionService {
       const apiClient = await this.getApiClient();
       const response = await apiClient.getMapleFile("/collections/root");
 
-      // Decrypt all collections
-      const decryptedCollections =
-        await CollectionCryptoService.decryptCollections(
-          response.collections || [],
-          password,
-        );
+      // Decrypt all collections with modified_at check
+      const decryptedCollections = await Promise.all(
+        (response.collections || []).map((collection) =>
+          this.decryptCollectionWithCheck(collection, password),
+        ),
+      );
 
       // Cache collections
       decryptedCollections.forEach((collection) => {
@@ -706,12 +760,12 @@ class CollectionService {
         `/collections-by-parent/${parentId}`,
       );
 
-      // Decrypt all collections
-      const decryptedCollections =
-        await CollectionCryptoService.decryptCollections(
-          response.collections || [],
-          password,
-        );
+      // Decrypt all collections with modified_at check
+      const decryptedCollections = await Promise.all(
+        (response.collections || []).map((collection) =>
+          this.decryptCollectionWithCheck(collection, password),
+        ),
+      );
 
       // Cache collections
       decryptedCollections.forEach((collection) => {
@@ -802,6 +856,7 @@ class CollectionService {
 
       // Remove from memory cache
       this.cache.delete(collectionId);
+      this.decryptionTracker.delete(collectionId);
       CollectionCryptoService.cacheCollectionKey(collectionId, null);
 
       // Clear localStorage cache as data has changed
@@ -1042,6 +1097,7 @@ class CollectionService {
   // Clear all caches (both memory and localStorage)
   clearCache() {
     this.cache.clear();
+    this.decryptionTracker.clear();
     CollectionCryptoService.clearCollectionKeyCache();
     this.clearLocalStorageCache();
     console.log("[CollectionService] All caches cleared");
@@ -1066,12 +1122,6 @@ class CollectionService {
     }
   }
 
-  clearCache() {
-    this.cache.clear();
-    CollectionCryptoService.clearCollectionKeyCache();
-    console.log("[CollectionService] Cache cleared");
-  }
-
   getCachedCollection(collectionId) {
     return this.cache.get(collectionId) || null;
   }
@@ -1087,8 +1137,10 @@ class CollectionService {
   // Debug method to inspect cache
   getDebugInfo() {
     return {
-      cacheStats: this.getCacheStats(),
+      cacheSize: this.cache.size,
+      decryptionTrackerSize: this.decryptionTracker.size,
       isLoading: this.isLoading,
+      hasLocalStorageCache: this.hasValidLocalStorageCache(),
     };
   }
 }

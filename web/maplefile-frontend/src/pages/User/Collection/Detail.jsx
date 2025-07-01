@@ -81,6 +81,10 @@ const CollectionDetail = () => {
     );
   }
 
+  const handleEdit = () => {
+    navigate(`/collections/${collectionId}/edit`);
+  };
+
   return (
     <div style={{ padding: "20px", maxWidth: "800px" }}>
       {/* Header */}
