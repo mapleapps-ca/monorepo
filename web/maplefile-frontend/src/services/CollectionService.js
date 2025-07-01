@@ -364,70 +364,76 @@ class CollectionService {
     try {
       this.isLoading = true;
       console.log("[CollectionService] Updating collection:", collectionId);
+      console.log("[CollectionService] Update data:", updateData);
 
-      // Get the cached collection to retrieve its key and encrypted collection key
-      const cachedCollection = this.cache.get(collectionId);
+      // Get the cached collection
+      let cachedCollection = this.cache.get(collectionId);
 
-      // We need the original encrypted collection key for the update
-      let encryptedCollectionKey = cachedCollection?._encrypted_collection_key;
-
-      if (!encryptedCollectionKey) {
-        // If not in cache, we need to fetch the collection first
-        const currentCollection = await this.getCollection(collectionId);
-        encryptedCollectionKey =
-          currentCollection._encrypted_collection_key ||
-          currentCollection.encrypted_collection_key;
+      if (!cachedCollection) {
+        // If not in cache, fetch it first
+        cachedCollection = await this.getCollection(collectionId);
       }
+
+      // Get the encrypted collection key
+      const encryptedCollectionKey =
+        cachedCollection._encrypted_collection_key ||
+        cachedCollection.encrypted_collection_key;
 
       if (!encryptedCollectionKey) {
         throw new Error("Cannot find encrypted collection key for update");
       }
 
-      // Get the decrypted collection key for encrypting the new name
+      // Get the decrypted collection key
       let collectionKey =
-        cachedCollection?.collection_key ||
+        cachedCollection.collection_key ||
         CollectionCryptoService.getCachedCollectionKey(collectionId);
 
-      if (!collectionKey && cachedCollection?._encrypted_collection_key) {
-        // Try to decrypt the collection key - this will require session keys
+      if (!collectionKey) {
         const userKeys = await CollectionCryptoService.getUserKeys();
         collectionKey = await CollectionCryptoService.decryptCollectionKey(
-          cachedCollection._encrypted_collection_key,
+          encryptedCollectionKey,
           userKeys.masterKey,
         );
       }
 
-      if (!collectionKey) {
-        throw new Error("Collection key not found for update");
-      }
-
-      // Prepare the update data
+      // Prepare the update data - ENSURE we have the correct version
       const apiData = {
         id: collectionId,
-        version: updateData.version || cachedCollection?.version || 1,
-        // IMPORTANT: Include the encrypted collection key as backend expects
+        version: updateData.version || cachedCollection.version || 1,
         encrypted_collection_key: encryptedCollectionKey,
       };
 
-      // Encrypt the updated name if provided
-      if (updateData.name) {
+      // Only include fields that are being updated
+      if (
+        updateData.name !== undefined &&
+        updateData.name !== cachedCollection.name
+      ) {
         apiData.encrypted_name = CollectionCryptoService.encryptCollectionName(
           updateData.name,
           collectionKey,
         );
       }
 
-      if (updateData.collection_type) {
+      if (
+        updateData.collection_type !== undefined &&
+        updateData.collection_type !== cachedCollection.collection_type
+      ) {
         apiData.collection_type = updateData.collection_type;
       }
 
-      console.log(
-        "[CollectionService] Sending update with encrypted_collection_key",
-      );
+      console.log("[CollectionService] API update data:", {
+        id: apiData.id,
+        version: apiData.version,
+        hasEncryptedName: !!apiData.encrypted_name,
+        hasCollectionType: !!apiData.collection_type,
+        hasEncryptedKey: !!apiData.encrypted_collection_key,
+      });
 
       const apiClient = await this.getApiClient();
+
+      // ENSURE we're using PUT method and correct endpoint
       const encryptedCollection = await apiClient.putMapleFile(
-        `/collections/${collectionId}`,
+        `/collections/${collectionId}`, // Make sure this is the update endpoint
         apiData,
       );
 
@@ -437,17 +443,31 @@ class CollectionService {
           encryptedCollection,
         );
 
-      // Update cache
+      // Update cache with new version
       this.cache.set(collectionId, decryptedCollection);
 
-      // Clear localStorage cache as data has changed
+      // Clear localStorage cache
       this.clearLocalStorageCache();
 
-      console.log("[CollectionService] Collection updated:", collectionId);
+      console.log(
+        "[CollectionService] Collection updated successfully, new version:",
+        decryptedCollection.version,
+      );
 
       return decryptedCollection;
     } catch (error) {
       console.error("[CollectionService] Failed to update collection:", error);
+
+      // Check if it's a version conflict
+      if (
+        error.message?.includes("Collection has been updated") ||
+        error.message?.includes("version conflict")
+      ) {
+        throw new Error(
+          "Collection has been updated since you last fetched it. Please refresh and try again.",
+        );
+      }
+
       throw error;
     } finally {
       this.isLoading = false;

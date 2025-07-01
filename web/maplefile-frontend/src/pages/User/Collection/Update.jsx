@@ -125,14 +125,14 @@ const CollectionUpdate = () => {
     try {
       console.log("[CollectionUpdate] Updating collection with password");
 
-      // Prepare update data
+      // IMPORTANT: Use the current collection's version
       const updateData = {
         name: formData.name.trim(),
         collection_type: formData.collection_type,
-        version: collection.version || 1, // Include version for optimistic locking
+        version: collection.version || 1, // Use the loaded collection's version!
       };
 
-      // Update via service (handles encryption internally)
+      // Update via service
       const updatedCollection = await collectionService.updateCollection(
         collectionId,
         updateData,
@@ -152,7 +152,13 @@ const CollectionUpdate = () => {
     } catch (err) {
       console.error("[CollectionUpdate] Failed to update collection:", err);
 
-      if (err.message.includes("version conflict")) {
+      if (err.message.includes("Collection has been updated")) {
+        setError(
+          "This collection was modified by another user or in another tab. Please refresh the page and try again.",
+        );
+        // Optionally reload the collection to get the latest version
+        setTimeout(() => loadCollection(), 2000);
+      } else if (err.message.includes("version conflict")) {
         setError(
           "Collection was modified by another user. Please refresh and try again.",
         );
@@ -162,10 +168,6 @@ const CollectionUpdate = () => {
       ) {
         setError("Invalid password. Please try again.");
         setPassword("");
-      } else if (err.message.includes("not initialized")) {
-        setError("Encryption service not ready. Please wait and try again.");
-      } else if (err.message.includes("admin permission")) {
-        setError("You don't have permission to update this collection.");
       } else {
         setError(err.message || "Failed to update collection");
       }

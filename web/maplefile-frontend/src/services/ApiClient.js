@@ -505,6 +505,15 @@ class ApiClient {
   }
 
   async putMapleFile(endpoint, data = null, options = {}) {
+    // Add debug logging
+    console.log("[ApiClient] PUT request to MapleFile:", {
+      endpoint,
+      method: "PUT",
+      dataKeys: data ? Object.keys(data) : null,
+      hasId: data?.id,
+      version: data?.version,
+    });
+
     return this.requestMapleFile(endpoint, {
       ...options,
       method: "PUT",
