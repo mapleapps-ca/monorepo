@@ -1,0 +1,17 @@
+# OS specific artificats
+.DS_Store
+
+# Environment variables
+.env
+
+# Private developer documentation
+_md/*
+
+# Dveloper's private notebook
+private.txt
+private_prod.md
+private.md
+private_*.md
+todo.txt
+private_docs
+private_docs/*
