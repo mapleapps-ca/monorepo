@@ -27,6 +27,7 @@ import CollectionDetail from "./pages/User/Collection/Detail";
 import CollectionFiles from "./pages/User/Collection/Files";
 import CollectionUpdate from "./pages/User/Collection/Update.jsx";
 import CollectionDelete from "./pages/User/Collection/Delete.jsx";
+import AddFile from "./pages/User/Collection/AddFile.jsx";
 
 // Main App component
 function App() {
@@ -72,6 +73,10 @@ function App() {
             <Route
               path="/collections/:collectionId/files"
               element={<CollectionFiles />}
+            />
+            <Route
+              path="/collections/:collectionId/add-file"
+              element={<AddFile />}
             />
             <Route
               path="/collections/:collectionId/edit"

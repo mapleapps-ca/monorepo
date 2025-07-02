@@ -376,17 +376,21 @@ class FileService {
     }
   }
 
-  // Upload file data directly to S3 using presigned URL
+  // Upload file data directly to S3 using presigned URL with CORS handling
   async uploadFileToS3(presignedUrl, fileData, onProgress = null) {
     try {
       console.log("[FileService] Uploading file to S3");
 
+      // For DigitalOcean Spaces, we need to handle CORS differently
+      // Check if this is a CORS issue and provide better guidance
       const response = await fetch(presignedUrl, {
         method: "PUT",
         body: fileData,
         headers: {
           "Content-Type": "application/octet-stream",
         },
+        // Remove credentials for CORS compatibility
+        mode: "cors",
       });
 
       if (!response.ok) {
@@ -397,6 +401,16 @@ class FileService {
       return true;
     } catch (error) {
       console.error("[FileService] Failed to upload file to S3:", error);
+
+      // Provide better error messages
+      if (error.name === "TypeError" && error.message === "Failed to fetch") {
+        throw new Error(
+          "Unable to upload file to cloud storage. This is likely a CORS configuration issue. " +
+            "Please ensure your S3/Spaces bucket has the correct CORS settings to allow uploads from " +
+            window.location.origin,
+        );
+      }
+
       throw error;
     }
   }
@@ -408,6 +422,7 @@ class FileService {
 
       const response = await fetch(presignedUrl, {
         method: "GET",
+        mode: "cors",
       });
 
       if (!response.ok) {
@@ -424,9 +439,10 @@ class FileService {
     }
   }
 
-  // Complete file upload workflow
+  // Complete file upload workflow with better error handling
   async uploadFile(fileData, encryptedFileContent, encryptedThumbnail = null) {
     let fileId = null;
+    let pendingFileCreated = false;
 
     try {
       // Step 1: Create pending file
@@ -434,6 +450,7 @@ class FileService {
       const pendingResponse = await this.createPendingFile(fileData);
 
       fileId = pendingResponse.file.id;
+      pendingFileCreated = true;
       const uploadUrl = pendingResponse.presigned_upload_url;
       const thumbnailUrl = pendingResponse.presigned_thumbnail_url;
 
@@ -471,16 +488,20 @@ class FileService {
     } catch (error) {
       console.error("[FileService] File upload workflow failed:", error);
 
-      // If we created a pending file but upload failed, we might want to clean it up
-      if (fileId) {
-        try {
-          await this.deleteFile(fileId);
-        } catch (deleteError) {
-          console.error(
-            "[FileService] Failed to clean up pending file:",
-            deleteError,
-          );
-        }
+      // Only try to clean up if we created a pending file and it's not a CORS issue
+      // The backend doesn't allow deleting pending files, so we skip cleanup
+      if (pendingFileCreated && fileId) {
+        console.log(
+          "[FileService] Pending file created but upload failed. File ID:",
+          fileId,
+        );
+        console.log(
+          "[FileService] Note: Pending files cannot be deleted and will be cleaned up by the backend",
+        );
+
+        // Remove from local cache and upload queue
+        this.cache.delete(fileId);
+        this.uploadQueue.delete(fileId);
       }
 
       throw error;

@@ -1,381 +1,364 @@
 // File: src/pages/User/Collection/Files.jsx
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
-import useFiles from "../../../hooks/useFiles.js";
 import withPasswordProtection from "../../../hocs/withPasswordProtection.jsx";
+import useFiles from "../../../hooks/useFiles.js";
 
 const CollectionFiles = () => {
   const { collectionId } = useParams();
   const navigate = useNavigate();
   const { collectionService, passwordStorageService } = useServices();
 
-  // Use the files hook
   const {
     files,
-    isLoading: filesLoading,
-    error: filesError,
+    isLoading,
+    error,
     loadFilesByCollection,
     getActiveFiles,
-    getArchivedFiles,
-    getDeletedFiles,
+    deleteFile,
+    downloadFile,
   } = useFiles(collectionId);
 
   const [collection, setCollection] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [filter, setFilter] = useState("active"); // active, archived, deleted, all
-  const [currentPage, setCurrentPage] = useState(1);
-  const [filesPerPage] = useState(20);
+  const [selectedFiles, setSelectedFiles] = useState(new Set());
 
-  // Load collection info
   useEffect(() => {
-    loadCollection();
+    loadCollectionAndFiles();
   }, [collectionId]);
 
-  const loadCollection = async () => {
-    if (!collectionId) {
-      setError("No collection ID provided");
-      setLoading(false);
-      return;
-    }
-
+  const loadCollectionAndFiles = async () => {
     try {
-      setLoading(true);
-      setError("");
-
-      // Get stored password
+      // Load collection info
       const password = passwordStorageService.getPassword();
-
-      // Load collection with password
       const collectionData = await collectionService.getCollection(
         collectionId,
         password,
       );
-
       setCollection(collectionData);
-      console.log("Collection loaded:", collectionData);
+
+      // Files will be loaded automatically by useFiles hook
     } catch (err) {
       console.error("Failed to load collection:", err);
-      setError(err.message || "Failed to load collection");
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Get filtered files based on state
-  const getFilteredFiles = () => {
-    switch (filter) {
-      case "active":
-        return getActiveFiles();
-      case "archived":
-        return getArchivedFiles();
-      case "deleted":
-        return getDeletedFiles();
-      case "all":
-      default:
-        return files;
+  const handleFileSelect = (fileId) => {
+    const newSelected = new Set(selectedFiles);
+    if (newSelected.has(fileId)) {
+      newSelected.delete(fileId);
+    } else {
+      newSelected.add(fileId);
+    }
+    setSelectedFiles(newSelected);
+  };
+
+  const handleDeleteFile = async (fileId) => {
+    if (!window.confirm("Are you sure you want to delete this file?")) return;
+
+    try {
+      await deleteFile(fileId);
+      // Refresh files list
+      await loadFilesByCollection(collectionId);
+    } catch (err) {
+      console.error("Failed to delete file:", err);
+      alert("Failed to delete file: " + err.message);
     }
   };
 
-  // Pagination logic
-  const filteredFiles = getFilteredFiles();
-  const totalPages = Math.ceil(filteredFiles.length / filesPerPage);
-  const indexOfLastFile = currentPage * filesPerPage;
-  const indexOfFirstFile = indexOfLastFile - filesPerPage;
-  const currentFiles = filteredFiles.slice(indexOfFirstFile, indexOfLastFile);
-
-  // Handle page change
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
+  const handleDownloadFile = async (fileId, fileName) => {
+    try {
+      const result = await downloadFile(fileId);
+      // In a real implementation, you would decrypt and download the file
+      console.log("File download result:", result);
+      alert("File download functionality will be implemented with decryption");
+    } catch (err) {
+      console.error("Failed to download file:", err);
+      alert("Failed to download file: " + err.message);
+    }
   };
 
-  // Format file size
-  const formatFileSize = (bytes) => {
-    if (!bytes) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return "Unknown";
-    return new Date(dateString).toLocaleString();
-  };
-
-  if (loading || filesLoading) {
-    return (
-      <div>
-        <h1>Loading Files...</h1>
-        <p>Please wait while we load the files in this collection...</p>
-        <button onClick={() => navigate(`/collections/${collectionId}`)}>
-          ← Back to Collection
-        </button>
-      </div>
-    );
-  }
-
-  if (error || filesError) {
-    return (
-      <div>
-        <h1>Error</h1>
-        <p style={{ color: "red" }}>{error || filesError}</p>
-        <button onClick={() => navigate(`/collections/${collectionId}`)}>
-          ← Back to Collection
-        </button>
-      </div>
-    );
-  }
-
-  if (!collection) {
-    return (
-      <div>
-        <h1>Collection Not Found</h1>
-        <button onClick={() => navigate("/collections")}>
-          ← Back to Collections
-        </button>
-      </div>
-    );
-  }
+  const activeFiles = getActiveFiles();
 
   return (
-    <div>
-      {/* Header with breadcrumb */}
-      <div>
-        <div>
-          <Link to="/collections">Collections</Link>
-          {" > "}
-          <Link to={`/collections/${collectionId}`}>
-            {collection.name || "[Encrypted]"}
-          </Link>
-          {" > "}
-          <span>Files</span>
-        </div>
+    <div style={{ padding: "20px", maxWidth: "1000px", margin: "0 auto" }}>
+      {/* Header */}
+      <div style={{ marginBottom: "30px" }}>
+        <button
+          onClick={() => navigate(`/collections/${collectionId}`)}
+          style={{ marginBottom: "20px" }}
+        >
+          ← Back to Collection
+        </button>
 
-        <h1>Files in "{collection.name || "[Encrypted]"}"</h1>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <h1 style={{ margin: 0 }}>Files in Collection</h1>
+            {collection && (
+              <p style={{ color: "#666", marginTop: "5px" }}>
+                Collection: <strong>{collection.name || "[Encrypted]"}</strong>
+              </p>
+            )}
+          </div>
 
-        <div>
-          <span>{collection.collection_type === "album" ? "🖼️" : "📁"}</span>
-          <span> Collection ID: {collection.id}</span>
+          <button
+            onClick={() => navigate(`/collections/${collectionId}/add-file`)}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#28a745",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "16px",
+            }}
+          >
+            ➕ Add File
+          </button>
         </div>
       </div>
 
-      {/* Collection hierarchy info */}
-      {collection.parent_id && (
-        <div>
-          <p>
-            Parent Collection:
-            <Link to={`/collections/${collection.parent_id}/files`}>
-              {collection.parent_id}
-            </Link>
-          </p>
+      {/* Loading State */}
+      {isLoading && (
+        <div style={{ textAlign: "center", padding: "40px" }}>
+          <p>Loading files...</p>
         </div>
       )}
 
-      {/* Action buttons */}
-      <div>
-        <button onClick={() => navigate(`/collections/${collectionId}`)}>
-          ← Back to Collection Details
-        </button>
-        <button onClick={() => navigate(`/collections/${collectionId}/upload`)}>
-          + Upload Files
-        </button>
-      </div>
-
-      {/* Filter buttons */}
-      <div>
-        <h3>Filter Files:</h3>
-        <button onClick={() => setFilter("all")} disabled={filter === "all"}>
-          All ({files.length})
-        </button>
-        <button
-          onClick={() => setFilter("active")}
-          disabled={filter === "active"}
+      {/* Error State */}
+      {error && (
+        <div
+          style={{
+            backgroundColor: "#fee",
+            color: "#c00",
+            padding: "15px",
+            marginBottom: "20px",
+            borderRadius: "4px",
+          }}
         >
-          Active ({getActiveFiles().length})
-        </button>
-        <button
-          onClick={() => setFilter("archived")}
-          disabled={filter === "archived"}
-        >
-          Archived ({getArchivedFiles().length})
-        </button>
-        <button
-          onClick={() => setFilter("deleted")}
-          disabled={filter === "deleted"}
-        >
-          Deleted ({getDeletedFiles().length})
-        </button>
-      </div>
+          Error: {error}
+        </div>
+      )}
 
-      {/* Files list */}
-      <div>
-        <h3>Files ({filteredFiles.length} total)</h3>
+      {/* Empty State */}
+      {!isLoading && activeFiles.length === 0 && (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "60px 20px",
+            backgroundColor: "#f8f9fa",
+            borderRadius: "8px",
+            border: "2px dashed #dee2e6",
+          }}
+        >
+          <div style={{ fontSize: "64px", marginBottom: "20px" }}>📁</div>
+          <h3>No files in this collection yet</h3>
+          <p style={{ color: "#666", marginBottom: "20px" }}>
+            Start by adding your first file to this collection
+          </p>
+          <button
+            onClick={() => navigate(`/collections/${collectionId}/add-file`)}
+            style={{
+              padding: "12px 30px",
+              backgroundColor: "#007bff",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "16px",
+            }}
+          >
+            Add Your First File
+          </button>
+        </div>
+      )}
 
-        {currentFiles.length === 0 ? (
-          <div>
-            <p>No files found in this collection.</p>
-            <button
-              onClick={() => navigate(`/collections/${collectionId}/upload`)}
+      {/* Files List */}
+      {!isLoading && activeFiles.length > 0 && (
+        <div>
+          {/* Bulk Actions */}
+          {selectedFiles.size > 0 && (
+            <div
+              style={{
+                backgroundColor: "#e9ecef",
+                padding: "15px",
+                marginBottom: "20px",
+                borderRadius: "4px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
             >
-              Upload your first file
-            </button>
-          </div>
-        ) : (
-          <div>
-            {/* File items */}
-            {currentFiles.map((file) => (
-              <div
-                key={file.id}
+              <span>{selectedFiles.size} file(s) selected</span>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  onClick={() => {
+                    // Implement bulk delete
+                    alert("Bulk delete coming soon");
+                  }}
+                  style={{
+                    padding: "8px 16px",
+                    backgroundColor: "#dc3545",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Delete Selected
+                </button>
+                <button
+                  onClick={() => setSelectedFiles(new Set())}
+                  style={{
+                    padding: "8px 16px",
+                    backgroundColor: "#6c757d",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Files Table */}
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr
                 style={{
-                  border: "1px solid #ccc",
-                  padding: "10px",
-                  marginBottom: "10px",
+                  backgroundColor: "#f8f9fa",
+                  borderBottom: "2px solid #dee2e6",
                 }}
               >
-                <div>
-                  <strong>File ID:</strong> {file.id}
-                </div>
-
-                {/* Encrypted metadata */}
-                <div>
-                  <strong>Encrypted Metadata:</strong>
-                  {file.encrypted_metadata
-                    ? " [Encrypted - Need to decrypt]"
-                    : " [No metadata]"}
-                </div>
-
-                {/* File details */}
-                <div>
-                  <strong>State:</strong> {file.state}
-                </div>
-                <div>
-                  <strong>Created:</strong> {formatDate(file.created_at)}
-                </div>
-                <div>
-                  <strong>Modified:</strong> {formatDate(file.modified_at)}
-                </div>
-
-                {/* Size information */}
-                {file.encrypted_file_size_in_bytes > 0 && (
-                  <div>
-                    <strong>Encrypted Size:</strong>{" "}
-                    {formatFileSize(file.encrypted_file_size_in_bytes)}
-                  </div>
-                )}
-
-                {file.encrypted_thumbnail_size_in_bytes > 0 && (
-                  <div>
-                    <strong>Has Thumbnail:</strong> Yes (
-                    {formatFileSize(file.encrypted_thumbnail_size_in_bytes)})
-                  </div>
-                )}
-
-                {/* Encryption info */}
-                <div>
-                  <strong>Encryption Version:</strong>{" "}
-                  {file.encryption_version || "Unknown"}
-                </div>
-
-                {/* Action buttons */}
-                <div style={{ marginTop: "10px" }}>
-                  <button onClick={() => navigate(`/files/${file.id}`)}>
-                    View Details
-                  </button>
-                  <button onClick={() => console.log("Download:", file.id)}>
-                    Download
-                  </button>
-                  {file.state === "active" && (
-                    <button onClick={() => console.log("Archive:", file.id)}>
-                      Archive
-                    </button>
-                  )}
-                  {file.state === "archived" && (
-                    <button onClick={() => console.log("Restore:", file.id)}>
-                      Restore
-                    </button>
-                  )}
-                  {file.state !== "deleted" && (
-                    <button
-                      onClick={() => console.log("Delete:", file.id)}
-                      style={{ color: "red" }}
+                <th
+                  style={{ padding: "12px", textAlign: "left", width: "40px" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={
+                      selectedFiles.size === activeFiles.length &&
+                      activeFiles.length > 0
+                    }
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedFiles(new Set(activeFiles.map((f) => f.id)));
+                      } else {
+                        setSelectedFiles(new Set());
+                      }
+                    }}
+                  />
+                </th>
+                <th style={{ padding: "12px", textAlign: "left" }}>File</th>
+                <th style={{ padding: "12px", textAlign: "left" }}>Size</th>
+                <th style={{ padding: "12px", textAlign: "left" }}>Created</th>
+                <th style={{ padding: "12px", textAlign: "center" }}>
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeFiles.map((file) => (
+                <tr key={file.id} style={{ borderBottom: "1px solid #dee2e6" }}>
+                  <td style={{ padding: "12px" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedFiles.has(file.id)}
+                      onChange={() => handleFileSelect(file.id)}
+                    />
+                  </td>
+                  <td style={{ padding: "12px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                      }}
                     >
-                      Delete
+                      <span style={{ fontSize: "24px" }}>📄</span>
+                      <div>
+                        <div>
+                          {file.encrypted_metadata ? "[Encrypted]" : "Unknown"}
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#666" }}>
+                          ID: {file.id.substring(0, 8)}...
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: "12px" }}>
+                    {file.encrypted_file_size_in_bytes
+                      ? `${(file.encrypted_file_size_in_bytes / 1024).toFixed(2)} KB`
+                      : "Unknown"}
+                  </td>
+                  <td style={{ padding: "12px" }}>
+                    {file.created_at
+                      ? new Date(file.created_at).toLocaleDateString()
+                      : "Unknown"}
+                  </td>
+                  <td style={{ padding: "12px", textAlign: "center" }}>
+                    <button
+                      onClick={() => handleDownloadFile(file.id, "file")}
+                      style={{
+                        padding: "6px 12px",
+                        marginRight: "8px",
+                        backgroundColor: "#007bff",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                      }}
+                    >
+                      ⬇️ Download
                     </button>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div style={{ marginTop: "20px" }}>
-                <h4>Pages:</h4>
-                <div>
-                  <button
-                    onClick={() => handlePageChange(1)}
-                    disabled={currentPage === 1}
-                  >
-                    First
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </button>
-
-                  <span style={{ margin: "0 10px" }}>
-                    Page {currentPage} of {totalPages}
-                  </span>
-
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(totalPages)}
-                    disabled={currentPage === totalPages}
-                  >
-                    Last
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Debug info */}
-      {import.meta.env.DEV && (
-        <details style={{ marginTop: "40px" }}>
-          <summary>🔍 Debug Information</summary>
-          <pre>
-            {JSON.stringify(
-              {
-                collectionId,
-                collectionName: collection.name,
-                collectionType: collection.collection_type,
-                parentId: collection.parent_id,
-                totalFiles: files.length,
-                activeFiles: getActiveFiles().length,
-                archivedFiles: getArchivedFiles().length,
-                deletedFiles: getDeletedFiles().length,
-                currentFilter: filter,
-                currentPage,
-                totalPages,
-                filesPerPage,
-              },
-              null,
-              2,
-            )}
-          </pre>
-        </details>
+                    <button
+                      onClick={() => handleDeleteFile(file.id)}
+                      style={{
+                        padding: "6px 12px",
+                        backgroundColor: "#dc3545",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                      }}
+                    >
+                      🗑️ Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
+
+      {/* Info Box */}
+      <div
+        style={{
+          marginTop: "40px",
+          padding: "20px",
+          backgroundColor: "#f8f9fa",
+          borderRadius: "4px",
+          borderLeft: "4px solid #17a2b8",
+        }}
+      >
+        <h4 style={{ marginTop: 0 }}>ℹ️ About File Encryption</h4>
+        <p style={{ marginBottom: 0, color: "#666" }}>
+          All files in this collection are end-to-end encrypted. File names and
+          content are encrypted on your device before upload, ensuring only you
+          and authorized members can access them.
+        </p>
+      </div>
     </div>
   );
 };
