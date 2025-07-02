@@ -745,4 +745,6 @@ const CollectionList = () => {
   );
 };
 
-export default withPasswordProtection(CollectionList);
+const ProtectedCollectionList = withPasswordProtection(CollectionList);
+
+export default ProtectedCollectionList;

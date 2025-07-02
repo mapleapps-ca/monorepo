@@ -331,4 +331,6 @@ const CollectionCreate = () => {
   );
 };
 
-export default withPasswordProtection(CollectionCreate);
+const ProtectedCollectionCreate = withPasswordProtection(CollectionCreate);
+
+export default ProtectedCollectionCreate;

@@ -233,7 +233,7 @@ class CryptoService {
           // We can get the public key from the auth service or pass it as a parameter
           // For now, let's try regular box format
           throw new Error("Switching to regular box format");
-        } catch (storedKeyError) {
+        } catch {
           console.log("[CryptoService] Trying regular box format...");
 
           // Fallback: try regular box format
@@ -541,7 +541,7 @@ class CryptoService {
           `[CryptoService] Successfully decoded with variant ${variant}, length: ${decoded.length}`,
         );
         return decoded;
-      } catch (error) {
+      } catch {
         continue;
       }
     }
@@ -557,7 +557,7 @@ class CryptoService {
         `[CryptoService] Successfully decoded with native atob, length: ${bytes.length}`,
       );
       return bytes;
-    } catch (error) {
+    } catch {
       throw new Error(
         `Failed to decode base64 string with any variant: ${base64String.substring(0, 50)}...`,
       );

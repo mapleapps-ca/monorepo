@@ -362,5 +362,6 @@ const CollectionFiles = () => {
     </div>
   );
 };
+const ProtectedCollectionFiles = withPasswordProtection(CollectionFiles);
 
-export default withPasswordProtection(CollectionFiles);
+export default ProtectedCollectionFiles;

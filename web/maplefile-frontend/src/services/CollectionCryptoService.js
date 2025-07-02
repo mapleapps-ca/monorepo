@@ -282,7 +282,7 @@ class CollectionCryptoService {
         for (const prevKey of encryptedKeyData.previous_keys) {
           try {
             return await this.decryptCollectionKey(prevKey, userMasterKey);
-          } catch (e) {
+          } catch {
             continue;
           }
         }

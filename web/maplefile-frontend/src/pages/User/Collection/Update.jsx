@@ -473,4 +473,5 @@ const CollectionUpdate = () => {
   );
 };
 
-export default withPasswordProtection(CollectionUpdate);
+const ProtectedCollectionUpdate = withPasswordProtection(CollectionUpdate);
+export default ProtectedCollectionUpdate;

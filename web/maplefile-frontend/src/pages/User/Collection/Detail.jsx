@@ -298,4 +298,5 @@ const CollectionDetail = () => {
   );
 };
 
-export default withPasswordProtection(CollectionDetail);
+const ProtectedCollectionDetail = withPasswordProtection(CollectionDetail);
+export default ProtectedCollectionDetail;

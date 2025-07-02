@@ -27,9 +27,9 @@ const AddFile = () => {
   // Load collection info on mount
   React.useEffect(() => {
     loadCollection();
-  }, [collectionId]);
+  }, [collectionId, loadCollection]); // Added loadCollection to dependency array
 
-  const loadCollection = async () => {
+  const loadCollection = useCallback(async () => {
     try {
       const password = passwordStorageService.getPassword();
       const collectionData = await collectionService.getCollection(
@@ -41,7 +41,7 @@ const AddFile = () => {
       console.error("Failed to load collection:", err);
       setError("Failed to load collection");
     }
-  };
+  }, [collectionId, collectionService, passwordStorageService]);
 
   // Handle drag events
   const handleDragEnter = useCallback((e) => {
@@ -61,19 +61,22 @@ const AddFile = () => {
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
+  const handleDrop = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
 
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      handleFileSelection(files[0]);
-    }
-  }, []);
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        handleFileSelection(files[0]);
+      }
+    },
+    [handleFileSelection],
+  ); // Added handleFileSelection to dependency array
 
   // Handle file selection
-  const handleFileSelection = (file) => {
+  const handleFileSelection = useCallback((file) => {
     if (!file) return;
 
     // Basic validation
@@ -85,17 +88,20 @@ const AddFile = () => {
 
     setSelectedFile(file);
     setError("");
-  };
+  }, []);
 
-  const handleFileInputChange = (e) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      handleFileSelection(files[0]);
-    }
-  };
+  const handleFileInputChange = useCallback(
+    (e) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        handleFileSelection(files[0]);
+      }
+    },
+    [handleFileSelection],
+  );
 
   // Encrypt and upload file
-  const handleUpload = async () => {
+  const handleUpload = useCallback(async () => {
     if (!selectedFile || !collection) return;
 
     setIsUploading(true);
@@ -225,26 +231,35 @@ const AddFile = () => {
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [
+    selectedFile,
+    collection,
+    collectionId,
+    cryptoService,
+    fileService,
+    navigate,
+    collectionCryptoService,
+    passwordStorageService,
+  ]);
 
   // Helper function to read file as ArrayBuffer
-  const readFileAsArrayBuffer = (file) => {
+  const readFileAsArrayBuffer = useCallback((file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => resolve(e.target.result);
       reader.onerror = (e) => reject(new Error("Failed to read file"));
       reader.readAsArrayBuffer(file);
     });
-  };
+  }, []);
 
   // Format file size
-  const formatFileSize = (bytes) => {
+  const formatFileSize = useCallback((bytes) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
+  }, []);
 
   return (
     <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
@@ -501,4 +516,7 @@ const AddFile = () => {
   );
 };
 
-export default withPasswordProtection(AddFile);
+const AddFileWithPasswordProtection = withPasswordProtection(
+  AddFileWithPasswordProtection,
+);
+export default AddFile;

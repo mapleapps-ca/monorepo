@@ -486,5 +486,6 @@ const Dashboard = () => {
     </div>
   );
 };
+const ProtectedDashboard = withPasswordProtection(Dashboard);
 
-export default withPasswordProtection(Dashboard);
+export default ProtectedDashboard;

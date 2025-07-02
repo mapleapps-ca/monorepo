@@ -476,5 +476,6 @@ const CollectionDelete = () => {
     </div>
   );
 };
+const ProtectedCollectionDelete = withPasswordProtection(CollectionDelete);
 
-export default withPasswordProtection(CollectionDelete);
+export default ProtectedCollectionDelete;

@@ -490,7 +490,7 @@ class LocalStorageService {
           "[LocalStorageService] Decrypted token object keys:",
           Object.keys(result),
         );
-      } catch (parseError) {
+      } catch {
         // If JSON parsing fails, assume it's a plain token string
         console.log(
           "[LocalStorageService] Token decryption successful (plain string format)",

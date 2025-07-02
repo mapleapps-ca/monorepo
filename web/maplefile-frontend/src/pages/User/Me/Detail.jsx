@@ -655,4 +655,5 @@ const MeDetail = () => {
   );
 };
 
-export default withPasswordProtection(MeDetail);
+const ProtectedMeDetail = withPasswordProtection(MeDetail);
+export default ProtectedMeDetail;
