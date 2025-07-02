@@ -516,7 +516,5 @@ const AddFile = () => {
   );
 };
 
-const AddFileWithPasswordProtection = withPasswordProtection(
-  AddFileWithPasswordProtection,
-);
-export default AddFile;
+const AddFileWithPasswordProtection = withPasswordProtection(AddFile);
+export default AddFileWithPasswordProtection;
