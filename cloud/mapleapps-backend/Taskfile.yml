@@ -120,6 +120,24 @@ tasks:
       - task: vet
     silent: false
 
+  mcpfilesystem:
+    desc: |
+      Enable mcp-filesystem-server for this project. Requires `go get -tool github.com/mark3labs/mcp-filesystem-server@latest` to be run first.
+
+      To integrate this server with apps that support MCP:
+
+      {
+        "mcpServers": {
+          "filesystem": {
+            "command": "mcp-filesystem-server",
+            "args": ["/path/to/allowed/directory", "/another/allowed/directory"]
+          }
+        }
+      }
+    cmds:
+      - go tool mcp-filesystem-server ./
+    silent: false
+
   mockgen:
     desc: "Generate our backend mock files"
     cmds:
