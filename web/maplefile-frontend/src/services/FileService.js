@@ -974,6 +974,141 @@ class FileService {
     }
     return files;
   }
+
+  // Complete file download workflow with decryption
+  async downloadAndDecryptFile(fileId) {
+    try {
+      console.log(
+        "[FileService] Starting complete download and decryption for:",
+        fileId,
+      );
+
+      // Step 1: Get the file metadata (should be cached and decrypted)
+      const fileMetadata = this.getCachedFile(fileId);
+      if (!fileMetadata) {
+        throw new Error(
+          "File metadata not found. Please refresh the file list.",
+        );
+      }
+
+      if (!fileMetadata._file_key) {
+        throw new Error(
+          "File key not available. File may not be properly decrypted.",
+        );
+      }
+
+      console.log("[FileService] File metadata found:", fileMetadata.name);
+
+      // Step 2: Get presigned download URL and download encrypted content
+      const downloadResponse = await this.downloadFile(fileId);
+      const encryptedContent = downloadResponse.encryptedContent;
+
+      console.log(
+        "[FileService] Encrypted content downloaded, size:",
+        encryptedContent.size,
+      );
+
+      // Step 3: Convert blob to array buffer
+      const encryptedArrayBuffer = await encryptedContent.arrayBuffer();
+      const encryptedBytes = new Uint8Array(encryptedArrayBuffer);
+
+      console.log(
+        "[FileService] Converting to bytes, length:",
+        encryptedBytes.length,
+      );
+
+      // Step 4: Import crypto service for decryption
+      const { default: CryptoService } = await import("./CryptoService.js");
+      await CryptoService.initialize();
+
+      // Step 5: Decrypt the file content
+      console.log("[FileService] Decrypting file content...");
+      const decryptedBytes = await CryptoService.decryptWithKey(
+        CryptoService.uint8ArrayToBase64(encryptedBytes), // Convert to base64 for decryption
+        fileMetadata._file_key,
+      );
+
+      console.log(
+        "[FileService] File decrypted successfully, size:",
+        decryptedBytes.length,
+      );
+
+      // Step 6: Create blob with proper MIME type
+      const mimeType = fileMetadata.mime_type || "application/octet-stream";
+      const decryptedBlob = new Blob([decryptedBytes], { type: mimeType });
+
+      // Step 7: Get the original filename
+      const filename =
+        fileMetadata.name || `downloaded_file_${fileId.substring(0, 8)}`;
+
+      console.log(
+        "[FileService] Download prepared:",
+        filename,
+        "size:",
+        decryptedBlob.size,
+      );
+
+      return {
+        blob: decryptedBlob,
+        filename: filename,
+        mimeType: mimeType,
+        size: decryptedBlob.size,
+      };
+    } catch (error) {
+      console.error(
+        "[FileService] Failed to download and decrypt file:",
+        error,
+      );
+      throw error;
+    }
+  }
+
+  // Trigger browser download
+  downloadBlobAsFile(blob, filename) {
+    try {
+      // Create object URL
+      const url = URL.createObjectURL(blob);
+
+      // Create temporary download link
+      const downloadLink = document.createElement("a");
+      downloadLink.href = url;
+      downloadLink.download = filename;
+      downloadLink.style.display = "none";
+
+      // Add to document, click, and remove
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+
+      // Clean up object URL
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 1000);
+
+      console.log("[FileService] Browser download triggered for:", filename);
+    } catch (error) {
+      console.error("[FileService] Failed to trigger browser download:", error);
+      throw error;
+    }
+  }
+
+  // Combined download and save function
+  async downloadAndSaveFile(fileId) {
+    try {
+      console.log("[FileService] Starting download and save for file:", fileId);
+
+      const downloadResult = await this.downloadAndDecryptFile(fileId);
+
+      // Trigger browser download
+      this.downloadBlobAsFile(downloadResult.blob, downloadResult.filename);
+
+      console.log("[FileService] File download completed successfully");
+      return downloadResult;
+    } catch (error) {
+      console.error("[FileService] Download and save failed:", error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

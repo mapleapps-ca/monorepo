@@ -447,6 +447,32 @@ const useFiles = (collectionId = null) => {
     }
   }, [authService.isAuthenticated, collectionId, loadFilesByCollection]);
 
+  // Download and decrypt a file
+  const downloadAndSaveFile = useCallback(
+    async (fileId) => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        console.log("[useFiles] Starting file download:", fileId);
+        const result = await fileService.downloadAndSaveFile(fileId);
+
+        console.log(
+          "[useFiles] File downloaded successfully:",
+          result.filename,
+        );
+        return result;
+      } catch (err) {
+        console.error("[useFiles] Failed to download file:", err);
+        setError(err.message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [fileService],
+  );
+
   return {
     // State
     files,
@@ -464,6 +490,9 @@ const useFiles = (collectionId = null) => {
     restoreFile,
     batchArchiveFiles,
     batchRestoreFiles,
+
+    // Download file
+    downloadAndSaveFile,
 
     // Collection operations
     loadFilesByCollection,

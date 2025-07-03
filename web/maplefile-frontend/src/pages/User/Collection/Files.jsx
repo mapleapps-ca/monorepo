@@ -17,7 +17,7 @@ const CollectionFiles = () => {
     loadFilesByCollection,
     getActiveFiles,
     deleteFile,
-    downloadFile,
+    downloadAndSaveFile,
   } = useFiles(collectionId);
 
   const [collection, setCollection] = useState(null);
@@ -78,14 +78,17 @@ const CollectionFiles = () => {
 
   const handleDownloadFile = async (fileId, fileName) => {
     try {
-      const result = await downloadFile(fileId);
-      // In a real implementation, you would decrypt and download the file
-      console.log("File download result:", result);
-      alert("File download functionality will be implemented with decryption");
+      console.log("[Files] Starting download for:", fileId, fileName);
+
+      // Don't call setIsLoading here - it's managed by the useFiles hook
+      await downloadAndSaveFile(fileId);
+
+      console.log("[Files] File download completed successfully");
     } catch (err) {
-      console.error("Failed to download file:", err);
+      console.error("[Files] Failed to download file:", err);
       alert("Failed to download file: " + err.message);
     }
+    // No finally block needed - useFiles hook manages its own loading state
   };
 
   const activeFiles = getActiveFiles();
@@ -320,19 +323,34 @@ const CollectionFiles = () => {
                   </td>
                   <td style={{ padding: "12px", textAlign: "center" }}>
                     <button
-                      onClick={() => handleDownloadFile(file.id, "file")}
+                      onClick={() =>
+                        handleDownloadFile(
+                          file.id,
+                          file.name || "downloaded_file",
+                        )
+                      }
+                      disabled={!file._file_key || isLoading}
                       style={{
                         padding: "6px 12px",
                         marginRight: "8px",
-                        backgroundColor: "#007bff",
+                        backgroundColor:
+                          file._file_key && !isLoading ? "#007bff" : "#ccc",
                         color: "white",
                         border: "none",
                         borderRadius: "4px",
-                        cursor: "pointer",
+                        cursor:
+                          file._file_key && !isLoading
+                            ? "pointer"
+                            : "not-allowed",
                         fontSize: "14px",
                       }}
+                      title={
+                        !file._file_key
+                          ? "File key not available - refresh page"
+                          : "Download file"
+                      }
                     >
-                      ⬇️ Download
+                      ⬇️ {isLoading ? "Downloading..." : "Download"}
                     </button>
                     <button
                       onClick={() => handleDeleteFile(file.id)}
