@@ -23,21 +23,21 @@ type listFileSyncDataServiceImpl struct {
 	config                  *config.Configuration
 	logger                  *zap.Logger
 	listFileSyncDataUseCase uc_filemetadata.ListFileMetadataSyncDataUseCase
-	collectionRepository    dom_collection.CollectionRepository // ADD: Collection repository
+	collectionRepository    dom_collection.CollectionRepository
 }
 
 func NewListFileSyncDataService(
 	config *config.Configuration,
 	logger *zap.Logger,
 	listFileSyncDataUseCase uc_filemetadata.ListFileMetadataSyncDataUseCase,
-	collectionRepository dom_collection.CollectionRepository, // ADD: Collection repository
+	collectionRepository dom_collection.CollectionRepository,
 ) ListFileSyncDataService {
 	logger = logger.Named("ListFileSyncDataService")
 	return &listFileSyncDataServiceImpl{
 		config:                  config,
 		logger:                  logger,
 		listFileSyncDataUseCase: listFileSyncDataUseCase,
-		collectionRepository:    collectionRepository, // ADD: Collection repository
+		collectionRepository:    collectionRepository,
 	}
 }
 
@@ -122,19 +122,21 @@ func (svc *listFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom
 		return nil, httperror.NewForNotFoundWithSingleField("message", "File sync results not found")
 	}
 
-	// Log sync data with Version field verification
+	// Log sync data with all fields including EncryptedFileSizeInBytes
 	svc.logger.Debug("File sync data successfully retrieved",
 		zap.String("user_id", userID.String()),
 		zap.Any("next_cursor", syncData.NextCursor),
 		zap.Int("files_count", len(syncData.Files)))
 
-	// Verify each item has Version field populated
+	// Verify each item has all fields populated including EncryptedFileSizeInBytes
 	for i, item := range syncData.Files {
 		svc.logger.Debug("Returning file sync item",
 			zap.Int("index", i),
 			zap.String("file_id", item.ID.String()),
+			zap.String("collection_id", item.CollectionID.String()),
 			zap.Uint64("version", item.Version),
-			zap.String("state", item.State))
+			zap.String("state", item.State),
+			zap.Int64("encrypted_file_size_in_bytes", item.EncryptedFileSizeInBytes))
 	}
 
 	return syncData, nil

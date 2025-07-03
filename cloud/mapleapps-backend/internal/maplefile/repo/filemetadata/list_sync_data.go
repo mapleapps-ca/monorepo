@@ -27,13 +27,13 @@ func (impl *fileMetadataRepositoryImpl) ListSyncData(ctx context.Context, userID
 
 	if cursor == nil {
 		// Initial sync - get all files for user
-		query = `SELECT file_id, collection_id, version, modified_at, state, tombstone_version, tombstone_expiry
+		query = `SELECT file_id, collection_id, version, modified_at, state, tombstone_version, tombstone_expiry, encrypted_file_size_in_bytes
 			FROM mapleapps.maplefile_files_by_user_id_with_desc_modified_at_and_asc_file_id
 			WHERE user_id = ? LIMIT ?`
 		args = []any{userID, limit}
 	} else {
 		// Incremental sync - get files modified after cursor
-		query = `SELECT file_id, collection_id, version, modified_at, state, tombstone_version, tombstone_expiry
+		query = `SELECT file_id, collection_id, version, modified_at, state, tombstone_version, tombstone_expiry, encrypted_file_size_in_bytes
 			FROM mapleapps.maplefile_files_by_user_id_with_desc_modified_at_and_asc_file_id
 			WHERE user_id = ? AND (modified_at, file_id) > (?, ?) LIMIT ?`
 		args = []any{userID, cursor.LastModified, cursor.LastID, limit}
@@ -51,6 +51,7 @@ func (impl *fileMetadataRepositoryImpl) ListSyncData(ctx context.Context, userID
 		version, tombstoneVersion   uint64
 		modifiedAt, tombstoneExpiry time.Time
 		state                       string
+		encryptedFileSizeInBytes    int64
 	)
 
 	// Filter files by accessible collections
@@ -59,20 +60,21 @@ func (impl *fileMetadataRepositoryImpl) ListSyncData(ctx context.Context, userID
 		accessibleCollections[cid] = true
 	}
 
-	for iter.Scan(&fileID, &collectionID, &version, &modifiedAt, &state, &tombstoneVersion, &tombstoneExpiry) {
+	for iter.Scan(&fileID, &collectionID, &version, &modifiedAt, &state, &tombstoneVersion, &tombstoneExpiry, &encryptedFileSizeInBytes) {
 		// Only include files from accessible collections
 		if !accessibleCollections[collectionID] {
 			continue
 		}
 
 		syncItem := dom_file.FileSyncItem{
-			ID:               fileID,
-			CollectionID:     collectionID,
-			Version:          version,
-			ModifiedAt:       modifiedAt,
-			State:            state,
-			TombstoneVersion: tombstoneVersion,
-			TombstoneExpiry:  tombstoneExpiry,
+			ID:                       fileID,
+			CollectionID:             collectionID,
+			Version:                  version,
+			ModifiedAt:               modifiedAt,
+			State:                    state,
+			TombstoneVersion:         tombstoneVersion,
+			TombstoneExpiry:          tombstoneExpiry,
+			EncryptedFileSizeInBytes: encryptedFileSizeInBytes,
 		}
 
 		syncItems = append(syncItems, syncItem)

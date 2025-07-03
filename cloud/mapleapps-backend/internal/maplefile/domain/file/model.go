@@ -79,13 +79,14 @@ type FileSyncCursor struct {
 
 // FileSyncItem represents minimal file data for sync operations
 type FileSyncItem struct {
-	ID               gocql.UUID `json:"id" bson:"_id"`
-	CollectionID     gocql.UUID `json:"collection_id" bson:"collection_id"`
-	Version          uint64     `json:"version" bson:"version"`
-	ModifiedAt       time.Time  `json:"modified_at" bson:"modified_at"`
-	State            string     `json:"state" bson:"state"`
-	TombstoneVersion uint64     `bson:"tombstone_version" json:"tombstone_version"`
-	TombstoneExpiry  time.Time  `bson:"tombstone_expiry" json:"tombstone_expiry"`
+	ID                       gocql.UUID `json:"id" bson:"_id"`
+	CollectionID             gocql.UUID `json:"collection_id" bson:"collection_id"`
+	Version                  uint64     `json:"version" bson:"version"`
+	ModifiedAt               time.Time  `json:"modified_at" bson:"modified_at"`
+	State                    string     `json:"state" bson:"state"`
+	TombstoneVersion         uint64     `bson:"tombstone_version" json:"tombstone_version"`
+	TombstoneExpiry          time.Time  `bson:"tombstone_expiry" json:"tombstone_expiry"`
+	EncryptedFileSizeInBytes int64      `bson:"encrypted_file_size_in_bytes" json:"encrypted_file_size_in_bytes"`
 }
 
 // FileSyncResponse represents the response for file sync data

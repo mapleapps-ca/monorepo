@@ -20,21 +20,21 @@ import (
 type FileSyncHTTPHandler struct {
 	config          *config.Configuration
 	logger          *zap.Logger
-	fileSyncService file_service.ListFileSyncDataService // CHANGED: Use service instead of repository
+	fileSyncService file_service.ListFileSyncDataService
 	middleware      middleware.Middleware
 }
 
 func NewFileSyncHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
-	fileSyncService file_service.ListFileSyncDataService, // CHANGED: Inject service instead of repository
+	fileSyncService file_service.ListFileSyncDataService,
 	middleware middleware.Middleware,
 ) *FileSyncHTTPHandler {
 	logger = logger.Named("FileSyncHTTPHandler")
 	return &FileSyncHTTPHandler{
 		config:          config,
 		logger:          logger,
-		fileSyncService: fileSyncService, // CHANGED: Use service
+		fileSyncService: fileSyncService,
 		middleware:      middleware,
 	}
 }
@@ -102,7 +102,7 @@ func (h *FileSyncHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		zap.Int64("limit", limit),
 		zap.Any("cursor", cursor))
 
-	// CHANGED: Call service instead of repository directly (userID comes from context)
+	// Call service to get sync data
 	response, err := h.fileSyncService.Execute(ctx, cursor, limit)
 	if err != nil {
 		h.logger.Error("Failed to get file sync data",
@@ -112,7 +112,7 @@ func (h *FileSyncHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify the response contains Version fields before encoding
+	// Verify the response contains all fields including EncryptedFileSizeInBytes before encoding
 	h.logger.Debug("File sync response validation",
 		zap.Any("user_id", userID),
 		zap.Int("files_count", len(response.Files)))
@@ -126,7 +126,8 @@ func (h *FileSyncHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 			zap.Time("modified_at", item.ModifiedAt),
 			zap.String("state", item.State),
 			zap.Uint64("tombstone_version", item.TombstoneVersion),
-			zap.Time("tombstone_expiry", item.TombstoneExpiry))
+			zap.Time("tombstone_expiry", item.TombstoneExpiry),
+			zap.Int64("encrypted_file_size_in_bytes", item.EncryptedFileSizeInBytes))
 	}
 
 	// Encode and return response

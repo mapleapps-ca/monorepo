@@ -73,7 +73,7 @@ func (uc *listFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, user
 		zap.Int("files_count", len(result.Files)),
 		zap.Bool("has_more", result.HasMore))
 
-	// Log each sync item to verify Version field is populated
+	// Log each sync item to verify all fields are populated
 	for i, item := range result.Files {
 		uc.logger.Debug("File sync item",
 			zap.Int("index", i),
@@ -83,7 +83,8 @@ func (uc *listFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, user
 			zap.Time("modified_at", item.ModifiedAt),
 			zap.String("state", item.State),
 			zap.Uint64("tombstone_version", item.TombstoneVersion),
-			zap.Time("tombstone_expiry", item.TombstoneExpiry))
+			zap.Time("tombstone_expiry", item.TombstoneExpiry),
+			zap.Int64("encrypted_file_size_in_bytes", item.EncryptedFileSizeInBytes))
 	}
 
 	return result, nil
