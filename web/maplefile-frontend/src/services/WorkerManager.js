@@ -1,4 +1,4 @@
-// File: src/services/WorkerManager.js
+// File: src/services/WorkerManager.js - FIXED VERSION with Token Decryption
 import LocalStorageService from "./LocalStorageService.js";
 import passwordStorageService from "./PasswordStorageService.js";
 
@@ -160,6 +160,159 @@ class WorkerManager {
     }
   }
 
+  async handleDecryptTokensRequest(data) {
+    console.log("[WorkerManager] Received decrypt tokens request from worker");
+
+    try {
+      const password = passwordStorageService.getPassword();
+      if (!password) {
+        throw new Error("No password available for token decryption");
+      }
+
+      // Check if we have user's encrypted data
+      const userEncryptedData = LocalStorageService.getUserEncryptedData();
+      if (
+        !userEncryptedData.salt ||
+        !userEncryptedData.encryptedMasterKey ||
+        !userEncryptedData.encryptedPrivateKey
+      ) {
+        throw new Error("Missing user encrypted data for token decryption");
+      }
+
+      // Decrypt tokens using password
+      const { default: CryptoService } = await import("./CryptoService.js");
+      await CryptoService.initialize();
+
+      // First, derive keys from password
+      const salt = CryptoService.tryDecodeBase64(userEncryptedData.salt);
+      const encryptedMasterKey = CryptoService.tryDecodeBase64(
+        userEncryptedData.encryptedMasterKey,
+      );
+      const encryptedPrivateKey = CryptoService.tryDecodeBase64(
+        userEncryptedData.encryptedPrivateKey,
+      );
+
+      // Derive key encryption key from password
+      const keyEncryptionKey = await CryptoService.deriveKeyFromPassword(
+        password,
+        salt,
+      );
+
+      // Decrypt master key
+      const masterKey = CryptoService.decryptWithSecretBox(
+        encryptedMasterKey,
+        keyEncryptionKey,
+      );
+
+      // Decrypt private key
+      const privateKey = CryptoService.decryptWithSecretBox(
+        encryptedPrivateKey,
+        masterKey,
+      );
+
+      // Now decrypt the tokens
+      // Try different decryption methods as tokens might be encrypted with different keys
+      const encryptedAccessToken = CryptoService.tryDecodeBase64(
+        data.encryptedAccessToken,
+      );
+      const encryptedRefreshToken = CryptoService.tryDecodeBase64(
+        data.encryptedRefreshToken,
+      );
+      const nonce = CryptoService.tryDecodeBase64(data.tokenNonce);
+
+      let decryptedAccessToken, decryptedRefreshToken;
+
+      // Try sealed box first (anonymous encryption with private key)
+      try {
+        console.log("[WorkerManager] Trying sealed box decryption for tokens");
+        const decryptedAccess = await CryptoService.decryptChallenge(
+          encryptedAccessToken,
+          privateKey,
+        );
+        const decryptedRefresh = await CryptoService.decryptChallenge(
+          encryptedRefreshToken,
+          privateKey,
+        );
+
+        decryptedAccessToken = new TextDecoder().decode(decryptedAccess);
+        decryptedRefreshToken = new TextDecoder().decode(decryptedRefresh);
+        console.log("[WorkerManager] Tokens decrypted using sealed box");
+      } catch (sealError) {
+        console.log(
+          "[WorkerManager] Sealed box failed, trying secretbox with master key",
+        );
+
+        // Try secretbox with master key
+        try {
+          const accessTokenData = new Uint8Array(
+            nonce.length + encryptedAccessToken.length,
+          );
+          accessTokenData.set(nonce, 0);
+          accessTokenData.set(encryptedAccessToken, nonce.length);
+
+          const refreshTokenData = new Uint8Array(
+            nonce.length + encryptedRefreshToken.length,
+          );
+          refreshTokenData.set(nonce, 0);
+          refreshTokenData.set(encryptedRefreshToken, nonce.length);
+
+          const decryptedAccess = CryptoService.decryptWithSecretBox(
+            accessTokenData,
+            masterKey,
+          );
+          const decryptedRefresh = CryptoService.decryptWithSecretBox(
+            refreshTokenData,
+            masterKey,
+          );
+
+          decryptedAccessToken = new TextDecoder().decode(decryptedAccess);
+          decryptedRefreshToken = new TextDecoder().decode(decryptedRefresh);
+          console.log("[WorkerManager] Tokens decrypted using secretbox");
+        } catch (error) {
+          throw new Error("Failed to decrypt tokens with available keys");
+        }
+      }
+
+      // Store decrypted tokens
+      LocalStorageService.setTokens(
+        decryptedAccessToken,
+        decryptedRefreshToken,
+        data.accessTokenExpiry,
+        data.refreshTokenExpiry,
+      );
+
+      if (data.username) {
+        LocalStorageService.setUserEmail(data.username);
+      }
+
+      // Send success response to worker
+      this.authWorker.postMessage({
+        type: "decrypted_tokens_response",
+        data: {
+          accessToken: decryptedAccessToken,
+          refreshToken: decryptedRefreshToken,
+          accessTokenExpiry: data.accessTokenExpiry,
+          refreshTokenExpiry: data.refreshTokenExpiry,
+          username: data.username,
+          requestId: data.requestId,
+        },
+      });
+
+      console.log("[WorkerManager] Tokens decrypted and stored successfully");
+    } catch (error) {
+      console.error("[WorkerManager] Failed to decrypt tokens:", error);
+
+      // Send failure response to worker
+      this.authWorker.postMessage({
+        type: "decrypt_tokens_failed",
+        data: {
+          error: error.message,
+          requestId: data.requestId,
+        },
+      });
+    }
+  }
+
   handleWorkerMessage(event) {
     const { type, data } = event.data;
 
@@ -170,6 +323,11 @@ class WorkerManager {
           this.workerReadyResolve();
           this.workerReadyResolve = null;
         }
+        break;
+
+      case "decrypt_tokens_request":
+        // Worker needs tokens decrypted
+        this.handleDecryptTokensRequest(data);
         break;
 
       case "password_request":
@@ -349,7 +507,7 @@ class WorkerManager {
       return {
         isInitialized: false,
         error: "Worker not initialized",
-        tokenSystem: "unencrypted",
+        tokenSystem: "encrypted",
       };
     }
 

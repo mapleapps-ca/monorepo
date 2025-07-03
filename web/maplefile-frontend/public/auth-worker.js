@@ -1,4 +1,4 @@
-// Authentication Worker - Updated for Unencrypted Token System with Better Error Handling
+// Authentication Worker - Updated for Encrypted Token System
 // This worker runs independently and communicates with all tabs
 
 const STORAGE_KEYS = {
@@ -84,7 +84,7 @@ function isTokenExpiringSoon(expiryTime, thresholdMs = REFRESH_THRESHOLD) {
   return expiry.getTime() - now.getTime() <= thresholdMs;
 }
 
-// Get current token information for unencrypted tokens
+// Get current token information
 function getTokenInfo(storageData) {
   const accessToken = storageData[STORAGE_KEYS.ACCESS_TOKEN];
   const refreshToken = storageData[STORAGE_KEYS.REFRESH_TOKEN];
@@ -112,9 +112,7 @@ async function refreshTokens(refreshTokenValue, storageData, requestId = null) {
   const url = `${API_BASE_URL}/token/refresh`;
 
   try {
-    console.log(
-      "[AuthWorker] Attempting token refresh with unencrypted token...",
-    );
+    console.log("[AuthWorker] Attempting token refresh...");
 
     const response = await fetch(url, {
       method: "POST",
@@ -130,56 +128,33 @@ async function refreshTokens(refreshTokenValue, storageData, requestId = null) {
       const result = await response.json();
       console.log("[AuthWorker] Token refresh successful");
 
-      // Handle unencrypted tokens
-      if (result.access_token && result.refresh_token) {
-        console.log(
-          "[AuthWorker] Received unencrypted access and refresh tokens",
-        );
+      // Backend returns ENCRYPTED tokens - we need to request decryption
+      if (
+        result.encrypted_access_token &&
+        result.encrypted_refresh_token &&
+        result.token_nonce
+      ) {
+        console.log("[AuthWorker] Received encrypted tokens from refresh");
 
-        // Store new unencrypted tokens via main thread
-        broadcastMessage("storage_update", {
-          key: STORAGE_KEYS.ACCESS_TOKEN,
-          value: result.access_token,
-        });
-        broadcastMessage("storage_update", {
-          key: STORAGE_KEYS.REFRESH_TOKEN,
-          value: result.refresh_token,
-        });
-
-        // Update expiry times
-        if (result.access_token_expiry_date) {
-          broadcastMessage("storage_update", {
-            key: STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
-            value: result.access_token_expiry_date,
-          });
-        }
-        if (result.refresh_token_expiry_date) {
-          broadcastMessage("storage_update", {
-            key: STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
-            value: result.refresh_token_expiry_date,
-          });
-        }
-
-        // Update user email if provided
-        if (result.username) {
-          broadcastMessage("storage_update", {
-            key: STORAGE_KEYS.USER_EMAIL,
-            value: result.username,
-          });
-        }
-
-        // Broadcast success
-        broadcastMessage("token_refresh_success", {
+        // Request main thread to decrypt tokens
+        // We'll send the encrypted data and wait for decrypted response
+        broadcastMessage("decrypt_tokens_request", {
+          encryptedAccessToken: result.encrypted_access_token,
+          encryptedRefreshToken: result.encrypted_refresh_token,
+          tokenNonce: result.token_nonce,
           accessTokenExpiry: result.access_token_expiry_date,
           refreshTokenExpiry: result.refresh_token_expiry_date,
           username: result.username,
           requestId: requestId,
         });
 
-        return true;
+        // Don't mark as success yet - wait for decryption to complete
+        return "pending_decryption";
       } else {
-        console.error("[AuthWorker] No valid tokens in refresh response");
-        throw new Error("Token refresh failed: No valid tokens received");
+        console.error(
+          "[AuthWorker] Unexpected response format - no encrypted tokens",
+        );
+        throw new Error("Invalid token refresh response format");
       }
     } else {
       const errorData = await response.json();
@@ -202,6 +177,60 @@ async function refreshTokens(refreshTokenValue, storageData, requestId = null) {
 
     return false;
   }
+}
+
+// Handle decrypted tokens response
+function handleDecryptedTokens(data) {
+  console.log("[AuthWorker] Handling decrypted tokens");
+
+  const {
+    accessToken,
+    refreshToken,
+    accessTokenExpiry,
+    refreshTokenExpiry,
+    username,
+    requestId,
+  } = data;
+
+  // Store decrypted tokens
+  broadcastMessage("storage_update", {
+    key: STORAGE_KEYS.ACCESS_TOKEN,
+    value: accessToken,
+  });
+  broadcastMessage("storage_update", {
+    key: STORAGE_KEYS.REFRESH_TOKEN,
+    value: refreshToken,
+  });
+
+  // Update expiry times
+  if (accessTokenExpiry) {
+    broadcastMessage("storage_update", {
+      key: STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+      value: accessTokenExpiry,
+    });
+  }
+  if (refreshTokenExpiry) {
+    broadcastMessage("storage_update", {
+      key: STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
+      value: refreshTokenExpiry,
+    });
+  }
+
+  // Update user email if provided
+  if (username) {
+    broadcastMessage("storage_update", {
+      key: STORAGE_KEYS.USER_EMAIL,
+      value: username,
+    });
+  }
+
+  // Broadcast success
+  broadcastMessage("token_refresh_success", {
+    accessTokenExpiry: accessTokenExpiry,
+    refreshTokenExpiry: refreshTokenExpiry,
+    username: username,
+    requestId: requestId,
+  });
 }
 
 // Main token checking logic
@@ -255,20 +284,24 @@ async function checkTokens(storageData) {
     console.log("[AuthWorker] Access token needs refresh");
 
     const refreshToken = storageData[STORAGE_KEYS.REFRESH_TOKEN];
-    const success = await refreshTokens(refreshToken, storageData);
+    const result = await refreshTokens(refreshToken, storageData);
 
-    isRefreshing = false;
-    workerState.isRefreshing = false;
+    // If result is "pending_decryption", we'll wait for the main thread to decrypt
+    if (result !== "pending_decryption") {
+      isRefreshing = false;
+      workerState.isRefreshing = false;
 
-    if (!success) {
-      workerState.isAuthenticated = false;
+      if (!result) {
+        workerState.isAuthenticated = false;
+      }
     }
+    // If pending, we'll clear the flag when we receive the decrypted tokens
   }
 }
 
 // Start monitoring tokens
 function startTokenMonitoring() {
-  console.log("[AuthWorker] Starting unencrypted token monitoring...");
+  console.log("[AuthWorker] Starting token monitoring...");
   isMonitoring = true;
 
   if (checkInterval) {
@@ -344,22 +377,52 @@ self.addEventListener("message", async (event) => {
       if (data && data.refreshToken && !isRefreshing) {
         isRefreshing = true;
         workerState.isRefreshing = true;
-        const success = await refreshTokens(
+        const result = await refreshTokens(
           data.refreshToken,
           data.storageData || {},
           data.requestId,
         );
-        isRefreshing = false;
-        workerState.isRefreshing = false;
 
-        if (!success && data.requestId) {
-          // Make sure failure is reported for manual refresh
-          broadcastMessage("token_refresh_failed", {
-            error: "Manual refresh failed",
-            requestId: data.requestId,
-          });
+        // Only clear refreshing flag if not pending decryption
+        if (result !== "pending_decryption") {
+          isRefreshing = false;
+          workerState.isRefreshing = false;
+
+          if (!result && data.requestId) {
+            // Make sure failure is reported for manual refresh
+            broadcastMessage("token_refresh_failed", {
+              error: "Manual refresh failed",
+              requestId: data.requestId,
+            });
+          }
         }
       }
+      break;
+
+    case "decrypted_tokens_response":
+      console.log("[AuthWorker] Received decrypted tokens");
+      handleDecryptedTokens(data);
+      // Clear refreshing flag after successful decryption
+      isRefreshing = false;
+      workerState.isRefreshing = false;
+      break;
+
+    case "decrypt_tokens_failed":
+      console.log("[AuthWorker] Token decryption failed");
+      isRefreshing = false;
+      workerState.isRefreshing = false;
+
+      // Clear all tokens on decryption failure
+      Object.values(STORAGE_KEYS).forEach((key) => {
+        broadcastMessage("storage_remove", { key });
+      });
+
+      // Broadcast failure
+      broadcastMessage("token_refresh_failed", {
+        error: data.error || "Token decryption failed",
+        shouldRedirect: true,
+        requestId: data.requestId,
+      });
       break;
 
     case "get_worker_status":
@@ -369,7 +432,7 @@ self.addEventListener("message", async (event) => {
         isRefreshing,
         isInitialized: true,
         isMonitoring,
-        tokenSystem: "unencrypted",
+        tokenSystem: "encrypted",
         checkInterval: CHECK_INTERVAL,
         refreshThreshold: REFRESH_THRESHOLD,
       });
@@ -400,7 +463,7 @@ try {
     timestamp: Date.now(),
     checkInterval: CHECK_INTERVAL,
     refreshThreshold: REFRESH_THRESHOLD,
-    tokenSystem: "unencrypted",
+    tokenSystem: "encrypted",
   });
   console.log("[AuthWorker] Worker ready signal sent successfully");
 } catch (error) {
@@ -408,5 +471,5 @@ try {
 }
 
 console.log(
-  "[AuthWorker] Authentication worker initialized with unencrypted token support",
+  "[AuthWorker] Authentication worker initialized with encrypted token support",
 );
