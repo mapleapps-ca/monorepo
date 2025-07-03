@@ -1,4 +1,4 @@
-// Authentication Worker - Updated for Unencrypted Token System
+// Authentication Worker - Updated for Unencrypted Token System with Better Error Handling
 // This worker runs independently and communicates with all tabs
 
 const STORAGE_KEYS = {
@@ -15,6 +15,7 @@ const REFRESH_THRESHOLD = 5 * 60 * 1000; // Refresh 5 minutes before expiry
 
 let checkInterval = null;
 let isRefreshing = false;
+let isMonitoring = false;
 
 // Broadcast channel for cross-tab communication
 let broadcastChannel = null;
@@ -36,41 +37,6 @@ let workerState = {
   tokenInfo: {},
 };
 
-// Utility functions for localStorage access in worker
-function getStorageItem(key) {
-  try {
-    // In worker context, we need to simulate localStorage access
-    // We'll get this data from the main thread
-    return self.localStorage?.[key] || null;
-  } catch (error) {
-    return null;
-  }
-}
-
-function setStorageItem(key, value) {
-  try {
-    if (self.localStorage) {
-      self.localStorage[key] = value;
-    }
-    // Also broadcast to main thread
-    broadcastMessage("storage_update", { key, value });
-  } catch (error) {
-    // Fallback - send to main thread
-    broadcastMessage("storage_update", { key, value });
-  }
-}
-
-function removeStorageItem(key) {
-  try {
-    if (self.localStorage) {
-      delete self.localStorage[key];
-    }
-    broadcastMessage("storage_remove", { key });
-  } catch (error) {
-    broadcastMessage("storage_remove", { key });
-  }
-}
-
 // Broadcast message to all tabs
 function broadcastMessage(type, data) {
   const message = {
@@ -84,7 +50,6 @@ function broadcastMessage(type, data) {
   // Always try postMessage first (most reliable)
   try {
     self.postMessage(message);
-    console.log(`[AuthWorker] Message sent via postMessage: ${type}`);
   } catch (error) {
     console.error(
       `[AuthWorker] Failed to send message via postMessage: ${type}`,
@@ -96,7 +61,6 @@ function broadcastMessage(type, data) {
   if (broadcastChannel) {
     try {
       broadcastChannel.postMessage(message);
-      console.log(`[AuthWorker] Message sent via BroadcastChannel: ${type}`);
     } catch (error) {
       console.error(
         `[AuthWorker] Failed to send message via BroadcastChannel: ${type}`,
@@ -143,8 +107,8 @@ function getTokenInfo(storageData) {
   };
 }
 
-// Make API request for token refresh using unencrypted tokens
-async function refreshTokens(refreshTokenValue, storageData) {
+// Make API request for token refresh
+async function refreshTokens(refreshTokenValue, storageData, requestId = null) {
   const url = `${API_BASE_URL}/token/refresh`;
 
   try {
@@ -166,33 +130,42 @@ async function refreshTokens(refreshTokenValue, storageData) {
       const result = await response.json();
       console.log("[AuthWorker] Token refresh successful");
 
-      // Handle unencrypted tokens (expected after initial login)
+      // Handle unencrypted tokens
       if (result.access_token && result.refresh_token) {
         console.log(
           "[AuthWorker] Received unencrypted access and refresh tokens",
         );
 
-        // Store new unencrypted tokens
-        setStorageItem(STORAGE_KEYS.ACCESS_TOKEN, result.access_token);
-        setStorageItem(STORAGE_KEYS.REFRESH_TOKEN, result.refresh_token);
+        // Store new unencrypted tokens via main thread
+        broadcastMessage("storage_update", {
+          key: STORAGE_KEYS.ACCESS_TOKEN,
+          value: result.access_token,
+        });
+        broadcastMessage("storage_update", {
+          key: STORAGE_KEYS.REFRESH_TOKEN,
+          value: result.refresh_token,
+        });
 
         // Update expiry times
         if (result.access_token_expiry_date) {
-          setStorageItem(
-            STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
-            result.access_token_expiry_date,
-          );
+          broadcastMessage("storage_update", {
+            key: STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
+            value: result.access_token_expiry_date,
+          });
         }
         if (result.refresh_token_expiry_date) {
-          setStorageItem(
-            STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
-            result.refresh_token_expiry_date,
-          );
+          broadcastMessage("storage_update", {
+            key: STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
+            value: result.refresh_token_expiry_date,
+          });
         }
 
         // Update user email if provided
         if (result.username) {
-          setStorageItem(STORAGE_KEYS.USER_EMAIL, result.username);
+          broadcastMessage("storage_update", {
+            key: STORAGE_KEYS.USER_EMAIL,
+            value: result.username,
+          });
         }
 
         // Broadcast success
@@ -200,21 +173,12 @@ async function refreshTokens(refreshTokenValue, storageData) {
           accessTokenExpiry: result.access_token_expiry_date,
           refreshTokenExpiry: result.refresh_token_expiry_date,
           username: result.username,
+          requestId: requestId,
         });
 
         return true;
-      } else if (result.encrypted_tokens && result.token_nonce) {
-        // This shouldn't happen after initial login
-        console.error(
-          "[AuthWorker] Received encrypted tokens in refresh - this is unexpected",
-        );
-        throw new Error("Unexpected encrypted tokens in refresh response");
       } else {
         console.error("[AuthWorker] No valid tokens in refresh response");
-        console.error(
-          "[AuthWorker] Available response fields:",
-          Object.keys(result),
-        );
         throw new Error("Token refresh failed: No valid tokens received");
       }
     } else {
@@ -226,20 +190,21 @@ async function refreshTokens(refreshTokenValue, storageData) {
 
     // Clear all tokens on refresh failure
     Object.values(STORAGE_KEYS).forEach((key) => {
-      removeStorageItem(key);
+      broadcastMessage("storage_remove", { key });
     });
 
     // Broadcast failure
     broadcastMessage("token_refresh_failed", {
       error: error.message,
       shouldRedirect: true,
+      requestId: requestId,
     });
 
     return false;
   }
 }
 
-// Main token checking logic for unencrypted tokens
+// Main token checking logic
 async function checkTokens(storageData) {
   const tokenInfo = getTokenInfo(storageData);
 
@@ -267,7 +232,7 @@ async function checkTokens(storageData) {
 
     // Clear all tokens
     Object.values(STORAGE_KEYS).forEach((key) => {
-      removeStorageItem(key);
+      broadcastMessage("storage_remove", { key });
     });
 
     // Broadcast logout
@@ -296,7 +261,6 @@ async function checkTokens(storageData) {
     workerState.isRefreshing = false;
 
     if (!success) {
-      // Refresh failed, user will be redirected by the failed handler
       workerState.isAuthenticated = false;
     }
   }
@@ -305,32 +269,36 @@ async function checkTokens(storageData) {
 // Start monitoring tokens
 function startTokenMonitoring() {
   console.log("[AuthWorker] Starting unencrypted token monitoring...");
+  isMonitoring = true;
 
   if (checkInterval) {
     clearInterval(checkInterval);
   }
 
+  // Initial check
+  broadcastMessage("request_storage_data", {});
+
+  // Set up interval
   checkInterval = setInterval(async () => {
-    if (isRefreshing) {
-      console.log("[AuthWorker] Refresh in progress, skipping check");
+    if (isRefreshing || !isMonitoring) {
+      console.log(
+        "[AuthWorker] Skipping check - refresh in progress or monitoring stopped",
+      );
       return;
     }
 
     try {
-      // Request current storage data from main thread
       broadcastMessage("request_storage_data", {});
     } catch (error) {
       console.error("[AuthWorker] Error during token check:", error);
     }
   }, CHECK_INTERVAL);
-
-  // Also check immediately
-  broadcastMessage("request_storage_data", {});
 }
 
 // Stop monitoring tokens
 function stopTokenMonitoring() {
   console.log("[AuthWorker] Stopping token monitoring...");
+  isMonitoring = false;
 
   if (checkInterval) {
     clearInterval(checkInterval);
@@ -359,7 +327,7 @@ self.addEventListener("message", async (event) => {
 
     case "storage_data_response":
       // Received storage data from main thread
-      if (data && !isRefreshing) {
+      if (data && !isRefreshing && isMonitoring) {
         await checkTokens(data);
       }
       break;
@@ -379,9 +347,18 @@ self.addEventListener("message", async (event) => {
         const success = await refreshTokens(
           data.refreshToken,
           data.storageData || {},
+          data.requestId,
         );
         isRefreshing = false;
         workerState.isRefreshing = false;
+
+        if (!success && data.requestId) {
+          // Make sure failure is reported for manual refresh
+          broadcastMessage("token_refresh_failed", {
+            error: "Manual refresh failed",
+            requestId: data.requestId,
+          });
+        }
       }
       break;
 
@@ -391,13 +368,11 @@ self.addEventListener("message", async (event) => {
         ...workerState,
         isRefreshing,
         isInitialized: true,
+        isMonitoring,
         tokenSystem: "unencrypted",
+        checkInterval: CHECK_INTERVAL,
+        refreshThreshold: REFRESH_THRESHOLD,
       });
-      break;
-
-    case "password_response":
-      // This is handled by the requestPasswordFromMainThread promise
-      // No additional action needed here - just don't throw unknown message error
       break;
 
     default:
@@ -418,7 +393,7 @@ self.addEventListener("error", (error) => {
 // Initialize worker
 console.log("[AuthWorker] Authentication worker initializing...");
 
-// Send ready signal immediately
+// Send ready signal
 try {
   console.log("[AuthWorker] Sending worker ready signal...");
   broadcastMessage("worker_ready", {
@@ -430,142 +405,8 @@ try {
   console.log("[AuthWorker] Worker ready signal sent successfully");
 } catch (error) {
   console.error("[AuthWorker] Failed to send ready signal:", error);
-  // Try to send via postMessage as fallback
-  try {
-    self.postMessage({
-      type: "worker_ready",
-      data: {
-        timestamp: Date.now(),
-        checkInterval: CHECK_INTERVAL,
-        refreshThreshold: REFRESH_THRESHOLD,
-        tokenSystem: "unencrypted",
-      },
-      timestamp: Date.now(),
-    });
-    console.log(
-      "[AuthWorker] Worker ready signal sent via postMessage fallback",
-    );
-  } catch (fallbackError) {
-    console.error(
-      "[AuthWorker] Failed to send ready signal via fallback:",
-      fallbackError,
-    );
-  }
 }
 
 console.log(
   "[AuthWorker] Authentication worker initialized with unencrypted token support",
 );
-
-async function refreshTokensWithPassword(refreshTokenValue, storageData) {
-  const url = `${API_BASE_URL}/token/refresh`;
-
-  try {
-    console.log("[AuthWorker] Attempting token refresh...");
-
-    // Check if we need password for this refresh
-    const needsPassword =
-      storageData.encrypted_tokens || storageData.requires_decryption;
-
-    let password = null;
-    if (needsPassword) {
-      // Request password from main thread
-      password = await requestPasswordFromMainThread();
-
-      if (!password) {
-        throw new Error(
-          "Password required for token refresh but not available",
-        );
-      }
-    }
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        value: refreshTokenValue,
-        // Include password if needed for E2EE token decryption
-        ...(password && { password: password }),
-      }),
-    });
-
-    if (response.status === 201) {
-      const result = await response.json();
-      console.log("[AuthWorker] Token refresh successful");
-
-      // Handle the response based on your existing logic
-      if (result.access_token && result.refresh_token) {
-        // Store new tokens
-        setStorageItem(STORAGE_KEYS.ACCESS_TOKEN, result.access_token);
-        setStorageItem(STORAGE_KEYS.REFRESH_TOKEN, result.refresh_token);
-
-        // Update expiry times
-        if (result.access_token_expiry_date) {
-          setStorageItem(
-            STORAGE_KEYS.ACCESS_TOKEN_EXPIRY,
-            result.access_token_expiry_date,
-          );
-        }
-        if (result.refresh_token_expiry_date) {
-          setStorageItem(
-            STORAGE_KEYS.REFRESH_TOKEN_EXPIRY,
-            result.refresh_token_expiry_date,
-          );
-        }
-
-        // Broadcast success
-        broadcastMessage("token_refresh_success", {
-          accessTokenExpiry: result.access_token_expiry_date,
-          refreshTokenExpiry: result.refresh_token_expiry_date,
-        });
-
-        return true;
-      } else {
-        throw new Error("No valid tokens in refresh response");
-      }
-    } else {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Token refresh failed");
-    }
-  } catch (error) {
-    console.error("[AuthWorker] Token refresh failed:", error);
-
-    // Broadcast failure
-    broadcastMessage("token_refresh_failed", {
-      error: error.message,
-      shouldRedirect: error.message.includes("Password required"),
-    });
-
-    return false;
-  }
-}
-
-// Function to request password from main thread
-function requestPasswordFromMainThread() {
-  return new Promise((resolve) => {
-    const requestId = Date.now() + Math.random();
-
-    const handlePasswordResponse = (event) => {
-      if (
-        event.data.type === "password_response" &&
-        event.data.requestId === requestId
-      ) {
-        self.removeEventListener("message", handlePasswordResponse);
-        resolve(event.data.password);
-      }
-    };
-
-    self.addEventListener("message", handlePasswordResponse);
-
-    // Send password request
-    broadcastMessage("password_request", { requestId });
-
-    // Timeout after 10 seconds
-    setTimeout(() => {
-      self.removeEventListener("message", handlePasswordResponse);
-      resolve(null);
-    }, 10000);
-  });
-}

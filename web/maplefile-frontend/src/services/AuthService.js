@@ -4,18 +4,14 @@ import CryptoService from "./CryptoService.js";
 import WorkerManager from "./WorkerManager.js";
 
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config
-
 class AuthService {
   constructor() {
     this.isInitialized = false;
     this.workerDisabled = false;
-    this.initializeWorker();
+    this.initializationPromise = null;
   }
 
-  // Initialize the background worker
-  async initializeWorker() {
-    if (this.isInitialized) return;
-
+  async _doInitialize() {
     try {
       console.log("[AuthService] Initializing background worker...");
       await WorkerManager.initialize();
@@ -36,9 +32,20 @@ class AuthService {
       // Set a flag to indicate we're running without worker
       this.isInitialized = false;
       this.workerDisabled = true;
-
-      // Don't throw the error - continue without worker
     }
+  }
+
+  // Initialize the background worker
+  async initializeWorker() {
+    if (this.isInitialized) return;
+
+    // Prevent multiple simultaneous initializations
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this._doInitialize();
+    return this.initializationPromise;
   }
 
   // Helper method to make API requests
@@ -590,8 +597,13 @@ class AuthService {
 
   // Refresh tokens using background worker
   async refreshTokenViaWorker() {
-    if (!this.isInitialized) {
+    if (!this.isInitialized && !this.workerDisabled) {
       await this.initializeWorker();
+    }
+
+    if (this.workerDisabled) {
+      console.warn("[AuthService] Worker disabled, using direct refresh");
+      return this.refreshToken();
     }
 
     try {
@@ -607,7 +619,7 @@ class AuthService {
 
   // Force a token check (useful for testing)
   forceTokenCheck() {
-    if (this.isInitialized) {
+    if (this.isInitialized && !this.workerDisabled) {
       WorkerManager.forceTokenCheck();
     }
   }

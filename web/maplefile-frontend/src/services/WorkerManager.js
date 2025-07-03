@@ -1,4 +1,4 @@
-// File: src/services/WorkerManager.js - ENHANCED VERSION
+// File: src/services/WorkerManager.js
 import LocalStorageService from "./LocalStorageService.js";
 import passwordStorageService from "./PasswordStorageService.js";
 
@@ -6,12 +6,23 @@ class WorkerManager {
   constructor() {
     this.authWorker = null;
     this.isInitialized = false;
+    this.authStateListeners = new Set();
+    this.workerReadyPromise = null;
+    this.workerReadyResolve = null;
+    this.refreshPromises = new Map();
   }
 
   async initialize() {
     if (this.isInitialized) return;
 
     try {
+      console.log("[WorkerManager] Starting initialization...");
+
+      // Create a promise that resolves when worker is ready
+      this.workerReadyPromise = new Promise((resolve) => {
+        this.workerReadyResolve = resolve;
+      });
+
       // Initialize the auth worker
       this.authWorker = new Worker("/auth-worker.js");
 
@@ -23,22 +34,33 @@ class WorkerManager {
       // Set up error handling
       this.authWorker.onerror = (error) => {
         console.error("[WorkerManager] Auth worker error:", error);
+        // Reject any pending refresh promises
+        this.refreshPromises.forEach((promise) => {
+          promise.reject(new Error("Worker error: " + error.message));
+        });
+        this.refreshPromises.clear();
       };
+
+      // Wait for worker ready signal
+      await this.workerReadyPromise;
 
       this.isInitialized = true;
       console.log("[WorkerManager] Initialized successfully");
 
-      // Start monitoring (the worker will auto-start, but this ensures it's active)
-      this.startMonitoring();
+      // Start monitoring if we have tokens
+      if (LocalStorageService.hasValidTokens()) {
+        this.startMonitoring();
+      }
     } catch (error) {
       console.error("[WorkerManager] Failed to initialize:", error);
+      this.isInitialized = false;
       throw error;
     }
   }
 
   startMonitoring() {
     console.log("[WorkerManager] Starting token monitoring");
-    if (this.authWorker) {
+    if (this.authWorker && this.isInitialized) {
       this.authWorker.postMessage({ type: "start_monitoring" });
     } else {
       console.warn(
@@ -54,47 +76,83 @@ class WorkerManager {
     }
   }
 
-  forceTokenCheck(storageData = null) {
+  forceTokenCheck() {
     console.log("[WorkerManager] Forcing token check");
-    if (this.authWorker) {
+    if (this.authWorker && this.isInitialized) {
+      const storageData = this.getCurrentStorageData();
       this.authWorker.postMessage({
         type: "force_token_check",
-        data: storageData || this.getCurrentStorageData(),
+        data: storageData,
       });
     }
   }
 
-  manualRefresh(refreshToken, storageData = null) {
-    console.log("[WorkerManager] Manual token refresh");
-    if (this.authWorker) {
+  async manualRefresh() {
+    console.log("[WorkerManager] Manual token refresh requested");
+
+    if (!this.authWorker || !this.isInitialized) {
+      throw new Error("Worker not initialized");
+    }
+
+    const refreshToken = LocalStorageService.getRefreshToken();
+    if (!refreshToken) {
+      throw new Error("No refresh token available");
+    }
+
+    // Create a promise for this refresh request
+    const requestId = Date.now() + Math.random();
+
+    return new Promise((resolve, reject) => {
+      // Store the promise handlers
+      this.refreshPromises.set(requestId, { resolve, reject });
+
+      // Set a timeout
+      const timeout = setTimeout(() => {
+        this.refreshPromises.delete(requestId);
+        reject(new Error("Token refresh timeout"));
+      }, 30000); // 30 second timeout
+
+      // Update promise handlers to clear timeout
+      const originalResolve = resolve;
+      const originalReject = reject;
+
+      this.refreshPromises.set(requestId, {
+        resolve: (result) => {
+          clearTimeout(timeout);
+          this.refreshPromises.delete(requestId);
+          originalResolve(result);
+        },
+        reject: (error) => {
+          clearTimeout(timeout);
+          this.refreshPromises.delete(requestId);
+          originalReject(error);
+        },
+      });
+
+      // Send refresh request to worker
       this.authWorker.postMessage({
         type: "manual_refresh",
         data: {
-          refreshToken,
-          storageData: storageData || this.getCurrentStorageData(),
+          refreshToken: refreshToken,
+          storageData: this.getCurrentStorageData(),
+          requestId: requestId,
         },
       });
-    }
+    });
   }
 
   getCurrentStorageData() {
     try {
       return {
-        mapleapps_access_token:
-          LocalStorageService.getAccessToken?.() ||
-          localStorage.getItem("mapleapps_access_token"),
-        mapleapps_refresh_token:
-          LocalStorageService.getRefreshToken?.() ||
-          localStorage.getItem("mapleapps_refresh_token"),
-        mapleapps_access_token_expiry:
-          LocalStorageService.getAccessTokenExpiry?.() ||
-          localStorage.getItem("mapleapps_access_token_expiry"),
-        mapleapps_refresh_token_expiry:
-          LocalStorageService.getRefreshTokenExpiry?.() ||
-          localStorage.getItem("mapleapps_refresh_token_expiry"),
-        mapleapps_user_email:
-          LocalStorageService.getUserEmail?.() ||
-          localStorage.getItem("mapleapps_user_email"),
+        mapleapps_access_token: LocalStorageService.getAccessToken(),
+        mapleapps_refresh_token: LocalStorageService.getRefreshToken(),
+        mapleapps_access_token_expiry: localStorage.getItem(
+          "mapleapps_access_token_expiry",
+        ),
+        mapleapps_refresh_token_expiry: localStorage.getItem(
+          "mapleapps_refresh_token_expiry",
+        ),
+        mapleapps_user_email: LocalStorageService.getUserEmail(),
       };
     } catch (error) {
       console.error("[WorkerManager] Failed to get storage data:", error);
@@ -106,74 +164,91 @@ class WorkerManager {
     const { type, data } = event.data;
 
     switch (type) {
+      case "worker_ready":
+        console.log("[WorkerManager] Worker ready signal received");
+        if (this.workerReadyResolve) {
+          this.workerReadyResolve();
+          this.workerReadyResolve = null;
+        }
+        break;
+
       case "password_request":
-        // Worker is requesting password for token refresh
         this.handlePasswordRequest(data);
         break;
 
       case "request_storage_data":
-        // Worker is requesting current storage data
         this.handleStorageDataRequest();
         break;
 
       case "storage_update":
-        // Worker wants to update storage
         this.handleStorageUpdate(data);
         break;
 
       case "storage_remove":
-        // Worker wants to remove storage item
         this.handleStorageRemove(data);
         break;
 
       case "token_refresh_success":
         console.log("[WorkerManager] Token refresh successful");
-        // Notify auth state change listeners
-        this.notifyAuthStateChange({
-          isAuthenticated: true,
-          userEmail: localStorage.getItem("mapleapps_user_email") || null,
-        });
+        // Handle manual refresh promise if exists
+        if (
+          data &&
+          data.requestId &&
+          this.refreshPromises.has(data.requestId)
+        ) {
+          const promise = this.refreshPromises.get(data.requestId);
+          promise.resolve(data);
+        }
+        // Notify all listeners
+        this.notifyAuthStateChange("token_refresh_success", data);
         break;
 
       case "token_refresh_failed":
         console.log("[WorkerManager] Token refresh failed:", data);
-        // Notify auth state change listeners if this affects auth status
-        if (data.shouldRedirect) {
-          this.notifyAuthStateChange({
-            isAuthenticated: false,
-            userEmail: null,
-          });
+        // Handle manual refresh promise if exists
+        if (
+          data &&
+          data.requestId &&
+          this.refreshPromises.has(data.requestId)
+        ) {
+          const promise = this.refreshPromises.get(data.requestId);
+          promise.reject(new Error(data.error || "Token refresh failed"));
         }
+        // Notify all listeners
+        this.notifyAuthStateChange("token_refresh_failed", data);
         break;
 
       case "force_logout":
         console.log("[WorkerManager] Force logout requested:", data);
         this.handleForceLogout(data);
-        // Notify auth state change listeners
-        this.notifyAuthStateChange({
-          isAuthenticated: false,
-          userEmail: null,
-        });
-        break;
-
-      case "worker_ready":
-        console.log("[WorkerManager] Worker ready:", data);
         break;
 
       case "token_status_update":
         console.log("[WorkerManager] Token status update:", data);
+        this.notifyAuthStateChange("token_status_update", data);
+        break;
+
+      case "worker_error":
+        console.error("[WorkerManager] Worker error:", data);
+        // Reject all pending refresh promises
+        this.refreshPromises.forEach((promise) => {
+          promise.reject(new Error(data.error || "Worker error"));
+        });
+        this.refreshPromises.clear();
+        break;
+
+      case "worker_status_response":
+        // Handled by getWorkerStatus promise
         break;
 
       default:
-        console.log("[WorkerManager] Worker message:", type, data);
+        console.log("[WorkerManager] Unknown worker message:", type, data);
     }
   }
 
   handlePasswordRequest(data) {
-    // Get password from password service
     const password = passwordStorageService.getPassword();
 
-    // Send response back to worker
     this.authWorker.postMessage({
       type: "password_response",
       requestId: data.requestId,
@@ -186,9 +261,7 @@ class WorkerManager {
     });
   }
 
-  // ADD THIS MISSING METHOD
   handleStorageDataRequest() {
-    // Send current storage data to worker
     const storageData = this.getCurrentStorageData();
     this.authWorker.postMessage({
       type: "storage_data_response",
@@ -197,119 +270,114 @@ class WorkerManager {
     console.log("[WorkerManager] Storage data sent to worker");
   }
 
-  // ADD THIS MISSING METHOD
   handleStorageUpdate(data) {
     try {
       const { key, value } = data;
-      localStorage.setItem(key, value);
-      console.log(`[WorkerManager] Storage updated: ${key}`);
+      if (key && value !== undefined) {
+        localStorage.setItem(key, value);
+        console.log(`[WorkerManager] Storage updated: ${key}`);
+      }
     } catch (error) {
       console.error("[WorkerManager] Failed to update storage:", error);
     }
   }
 
-  // ADD THIS MISSING METHOD
   handleStorageRemove(data) {
     try {
       const { key } = data;
-      localStorage.removeItem(key);
-      console.log(`[WorkerManager] Storage removed: ${key}`);
+      if (key) {
+        localStorage.removeItem(key);
+        console.log(`[WorkerManager] Storage removed: ${key}`);
+      }
     } catch (error) {
       console.error("[WorkerManager] Failed to remove storage:", error);
     }
   }
 
-  // ADD THIS MISSING METHOD
   handleForceLogout(data) {
     console.log("[WorkerManager] Handling force logout:", data);
 
-    // Clear all local storage
-    const keysToRemove = [
-      "mapleapps_access_token",
-      "mapleapps_refresh_token",
-      "mapleapps_access_token_expiry",
-      "mapleapps_refresh_token_expiry",
-      "mapleapps_user_email",
-    ];
-
-    keysToRemove.forEach((key) => {
-      localStorage.removeItem(key);
-    });
-
-    // Clear password service
+    // Clear all authentication data
+    LocalStorageService.clearAuthData();
     passwordStorageService.clearPassword();
 
+    // Notify all listeners
+    this.notifyAuthStateChange("force_logout", data);
+
     // Redirect to login if specified
-    if (data.shouldRedirect) {
-      window.location.href = "/login";
+    if (data.shouldRedirect && window.location.pathname !== "/") {
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 100);
     }
   }
 
-  // Send message to worker
-  sendMessage(type, data) {
-    if (this.authWorker) {
-      this.authWorker.postMessage({ type, data });
-    } else {
-      console.warn(
-        "[WorkerManager] Cannot send message - worker not initialized",
+  addAuthStateChangeListener(callback) {
+    if (typeof callback === "function") {
+      this.authStateListeners.add(callback);
+      console.log(
+        "[WorkerManager] Auth state listener added. Total listeners:",
+        this.authStateListeners.size,
       );
     }
   }
 
-  // ADD THIS UTILITY METHOD
-  getWorkerStatus() {
-    return new Promise((resolve) => {
-      if (!this.authWorker) {
-        resolve({ error: "Worker not initialized" });
-        return;
-      }
+  removeAuthStateChangeListener(callback) {
+    this.authStateListeners.delete(callback);
+    console.log(
+      "[WorkerManager] Auth state listener removed. Total listeners:",
+      this.authStateListeners.size,
+    );
+  }
 
+  notifyAuthStateChange(eventType, eventData) {
+    console.log(
+      `[WorkerManager] Notifying ${this.authStateListeners.size} listeners of ${eventType}`,
+    );
+
+    this.authStateListeners.forEach((callback) => {
+      try {
+        callback(eventType, eventData);
+      } catch (error) {
+        console.error("[WorkerManager] Error in auth state listener:", error);
+      }
+    });
+  }
+
+  async getWorkerStatus() {
+    if (!this.authWorker || !this.isInitialized) {
+      return {
+        isInitialized: false,
+        error: "Worker not initialized",
+        tokenSystem: "unencrypted",
+      };
+    }
+
+    return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         resolve({ error: "Worker status request timed out" });
       }, 5000);
 
       const handleResponse = (event) => {
         if (event.data.type === "worker_status_response") {
-          this.authWorker.removeEventListener("message", handleResponse);
           clearTimeout(timeout);
           resolve(event.data.data);
         }
       };
 
-      this.authWorker.addEventListener("message", handleResponse);
+      // Use a one-time listener
+      const originalHandler = this.authWorker.onmessage;
+      this.authWorker.onmessage = (event) => {
+        if (event.data.type === "worker_status_response") {
+          handleResponse(event);
+          this.authWorker.onmessage = originalHandler;
+        } else {
+          originalHandler(event);
+        }
+      };
+
       this.authWorker.postMessage({ type: "get_worker_status" });
     });
-  }
-
-  // ADD THESE MISSING AUTH STATE LISTENER METHODS
-  addAuthStateChangeListener(callback) {
-    console.log("[WorkerManager] Adding auth state change listener");
-    // For now, just store the callback - you can enhance this later
-    this.authStateCallback = callback;
-
-    // Immediately call with current state if we have it
-    if (this.authStateCallback) {
-      // You can get current auth state from your auth worker or localStorage
-      const currentState = {
-        isAuthenticated: !!localStorage.getItem("mapleapps_access_token"),
-        userEmail: localStorage.getItem("mapleapps_user_email") || null,
-      };
-      this.authStateCallback(currentState);
-    }
-  }
-
-  // ADD THIS MISSING METHOD
-  removeAuthStateChangeListener() {
-    console.log("[WorkerManager] Removing auth state change listener");
-    this.authStateCallback = null;
-  }
-
-  // ADD THIS HELPER METHOD TO NOTIFY AUTH STATE CHANGES
-  notifyAuthStateChange(authState) {
-    if (this.authStateCallback) {
-      console.log("[WorkerManager] Notifying auth state change:", authState);
-      this.authStateCallback(authState);
-    }
   }
 
   destroy() {
@@ -318,8 +386,18 @@ class WorkerManager {
       this.authWorker.terminate();
       this.authWorker = null;
     }
-    this.authStateCallback = null;
+
+    // Reject all pending refresh promises
+    this.refreshPromises.forEach((promise) => {
+      promise.reject(new Error("Worker manager destroyed"));
+    });
+    this.refreshPromises.clear();
+
+    this.authStateListeners.clear();
     this.isInitialized = false;
+    this.workerReadyPromise = null;
+    this.workerReadyResolve = null;
+
     console.log("[WorkerManager] Destroyed");
   }
 }
