@@ -1,28 +1,56 @@
 // File: src/pages/User/Collection/Create.jsx
-import React, { useState } from "react";
-import { useNavigate } from "react-router";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
 import useAuth from "../../../hooks/useAuth.js";
 import withPasswordProtection from "../../../hocs/withPasswordProtection.jsx";
 
 const CollectionCreate = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { collectionService, cryptoService, passwordStorageService } =
     useServices();
   const { isAuthenticated } = useAuth();
+
+  // Get parent ID from query string
+  const searchParams = new URLSearchParams(location.search);
+  const parentId = searchParams.get("parent");
 
   // Form state
   const [formData, setFormData] = useState({
     name: "",
     collection_type: "folder",
-    parent_id: null,
+    parent_id: parentId || null,
     description: "",
   });
 
+  const [parentCollection, setParentCollection] = useState(null);
   const [password, setPassword] = useState("");
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Load parent collection info if parentId is provided
+  useEffect(() => {
+    if (parentId) {
+      loadParentCollection();
+    }
+  }, [parentId]);
+
+  const loadParentCollection = async () => {
+    try {
+      const storedPassword = passwordStorageService.getPassword();
+      if (storedPassword) {
+        const parent = await collectionService.getCollection(
+          parentId,
+          storedPassword,
+        );
+        setParentCollection(parent);
+      }
+    } catch (err) {
+      console.warn("Could not load parent collection:", err);
+    }
+  };
 
   // Handle form changes
   const handleChange = (e) => {
@@ -93,12 +121,22 @@ const CollectionCreate = () => {
         newCollection,
       );
 
-      navigate("/collections", {
-        state: {
-          message: `Collection "${newCollection.name}" created successfully!`,
-          newCollectionId: newCollection.id,
-        },
-      });
+      // Navigate to file manager at the parent folder
+      if (parentId) {
+        navigate(`/files/${parentId}`, {
+          state: {
+            message: `Folder "${newCollection.name}" created successfully!`,
+            newCollectionId: newCollection.id,
+          },
+        });
+      } else {
+        navigate("/files", {
+          state: {
+            message: `Folder "${newCollection.name}" created successfully!`,
+            newCollectionId: newCollection.id,
+          },
+        });
+      }
     } catch (err) {
       console.error("[CollectionCreate] Failed to create collection:", err);
 
@@ -135,7 +173,12 @@ const CollectionCreate = () => {
       setPassword("");
       setError("");
     } else {
-      navigate("/collections");
+      // Navigate back to file manager
+      if (parentId) {
+        navigate(`/files/${parentId}`);
+      } else {
+        navigate("/files");
+      }
     }
   };
 
@@ -199,13 +242,25 @@ const CollectionCreate = () => {
   // Main form
   return (
     <div>
-      <h1>Create New Collection</h1>
+      <h1>Create New Folder</h1>
 
       <div style={{ marginBottom: "20px" }}>
-        <button onClick={() => navigate("/collections")}>
-          ← Back to Collections
-        </button>
+        <button onClick={handleCancel}>← Back to File Manager</button>
       </div>
+
+      {parentCollection && (
+        <div
+          style={{
+            backgroundColor: "#f8f9fa",
+            padding: "15px",
+            marginBottom: "20px",
+            borderRadius: "4px",
+          }}
+        >
+          <strong>Creating folder in:</strong>{" "}
+          {parentCollection.name || "[Encrypted]"}
+        </div>
+      )}
 
       {error && (
         <div style={{ color: "red", marginBottom: "10px" }}>Error: {error}</div>
@@ -213,14 +268,14 @@ const CollectionCreate = () => {
 
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: "15px" }}>
-          <label htmlFor="name">Collection Name *</label>
+          <label htmlFor="name">Folder Name *</label>
           <input
             type="text"
             id="name"
             name="name"
             value={formData.name}
             onChange={handleChange}
-            placeholder="Enter collection name"
+            placeholder="Enter folder name"
             required
             disabled={loading}
             autoFocus
@@ -232,7 +287,7 @@ const CollectionCreate = () => {
         </div>
 
         <div style={{ marginBottom: "15px" }}>
-          <label htmlFor="collection_type">Collection Type *</label>
+          <label htmlFor="collection_type">Folder Type *</label>
           <select
             id="collection_type"
             name="collection_type"
@@ -242,11 +297,12 @@ const CollectionCreate = () => {
             disabled={loading}
             style={{ marginLeft: "10px" }}
           >
-            <option value="folder">Folder</option>
-            <option value="album">Album</option>
+            <option value="folder">Standard Folder</option>
+            <option value="album">Photo Album</option>
           </select>
           <small style={{ display: "block", color: "#666" }}>
-            Folders are for general files, Albums are optimized for photos/media
+            Standard folders are for general files, Photo albums are optimized
+            for images
           </small>
         </div>
 
@@ -257,7 +313,7 @@ const CollectionCreate = () => {
             name="description"
             value={formData.description}
             onChange={handleChange}
-            placeholder="Enter collection description"
+            placeholder="Enter folder description"
             rows={3}
             disabled={loading}
             style={{ width: "300px", marginLeft: "10px", display: "block" }}
@@ -277,11 +333,11 @@ const CollectionCreate = () => {
         >
           <h3>🔐 Security Information</h3>
           <ul>
-            <li>Collection names are encrypted using ChaCha20-Poly1305</li>
-            <li>Each collection has its own unique encryption key</li>
-            <li>Collection keys are encrypted with your master key</li>
-            <li>Only you can decrypt your collection names</li>
-            <li>Your password will be required to create the collection</li>
+            <li>Folder names are encrypted using ChaCha20-Poly1305</li>
+            <li>Each folder has its own unique encryption key</li>
+            <li>Folder keys are encrypted with your master key</li>
+            <li>Only you can decrypt your folder names</li>
+            <li>Your password will be required to create the folder</li>
           </ul>
         </div>
 

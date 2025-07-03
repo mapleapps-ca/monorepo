@@ -20,7 +20,11 @@ import CompleteLogin from "./pages/Anonymous/Login/CompleteLogin";
 import Dashboard from "./pages/User/Dashboard/Dashboard";
 import MeDetail from "./pages/User/Me/Detail";
 
-// Collection pages
+// File Manager (NEW)
+import FileManager from "./pages/User/FileManager/FileManager";
+import FileUploadRedirect from "./pages/User/FileManager/FileUploadRedirect";
+
+// Collection pages (kept for specific operations)
 import CollectionList from "./pages/User/Collection/List";
 import CollectionCreate from "./pages/User/Collection/Create";
 import CollectionDetail from "./pages/User/Collection/Detail";
@@ -63,7 +67,12 @@ function App() {
             <Route path="/me" element={<MeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
 
-            {/* Collection routes */}
+            {/* File Manager routes (NEW) */}
+            <Route path="/files" element={<FileManager />} />
+            <Route path="/files/upload" element={<FileUploadRedirect />} />
+            <Route path="/files/:folderId" element={<FileManager />} />
+
+            {/* Collection routes (kept for specific operations) */}
             <Route path="/collections" element={<CollectionList />} />
             <Route path="/collections/create" element={<CollectionCreate />} />
             <Route
