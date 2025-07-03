@@ -112,6 +112,23 @@ func (h *FileSyncHTTPHandler) Execute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verify the response contains Version fields before encoding
+	h.logger.Debug("File sync response validation",
+		zap.Any("user_id", userID),
+		zap.Int("files_count", len(response.Files)))
+
+	for i, item := range response.Files {
+		h.logger.Debug("File sync response item",
+			zap.Int("index", i),
+			zap.String("file_id", item.ID.String()),
+			zap.String("collection_id", item.CollectionID.String()),
+			zap.Uint64("version", item.Version),
+			zap.Time("modified_at", item.ModifiedAt),
+			zap.String("state", item.State),
+			zap.Uint64("tombstone_version", item.TombstoneVersion),
+			zap.Time("tombstone_expiry", item.TombstoneExpiry))
+	}
+
 	// Encode and return response
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		h.logger.Error("Failed to encode file sync response",

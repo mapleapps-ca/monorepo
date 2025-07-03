@@ -19,5 +19,9 @@ func mapFileToDTO(file *dom_file.File) *FileResponseDTO {
 		EncryptedThumbnailSizeInBytes: file.EncryptedThumbnailSizeInBytes,
 		CreatedAt:                     file.CreatedAt,
 		ModifiedAt:                    file.ModifiedAt,
+		Version:                       file.Version,
+		State:                         file.State,
+		TombstoneVersion:              file.TombstoneVersion,
+		TombstoneExpiry:               file.TombstoneExpiry,
 	}
 }

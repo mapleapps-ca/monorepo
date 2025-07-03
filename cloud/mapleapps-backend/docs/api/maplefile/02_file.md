@@ -1,603 +1,8 @@
-# MapleFile API Documentation
+# MapleFile File Sync API Documentation
 
-## Overview
+## List File Sync Data
 
-The MapleFile API provides comprehensive file management capabilities with end-to-end encryption, collection-based organization, and presigned URL support for direct cloud storage operations. This document covers all file-related endpoints and their usage.
-
-## Base Information
-
-- **Base URL**: `/maplefile/api/v1`
-- **Authentication**: Required for all endpoints (Bearer token or session-based)
-- **Content-Type**: `application/json`
-- **Response Format**: JSON
-
-## Authentication
-
-All endpoints require authentication. The authenticated user's ID is extracted from the session context and used for permission checks and ownership validation.
-
-## Common Data Types
-
-### UUID Format
-All IDs use UUID format: `550e8400-e29b-41d4-a716-446655440000`
-
-### Timestamps
-All timestamps are in RFC3339 format: `2023-12-01T15:30:00Z`
-
-### File States
-- `pending`: File metadata created but upload not completed
-- `active`: File fully uploaded and available
-- `deleted`: File soft-deleted (tombstoned)
-- `archived`: File archived but still accessible
-
-### EncryptedFileKey Structure
-```json
-{
-  "ciphertext": "base64-encoded-encrypted-key",
-  "nonce": "base64-encoded-nonce",
-  "key_version": 1,
-  "rotated_at": "2023-12-01T15:30:00Z",
-  "previous_keys": []
-}
-```
-
----
-
-## API Endpoints
-
-## 1. Create Pending File
-
-Creates a new file record in "pending" state and returns presigned URLs for upload.
-
-### Request
-- **Method**: `POST`
-- **Path**: `/maplefile/api/v1/files/pending`
-- **Content-Type**: `application/json`
-
-### Request Body
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "collection_id": "550e8400-e29b-41d4-a716-446655440001",
-  "encrypted_metadata": "base64-encoded-encrypted-metadata",
-  "encrypted_file_key": {
-    "ciphertext": "base64-encoded-encrypted-key",
-    "nonce": "base64-encoded-nonce",
-    "key_version": 1
-  },
-  "encryption_version": "v1.0",
-  "encrypted_hash": "base64-encoded-encrypted-hash",
-  "expected_file_size_in_bytes": 1048576,
-  "expected_thumbnail_size_in_bytes": 8192
-}
-```
-
-### Request Fields
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | UUID | Yes | Client-generated unique file ID |
-| `collection_id` | UUID | Yes | Collection where file belongs |
-| `encrypted_metadata` | string | Yes | Base64-encoded encrypted file metadata (filename, MIME type, etc.) |
-| `encrypted_file_key` | object | Yes | Encrypted file encryption key |
-| `encryption_version` | string | Yes | Version of encryption scheme used |
-| `encrypted_hash` | string | Yes | Hash of encrypted file content for integrity |
-| `expected_file_size_in_bytes` | number | No | Expected file size in bytes |
-| `expected_thumbnail_size_in_bytes` | number | No | Expected thumbnail size in bytes |
-
-### Response
-```json
-{
-  "file": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "collection_id": "550e8400-e29b-41d4-a716-446655440001",
-    "owner_id": "550e8400-e29b-41d4-a716-446655440002",
-    "encrypted_metadata": "base64-encoded-encrypted-metadata",
-    "encrypted_file_key": {
-      "ciphertext": "base64-encoded-encrypted-key",
-      "nonce": "base64-encoded-nonce",
-      "key_version": 1
-    },
-    "encryption_version": "v1.0",
-    "encrypted_hash": "base64-encoded-encrypted-hash",
-    "encrypted_file_size_in_bytes": 0,
-    "encrypted_thumbnail_size_in_bytes": 0,
-    "created_at": "2023-12-01T15:30:00Z",
-    "modified_at": "2023-12-01T15:30:00Z"
-  },
-  "presigned_upload_url": "https://s3.amazonaws.com/bucket/path?signed-params",
-  "presigned_thumbnail_url": "https://s3.amazonaws.com/bucket/path_thumb?signed-params",
-  "upload_url_expiration_time": "2023-12-01T16:30:00Z",
-  "success": true,
-  "message": "Pending file created successfully. Use the presigned URL to upload your file."
-}
-```
-
-### Error Responses
-- **400 Bad Request**: Invalid request data
-- **403 Forbidden**: No write access to collection
-- **409 Conflict**: File ID already exists
-- **500 Internal Server Error**: Server error
-
----
-
-## 2. Complete File Upload
-
-Transitions a file from "pending" to "active" state after verifying upload completion.
-
-### Request
-- **Method**: `POST`
-- **Path**: `/maplefile/api/v1/files/{file_id}/complete`
-- **Content-Type**: `application/json`
-
-### Path Parameters
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `file_id` | UUID | The file ID to complete |
-
-### Request Body
-```json
-{
-  "actual_file_size_in_bytes": 1048576,
-  "actual_thumbnail_size_in_bytes": 8192,
-  "upload_confirmed": true,
-  "thumbnail_upload_confirmed": true
-}
-```
-
-### Request Fields
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `actual_file_size_in_bytes` | number | No | Actual uploaded file size for validation |
-| `actual_thumbnail_size_in_bytes` | number | No | Actual uploaded thumbnail size |
-| `upload_confirmed` | boolean | No | Client confirmation of successful upload |
-| `thumbnail_upload_confirmed` | boolean | No | Client confirmation of thumbnail upload |
-
-### Response
-```json
-{
-  "file": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "collection_id": "550e8400-e29b-41d4-a716-446655440001",
-    "owner_id": "550e8400-e29b-41d4-a716-446655440002",
-    "encrypted_metadata": "base64-encoded-encrypted-metadata",
-    "encrypted_file_key": {
-      "ciphertext": "base64-encoded-encrypted-key",
-      "nonce": "base64-encoded-nonce",
-      "key_version": 1
-    },
-    "encryption_version": "v1.0",
-    "encrypted_hash": "base64-encoded-encrypted-hash",
-    "encrypted_file_size_in_bytes": 1048576,
-    "encrypted_thumbnail_size_in_bytes": 8192,
-    "created_at": "2023-12-01T15:30:00Z",
-    "modified_at": "2023-12-01T15:35:00Z"
-  },
-  "success": true,
-  "message": "File upload completed successfully",
-  "actual_file_size": 1048576,
-  "actual_thumbnail_size": 8192,
-  "upload_verified": true,
-  "thumbnail_verified": true
-}
-```
-
-### Error Responses
-- **400 Bad Request**: File not in pending state or upload verification failed
-- **403 Forbidden**: No write access to collection
-- **404 Not Found**: File not found
-- **500 Internal Server Error**: Server error
-
----
-
-## 3. Get File
-
-Retrieves file metadata by ID.
-
-### Request
-- **Method**: `GET`
-- **Path**: `/maplefile/api/v1/files/{file_id}`
-
-### Path Parameters
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `file_id` | UUID | The file ID to retrieve |
-
-### Response
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "collection_id": "550e8400-e29b-41d4-a716-446655440001",
-  "owner_id": "550e8400-e29b-41d4-a716-446655440002",
-  "encrypted_metadata": "base64-encoded-encrypted-metadata",
-  "encrypted_file_key": {
-    "ciphertext": "base64-encoded-encrypted-key",
-    "nonce": "base64-encoded-nonce",
-    "key_version": 1
-  },
-  "encryption_version": "v1.0",
-  "encrypted_hash": "base64-encoded-encrypted-hash",
-  "encrypted_file_size_in_bytes": 1048576,
-  "encrypted_thumbnail_size_in_bytes": 8192,
-  "created_at": "2023-12-01T15:30:00Z",
-  "modified_at": "2023-12-01T15:35:00Z"
-}
-```
-
-### Error Responses
-- **400 Bad Request**: Invalid file ID format
-- **403 Forbidden**: No read access to collection
-- **404 Not Found**: File not found
-- **500 Internal Server Error**: Server error
-
----
-
-## 4. Update File
-
-Updates file metadata.
-
-### Request
-- **Method**: `PUT`
-- **Path**: `/maplefile/api/v1/files/{file_id}`
-- **Content-Type**: `application/json`
-
-### Path Parameters
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `file_id` | UUID | The file ID to update |
-
-### Request Body
-```json
-{
-  "encrypted_metadata": "new-base64-encoded-encrypted-metadata",
-  "encrypted_file_key": {
-    "ciphertext": "new-base64-encoded-encrypted-key",
-    "nonce": "new-base64-encoded-nonce",
-    "key_version": 2
-  },
-  "encryption_version": "v1.1",
-  "encrypted_hash": "new-base64-encoded-encrypted-hash",
-  "version": 5
-}
-```
-
-### Request Fields
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `encrypted_metadata` | string | No | Updated encrypted metadata |
-| `encrypted_file_key` | object | No | Updated encrypted file key |
-| `encryption_version` | string | No | Updated encryption version |
-| `encrypted_hash` | string | No | Updated encrypted hash |
-| `version` | number | Yes | Current version for optimistic locking |
-
-### Response
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "collection_id": "550e8400-e29b-41d4-a716-446655440001",
-  "owner_id": "550e8400-e29b-41d4-a716-446655440002",
-  "encrypted_metadata": "new-base64-encoded-encrypted-metadata",
-  "encrypted_file_key": {
-    "ciphertext": "new-base64-encoded-encrypted-key",
-    "nonce": "new-base64-encoded-nonce",
-    "key_version": 2
-  },
-  "encryption_version": "v1.1",
-  "encrypted_hash": "new-base64-encoded-encrypted-hash",
-  "encrypted_file_size_in_bytes": 1048576,
-  "encrypted_thumbnail_size_in_bytes": 8192,
-  "created_at": "2023-12-01T15:30:00Z",
-  "modified_at": "2023-12-01T16:00:00Z"
-}
-```
-
-### Error Responses
-- **400 Bad Request**: Invalid data or version mismatch
-- **403 Forbidden**: No write access to collection
-- **404 Not Found**: File not found
-- **500 Internal Server Error**: Server error
-
----
-
-## 5. Archive File
-
-Archives a file by changing its state to "archived".
-
-### Request
-- **Method**: `POST`
-- **Path**: `/maplefile/api/v1/files/{file_id}/archive`
-
-### Path Parameters
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `file_id` | UUID | The file ID to archive |
-
-### Response
-```json
-{
-  "success": true,
-  "message": "File archived successfully"
-}
-```
-
-### Error Responses
-- **400 Bad Request**: Invalid state transition
-- **403 Forbidden**: No write access to collection
-- **404 Not Found**: File not found
-- **500 Internal Server Error**: Server error
-
----
-
-## 6. Restore File
-
-Restores an archived file back to "active" state.
-
-### Request
-- **Method**: `POST`
-- **Path**: `/maplefile/api/v1/files/{file_id}/restore`
-
-### Path Parameters
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `file_id` | UUID | The file ID to restore |
-
-### Response
-```json
-{
-  "success": true,
-  "message": "File restored successfully"
-}
-```
-
-### Error Responses
-- **400 Bad Request**: Invalid state transition
-- **403 Forbidden**: No write access to collection
-- **404 Not Found**: File not found
-- **500 Internal Server Error**: Server error
-
----
-
-## 7. Soft Delete File
-
-Soft deletes a file by marking it as deleted with a tombstone.
-
-### Request
-- **Method**: `DELETE`
-- **Path**: `/maplefile/api/v1/files/{file_id}`
-
-### Path Parameters
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `file_id` | UUID | The file ID to delete |
-
-### Response
-```json
-{
-  "success": true,
-  "message": "File soft-deleted successfully"
-}
-```
-
-### Error Responses
-- **400 Bad Request**: Invalid state transition
-- **403 Forbidden**: No write access to collection
-- **404 Not Found**: File not found
-- **500 Internal Server Error**: Server error
-
----
-
-## 8. Delete Multiple Files
-
-Soft deletes multiple files in a single operation.
-
-### Request
-- **Method**: `DELETE`
-- **Path**: `/maplefile/api/v1/files/multiple`
-- **Content-Type**: `application/json`
-
-### Request Body
-```json
-{
-  "file_ids": [
-    "550e8400-e29b-41d4-a716-446655440000",
-    "550e8400-e29b-41d4-a716-446655440001",
-    "550e8400-e29b-41d4-a716-446655440002"
-  ]
-}
-```
-
-### Request Fields
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `file_ids` | array[UUID] | Yes | Array of file IDs to delete |
-
-### Response
-```json
-{
-  "success": true,
-  "message": "Successfully deleted 2 files",
-  "deleted_count": 2,
-  "skipped_count": 1,
-  "total_requested": 3
-}
-```
-
-### Error Responses
-- **400 Bad Request**: Invalid file IDs
-- **500 Internal Server Error**: Server error
-
----
-
-## 9. Get Presigned Upload URL
-
-Generates presigned URLs for uploading file data directly to cloud storage.
-
-### Request
-- **Method**: `POST`
-- **Path**: `/maplefile/api/v1/files/{file_id}/upload-url`
-- **Content-Type**: `application/json`
-
-### Path Parameters
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `file_id` | UUID | The file ID to generate upload URL for |
-
-### Request Body
-```json
-{
-  "url_duration": "3600000000000"
-}
-```
-
-### Request Fields
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `url_duration` | string | No | Duration in nanoseconds (default: 1 hour) |
-
-### Response
-```json
-{
-  "file": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "collection_id": "550e8400-e29b-41d4-a716-446655440001",
-    "owner_id": "550e8400-e29b-41d4-a716-446655440002",
-    "encrypted_metadata": "base64-encoded-encrypted-metadata",
-    "encrypted_file_key": {
-      "ciphertext": "base64-encoded-encrypted-key",
-      "nonce": "base64-encoded-nonce",
-      "key_version": 1
-    },
-    "encryption_version": "v1.0",
-    "encrypted_hash": "base64-encoded-encrypted-hash",
-    "encrypted_file_size_in_bytes": 1048576,
-    "encrypted_thumbnail_size_in_bytes": 8192,
-    "created_at": "2023-12-01T15:30:00Z",
-    "modified_at": "2023-12-01T15:35:00Z"
-  },
-  "presigned_upload_url": "https://s3.amazonaws.com/bucket/path?signed-params",
-  "presigned_thumbnail_url": "https://s3.amazonaws.com/bucket/path_thumb?signed-params",
-  "upload_url_expiration_time": "2023-12-01T16:35:00Z",
-  "success": true,
-  "message": "Presigned upload URLs generated successfully"
-}
-```
-
-### Error Responses
-- **400 Bad Request**: Invalid duration
-- **403 Forbidden**: No write access to collection
-- **404 Not Found**: File not found
-- **500 Internal Server Error**: Server error
-
----
-
-## 10. Get Presigned Download URL
-
-Generates presigned URLs for downloading file data directly from cloud storage.
-
-### Request
-- **Method**: `POST`
-- **Path**: `/maplefile/api/v1/files/{file_id}/download-url`
-- **Content-Type**: `application/json`
-
-### Path Parameters
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `file_id` | UUID | The file ID to generate download URL for |
-
-### Request Body
-```json
-{
-  "url_duration": "3600000000000"
-}
-```
-
-### Request Fields
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `url_duration` | string | No | Duration in nanoseconds (default: 1 hour) |
-
-### Response
-```json
-{
-  "file": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "collection_id": "550e8400-e29b-41d4-a716-446655440001",
-    "owner_id": "550e8400-e29b-41d4-a716-446655440002",
-    "encrypted_metadata": "base64-encoded-encrypted-metadata",
-    "encrypted_file_key": {
-      "ciphertext": "base64-encoded-encrypted-key",
-      "nonce": "base64-encoded-nonce",
-      "key_version": 1
-    },
-    "encryption_version": "v1.0",
-    "encrypted_hash": "base64-encoded-encrypted-hash",
-    "encrypted_file_size_in_bytes": 1048576,
-    "encrypted_thumbnail_size_in_bytes": 8192,
-    "created_at": "2023-12-01T15:30:00Z",
-    "modified_at": "2023-12-01T15:35:00Z"
-  },
-  "presigned_download_url": "https://s3.amazonaws.com/bucket/path?signed-params",
-  "presigned_thumbnail_url": "https://s3.amazonaws.com/bucket/path_thumb?signed-params",
-  "download_url_expiration_time": "2023-12-01T16:35:00Z",
-  "success": true,
-  "message": "Presigned download URLs generated successfully"
-}
-```
-
-### Error Responses
-- **400 Bad Request**: Invalid duration
-- **403 Forbidden**: No read access to collection
-- **404 Not Found**: File not found
-- **500 Internal Server Error**: Server error
-
----
-
-## 11. List Files by Collection
-
-Lists all files in a specific collection.
-
-### Request
-- **Method**: `GET`
-- **Path**: `/maplefile/api/v1/collections/{collection_id}/files`
-
-### Path Parameters
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `collection_id` | UUID | The collection ID to list files from |
-
-### Response
-```json
-{
-  "files": [
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "collection_id": "550e8400-e29b-41d4-a716-446655440001",
-      "owner_id": "550e8400-e29b-41d4-a716-446655440002",
-      "encrypted_metadata": "base64-encoded-encrypted-metadata",
-      "encrypted_file_key": {
-        "ciphertext": "base64-encoded-encrypted-key",
-        "nonce": "base64-encoded-nonce",
-        "key_version": 1
-      },
-      "encryption_version": "v1.0",
-      "encrypted_hash": "base64-encoded-encrypted-hash",
-      "encrypted_file_size_in_bytes": 1048576,
-      "encrypted_thumbnail_size_in_bytes": 8192,
-      "created_at": "2023-12-01T15:30:00Z",
-      "modified_at": "2023-12-01T15:35:00Z"
-    }
-  ]
-}
-```
-
-### Error Responses
-- **403 Forbidden**: No read access to collection
-- **404 Not Found**: Collection not found
-- **500 Internal Server Error**: Server error
-
----
-
-## 12. List File Sync Data
-
-Returns file sync data with cursor-based pagination for synchronization purposes.
+Returns file sync data with cursor-based pagination for synchronization purposes. This endpoint allows clients to efficiently synchronize their local file state with the server.
 
 ### Request
 - **Method**: `GET`
@@ -635,228 +40,243 @@ GET /maplefile/api/v1/sync/files?limit=1000&cursor=eyJsYXN0X21vZGlmaWVkIjoiMjAyM
       "state": "deleted",
       "tombstone_version": 5,
       "tombstone_expiry": "2024-01-01T16:00:00Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440003",
+      "collection_id": "550e8400-e29b-41d4-a716-446655440004",
+      "version": 2,
+      "modified_at": "2023-12-01T14:20:00Z",
+      "state": "archived",
+      "tombstone_version": 0,
+      "tombstone_expiry": "0001-01-01T00:00:00Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440005",
+      "collection_id": "550e8400-e29b-41d4-a716-446655440006",
+      "version": 1,
+      "modified_at": "2023-12-01T13:10:00Z",
+      "state": "pending",
+      "tombstone_version": 0,
+      "tombstone_expiry": "0001-01-01T00:00:00Z"
     }
   ],
-  "next_cursor": "eyJsYXN0X21vZGlmaWVkIjoiMjAyMy0xMi0wMVQxNjowMDowMFoiLCJsYXN0X2lkIjoiNTUwZTg0MDAtZTI5Yi00MWQ0LWE3MTYtNDQ2NjU1NDQwMDAyIn0=",
+  "next_cursor": "eyJsYXN0X21vZGlmaWVkIjoiMjAyMy0xMi0wMVQxMzoxMDowMFoiLCJsYXN0X2lkIjoiNTUwZTg0MDAtZTI5Yi00MWQ0LWE3MTYtNDQ2NjU1NDQwMDA1In0=",
   "has_more": true
 }
 ```
 
 ### Response Fields
+
+#### FileSyncResponse
 | Field | Type | Description |
 |-------|------|-------------|
-| `files` | array | Array of file sync items |
-| `files[].id` | UUID | File ID |
-| `files[].collection_id` | UUID | Collection ID |
-| `files[].version` | number | Current version number |
-| `files[].modified_at` | timestamp | Last modification time |
-| `files[].state` | string | Current file state |
-| `files[].tombstone_version` | number | Version when deleted (0 if not deleted) |
-| `files[].tombstone_expiry` | timestamp | When tombstone expires |
+| `files` | array[FileSyncItem] | Array of file sync items |
 | `next_cursor` | string | Cursor for next page (null if no more) |
 | `has_more` | boolean | Whether more results available |
 
-### Error Responses
-- **400 Bad Request**: Invalid cursor format
-- **500 Internal Server Error**: Server error
+#### FileSyncItem
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | File ID |
+| `collection_id` | UUID | Collection ID |
+| `version` | number | Current version number for optimistic locking |
+| `modified_at` | timestamp | Last modification time (ISO 8601 format) |
+| `state` | string | Current file state (`pending`, `active`, `deleted`, `archived`) |
+| `tombstone_version` | number | Version when file was deleted (0 if not deleted) |
+| `tombstone_expiry` | timestamp | When tombstone expires (zero time if not deleted) |
 
----
+### File States
 
-## File Upload Workflow
+| State | Description |
+|-------|-------------|
+| `pending` | File metadata created but upload not completed |
+| `active` | File fully uploaded and available |
+| `deleted` | File soft-deleted (tombstoned) |
+| `archived` | File archived but still accessible |
 
-### Complete File Upload Process
+### Sync Logic
 
-1. **Create Pending File**
-   ```
-   POST /maplefile/api/v1/files/pending
-   ```
-   - Creates file metadata in "pending" state
-   - Returns presigned upload URLs
+1. **Initial Sync**: Call without cursor to get all files
+2. **Incremental Sync**: Use `next_cursor` from previous response
+3. **Version Tracking**: Use `version` field for conflict resolution
+4. **Tombstone Handling**:
+   - Files with `state: "deleted"` should be removed locally
+   - `tombstone_version` indicates when deletion occurred
+   - `tombstone_expiry` shows when tombstone will be permanently removed
 
-2. **Upload File Data**
-   ```
-   PUT {presigned_upload_url}
-   Content-Type: application/octet-stream
-   {encrypted_file_data}
-   ```
-   - Upload encrypted file data directly to S3
-   - Upload thumbnail if applicable
+### Cursor Format
 
-3. **Complete Upload**
-   ```
-   POST /maplefile/api/v1/files/{file_id}/complete
-   ```
-   - Verifies upload completion
-   - Transitions file to "active" state
-
-### File Download Process
-
-1. **Get Presigned Download URL**
-   ```
-   POST /maplefile/api/v1/files/{file_id}/download-url
-   ```
-   - Returns presigned download URLs
-
-2. **Download File Data**
-   ```
-   GET {presigned_download_url}
-   ```
-   - Download encrypted file data directly from S3
-
----
-
-## Error Handling
-
-### Standard Error Response Format
+The cursor is a base64-encoded JSON object containing:
 ```json
 {
-  "error": {
-    "message": "Error description",
-    "field_errors": {
-      "field_name": "Field-specific error message"
-    }
-  }
+  "last_modified": "2023-12-01T15:30:00Z",
+  "last_id": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
-### HTTP Status Codes
-- **200 OK**: Success
-- **400 Bad Request**: Invalid request data
+### Error Responses
+- **400 Bad Request**: Invalid cursor format or parameters
 - **401 Unauthorized**: Authentication required
-- **403 Forbidden**: Permission denied
-- **404 Not Found**: Resource not found
-- **409 Conflict**: Resource conflict
 - **500 Internal Server Error**: Server error
 
----
+### Usage Examples
 
-## Security Considerations
-
-### End-to-End Encryption
-- All file content is encrypted client-side before upload
-- Server only stores encrypted data and metadata
-- Encryption keys are encrypted with user's master key
-
-### Access Control
-- Files belong to collections with permission-based access
-- Users must have appropriate permissions to read/write files
-- Owner can always access their files
-
-### Presigned URLs
-- Limited time validity (default 1 hour, max 24 hours)
-- Direct upload/download to/from S3 without server mediation
-- URLs expire automatically for security
-
-### File States and Tombstones
-- Soft deletion preserves data with tombstone expiry
-- State transitions are validated server-side
-- Version tracking prevents concurrent modification conflicts
-
----
-
-## Rate Limiting
-
-The API implements standard rate limiting. Clients should implement exponential backoff for 429 responses and respect rate limit headers in responses.
-
----
-
-## SDKs and Examples
-
-### React Native Example
+#### JavaScript/TypeScript
 ```javascript
-// Create pending file
-const createFile = async (fileData) => {
-  const response = await fetch('/maplefile/api/v1/files/pending', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authToken}`
-    },
-    body: JSON.stringify({
-      id: generateUUID(),
-      collection_id: collectionId,
-      encrypted_metadata: encryptedMetadata,
-      encrypted_file_key: encryptedKey,
-      encryption_version: 'v1.0',
-      encrypted_hash: encryptedHash,
-      expected_file_size_in_bytes: fileSize
-    })
-  });
+async function syncFiles(cursor = null, limit = 1000) {
+  const url = new URL('/maplefile/api/v1/sync/files', baseURL);
+  if (cursor) url.searchParams.set('cursor', cursor);
+  if (limit) url.searchParams.set('limit', limit.toString());
 
-  return response.json();
-};
-
-// Upload file using presigned URL
-const uploadFile = async (presignedUrl, fileData) => {
-  const response = await fetch(presignedUrl, {
-    method: 'PUT',
-    body: fileData,
+  const response = await fetch(url, {
     headers: {
-      'Content-Type': 'application/octet-stream'
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     }
   });
 
-  return response.ok;
-};
+  if (!response.ok) {
+    throw new Error(`Sync failed: ${response.statusText}`);
+  }
 
-// Complete upload
-const completeUpload = async (fileId) => {
-  const response = await fetch(`/maplefile/api/v1/files/${fileId}/complete`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authToken}`
-    },
-    body: JSON.stringify({
-      upload_confirmed: true
-    })
-  });
+  return await response.json();
+}
 
-  return response.json();
-};
+// Initial sync
+let syncResponse = await syncFiles();
+console.log(`Synced ${syncResponse.files.length} files`);
+
+// Process files
+syncResponse.files.forEach(file => {
+  console.log(`File ${file.id}: version ${file.version}, state ${file.state}`);
+
+  if (file.state === 'deleted') {
+    // Remove from local storage
+    localStorage.removeItem(`file_${file.id}`);
+  } else {
+    // Update local file metadata
+    localStorage.setItem(`file_${file.id}`, JSON.stringify({
+      version: file.version,
+      state: file.state,
+      modified_at: file.modified_at
+    }));
+  }
+});
+
+// Continue syncing if more data available
+while (syncResponse.has_more) {
+  syncResponse = await syncFiles(syncResponse.next_cursor);
+  // Process additional files...
+}
 ```
 
-### Go Example
+#### Go Example
 ```go
-type FileClient struct {
+type FileSyncClient struct {
     baseURL string
     token   string
     client  *http.Client
 }
 
-func (c *FileClient) CreatePendingFile(req CreatePendingFileRequest) (*CreatePendingFileResponse, error) {
-    body, _ := json.Marshal(req)
+type FileSyncResponse struct {
+    Files      []FileSyncItem  `json:"files"`
+    NextCursor *string         `json:"next_cursor"`
+    HasMore    bool            `json:"has_more"`
+}
 
-    httpReq, _ := http.NewRequest("POST", c.baseURL+"/files/pending", bytes.NewBuffer(body))
-    httpReq.Header.Set("Content-Type", "application/json")
-    httpReq.Header.Set("Authorization", "Bearer "+c.token)
+type FileSyncItem struct {
+    ID               string    `json:"id"`
+    CollectionID     string    `json:"collection_id"`
+    Version          uint64    `json:"version"`
+    ModifiedAt       time.Time `json:"modified_at"`
+    State            string    `json:"state"`
+    TombstoneVersion uint64    `json:"tombstone_version"`
+    TombstoneExpiry  time.Time `json:"tombstone_expiry"`
+}
 
-    resp, err := c.client.Do(httpReq)
+func (c *FileSyncClient) SyncFiles(cursor *string, limit int) (*FileSyncResponse, error) {
+    url := fmt.Sprintf("%s/maplefile/api/v1/sync/files", c.baseURL)
+
+    req, err := http.NewRequest("GET", url, nil)
+    if err != nil {
+        return nil, err
+    }
+
+    q := req.URL.Query()
+    if cursor != nil {
+        q.Add("cursor", *cursor)
+    }
+    if limit > 0 {
+        q.Add("limit", strconv.Itoa(limit))
+    }
+    req.URL.RawQuery = q.Encode()
+
+    req.Header.Set("Authorization", "Bearer "+c.token)
+    req.Header.Set("Content-Type", "application/json")
+
+    resp, err := c.client.Do(req)
     if err != nil {
         return nil, err
     }
     defer resp.Body.Close()
 
-    var result CreatePendingFileResponse
-    json.NewDecoder(resp.Body).Decode(&result)
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("sync failed with status %d", resp.StatusCode)
+    }
 
-    return &result, nil
+    var syncResp FileSyncResponse
+    if err := json.NewDecoder(resp.Body).Decode(&syncResp); err != nil {
+        return nil, err
+    }
+
+    return &syncResp, nil
 }
 
-func (c *FileClient) UploadFile(presignedURL string, data []byte) error {
-    req, _ := http.NewRequest("PUT", presignedURL, bytes.NewBuffer(data))
-    req.Header.Set("Content-Type", "application/octet-stream")
+// Usage
+func (c *FileSyncClient) PerformFullSync() error {
+    var cursor *string
 
-    resp, err := c.client.Do(req)
-    if err != nil {
-        return err
-    }
-    defer resp.Body.Close()
+    for {
+        resp, err := c.SyncFiles(cursor, 1000)
+        if err != nil {
+            return err
+        }
 
-    if resp.StatusCode != 200 {
-        return fmt.Errorf("upload failed with status %d", resp.StatusCode)
+        // Process files
+        for _, file := range resp.Files {
+            fmt.Printf("File %s: version %d, state %s\n",
+                file.ID, file.Version, file.State)
+
+            if file.State == "deleted" {
+                // Handle file deletion
+                c.handleFileDeleted(file.ID)
+            } else {
+                // Update local file state
+                c.updateLocalFile(file)
+            }
+        }
+
+        if !resp.HasMore {
+            break
+        }
+        cursor = resp.NextCursor
     }
 
     return nil
 }
 ```
+
+### Performance Considerations
+
+1. **Pagination**: Use appropriate `limit` values (1000-5000 recommended)
+2. **Cursor Storage**: Store cursors locally for resumable sync
+3. **State Filtering**: Handle different file states appropriately
+4. **Tombstone Cleanup**: Remove expired tombstones from local storage
+5. **Version Conflicts**: Use version numbers for conflict resolution
+
+### Security Notes
+
+- Only returns files from collections the user has access to
+- Automatically filters based on user permissions
+- Cursor tokens are signed and expire after a reasonable time
+- Rate limiting applies to prevent abuse

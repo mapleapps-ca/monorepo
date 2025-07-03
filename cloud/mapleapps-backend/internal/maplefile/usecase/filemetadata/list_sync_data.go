@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/filemetadata/list_sync_data.go
+// cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata/list_sync_data.go
 package filemetadata
 
 import (
@@ -65,6 +65,25 @@ func (uc *listFileMetadataSyncDataUseCaseImpl) Execute(ctx context.Context, user
 			zap.Any("error", err),
 			zap.String("user_id", userID.String()))
 		return nil, err
+	}
+
+	// Log the sync items for debugging
+	uc.logger.Debug("File sync data retrieved from repository",
+		zap.String("user_id", userID.String()),
+		zap.Int("files_count", len(result.Files)),
+		zap.Bool("has_more", result.HasMore))
+
+	// Log each sync item to verify Version field is populated
+	for i, item := range result.Files {
+		uc.logger.Debug("File sync item",
+			zap.Int("index", i),
+			zap.String("file_id", item.ID.String()),
+			zap.String("collection_id", item.CollectionID.String()),
+			zap.Uint64("version", item.Version),
+			zap.Time("modified_at", item.ModifiedAt),
+			zap.String("state", item.State),
+			zap.Uint64("tombstone_version", item.TombstoneVersion),
+			zap.Time("tombstone_expiry", item.TombstoneExpiry))
 	}
 
 	return result, nil

@@ -122,10 +122,20 @@ func (svc *listFileSyncDataServiceImpl) Execute(ctx context.Context, cursor *dom
 		return nil, httperror.NewForNotFoundWithSingleField("message", "File sync results not found")
 	}
 
+	// Log sync data with Version field verification
 	svc.logger.Debug("File sync data successfully retrieved",
 		zap.String("user_id", userID.String()),
-		zap.Any("next_cursor.", syncData.NextCursor),
+		zap.Any("next_cursor", syncData.NextCursor),
 		zap.Int("files_count", len(syncData.Files)))
+
+	// Verify each item has Version field populated
+	for i, item := range syncData.Files {
+		svc.logger.Debug("Returning file sync item",
+			zap.Int("index", i),
+			zap.String("file_id", item.ID.String()),
+			zap.Uint64("version", item.Version),
+			zap.String("state", item.State))
+	}
 
 	return syncData, nil
 }

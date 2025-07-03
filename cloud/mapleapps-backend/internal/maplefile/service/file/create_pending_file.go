@@ -45,6 +45,10 @@ type FileResponseDTO struct {
 	EncryptedThumbnailSizeInBytes int64                 `json:"encrypted_thumbnail_size_in_bytes"`
 	CreatedAt                     time.Time             `json:"created_at"`
 	ModifiedAt                    time.Time             `json:"modified_at"`
+	Version                       uint64                `json:"version"`
+	State                         string                `json:"state"`
+	TombstoneVersion              uint64                `json:"tombstone_version"`
+	TombstoneExpiry               time.Time             `json:"tombstone_expiry"`
 }
 
 type CreatePendingFileResponseDTO struct {
