@@ -2,6 +2,21 @@
 // Supports all file operations including upload, download, sharing, and synchronization
 
 class FileService {
+  async getCryptoServices() {
+    if (!this._cryptoService) {
+      const { default: CryptoService } = await import("./CryptoService.js");
+      const { default: CollectionCryptoService } = await import(
+        "./CollectionCryptoService.js"
+      );
+      this._cryptoService = CryptoService;
+      this._collectionCryptoService = CollectionCryptoService;
+    }
+    return {
+      CryptoService: this._cryptoService,
+      CollectionCryptoService: this._collectionCryptoService,
+    };
+  }
+
   constructor() {
     this._apiClient = null;
     this.cache = new Map(); // Simple cache for file metadata
@@ -16,6 +31,118 @@ class FileService {
       this._apiClient = ApiClient;
     }
     return this._apiClient;
+  }
+
+  // Decrypt file metadata for display
+  async decryptFileMetadata(file, collectionKey) {
+    try {
+      console.log(`[FileService] Decrypting file metadata for ${file.id}`);
+
+      const { CryptoService, CollectionCryptoService } =
+        await this.getCryptoServices();
+
+      // Log the encrypted file key structure for debugging
+      console.log(
+        "[FileService] Encrypted file key structure:",
+        file.encrypted_file_key,
+      );
+
+      // Handle the file key format - convert base64 strings to proper format
+      let encryptedFileKey = file.encrypted_file_key;
+
+      // Check if ciphertext and nonce are base64 strings and convert them
+      if (typeof encryptedFileKey.ciphertext === "string") {
+        console.log(
+          "[FileService] Converting base64 file key components to Uint8Array",
+        );
+
+        try {
+          const ciphertext = CryptoService.tryDecodeBase64(
+            encryptedFileKey.ciphertext,
+          );
+          const nonce = CryptoService.tryDecodeBase64(encryptedFileKey.nonce);
+
+          encryptedFileKey = {
+            ciphertext: ciphertext,
+            nonce: nonce,
+            key_version: encryptedFileKey.key_version || 1,
+          };
+
+          console.log(
+            "[FileService] Converted file key - ciphertext length:",
+            ciphertext.length,
+            "nonce length:",
+            nonce.length,
+          );
+        } catch (conversionError) {
+          console.error(
+            "[FileService] Failed to convert file key format:",
+            conversionError,
+          );
+          throw new Error(
+            `File key conversion failed: ${conversionError.message}`,
+          );
+        }
+      }
+
+      // Decrypt the file key first
+      console.log("[FileService] Decrypting file key with collection key...");
+      const fileKey = await CryptoService.decryptFileKey(
+        encryptedFileKey,
+        collectionKey,
+      );
+
+      console.log(
+        "[FileService] File key decrypted successfully, length:",
+        fileKey.length,
+      );
+
+      // Decrypt the metadata
+      console.log("[FileService] Decrypting file metadata...");
+      const decryptedMetadataBytes = await CryptoService.decryptWithKey(
+        file.encrypted_metadata,
+        fileKey,
+      );
+
+      // Parse the metadata JSON
+      const metadataString = new TextDecoder().decode(decryptedMetadataBytes);
+      console.log("[FileService] Decrypted metadata string:", metadataString);
+
+      const metadata = JSON.parse(metadataString);
+
+      console.log(
+        `[FileService] Successfully decrypted file ${file.id}: ${metadata.name}`,
+      );
+
+      return {
+        ...file,
+        name: metadata.name,
+        mime_type: metadata.mime_type,
+        size: metadata.size,
+        _decrypted_metadata: metadata,
+        _file_key: fileKey, // Store for potential future use
+      };
+    } catch (error) {
+      console.error(`[FileService] Failed to decrypt file ${file.id}:`, error);
+      return {
+        ...file,
+        name: "[Unable to decrypt]",
+        mime_type: "unknown",
+        size: file.encrypted_file_size_in_bytes || 0,
+        _decrypt_error: error.message,
+      };
+    }
+  }
+
+  // Decrypt multiple files
+  async decryptFiles(files, collectionKey) {
+    if (!files || files.length === 0) return [];
+
+    const decryptedFiles = await Promise.all(
+      files.map((file) => this.decryptFileMetadata(file, collectionKey)),
+    );
+
+    return decryptedFiles;
   }
 
   // 1. Create Pending File
@@ -317,28 +444,100 @@ class FileService {
   }
 
   // 11. List Files by Collection
-  async listFilesByCollection(collectionId) {
+  // 11. List Files by Collection
+  async listFilesByCollection(collectionId, forceRefresh = false) {
     try {
       this.isLoading = true;
-      console.log("[FileService] Listing files in collection:", collectionId);
+      console.log(
+        "[FileService] Listing files in collection:",
+        collectionId,
+        "forceRefresh:",
+        forceRefresh,
+      );
+
+      // If force refresh, clear cache for this collection first
+      if (forceRefresh) {
+        this.invalidateCollectionFilesCache(collectionId);
+      }
 
       const apiClient = await this.getApiClient();
       const response = await apiClient.getMapleFile(
         `/collections/${collectionId}/files`,
       );
 
-      // Cache all files
-      if (response.files) {
-        response.files.forEach((file) => {
-          this.cache.set(file.id, file);
-        });
+      let files = response.files || [];
+
+      // Add default state for files that don't have one
+      files = files.map((file) => ({
+        ...file,
+        state: file.state || "active", // Default to active if no state
+      }));
+
+      // Try to decrypt files if we have collection crypto service available
+      try {
+        const { default: CollectionCryptoService } = await import(
+          "./CollectionCryptoService.js"
+        );
+
+        // First try to get collection key from cache
+        let collectionKey =
+          CollectionCryptoService.getCachedCollectionKey(collectionId);
+
+        if (!collectionKey) {
+          console.log(
+            "[FileService] No cached collection key found, trying to load collection...",
+          );
+
+          // Try to get the collection to ensure it's loaded and key is cached
+          try {
+            const { default: CollectionService } = await import(
+              "./CollectionService.js"
+            );
+            const collection =
+              await CollectionService.getCollection(collectionId);
+
+            if (collection && collection.collection_key) {
+              collectionKey = collection.collection_key;
+              console.log(
+                "[FileService] Got collection key from loaded collection",
+              );
+            }
+          } catch (collectionError) {
+            console.warn(
+              "[FileService] Could not load collection:",
+              collectionError,
+            );
+          }
+        }
+
+        if (collectionKey) {
+          console.log(
+            "[FileService] Decrypting",
+            files.length,
+            "files with collection key",
+          );
+          files = await this.decryptFiles(files, collectionKey);
+          console.log("[FileService] File decryption completed");
+        } else {
+          console.warn(
+            "[FileService] No collection key available - files will show as encrypted",
+          );
+          console.warn(
+            "[FileService] Make sure collection is loaded first with proper password",
+          );
+        }
+      } catch (decryptError) {
+        console.error("[FileService] Could not decrypt files:", decryptError);
+        // Continue with encrypted files
       }
 
-      console.log(
-        "[FileService] Files retrieved:",
-        response.files?.length || 0,
-      );
-      return response.files || [];
+      // Cache all files
+      files.forEach((file) => {
+        this.cache.set(file.id, file);
+      });
+
+      console.log("[FileService] Files retrieved and processed:", files.length);
+      return files;
     } catch (error) {
       console.error("[FileService] Failed to list files by collection:", error);
       throw error;
@@ -484,6 +683,10 @@ class FileService {
       );
 
       console.log("[FileService] File upload workflow completed successfully");
+
+      // NEW: Clear cache for this collection so next listFilesByCollection call fetches fresh data
+      this.invalidateCollectionFilesCache(fileData.collection_id);
+
       return completeResponse.file;
     } catch (error) {
       console.error("[FileService] File upload workflow failed:", error);
@@ -506,6 +709,24 @@ class FileService {
 
       throw error;
     }
+  }
+
+  invalidateCollectionFilesCache(collectionId) {
+    // Remove any cached files for this collection
+    const filesToRemove = [];
+    for (const [fileId, file] of this.cache.entries()) {
+      if (file.collection_id === collectionId) {
+        filesToRemove.push(fileId);
+      }
+    }
+
+    filesToRemove.forEach((fileId) => {
+      this.cache.delete(fileId);
+    });
+
+    console.log(
+      `[FileService] Invalidated cache for collection ${collectionId}, removed ${filesToRemove.length} files`,
+    );
   }
 
   // Complete file download workflow
@@ -728,6 +949,30 @@ class FileService {
       uploadingFileIds: Array.from(this.uploadQueue.keys()),
       isLoading: this.isLoading,
     };
+  }
+
+  // Update or add a file to cache
+  updateFileInCache(file) {
+    this.cache.set(file.id, file);
+    console.log(`[FileService] Updated file ${file.id} in cache`);
+  }
+
+  // Remove file from cache
+  removeFileFromCache(fileId) {
+    this.cache.delete(fileId);
+    this.uploadQueue.delete(fileId);
+    console.log(`[FileService] Removed file ${fileId} from cache`);
+  }
+
+  // Get all cached files for a collection
+  getCachedFilesForCollection(collectionId) {
+    const files = [];
+    for (const file of this.cache.values()) {
+      if (file.collection_id === collectionId) {
+        files.push(file);
+      }
+    }
+    return files;
   }
 }
 

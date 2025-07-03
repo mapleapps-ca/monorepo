@@ -11,7 +11,7 @@ const useFiles = (collectionId = null) => {
 
   // Load files for a specific collection
   const loadFilesByCollection = useCallback(
-    async (targetCollectionId) => {
+    async (targetCollectionId, forceRefresh = false) => {
       if (!authService.isAuthenticated()) {
         console.log("[useFiles] User not authenticated, skipping load");
         return [];
@@ -26,8 +26,10 @@ const useFiles = (collectionId = null) => {
         setIsLoading(true);
         setError(null);
 
-        const fileList =
-          await fileService.listFilesByCollection(targetCollectionId);
+        const fileList = await fileService.listFilesByCollection(
+          targetCollectionId,
+          forceRefresh,
+        );
         setFiles(fileList);
 
         return fileList;
@@ -426,12 +428,15 @@ const useFiles = (collectionId = null) => {
   }, [fileService]);
 
   // Reload files
-  const reloadFiles = useCallback(() => {
-    if (collectionId) {
-      return loadFilesByCollection(collectionId);
-    }
-    return Promise.resolve([]);
-  }, [collectionId, loadFilesByCollection]);
+  const reloadFiles = useCallback(
+    (forceRefresh = true) => {
+      if (collectionId) {
+        return loadFilesByCollection(collectionId, forceRefresh);
+      }
+      return Promise.resolve([]);
+    },
+    [collectionId, loadFilesByCollection],
+  );
 
   // Initial load when collection ID changes
   useEffect(() => {

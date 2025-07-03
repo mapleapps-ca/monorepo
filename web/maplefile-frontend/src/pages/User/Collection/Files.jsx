@@ -29,17 +29,27 @@ const CollectionFiles = () => {
 
   const loadCollectionAndFiles = async () => {
     try {
-      // Load collection info
+      // Load collection info FIRST and ensure it's decrypted
       const password = passwordStorageService.getPassword();
+      console.log("[Files] Loading collection with password...");
+
       const collectionData = await collectionService.getCollection(
         collectionId,
         password,
       );
       setCollection(collectionData);
 
-      // Files will be loaded automatically by useFiles hook
+      console.log(
+        "[Files] Collection loaded, collection key cached:",
+        !!collectionData.collection_key,
+      );
+
+      // Now load files - the collection key should be cached
+      console.log("[Files] Loading files for collection...");
+      await reloadFiles(true);
     } catch (err) {
       console.error("Failed to load collection:", err);
+      setError("Failed to load collection: " + err.message);
     }
   };
 
@@ -285,11 +295,15 @@ const CollectionFiles = () => {
                     >
                       <span style={{ fontSize: "24px" }}>📄</span>
                       <div>
-                        <div>
-                          {file.encrypted_metadata ? "[Encrypted]" : "Unknown"}
-                        </div>
+                        <div>{file.name || "[Encrypted]"}</div>
                         <div style={{ fontSize: "12px", color: "#666" }}>
                           ID: {file.id.substring(0, 8)}...
+                          {file._decrypt_error && (
+                            <span style={{ color: "#ff6b6b" }}>
+                              {" "}
+                              • Decrypt failed
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -24,11 +24,6 @@ const AddFile = () => {
   const [error, setError] = useState("");
   const [collection, setCollection] = useState(null);
 
-  // Load collection info on mount
-  React.useEffect(() => {
-    loadCollection();
-  }, [collectionId, loadCollection]); // Added loadCollection to dependency array
-
   const loadCollection = useCallback(async () => {
     try {
       const password = passwordStorageService.getPassword();
@@ -42,6 +37,26 @@ const AddFile = () => {
       setError("Failed to load collection");
     }
   }, [collectionId, collectionService, passwordStorageService]);
+
+  // Handle file selection
+  const handleFileSelection = useCallback((file) => {
+    if (!file) return;
+
+    // Basic validation
+    const maxSize = 100 * 1024 * 1024; // 100MB limit
+    if (file.size > maxSize) {
+      setError("File size exceeds 100MB limit");
+      return;
+    }
+
+    setSelectedFile(file);
+    setError("");
+  }, []);
+
+  // Load collection info on mount
+  React.useEffect(() => {
+    loadCollection();
+  }, [collectionId, loadCollection]); // Added loadCollection to dependency array
 
   // Handle drag events
   const handleDragEnter = useCallback((e) => {
@@ -74,21 +89,6 @@ const AddFile = () => {
     },
     [handleFileSelection],
   ); // Added handleFileSelection to dependency array
-
-  // Handle file selection
-  const handleFileSelection = useCallback((file) => {
-    if (!file) return;
-
-    // Basic validation
-    const maxSize = 100 * 1024 * 1024; // 100MB limit
-    if (file.size > maxSize) {
-      setError("File size exceeds 100MB limit");
-      return;
-    }
-
-    setSelectedFile(file);
-    setError("");
-  }, []);
 
   const handleFileInputChange = useCallback(
     (e) => {
