@@ -210,67 +210,131 @@ class WorkerManager {
         masterKey,
       );
 
-      // Now decrypt the tokens
-      // Try different decryption methods as tokens might be encrypted with different keys
+      // Derive public key if we don't have it stored
+      let publicKey;
+      if (userEncryptedData.publicKey) {
+        publicKey = CryptoService.tryDecodeBase64(userEncryptedData.publicKey);
+      } else {
+        publicKey = CryptoService.sodium.crypto_scalarmult_base(privateKey);
+      }
+
+      console.log("[WorkerManager] Keys derived, decrypting tokens...");
+
+      // Decode the encrypted tokens from base64
       const encryptedAccessToken = CryptoService.tryDecodeBase64(
         data.encryptedAccessToken,
       );
       const encryptedRefreshToken = CryptoService.tryDecodeBase64(
         data.encryptedRefreshToken,
       );
-      const nonce = CryptoService.tryDecodeBase64(data.tokenNonce);
 
       let decryptedAccessToken, decryptedRefreshToken;
 
-      // Try sealed box first (anonymous encryption with private key)
+      // According to the API docs, tokens are encrypted using the user's public key with NaCl box encryption
+      // This means they're using sealed box (anonymous encryption)
       try {
-        console.log("[WorkerManager] Trying sealed box decryption for tokens");
-        const decryptedAccess = await CryptoService.decryptChallenge(
-          encryptedAccessToken,
-          privateKey,
-        );
-        const decryptedRefresh = await CryptoService.decryptChallenge(
-          encryptedRefreshToken,
-          privateKey,
-        );
-
-        decryptedAccessToken = new TextDecoder().decode(decryptedAccess);
-        decryptedRefreshToken = new TextDecoder().decode(decryptedRefresh);
-        console.log("[WorkerManager] Tokens decrypted using sealed box");
-      } catch (sealError) {
         console.log(
-          "[WorkerManager] Sealed box failed, trying secretbox with master key",
+          "[WorkerManager] Attempting sealed box decryption for tokens",
         );
 
-        // Try secretbox with master key
+        // Decrypt access token
+        const decryptedAccessBytes = CryptoService.sodium.crypto_box_seal_open(
+          encryptedAccessToken,
+          publicKey,
+          privateKey,
+        );
+        decryptedAccessToken = new TextDecoder().decode(decryptedAccessBytes);
+
+        // Decrypt refresh token
+        const decryptedRefreshBytes = CryptoService.sodium.crypto_box_seal_open(
+          encryptedRefreshToken,
+          publicKey,
+          privateKey,
+        );
+        decryptedRefreshToken = new TextDecoder().decode(decryptedRefreshBytes);
+
+        console.log(
+          "[WorkerManager] Tokens decrypted successfully using sealed box",
+        );
+      } catch (sealError) {
+        console.error(
+          "[WorkerManager] Sealed box decryption failed:",
+          sealError,
+        );
+
+        // If sealed box fails, the tokens might be encrypted differently
+        // Let's try the same method used during login (from CompleteLogin.jsx)
         try {
-          const accessTokenData = new Uint8Array(
-            nonce.length + encryptedAccessToken.length,
-          );
-          accessTokenData.set(nonce, 0);
-          accessTokenData.set(encryptedAccessToken, nonce.length);
+          console.log("[WorkerManager] Trying login-style decryption");
 
-          const refreshTokenData = new Uint8Array(
-            nonce.length + encryptedRefreshToken.length,
-          );
-          refreshTokenData.set(nonce, 0);
-          refreshTokenData.set(encryptedRefreshToken, nonce.length);
-
-          const decryptedAccess = CryptoService.decryptWithSecretBox(
-            accessTokenData,
+          // Set session keys temporarily for decryption
+          LocalStorageService.setSessionKeys(
             masterKey,
-          );
-          const decryptedRefresh = CryptoService.decryptWithSecretBox(
-            refreshTokenData,
-            masterKey,
+            privateKey,
+            publicKey,
+            keyEncryptionKey,
           );
 
-          decryptedAccessToken = new TextDecoder().decode(decryptedAccess);
-          decryptedRefreshToken = new TextDecoder().decode(decryptedRefresh);
-          console.log("[WorkerManager] Tokens decrypted using secretbox");
+          // Decrypt access token
+          const decryptedAccess =
+            await LocalStorageService.decryptTokensFromLogin(
+              data.encryptedAccessToken,
+              data.tokenNonce,
+            );
+
+          // Decrypt refresh token
+          const decryptedRefresh =
+            await LocalStorageService.decryptTokensFromLogin(
+              data.encryptedRefreshToken,
+              data.tokenNonce,
+            );
+
+          // Handle the response format
+          if (typeof decryptedAccess === "string") {
+            decryptedAccessToken = decryptedAccess;
+          } else if (decryptedAccess.access_token) {
+            decryptedAccessToken = decryptedAccess.access_token;
+          } else {
+            decryptedAccessToken = decryptedAccess;
+          }
+
+          if (typeof decryptedRefresh === "string") {
+            decryptedRefreshToken = decryptedRefresh;
+          } else if (decryptedRefresh.refresh_token) {
+            decryptedRefreshToken = decryptedRefresh.refresh_token;
+          } else {
+            decryptedRefreshToken = decryptedRefresh;
+          }
+
+          // Clear session keys after use
+          LocalStorageService.clearSessionKeys();
+
+          console.log(
+            "[WorkerManager] Tokens decrypted using login-style decryption",
+          );
         } catch (error) {
-          throw new Error("Failed to decrypt tokens with available keys");
+          console.error(
+            "[WorkerManager] All decryption methods failed:",
+            error,
+          );
+          throw new Error("Failed to decrypt tokens with any available method");
         }
+      }
+
+      // Validate that we got actual JWT tokens
+      if (!decryptedAccessToken || !decryptedRefreshToken) {
+        throw new Error("Decrypted tokens are empty or invalid");
+      }
+
+      // Basic JWT format validation (should have 3 parts separated by dots)
+      if (
+        decryptedAccessToken.split(".").length !== 3 ||
+        decryptedRefreshToken.split(".").length !== 3
+      ) {
+        console.error(
+          "[WorkerManager] Decrypted tokens don't appear to be valid JWTs",
+        );
+        throw new Error("Decrypted tokens are not valid JWT format");
       }
 
       // Store decrypted tokens
