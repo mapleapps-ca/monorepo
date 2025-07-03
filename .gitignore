@@ -202,4 +202,5 @@ private_docs/*
 web/private/maplefile-*
 web/maplefile-frontend.zip
 web/papercloud-frontend.zip
+web/private/prototype
 cloud/backend.zip
