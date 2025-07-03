@@ -230,14 +230,14 @@ class WorkerManager {
 
       let decryptedAccessToken, decryptedRefreshToken;
 
-      // According to the API docs, tokens are encrypted using the user's public key with NaCl box encryption
-      // This means they're using sealed box (anonymous encryption)
+      // The backend should be using sealed box encryption (anonymous encryption)
+      // This is what the TokenEncryptionService should implement
       try {
         console.log(
-          "[WorkerManager] Attempting sealed box decryption for tokens",
+          "[WorkerManager] Decrypting tokens using sealed box (anonymous encryption)",
         );
 
-        // Decrypt access token
+        // Decrypt access token using sealed box
         const decryptedAccessBytes = CryptoService.sodium.crypto_box_seal_open(
           encryptedAccessToken,
           publicKey,
@@ -245,7 +245,7 @@ class WorkerManager {
         );
         decryptedAccessToken = new TextDecoder().decode(decryptedAccessBytes);
 
-        // Decrypt refresh token
+        // Decrypt refresh token using sealed box
         const decryptedRefreshBytes = CryptoService.sodium.crypto_box_seal_open(
           encryptedRefreshToken,
           publicKey,
@@ -256,69 +256,11 @@ class WorkerManager {
         console.log(
           "[WorkerManager] Tokens decrypted successfully using sealed box",
         );
-      } catch (sealError) {
-        console.error(
-          "[WorkerManager] Sealed box decryption failed:",
-          sealError,
+      } catch (error) {
+        console.error("[WorkerManager] Sealed box decryption failed:", error);
+        throw new Error(
+          "Failed to decrypt tokens - ensure backend uses sealed box encryption",
         );
-
-        // If sealed box fails, the tokens might be encrypted differently
-        // Let's try the same method used during login (from CompleteLogin.jsx)
-        try {
-          console.log("[WorkerManager] Trying login-style decryption");
-
-          // Set session keys temporarily for decryption
-          LocalStorageService.setSessionKeys(
-            masterKey,
-            privateKey,
-            publicKey,
-            keyEncryptionKey,
-          );
-
-          // Decrypt access token
-          const decryptedAccess =
-            await LocalStorageService.decryptTokensFromLogin(
-              data.encryptedAccessToken,
-              data.tokenNonce,
-            );
-
-          // Decrypt refresh token
-          const decryptedRefresh =
-            await LocalStorageService.decryptTokensFromLogin(
-              data.encryptedRefreshToken,
-              data.tokenNonce,
-            );
-
-          // Handle the response format
-          if (typeof decryptedAccess === "string") {
-            decryptedAccessToken = decryptedAccess;
-          } else if (decryptedAccess.access_token) {
-            decryptedAccessToken = decryptedAccess.access_token;
-          } else {
-            decryptedAccessToken = decryptedAccess;
-          }
-
-          if (typeof decryptedRefresh === "string") {
-            decryptedRefreshToken = decryptedRefresh;
-          } else if (decryptedRefresh.refresh_token) {
-            decryptedRefreshToken = decryptedRefresh.refresh_token;
-          } else {
-            decryptedRefreshToken = decryptedRefresh;
-          }
-
-          // Clear session keys after use
-          LocalStorageService.clearSessionKeys();
-
-          console.log(
-            "[WorkerManager] Tokens decrypted using login-style decryption",
-          );
-        } catch (error) {
-          console.error(
-            "[WorkerManager] All decryption methods failed:",
-            error,
-          );
-          throw new Error("Failed to decrypt tokens with any available method");
-        }
       }
 
       // Validate that we got actual JWT tokens
