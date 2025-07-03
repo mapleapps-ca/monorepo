@@ -24,6 +24,7 @@ const AddFile = () => {
   const [error, setError] = useState("");
   const [collection, setCollection] = useState(null);
 
+  // Load collection info on mount
   const loadCollection = useCallback(async () => {
     try {
       const password = passwordStorageService.getPassword();
@@ -38,25 +39,9 @@ const AddFile = () => {
     }
   }, [collectionId, collectionService, passwordStorageService]);
 
-  // Handle file selection
-  const handleFileSelection = useCallback((file) => {
-    if (!file) return;
-
-    // Basic validation
-    const maxSize = 100 * 1024 * 1024; // 100MB limit
-    if (file.size > maxSize) {
-      setError("File size exceeds 100MB limit");
-      return;
-    }
-
-    setSelectedFile(file);
-    setError("");
-  }, []);
-
-  // Load collection info on mount
   React.useEffect(() => {
     loadCollection();
-  }, [collectionId, loadCollection]); // Added loadCollection to dependency array
+  }, [loadCollection]);
 
   // Handle drag events
   const handleDragEnter = useCallback((e) => {
@@ -76,19 +61,31 @@ const AddFile = () => {
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback(
-    (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
 
-      const files = e.dataTransfer.files;
-      if (files && files.length > 0) {
-        handleFileSelection(files[0]);
-      }
-    },
-    [handleFileSelection],
-  ); // Added handleFileSelection to dependency array
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      handleFileSelection(files[0]);
+    }
+  }, []);
+
+  // Handle file selection
+  const handleFileSelection = useCallback((file) => {
+    if (!file) return;
+
+    // Basic validation
+    const maxSize = 100 * 1024 * 1024; // 100MB limit
+    if (file.size > maxSize) {
+      setError("File size exceeds 100MB limit");
+      return;
+    }
+
+    setSelectedFile(file);
+    setError("");
+  }, []);
 
   const handleFileInputChange = useCallback(
     (e) => {
@@ -99,6 +96,16 @@ const AddFile = () => {
     },
     [handleFileSelection],
   );
+
+  // Helper function to read file as ArrayBuffer
+  const readFileAsArrayBuffer = useCallback((file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = (e) => reject(new Error("Failed to read file"));
+      reader.readAsArrayBuffer(file);
+    });
+  }, []);
 
   // Encrypt and upload file
   const handleUpload = useCallback(async () => {
@@ -113,7 +120,10 @@ const AddFile = () => {
 
       // Step 1: Generate file encryption key
       const fileKey = cryptoService.generateRandomKey();
-      console.log("[AddFile] Generated file encryption key");
+      console.log(
+        "[AddFile] Generated file encryption key, length:",
+        fileKey.length,
+      );
       setUploadProgress(20);
 
       // Step 2: Read file content
@@ -136,17 +146,39 @@ const AddFile = () => {
       const encryptedHash = cryptoService.uint8ArrayToBase64(fileHash);
       setUploadProgress(50);
 
-      // Step 5: Get collection key (should be cached from collection load)
-      const collectionKey =
+      // Step 5: Get collection key with validation
+      let collectionKey =
         collection.collection_key ||
         collectionCryptoService.getCachedCollectionKey(collectionId);
 
       if (!collectionKey) {
-        throw new Error("Collection key not found. Please reload the page.");
+        console.log(
+          "[AddFile] No collection key found, reloading collection...",
+        );
+        const password = passwordStorageService.getPassword();
+        const freshCollection = await collectionService.getCollection(
+          collectionId,
+          password,
+        );
+        collectionKey =
+          freshCollection.collection_key ||
+          collectionCryptoService.getCachedCollectionKey(collectionId);
+
+        if (!collectionKey) {
+          throw new Error(
+            "Cannot access collection encryption key. Please refresh the page and try again.",
+          );
+        }
+        setCollection(freshCollection);
       }
 
+      console.log(
+        "[AddFile] Using collection key, length:",
+        collectionKey.length,
+      );
+
       // Step 6: Encrypt file key with collection key
-      const encryptedFileKey = await cryptoService.encryptFileKey(
+      const encryptedFileKeyData = await cryptoService.encryptFileKey(
         fileKey,
         collectionKey,
       );
@@ -170,27 +202,29 @@ const AddFile = () => {
       setUploadProgress(70);
 
       // Step 9: Convert encrypted content to proper format
-      // The encryptedContent is already base64, we need the raw bytes for upload
       const encryptedBytes = cryptoService.tryDecodeBase64(encryptedContent);
 
-      // Step 10: Prepare file data for API with correct size
+      // Step 10: Prepare file data for API
       const fileData = {
         id: cryptoService.generateUUID(),
         collection_id: collectionId,
         encrypted_metadata: encryptedMetadata,
         encrypted_file_key: {
           ciphertext: cryptoService.uint8ArrayToBase64(
-            encryptedFileKey.ciphertext,
+            encryptedFileKeyData.ciphertext,
           ),
-          nonce: cryptoService.uint8ArrayToBase64(encryptedFileKey.nonce),
+          nonce: cryptoService.uint8ArrayToBase64(encryptedFileKeyData.nonce),
           key_version: 1,
         },
         encryption_version: "v1.0",
         encrypted_hash: encryptedHash,
-        expected_file_size_in_bytes: encryptedBytes.length, // Use actual encrypted size
+        expected_file_size_in_bytes: encryptedBytes.length,
       };
 
-      console.log("[AddFile] Prepared file data for upload");
+      console.log(
+        "[AddFile] Prepared file data for upload, file ID:",
+        fileData.id,
+      );
       setUploadProgress(80);
 
       // Step 11: Create Blob from encrypted bytes
@@ -213,20 +247,7 @@ const AddFile = () => {
       }, 1000);
     } catch (err) {
       console.error("[AddFile] Upload failed:", err);
-
-      // Better error messages for common issues
-      if (err.message?.includes("CORS")) {
-        setError(
-          "Upload failed: CORS error. Please contact support to configure S3 bucket CORS settings.",
-        );
-      } else if (err.message?.includes("Failed to fetch")) {
-        setError(
-          "Upload failed: Network error. Please check your connection and try again.",
-        );
-      } else {
-        setError(err.message || "Failed to upload file");
-      }
-
+      setError(err.message || "Failed to upload file");
       setUploadProgress(0);
     } finally {
       setIsUploading(false);
@@ -240,17 +261,9 @@ const AddFile = () => {
     navigate,
     collectionCryptoService,
     passwordStorageService,
+    collectionService,
+    readFileAsArrayBuffer,
   ]);
-
-  // Helper function to read file as ArrayBuffer
-  const readFileAsArrayBuffer = useCallback((file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = (e) => reject(new Error("Failed to read file"));
-      reader.readAsArrayBuffer(file);
-    });
-  }, []);
 
   // Format file size
   const formatFileSize = useCallback((bytes) => {
@@ -465,53 +478,6 @@ const AddFile = () => {
           <li>Your password never leaves your device</li>
         </ul>
       </div>
-
-      {/* CORS Configuration Note */}
-      {error && error.includes("CORS") && (
-        <div
-          style={{
-            marginTop: "20px",
-            padding: "20px",
-            backgroundColor: "#fff3cd",
-            borderRadius: "4px",
-            borderLeft: "4px solid #ffc107",
-          }}
-        >
-          <h4 style={{ marginTop: 0 }}>⚠️ CORS Configuration Required</h4>
-          <p style={{ marginBottom: "10px" }}>
-            To enable file uploads from your browser, the S3/Spaces bucket needs
-            proper CORS configuration.
-          </p>
-          <details>
-            <summary style={{ cursor: "pointer", color: "#0066cc" }}>
-              View CORS Configuration
-            </summary>
-            <pre
-              style={{
-                backgroundColor: "#f5f5f5",
-                padding: "10px",
-                marginTop: "10px",
-                overflow: "auto",
-                fontSize: "12px",
-              }}
-            >
-              {`<?xml version="1.0" encoding="UTF-8"?>
-<CORSConfiguration>
-  <CORSRule>
-    <AllowedOrigin>http://localhost:5173</AllowedOrigin>
-    <AllowedOrigin>http://localhost:3000</AllowedOrigin>
-    <AllowedMethod>GET</AllowedMethod>
-    <AllowedMethod>PUT</AllowedMethod>
-    <AllowedMethod>POST</AllowedMethod>
-    <AllowedMethod>DELETE</AllowedMethod>
-    <AllowedHeader>*</AllowedHeader>
-    <MaxAgeSeconds>3000</MaxAgeSeconds>
-  </CORSRule>
-</CORSConfiguration>`}
-            </pre>
-          </details>
-        </div>
-      )}
     </div>
   );
 };

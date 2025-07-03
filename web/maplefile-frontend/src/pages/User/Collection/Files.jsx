@@ -8,50 +8,80 @@ import useFiles from "../../../hooks/useFiles.js";
 const CollectionFiles = () => {
   const { collectionId } = useParams();
   const navigate = useNavigate();
-  const { collectionService, passwordStorageService } = useServices();
+  const { collectionService, passwordStorageService, collectionCryptoService } =
+    useServices();
 
   const {
     files,
     isLoading,
-    error,
+    error: filesError,
     loadFilesByCollection,
     getActiveFiles,
     deleteFile,
     downloadAndSaveFile,
+    reloadFiles,
   } = useFiles(collectionId);
 
   const [collection, setCollection] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState(new Set());
-
-  useEffect(() => {
-    loadCollectionAndFiles();
-  }, [collectionId]);
+  const [error, setError] = useState("");
+  const [downloadingFiles, setDownloadingFiles] = useState(new Set());
 
   const loadCollectionAndFiles = async () => {
     try {
+      console.log("[Files] === Loading Collection and Files ===");
+
       // Load collection info FIRST and ensure it's decrypted
       const password = passwordStorageService.getPassword();
-      console.log("[Files] Loading collection with password...");
+      console.log("[Files] Password available:", !!password);
 
       const collectionData = await collectionService.getCollection(
         collectionId,
         password,
       );
+
+      console.log("[Files] Collection loaded:", {
+        id: collectionData.id,
+        name: collectionData.name,
+        hasCollectionKey: !!collectionData.collection_key,
+        collectionKeyLength: collectionData.collection_key?.length,
+      });
+
+      // Verify collection key is cached
+      const cachedKey =
+        collectionCryptoService.getCachedCollectionKey(collectionId);
+      console.log("[Files] Collection key cached:", !!cachedKey);
+
+      // CRITICAL: Check if the cached key matches the collection's key
+      if (collectionData.collection_key && cachedKey) {
+        const keysMatch = collectionData.collection_key.every(
+          (byte, index) => byte === cachedKey[index],
+        );
+        console.log("[Files] Collection keys match:", keysMatch);
+
+        if (!keysMatch) {
+          console.error("[Files] Collection key mismatch! Re-caching...");
+          collectionCryptoService.cacheCollectionKey(
+            collectionId,
+            collectionData.collection_key,
+          );
+        }
+      }
+
       setCollection(collectionData);
 
-      console.log(
-        "[Files] Collection loaded, collection key cached:",
-        !!collectionData.collection_key,
-      );
-
       // Now load files - the collection key should be cached
-      console.log("[Files] Loading files for collection...");
+      console.log("[Files] Loading files...");
       await reloadFiles(true);
     } catch (err) {
-      console.error("Failed to load collection:", err);
+      console.error("[Files] Failed to load collection and files:", err);
       setError("Failed to load collection: " + err.message);
     }
   };
+
+  useEffect(() => {
+    loadCollectionAndFiles();
+  }, [collectionId]);
 
   const handleFileSelect = (fileId) => {
     const newSelected = new Set(selectedFiles);
@@ -80,15 +110,23 @@ const CollectionFiles = () => {
     try {
       console.log("[Files] Starting download for:", fileId, fileName);
 
-      // Don't call setIsLoading here - it's managed by the useFiles hook
+      // Track this file as downloading
+      setDownloadingFiles((prev) => new Set(prev).add(fileId));
+
       await downloadAndSaveFile(fileId);
 
       console.log("[Files] File download completed successfully");
     } catch (err) {
       console.error("[Files] Failed to download file:", err);
       alert("Failed to download file: " + err.message);
+    } finally {
+      // Remove from downloading set
+      setDownloadingFiles((prev) => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
     }
-    // No finally block needed - useFiles hook manages its own loading state
   };
 
   const activeFiles = getActiveFiles();
@@ -145,7 +183,7 @@ const CollectionFiles = () => {
       )}
 
       {/* Error State */}
-      {error && (
+      {(error || filesError) && (
         <div
           style={{
             backgroundColor: "#fee",
@@ -155,7 +193,7 @@ const CollectionFiles = () => {
             borderRadius: "4px",
           }}
         >
-          Error: {error}
+          Error: {error || filesError}
         </div>
       )}
 
@@ -312,9 +350,11 @@ const CollectionFiles = () => {
                     </div>
                   </td>
                   <td style={{ padding: "12px" }}>
-                    {file.encrypted_file_size_in_bytes
-                      ? `${(file.encrypted_file_size_in_bytes / 1024).toFixed(2)} KB`
-                      : "Unknown"}
+                    {file.size
+                      ? `${(file.size / 1024).toFixed(2)} KB`
+                      : file.encrypted_file_size_in_bytes
+                        ? `${(file.encrypted_file_size_in_bytes / 1024).toFixed(2)} KB (encrypted)`
+                        : "Unknown"}
                   </td>
                   <td style={{ padding: "12px" }}>
                     {file.created_at
@@ -329,17 +369,21 @@ const CollectionFiles = () => {
                           file.name || "downloaded_file",
                         )
                       }
-                      disabled={!file._file_key || isLoading}
+                      disabled={
+                        !file._file_key || downloadingFiles.has(file.id)
+                      }
                       style={{
                         padding: "6px 12px",
                         marginRight: "8px",
                         backgroundColor:
-                          file._file_key && !isLoading ? "#007bff" : "#ccc",
+                          file._file_key && !downloadingFiles.has(file.id)
+                            ? "#007bff"
+                            : "#ccc",
                         color: "white",
                         border: "none",
                         borderRadius: "4px",
                         cursor:
-                          file._file_key && !isLoading
+                          file._file_key && !downloadingFiles.has(file.id)
                             ? "pointer"
                             : "not-allowed",
                         fontSize: "14px",
@@ -350,7 +394,10 @@ const CollectionFiles = () => {
                           : "Download file"
                       }
                     >
-                      ⬇️ {isLoading ? "Downloading..." : "Download"}
+                      ⬇️{" "}
+                      {downloadingFiles.has(file.id)
+                        ? "Downloading..."
+                        : "Download"}
                     </button>
                     <button
                       onClick={() => handleDeleteFile(file.id)}
@@ -394,6 +441,6 @@ const CollectionFiles = () => {
     </div>
   );
 };
-const ProtectedCollectionFiles = withPasswordProtection(CollectionFiles);
 
+const ProtectedCollectionFiles = withPasswordProtection(CollectionFiles);
 export default ProtectedCollectionFiles;

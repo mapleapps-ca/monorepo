@@ -36,100 +36,86 @@ class FileService {
   // Decrypt file metadata for display
   async decryptFileMetadata(file, collectionKey) {
     try {
-      console.log(`[FileService] Decrypting file metadata for ${file.id}`);
+      console.log(`[FileService] === Decrypting file ${file.id} ===`);
+      console.log("[FileService] Collection key length:", collectionKey.length);
+      console.log(
+        "[FileService] File key structure:",
+        JSON.stringify(file.encrypted_file_key),
+      );
 
       const { CryptoService, CollectionCryptoService } =
         await this.getCryptoServices();
 
-      // Log the encrypted file key structure for debugging
-      console.log(
-        "[FileService] Encrypted file key structure:",
-        file.encrypted_file_key,
-      );
-
-      // Handle the file key format - convert base64 strings to proper format
-      let encryptedFileKey = file.encrypted_file_key;
-
-      // Check if ciphertext and nonce are base64 strings and convert them
-      if (typeof encryptedFileKey.ciphertext === "string") {
-        console.log(
-          "[FileService] Converting base64 file key components to Uint8Array",
-        );
-
-        try {
-          const ciphertext = CryptoService.tryDecodeBase64(
-            encryptedFileKey.ciphertext,
-          );
-          const nonce = CryptoService.tryDecodeBase64(encryptedFileKey.nonce);
-
-          encryptedFileKey = {
-            ciphertext: ciphertext,
-            nonce: nonce,
-            key_version: encryptedFileKey.key_version || 1,
-          };
-
-          console.log(
-            "[FileService] Converted file key - ciphertext length:",
-            ciphertext.length,
-            "nonce length:",
-            nonce.length,
-          );
-        } catch (conversionError) {
-          console.error(
-            "[FileService] Failed to convert file key format:",
-            conversionError,
-          );
-          throw new Error(
-            `File key conversion failed: ${conversionError.message}`,
-          );
-        }
-      }
-
-      // Decrypt the file key first
-      console.log("[FileService] Decrypting file key with collection key...");
+      // Step 1: Decrypt the file key
+      console.log("[FileService] Step 1: Decrypting file key...");
       const fileKey = await CryptoService.decryptFileKey(
-        encryptedFileKey,
+        file.encrypted_file_key,
         collectionKey,
       );
 
+      console.log("[FileService] File key decrypted, length:", fileKey.length);
+
+      // Step 2: Decrypt the metadata
+      console.log("[FileService] Step 2: Decrypting metadata...");
       console.log(
-        "[FileService] File key decrypted successfully, length:",
-        fileKey.length,
+        "[FileService] Encrypted metadata length:",
+        file.encrypted_metadata.length,
       );
 
-      // Decrypt the metadata
-      console.log("[FileService] Decrypting file metadata...");
       const decryptedMetadataBytes = await CryptoService.decryptWithKey(
         file.encrypted_metadata,
         fileKey,
       );
 
-      // Parse the metadata JSON
-      const metadataString = new TextDecoder().decode(decryptedMetadataBytes);
-      console.log("[FileService] Decrypted metadata string:", metadataString);
-
-      const metadata = JSON.parse(metadataString);
-
       console.log(
-        `[FileService] Successfully decrypted file ${file.id}: ${metadata.name}`,
+        "[FileService] Metadata decrypted, byte length:",
+        decryptedMetadataBytes.length,
       );
 
-      return {
+      // Step 3: Parse the metadata JSON
+      const metadataString = new TextDecoder().decode(decryptedMetadataBytes);
+      console.log("[FileService] Metadata string:", metadataString);
+
+      const metadata = JSON.parse(metadataString);
+      console.log("[FileService] Parsed metadata:", metadata);
+
+      const result = {
         ...file,
         name: metadata.name,
         mime_type: metadata.mime_type,
         size: metadata.size,
         _decrypted_metadata: metadata,
-        _file_key: fileKey, // Store for potential future use
+        _file_key: fileKey,
+        _collection_key_length: collectionKey.length, // Debug info
       };
+
+      console.log(
+        `[FileService] ✅ Successfully decrypted file: ${metadata.name}`,
+      );
+      return result;
     } catch (error) {
-      console.error(`[FileService] Failed to decrypt file ${file.id}:`, error);
+      console.error(
+        `[FileService] ❌ Failed to decrypt file ${file.id}:`,
+        error,
+      );
+      console.error("[FileService] Error details:", {
+        message: error.message,
+        stack: error.stack,
+        fileKeyStructure: file.encrypted_file_key,
+        collectionKeyLength: collectionKey?.length,
+      });
+
       return {
         ...file,
         name: "[Unable to decrypt]",
         mime_type: "unknown",
         size: file.encrypted_file_size_in_bytes || 0,
         _decrypt_error: error.message,
+        _debug_info: {
+          collectionKeyAvailable: !!collectionKey,
+          fileKeyStructure: JSON.stringify(file.encrypted_file_key),
+          errorMessage: error.message,
+        },
       };
     }
   }
@@ -138,9 +124,31 @@ class FileService {
   async decryptFiles(files, collectionKey) {
     if (!files || files.length === 0) return [];
 
-    const decryptedFiles = await Promise.all(
-      files.map((file) => this.decryptFileMetadata(file, collectionKey)),
-    );
+    const decryptedFiles = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        console.log(
+          `[FileService] Decrypting file ${i + 1}/${files.length}: ${file.id}`,
+        );
+        const decryptedFile = await this.decryptFileMetadata(
+          file,
+          collectionKey,
+        );
+        decryptedFiles.push(decryptedFile);
+      } catch (fileError) {
+        console.error(
+          `[FileService] Failed to decrypt file ${file.id}:`,
+          fileError.message,
+        );
+        // Add the file with error info
+        decryptedFiles.push({
+          ...file,
+          name: `[Decrypt failed: ${fileError.message.substring(0, 50)}...]`,
+          _decrypt_error: fileError.message,
+        });
+      }
+    }
 
     return decryptedFiles;
   }
@@ -711,6 +719,7 @@ class FileService {
     }
   }
 
+  // Invalidate cached files for a specific collection
   invalidateCollectionFilesCache(collectionId) {
     // Remove any cached files for this collection
     const filesToRemove = [];
@@ -857,9 +866,18 @@ class FileService {
   }
 
   // Get files by state
-  async getFilesByState(collectionId, state = "active") {
-    const files = await this.listFilesByCollection(collectionId);
-    return files.filter((file) => file.state === state);
+  getFilesByState(collectionId, state = "active") {
+    const files = [];
+    for (const file of this.cache.values()) {
+      if (file.collection_id === collectionId) {
+        // If no state field exists, assume it's active (for backward compatibility)
+        const fileState = file.state || "active";
+        if (fileState === state) {
+          files.push(file);
+        }
+      }
+    }
+    return files;
   }
 
   // Get file from cache without API call

@@ -465,6 +465,7 @@ class CryptoService {
     return {
       ciphertext: encrypted,
       nonce: nonce,
+      key_version: 1,
     };
   }
 
@@ -478,25 +479,43 @@ class CryptoService {
       throw new Error("Encrypted file key and collection key are required");
     }
 
-    // Handle different formats
-    let ciphertext, nonce;
+    try {
+      let ciphertext, nonce;
 
-    if (encryptedFileKey.ciphertext && encryptedFileKey.nonce) {
-      // Separate ciphertext and nonce
-      ciphertext = new Uint8Array(encryptedFileKey.ciphertext);
-      nonce = new Uint8Array(encryptedFileKey.nonce);
-    } else {
-      throw new Error("Invalid encrypted file key format");
+      if (encryptedFileKey.ciphertext && encryptedFileKey.nonce) {
+        // Check if it's base64 strings (from API) or Uint8Array
+        if (typeof encryptedFileKey.ciphertext === "string") {
+          // From API - base64 strings
+          ciphertext = this.tryDecodeBase64(encryptedFileKey.ciphertext);
+          nonce = this.tryDecodeBase64(encryptedFileKey.nonce);
+        } else {
+          // From encryption - Uint8Array
+          ciphertext = new Uint8Array(encryptedFileKey.ciphertext);
+          nonce = new Uint8Array(encryptedFileKey.nonce);
+        }
+      } else {
+        throw new Error("Invalid encrypted file key format");
+      }
+
+      console.log(
+        `[CryptoService] Decrypting file key - nonce: ${nonce.length}, ciphertext: ${ciphertext.length}`,
+      );
+
+      // Decrypt file key
+      const fileKey = this.sodium.crypto_secretbox_open_easy(
+        ciphertext,
+        nonce,
+        collectionKey,
+      );
+
+      console.log(
+        `[CryptoService] File key decrypted successfully, length: ${fileKey.length}`,
+      );
+      return fileKey;
+    } catch (error) {
+      console.error("[CryptoService] File key decryption failed:", error);
+      throw new Error(`File key decryption failed: ${error.message}`);
     }
-
-    // Decrypt file key
-    const fileKey = this.sodium.crypto_secretbox_open_easy(
-      ciphertext,
-      nonce,
-      collectionKey,
-    );
-
-    return fileKey;
   }
 
   // Convert base64 to Uint8Array

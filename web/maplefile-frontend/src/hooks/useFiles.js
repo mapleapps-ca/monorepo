@@ -333,7 +333,11 @@ const useFiles = (collectionId = null) => {
   // Get files by state
   const getFilesByState = useCallback(
     (state = "active") => {
-      return files.filter((file) => file.state === state);
+      return files.filter((file) => {
+        // If no state field exists, assume it's active (for backward compatibility)
+        const fileState = file.state || "active";
+        return fileState === state;
+      });
     },
     [files],
   );
