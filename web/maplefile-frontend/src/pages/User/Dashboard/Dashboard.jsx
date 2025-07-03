@@ -1,491 +1,694 @@
-// monorepo/web/maplefile-frontend/src/pages/User/Dashboard/Dashboard.jsx
-import React, { useState } from "react";
+// File: src/pages/User/Dashboard/Dashboard.jsx
+// Updated to showcase enhanced file management with version control and sync capabilities
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
+import useCollections from "../../../hooks/useCollections.js";
 import useAuth from "../../../hooks/useAuth.js";
 import withPasswordProtection from "../../../hocs/withPasswordProtection.jsx";
-
-// Simple inline debug component
-const TokenDebugComponent = () => {
-  const { localStorageService, authService, passwordStorageService } =
-    useServices();
-  const [tokenInfo, setTokenInfo] = useState({});
-  const [workerStatus, setWorkerStatus] = useState({});
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
-
-  console.log(
-    "[DEBUG] Password service has password:",
-    passwordStorageService.hasPassword(),
-  );
-
-  const refreshTokenInfo = () => {
-    const info = {
-      // Unencrypted token system
-      accessToken: localStorageService.getAccessToken(),
-      refreshToken: localStorageService.getRefreshToken(),
-      hasTokens: !!(
-        localStorageService.getAccessToken() &&
-        localStorageService.getRefreshToken()
-      ),
-
-      // Token expiry info
-      ...localStorageService.getTokenExpiryInfo(),
-
-      // Authentication status
-      isAuthenticated: localStorageService.isAuthenticated(),
-      userEmail: localStorageService.getUserEmail(),
-
-      // Show token previews (first 20 chars)
-      accessTokenPreview:
-        localStorageService.getAccessToken()?.substring(0, 20) + "...",
-      refreshTokenPreview:
-        localStorageService.getRefreshToken()?.substring(0, 20) + "...",
-    };
-    setTokenInfo(info);
-  };
-
-  const getWorkerStatus = async () => {
-    try {
-      const status = await authService.getWorkerStatus();
-      setWorkerStatus(status);
-    } catch (error) {
-      setWorkerStatus({ error: error.message });
-    }
-  };
-
-  const testTokenRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      console.log("[Debug] Testing token refresh...");
-      await authService.refreshToken();
-      console.log("[Debug] Token refresh successful");
-      refreshTokenInfo();
-      alert("Token refresh successful! Check console for details.");
-    } catch (error) {
-      console.error("[Debug] Token refresh failed:", error);
-      alert(`Token refresh failed: ${error.message}`);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  React.useEffect(() => {
-    if (showDebug) {
-      refreshTokenInfo();
-      getWorkerStatus();
-    }
-  }, [showDebug]);
-
-  if (!showDebug) {
-    return (
-      <div>
-        <button onClick={() => setShowDebug(true)}>
-          🔍 Show Token Debug Info
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div>
-        <h3>🔍 Token System Debug Info</h3>
-        <button onClick={() => setShowDebug(false)}>✕ Hide</button>
-      </div>
-
-      {/* Worker Status Alert */}
-      {workerStatus.workerDisabled && (
-        <div>
-          ⚠️ <strong>Worker Disabled:</strong> {workerStatus.error}
-        </div>
-      )}
-
-      <div>
-        <h4>Token Status (Unencrypted)</h4>
-        <div>
-          <div>
-            <strong>Has Tokens:</strong>
-          </div>
-          <div>{tokenInfo.hasTokens ? "✅ YES" : "❌ NO"}</div>
-
-          <div>
-            <strong>Is Authenticated:</strong>
-          </div>
-          <div>{tokenInfo.isAuthenticated ? "✅ YES" : "❌ NO"}</div>
-
-          <div>
-            <strong>Worker Status:</strong>
-          </div>
-          <div>
-            {workerStatus.isInitialized ? "✅ Initialized" : "❌ Failed"}
-          </div>
-
-          <div>
-            <strong>Access Token Expired:</strong>
-          </div>
-          <div>{tokenInfo.accessTokenExpired ? "❌ YES" : "✅ NO"}</div>
-
-          <div>
-            <strong>Refresh Token Expired:</strong>
-          </div>
-          <div>{tokenInfo.refreshTokenExpired ? "❌ YES" : "✅ NO"}</div>
-
-          <div>
-            <strong>Access Token Preview:</strong>
-          </div>
-          <div>{tokenInfo.accessTokenPreview || "No token"}</div>
-
-          <div>
-            <strong>Refresh Token Preview:</strong>
-          </div>
-          <div>{tokenInfo.refreshTokenPreview || "No token"}</div>
-        </div>
-      </div>
-
-      <div>
-        <h4>Worker Status Details</h4>
-        <pre>{JSON.stringify(workerStatus, null, 2)}</pre>
-      </div>
-
-      <div>
-        <button onClick={refreshTokenInfo}>🔄 Refresh Info</button>
-
-        <button
-          onClick={testTokenRefresh}
-          disabled={isRefreshing || !tokenInfo.hasTokens}
-        >
-          {isRefreshing ? "⏳ Refreshing..." : "🔄 Test Token Refresh"}
-        </button>
-
-        <button onClick={() => authService.forceTokenCheck()}>
-          🔍 Force Token Check
-        </button>
-      </div>
-
-      <div>
-        <strong>🔧 Debug Tips:</strong> Check browser console for detailed logs.
-        Look for [AuthWorker], [AuthService], and [LocalStorageService]
-        messages.
-      </div>
-    </div>
-  );
-};
-
-// Worker Test Component
-const WorkerTestComponent = () => {
-  const [testResults, setTestResults] = useState({});
-  const [testing, setTesting] = useState(false);
-  const [showTest, setShowTest] = useState(false);
-
-  const runWorkerTests = async () => {
-    setTesting(true);
-    const results = {};
-
-    // Test 1: Check if worker file exists
-    try {
-      const response = await fetch("/auth-worker.js");
-      results.workerFileExists = response.ok;
-      results.workerFileStatus = response.status;
-      if (!response.ok) {
-        results.workerFileError = `HTTP ${response.status}`;
-      }
-    } catch (error) {
-      results.workerFileExists = false;
-      results.workerFileError = error.message;
-    }
-
-    // Test 2: Try to create a simple worker
-    try {
-      const simpleWorker = new Worker("/auth-worker.js");
-      results.workerCreation = true;
-
-      // Test 3: Listen for messages from worker
-      const messagePromise = new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error("Worker message timeout"));
-        }, 3000);
-
-        simpleWorker.addEventListener("message", (event) => {
-          clearTimeout(timeout);
-          resolve(event.data);
-        });
-
-        simpleWorker.addEventListener("error", (error) => {
-          clearTimeout(timeout);
-          reject(error);
-        });
-      });
-
-      try {
-        const workerMessage = await messagePromise;
-        results.workerMessage = true;
-        results.workerMessageData = workerMessage;
-      } catch (msgError) {
-        results.workerMessage = false;
-        results.workerMessageError = msgError.message;
-      }
-
-      simpleWorker.terminate();
-    } catch (creationError) {
-      results.workerCreation = false;
-      results.workerCreationError = creationError.message;
-    }
-
-    // Test 4: Check browser support
-    results.workerSupport = typeof Worker !== "undefined";
-    results.broadcastChannelSupport = typeof BroadcastChannel !== "undefined";
-
-    setTestResults(results);
-    setTesting(false);
-  };
-
-  const renderTestResult = (label, success, error = null) => (
-    <div>
-      <span>
-        <strong>{label}:</strong>
-      </span>
-      <span>
-        {success ? "✅ PASS" : "❌ FAIL"}
-        {error && ` (${error})`}
-      </span>
-    </div>
-  );
-
-  if (!showTest) {
-    return (
-      <div>
-        <button onClick={() => setShowTest(true)}>
-          🧪 Run Worker Diagnostic Test
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div>
-        <h3>🧪 Worker Diagnostic Test</h3>
-        <button onClick={() => setShowTest(false)}>✕ Hide</button>
-      </div>
-
-      <p>
-        This test will help diagnose why the authentication worker is not
-        initializing.
-      </p>
-
-      <button onClick={runWorkerTests} disabled={testing}>
-        {testing ? "🔄 Testing..." : "🧪 Run Worker Tests"}
-      </button>
-
-      {Object.keys(testResults).length > 0 && (
-        <div>
-          <h4>Test Results:</h4>
-
-          {renderTestResult(
-            "Browser Worker Support",
-            testResults.workerSupport,
-          )}
-
-          {renderTestResult(
-            "BroadcastChannel Support",
-            testResults.broadcastChannelSupport,
-          )}
-
-          {renderTestResult(
-            "Worker File Accessible",
-            testResults.workerFileExists,
-            testResults.workerFileError,
-          )}
-
-          {renderTestResult(
-            "Worker Creation",
-            testResults.workerCreation,
-            testResults.workerCreationError,
-          )}
-
-          {renderTestResult(
-            "Worker Communication",
-            testResults.workerMessage,
-            testResults.workerMessageError,
-          )}
-
-          {testResults.workerMessageData && (
-            <div>
-              <strong>Worker Message Received:</strong>
-              <pre>
-                {JSON.stringify(testResults.workerMessageData, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          <div>
-            <strong>🔧 Troubleshooting Tips:</strong>
-            <ul>
-              <li>
-                Make sure <code>auth-worker.js</code> exists in the{" "}
-                <code>public</code> folder
-              </li>
-              <li>Check browser console for JavaScript errors in the worker</li>
-              <li>
-                Verify your development server is serving files from the public
-                folder
-              </li>
-              <li>Try disabling browser extensions that might block workers</li>
-              <li>
-                Check if your browser supports Web Workers and BroadcastChannel
-              </li>
-            </ul>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+import FileSyncManager from "../../../components/FileSyncManager.jsx";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { authService, localStorageService } = useServices();
-  const { logout } = useAuth();
-  const userEmail = localStorageService.getUserEmail();
+  const { authService, fileService } = useServices();
+  const { user } = useAuth();
+  const {
+    collections,
+    allCollections,
+    isLoading: collectionsLoading,
+    loadAllCollections,
+    getCollectionStats,
+  } = useCollections();
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
+  const [fileStats, setFileStats] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [showSyncManager, setShowSyncManager] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalFiles: 0,
+    activeFiles: 0,
+    archivedFiles: 0,
+    deletedFiles: 0,
+    pendingFiles: 0,
+    filesWithTombstones: 0,
+    storageUsed: 0,
+  });
+
+  // Load dashboard data
+  useEffect(() => {
+    if (authService.isAuthenticated()) {
+      loadDashboardData();
+    }
+  }, [authService]);
+
+  const loadDashboardData = async () => {
+    try {
+      // Load collections
+      await loadAllCollections();
+
+      // Load file statistics
+      await loadFileStatistics();
+
+      // Load recent activity
+      await loadRecentActivity();
+    } catch (error) {
+      console.error("[Dashboard] Failed to load dashboard data:", error);
+    }
+  };
+
+  const loadFileStatistics = async () => {
+    setIsLoadingFiles(true);
+    try {
+      // Get overall file statistics by syncing recent data
+      const syncResponse = await fileService.syncFiles(null, 1000);
+
+      if (syncResponse.files) {
+        const stats = calculateFileStats(syncResponse.files);
+        setFileStats(stats);
+        setDashboardStats((prev) => ({ ...prev, ...stats }));
+      }
+    } catch (error) {
+      console.error("[Dashboard] Failed to load file statistics:", error);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  };
+
+  const calculateFileStats = (files) => {
+    const stats = {
+      totalFiles: files.length,
+      activeFiles: 0,
+      archivedFiles: 0,
+      deletedFiles: 0,
+      pendingFiles: 0,
+      filesWithTombstones: 0,
+      storageUsed: 0,
+      recentFiles: 0,
+    };
+
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    files.forEach((file) => {
+      // Normalize file state
+      const state = file.state || "active";
+
+      switch (state) {
+        case "active":
+          stats.activeFiles++;
+          break;
+        case "archived":
+          stats.archivedFiles++;
+          break;
+        case "deleted":
+          stats.deletedFiles++;
+          break;
+        case "pending":
+          stats.pendingFiles++;
+          break;
+      }
+
+      if ((file.tombstone_version || 0) > 0) {
+        stats.filesWithTombstones++;
+      }
+
+      // Calculate storage usage
+      const fileSize = file.encrypted_file_size_in_bytes || 0;
+      stats.storageUsed += fileSize;
+
+      // Count recent files
+      if (file.created_at && new Date(file.created_at) > oneWeekAgo) {
+        stats.recentFiles++;
+      }
+    });
+
+    return stats;
+  };
+
+  const loadRecentActivity = async () => {
+    try {
+      // Get recent files activity (last 50 files)
+      const syncResponse = await fileService.syncFiles(null, 50);
+
+      if (syncResponse.files) {
+        const activity = syncResponse.files
+          .filter((file) => file.modified_at || file.created_at)
+          .sort((a, b) => {
+            const aTime = new Date(a.modified_at || a.created_at);
+            const bTime = new Date(b.modified_at || b.created_at);
+            return bTime - aTime;
+          })
+          .slice(0, 10)
+          .map((file) => ({
+            id: file.id,
+            type: getActivityType(file),
+            timestamp: file.modified_at || file.created_at,
+            fileId: file.id,
+            fileName: "File", // Will show encrypted since we don't have collection keys here
+            collectionId: file.collection_id,
+            state: file.state,
+            version: file.version,
+          }));
+
+        setRecentActivity(activity);
+      }
+    } catch (error) {
+      console.error("[Dashboard] Failed to load recent activity:", error);
+    }
+  };
+
+  const getActivityType = (file) => {
+    if (file.state === "deleted") return "deleted";
+    if (file.state === "archived") return "archived";
+    if (file.state === "pending") return "uploading";
+    if ((file.version || 1) > 1) return "updated";
+    return "created";
+  };
+
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case "created":
+        return "➕";
+      case "updated":
+        return "📝";
+      case "deleted":
+        return "🗑️";
+      case "archived":
+        return "📦";
+      case "uploading":
+        return "⏳";
+      default:
+        return "📄";
+    }
+  };
+
+  const getActivityColor = (type) => {
+    switch (type) {
+      case "created":
+        return "#28a745";
+      case "updated":
+        return "#17a2b8";
+      case "deleted":
+        return "#dc3545";
+      case "archived":
+        return "#6c757d";
+      case "uploading":
+        return "#ffc107";
+      default:
+        return "#6c757d";
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const formatTimeAgo = (timestamp) => {
+    if (!timestamp) return "Unknown";
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffMs = now - time;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return time.toLocaleDateString();
+  };
+
+  const handleSyncComplete = (result) => {
+    console.log("[Dashboard] Sync completed:", result);
+    // Reload dashboard data after sync
+    loadDashboardData();
   };
 
   return (
-    <div>
-      <h2>Welcome to MapleApps!</h2>
-      <p>You have successfully completed the secure E2EE login process</p>
+    <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      {/* Header */}
+      <div style={{ marginBottom: "30px" }}>
+        <h1 style={{ margin: "0 0 10px 0" }}>Dashboard</h1>
+        <p style={{ color: "#666", margin: 0 }}>
+          Welcome back, {user?.email || "User"}! Here's your file management
+          overview.
+        </p>
+      </div>
 
-      <div>
-        {/* Welcome Section */}
-        <div>
-          <div>
-            <svg
-              width="64"
-              height="64"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+      {/* Stats Grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: "20px",
+          marginBottom: "30px",
+        }}
+      >
+        {/* Collections Stats */}
+        <div
+          style={{
+            padding: "20px",
+            backgroundColor: "white",
+            borderRadius: "8px",
+            border: "1px solid #dee2e6",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{ fontSize: "32px", color: "#007bff", marginBottom: "10px" }}
+          >
+            📁
+          </div>
+          <div
+            style={{
+              fontSize: "24px",
+              fontWeight: "bold",
+              marginBottom: "5px",
+            }}
+          >
+            {allCollections.length}
+          </div>
+          <div style={{ fontSize: "14px", color: "#666" }}>Collections</div>
+        </div>
+
+        {/* Active Files */}
+        <div
+          style={{
+            padding: "20px",
+            backgroundColor: "white",
+            borderRadius: "8px",
+            border: "1px solid #dee2e6",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{ fontSize: "32px", color: "#28a745", marginBottom: "10px" }}
+          >
+            📄
+          </div>
+          <div
+            style={{
+              fontSize: "24px",
+              fontWeight: "bold",
+              marginBottom: "5px",
+            }}
+          >
+            {dashboardStats.activeFiles}
+          </div>
+          <div style={{ fontSize: "14px", color: "#666" }}>Active Files</div>
+        </div>
+
+        {/* Storage Used */}
+        <div
+          style={{
+            padding: "20px",
+            backgroundColor: "white",
+            borderRadius: "8px",
+            border: "1px solid #dee2e6",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{ fontSize: "32px", color: "#17a2b8", marginBottom: "10px" }}
+          >
+            💾
+          </div>
+          <div
+            style={{
+              fontSize: "24px",
+              fontWeight: "bold",
+              marginBottom: "5px",
+            }}
+          >
+            {formatFileSize(dashboardStats.storageUsed)}
+          </div>
+          <div style={{ fontSize: "14px", color: "#666" }}>Storage Used</div>
+        </div>
+
+        {/* Recent Activity */}
+        <div
+          style={{
+            padding: "20px",
+            backgroundColor: "white",
+            borderRadius: "8px",
+            border: "1px solid #dee2e6",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{ fontSize: "32px", color: "#ffc107", marginBottom: "10px" }}
+          >
+            ⚡
+          </div>
+          <div
+            style={{
+              fontSize: "24px",
+              fontWeight: "bold",
+              marginBottom: "5px",
+            }}
+          >
+            {fileStats?.recentFiles || 0}
+          </div>
+          <div style={{ fontSize: "14px", color: "#666" }}>Files This Week</div>
+        </div>
+      </div>
+
+      {/* File States Overview */}
+      {fileStats && (
+        <div
+          style={{
+            padding: "20px",
+            backgroundColor: "white",
+            borderRadius: "8px",
+            border: "1px solid #dee2e6",
+            marginBottom: "30px",
+          }}
+        >
+          <h3 style={{ margin: "0 0 15px 0" }}>📊 File States Overview</h3>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+              gap: "15px",
+            }}
+          >
+            <div style={{ textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: "20px",
+                  fontWeight: "bold",
+                  color: "#28a745",
+                }}
+              >
+                {dashboardStats.activeFiles}
+              </div>
+              <div style={{ fontSize: "12px", color: "#666" }}>Active</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: "20px",
+                  fontWeight: "bold",
+                  color: "#6c757d",
+                }}
+              >
+                {dashboardStats.archivedFiles}
+              </div>
+              <div style={{ fontSize: "12px", color: "#666" }}>Archived</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: "20px",
+                  fontWeight: "bold",
+                  color: "#dc3545",
+                }}
+              >
+                {dashboardStats.deletedFiles}
+              </div>
+              <div style={{ fontSize: "12px", color: "#666" }}>Deleted</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: "20px",
+                  fontWeight: "bold",
+                  color: "#ffc107",
+                }}
+              >
+                {dashboardStats.pendingFiles}
+              </div>
+              <div style={{ fontSize: "12px", color: "#666" }}>Pending</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: "20px",
+                  fontWeight: "bold",
+                  color: "#fd7e14",
+                }}
+              >
+                {dashboardStats.filesWithTombstones}
+              </div>
+              <div style={{ fontSize: "12px", color: "#666" }}>Tombstones</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Sync Manager */}
+      <div style={{ marginBottom: "30px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "15px",
+          }}
+        >
+          <h3 style={{ margin: 0 }}>File Synchronization</h3>
+          <button
+            onClick={() => setShowSyncManager(!showSyncManager)}
+            style={{
+              padding: "6px 12px",
+              fontSize: "14px",
+              backgroundColor: showSyncManager ? "#dc3545" : "#007bff",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            {showSyncManager ? "Hide Details" : "Show Details"}
+          </button>
+        </div>
+
+        <FileSyncManager
+          onSyncComplete={handleSyncComplete}
+          showDetailed={showSyncManager}
+        />
+      </div>
+
+      {/* Recent Activity */}
+      <div
+        style={{
+          padding: "20px",
+          backgroundColor: "white",
+          borderRadius: "8px",
+          border: "1px solid #dee2e6",
+          marginBottom: "30px",
+        }}
+      >
+        <h3 style={{ margin: "0 0 15px 0" }}>🕒 Recent Activity</h3>
+
+        {recentActivity.length === 0 ? (
+          <p style={{ color: "#666", textAlign: "center", padding: "20px" }}>
+            No recent activity found.
+          </p>
+        ) : (
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+          >
+            {recentActivity.map((activity) => (
+              <div
+                key={`${activity.fileId}_${activity.timestamp}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  backgroundColor: "#f8f9fa",
+                  border: "1px solid #e9ecef",
+                }}
+              >
+                <span style={{ fontSize: "20px" }}>
+                  {getActivityIcon(activity.type)}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: "bold", marginBottom: "2px" }}>
+                    {activity.fileName}
+                    {activity.version > 1 && (
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "#666",
+                          marginLeft: "8px",
+                        }}
+                      >
+                        v{activity.version}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#666" }}>
+                    <span
+                      style={{
+                        color: getActivityColor(activity.type),
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {activity.type.charAt(0).toUpperCase() +
+                        activity.type.slice(1)}
+                    </span>
+                    {" • "}
+                    ID: {activity.fileId.substring(0, 8)}...
+                    {" • "}
+                    State: {activity.state}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#999",
+                    textAlign: "right",
+                  }}
+                >
+                  {formatTimeAgo(activity.timestamp)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+          gap: "20px",
+          marginBottom: "30px",
+        }}
+      >
+        <div
+          style={{
+            padding: "20px",
+            backgroundColor: "white",
+            borderRadius: "8px",
+            border: "1px solid #dee2e6",
+          }}
+        >
+          <h4 style={{ margin: "0 0 15px 0" }}>📁 Collections</h4>
+          <p style={{ fontSize: "14px", color: "#666", marginBottom: "15px" }}>
+            Manage your encrypted file collections
+          </p>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              onClick={() => navigate("/collections")}
+              style={{
+                padding: "8px 16px",
+                backgroundColor: "#007bff",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "14px",
+              }}
             >
-              <circle cx="12" cy="12" r="10" fill="#4CAF50" />
-              <path
-                d="M9 12l2 2 4-4"
-                stroke="white"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+              View All
+            </button>
+            <button
+              onClick={() => navigate("/collections/create")}
+              style={{
+                padding: "8px 16px",
+                backgroundColor: "#28a745",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "14px",
+              }}
+            >
+              Create New
+            </button>
           </div>
-          <h2>Login Successful!</h2>
-          <p>
-            Welcome back, <strong>{userEmail}</strong>
+        </div>
+
+        <div
+          style={{
+            padding: "20px",
+            backgroundColor: "white",
+            borderRadius: "8px",
+            border: "1px solid #dee2e6",
+          }}
+        >
+          <h4 style={{ margin: "0 0 15px 0" }}>⚙️ Account Settings</h4>
+          <p style={{ fontSize: "14px", color: "#666", marginBottom: "15px" }}>
+            Manage your profile and security settings
           </p>
-          <p>
-            Your session is protected with end-to-end encryption using
-            ChaCha20-Poly1305 and X25519 key exchange. All cryptographic
-            operations were performed locally in your browser.{" "}
-            <strong>Your tokens are now stored encrypted!</strong>
-          </p>
-        </div>
-
-        {/* Token Debug Component */}
-        <TokenDebugComponent />
-
-        {/* Worker Test Component */}
-        <WorkerTestComponent />
-
-        {/* Features Section */}
-        <div>
-          <h3>What's Next?</h3>
-          <div>
-            <div>
-              <div>🔐</div>
-              <h4>Encrypted Token System</h4>
-              <p>
-                Your authentication tokens are now encrypted end-to-end for
-                maximum security
-              </p>
-            </div>
-            <div>
-              <div>📁</div>
-              <h4>Secure File Storage</h4>
-              <p>Upload and encrypt your files with client-side encryption</p>
-            </div>
-            <div>
-              <div>🔄</div>
-              <h4>Background Token Refresh</h4>
-              <p>
-                Tokens are automatically refreshed in the background using the
-                new API
-              </p>
-            </div>
-            <div>
-              <div>🛡️</div>
-              <h4>Enhanced Security</h4>
-              <p>No plaintext tokens are ever stored on your device</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Security Summary */}
-        <div>
-          <h3>Your Security Details</h3>
-          <div>
-            <div>
-              <span>Encryption:</span>
-              <span>ChaCha20-Poly1305</span>
-            </div>
-            <div>
-              <span>Key Exchange:</span>
-              <span>X25519 ECDH</span>
-            </div>
-            <div>
-              <span>Token System:</span>
-              <span>Encrypted E2EE</span>
-            </div>
-            <div>
-              <span>Authentication:</span>
-              <span>3-Step E2EE Process</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div>
-          <button onClick={() => navigate("/me")}>👤 My Profile</button>
-          <button onClick={() => navigate("/collections")}>
-            🗂️ Collections
-          </button>
-          <button onClick={handleLogout}>🚪 Logout</button>
-          <button onClick={() => window.location.reload()}>
-            🔄 Refresh Page
+          <button
+            onClick={() => navigate("/me")}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#6c757d",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "14px",
+            }}
+          >
+            Manage Account
           </button>
         </div>
+      </div>
 
-        {/* Footer Note */}
-        <div>
-          <p>
-            🎉 <strong>Congratulations!</strong> You've successfully implemented
-            the new encrypted token system with production-grade end-to-end
-            encryption.
+      {/* Info Box */}
+      <div
+        style={{
+          padding: "20px",
+          backgroundColor: "#e8f4fd",
+          borderRadius: "8px",
+          border: "1px solid #bee5eb",
+          borderLeft: "4px solid #17a2b8",
+        }}
+      >
+        <h4 style={{ margin: "0 0 10px 0", color: "#0c5460" }}>
+          🔒 Enhanced File Management Features
+        </h4>
+        <div style={{ color: "#0c5460", lineHeight: "1.6" }}>
+          <p style={{ marginBottom: "10px" }}>
+            Your files now support advanced version control and lifecycle
+            management:
           </p>
-          <p>
-            <small>
-              Your application now uses encrypted authentication tokens that are
-              automatically refreshed in the background using the new API
-              endpoints. Check the debug section above to verify the token
-              system is working correctly.
-            </small>
+          <ul style={{ marginLeft: "20px", marginBottom: "15px" }}>
+            <li>
+              <strong>Version Control:</strong> Each file change is tracked with
+              version numbers
+            </li>
+            <li>
+              <strong>State Management:</strong> Files can be active, archived,
+              deleted, or pending
+            </li>
+            <li>
+              <strong>Soft Deletion:</strong> Deleted files create tombstones
+              for recovery
+            </li>
+            <li>
+              <strong>Conflict Resolution:</strong> Version conflicts are
+              detected and manageable
+            </li>
+            <li>
+              <strong>Sync Status:</strong> Real-time synchronization across
+              devices
+            </li>
+          </ul>
+          <p style={{ marginBottom: 0 }}>
+            All files remain end-to-end encrypted with your password-based keys.
           </p>
         </div>
       </div>
     </div>
   );
 };
-const ProtectedDashboard = withPasswordProtection(Dashboard);
+
+const ProtectedDashboard = withPasswordProtection(Dashboard, {
+  showLoadingWhileChecking: true,
+  checkInterval: 30000, // Check every 30 seconds
+});
 
 export default ProtectedDashboard;

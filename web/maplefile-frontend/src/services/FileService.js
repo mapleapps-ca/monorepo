@@ -1,6 +1,3 @@
-// FileService for managing MapleFile files with end-to-end encryption
-// Supports all file operations including upload, download, sharing, and synchronization
-
 class FileService {
   async getCryptoServices() {
     if (!this._cryptoService) {
@@ -22,6 +19,14 @@ class FileService {
     this.cache = new Map(); // Simple cache for file metadata
     this.isLoading = false;
     this.uploadQueue = new Map(); // Track pending uploads
+
+    // File states constants
+    this.FILE_STATES = {
+      PENDING: "pending",
+      ACTIVE: "active",
+      DELETED: "deleted",
+      ARCHIVED: "archived",
+    };
   }
 
   // Import ApiClient for authenticated requests
@@ -33,11 +38,37 @@ class FileService {
     return this._apiClient;
   }
 
+  // Normalize file object with new fields
+  normalizeFile(file) {
+    return {
+      ...file,
+      // Ensure version is present (default to 1 for new files)
+      version: file.version || 1,
+      // Ensure state is present (default to active)
+      state: file.state || this.FILE_STATES.ACTIVE,
+      // Ensure tombstone fields are present
+      tombstone_version: file.tombstone_version || 0,
+      tombstone_expiry: file.tombstone_expiry || "0001-01-01T00:00:00Z",
+      // Add computed properties for easier checking
+      _is_deleted: file.state === this.FILE_STATES.DELETED,
+      _is_archived: file.state === this.FILE_STATES.ARCHIVED,
+      _is_pending: file.state === this.FILE_STATES.PENDING,
+      _is_active: file.state === this.FILE_STATES.ACTIVE,
+      _has_tombstone: (file.tombstone_version || 0) > 0,
+      _tombstone_expired: file.tombstone_expiry
+        ? new Date(file.tombstone_expiry) < new Date() &&
+          file.tombstone_expiry !== "0001-01-01T00:00:00Z"
+        : false,
+    };
+  }
+
   // Decrypt file metadata for display
   async decryptFileMetadata(file, collectionKey) {
     try {
       console.log(`[FileService] === Decrypting file ${file.id} ===`);
       console.log("[FileService] Collection key length:", collectionKey.length);
+      console.log("[FileService] File version:", file.version);
+      console.log("[FileService] File state:", file.state);
       console.log(
         "[FileService] File key structure:",
         JSON.stringify(file.encrypted_file_key),
@@ -79,7 +110,7 @@ class FileService {
       const metadata = JSON.parse(metadataString);
       console.log("[FileService] Parsed metadata:", metadata);
 
-      const result = {
+      const result = this.normalizeFile({
         ...file,
         name: metadata.name,
         mime_type: metadata.mime_type,
@@ -87,10 +118,10 @@ class FileService {
         _decrypted_metadata: metadata,
         _file_key: fileKey,
         _collection_key_length: collectionKey.length, // Debug info
-      };
+      });
 
       console.log(
-        `[FileService] ✅ Successfully decrypted file: ${metadata.name}`,
+        `[FileService] ✅ Successfully decrypted file: ${metadata.name} (v${result.version}, ${result.state})`,
       );
       return result;
     } catch (error) {
@@ -105,7 +136,7 @@ class FileService {
         collectionKeyLength: collectionKey?.length,
       });
 
-      return {
+      return this.normalizeFile({
         ...file,
         name: "[Unable to decrypt]",
         mime_type: "unknown",
@@ -116,7 +147,7 @@ class FileService {
           fileKeyStructure: JSON.stringify(file.encrypted_file_key),
           errorMessage: error.message,
         },
-      };
+      });
     }
   }
 
@@ -129,7 +160,7 @@ class FileService {
       const file = files[i];
       try {
         console.log(
-          `[FileService] Decrypting file ${i + 1}/${files.length}: ${file.id}`,
+          `[FileService] Decrypting file ${i + 1}/${files.length}: ${file.id} (v${file.version || "unknown"}, ${file.state || "unknown"})`,
         );
         const decryptedFile = await this.decryptFileMetadata(
           file,
@@ -142,11 +173,13 @@ class FileService {
           fileError.message,
         );
         // Add the file with error info
-        decryptedFiles.push({
-          ...file,
-          name: `[Decrypt failed: ${fileError.message.substring(0, 50)}...]`,
-          _decrypt_error: fileError.message,
-        });
+        decryptedFiles.push(
+          this.normalizeFile({
+            ...file,
+            name: `[Decrypt failed: ${fileError.message.substring(0, 50)}...]`,
+            _decrypt_error: fileError.message,
+          }),
+        );
       }
     }
 
@@ -159,25 +192,39 @@ class FileService {
       this.isLoading = true;
       console.log("[FileService] Creating pending file");
 
+      // Ensure the file data includes the new fields
+      const normalizedFileData = {
+        ...fileData,
+        version: fileData.version || 1,
+        state: this.FILE_STATES.PENDING, // Always pending when creating
+      };
+
       const apiClient = await this.getApiClient();
       const response = await apiClient.postMapleFile(
         "/files/pending",
-        fileData,
+        normalizedFileData,
       );
 
-      // Cache the pending file metadata
+      // Cache the pending file metadata with normalization
       if (response.file) {
-        this.cache.set(response.file.id, response.file);
+        const normalizedFile = this.normalizeFile(response.file);
+        this.cache.set(normalizedFile.id, normalizedFile);
+
         // Track in upload queue
-        this.uploadQueue.set(response.file.id, {
-          file: response.file,
+        this.uploadQueue.set(normalizedFile.id, {
+          file: normalizedFile,
           uploadUrl: response.presigned_upload_url,
           thumbnailUrl: response.presigned_thumbnail_url,
           expirationTime: response.upload_url_expiration_time,
         });
       }
 
-      console.log("[FileService] Pending file created:", response.file?.id);
+      console.log(
+        "[FileService] Pending file created:",
+        response.file?.id,
+        "version:",
+        response.file?.version,
+      );
       return response;
     } catch (error) {
       console.error("[FileService] Failed to create pending file:", error);
@@ -201,13 +248,21 @@ class FileService {
 
       // Update cache with completed file
       if (response.file) {
-        this.cache.set(fileId, response.file);
+        const normalizedFile = this.normalizeFile(response.file);
+        this.cache.set(fileId, normalizedFile);
       }
 
       // Remove from upload queue
       this.uploadQueue.delete(fileId);
 
-      console.log("[FileService] File upload completed:", fileId);
+      console.log(
+        "[FileService] File upload completed:",
+        fileId,
+        "new state:",
+        response.file?.state,
+        "version:",
+        response.file?.version,
+      );
       return response;
     } catch (error) {
       console.error("[FileService] Failed to complete file upload:", error);
@@ -232,11 +287,19 @@ class FileService {
       const apiClient = await this.getApiClient();
       const file = await apiClient.getMapleFile(`/files/${fileId}`);
 
-      // Cache the file metadata
-      this.cache.set(fileId, file);
-      console.log("[FileService] File retrieved:", fileId);
+      // Cache the file metadata with normalization
+      const normalizedFile = this.normalizeFile(file);
+      this.cache.set(fileId, normalizedFile);
+      console.log(
+        "[FileService] File retrieved:",
+        fileId,
+        "version:",
+        normalizedFile.version,
+        "state:",
+        normalizedFile.state,
+      );
 
-      return file;
+      return normalizedFile;
     } catch (error) {
       console.error("[FileService] Failed to get file:", error);
       throw error;
@@ -245,32 +308,74 @@ class FileService {
     }
   }
 
-  // 4. Update File
+  // 4. Update File with version support for optimistic locking
   async updateFile(fileId, updateData) {
     try {
       this.isLoading = true;
-      console.log("[FileService] Updating file:", fileId);
+      console.log(
+        "[FileService] Updating file:",
+        fileId,
+        "with data:",
+        updateData,
+      );
+
+      // Get current file to check version
+      const currentFile = await this.getFile(fileId);
+      if (!currentFile) {
+        throw new Error("File not found for update");
+      }
+
+      // Include current version for optimistic locking if not provided
+      const updatePayload = {
+        ...updateData,
+        version: updateData.version || currentFile.version,
+        id: fileId, // Ensure ID is included
+      };
+
+      console.log(
+        "[FileService] Update payload includes version:",
+        updatePayload.version,
+      );
 
       const apiClient = await this.getApiClient();
       const updatedFile = await apiClient.putMapleFile(
         `/files/${fileId}`,
-        updateData,
+        updatePayload,
       );
 
-      // Update cache
-      this.cache.set(fileId, updatedFile);
-      console.log("[FileService] File updated:", fileId);
+      // Update cache with normalized file
+      const normalizedFile = this.normalizeFile(updatedFile);
+      this.cache.set(fileId, normalizedFile);
+      console.log(
+        "[FileService] File updated:",
+        fileId,
+        "new version:",
+        normalizedFile.version,
+        "state:",
+        normalizedFile.state,
+      );
 
-      return updatedFile;
+      return normalizedFile;
     } catch (error) {
       console.error("[FileService] Failed to update file:", error);
+
+      // Check for version conflict
+      if (
+        error.message?.includes("version") ||
+        error.message?.includes("conflict")
+      ) {
+        throw new Error(
+          "File has been updated by another process. Please refresh and try again.",
+        );
+      }
+
       throw error;
     } finally {
       this.isLoading = false;
     }
   }
 
-  // 5. Archive File
+  // 5. Archive File (soft archive)
   async archiveFile(fileId) {
     try {
       this.isLoading = true;
@@ -282,8 +387,12 @@ class FileService {
       // Update cache if we have the file
       if (this.cache.has(fileId)) {
         const file = this.cache.get(fileId);
-        file.state = "archived";
-        this.cache.set(fileId, file);
+        const updatedFile = this.normalizeFile({
+          ...file,
+          state: this.FILE_STATES.ARCHIVED,
+          version: (file.version || 1) + 1, // Increment version on state change
+        });
+        this.cache.set(fileId, updatedFile);
       }
 
       console.log("[FileService] File archived:", fileId);
@@ -296,7 +405,7 @@ class FileService {
     }
   }
 
-  // 6. Restore File
+  // 6. Restore File (unarchive)
   async restoreFile(fileId) {
     try {
       this.isLoading = true;
@@ -308,8 +417,14 @@ class FileService {
       // Update cache if we have the file
       if (this.cache.has(fileId)) {
         const file = this.cache.get(fileId);
-        file.state = "active";
-        this.cache.set(fileId, file);
+        const updatedFile = this.normalizeFile({
+          ...file,
+          state: this.FILE_STATES.ACTIVE,
+          version: (file.version || 1) + 1, // Increment version on state change
+          tombstone_version: 0, // Clear tombstone on restore
+          tombstone_expiry: "0001-01-01T00:00:00Z",
+        });
+        this.cache.set(fileId, updatedFile);
       }
 
       console.log("[FileService] File restored:", fileId);
@@ -322,7 +437,7 @@ class FileService {
     }
   }
 
-  // 7. Soft Delete File
+  // 7. Soft Delete File (creates tombstone)
   async deleteFile(fileId) {
     try {
       this.isLoading = true;
@@ -331,11 +446,20 @@ class FileService {
       const apiClient = await this.getApiClient();
       const result = await apiClient.deleteMapleFile(`/files/${fileId}`);
 
-      // Update cache to mark as deleted
+      // Update cache to mark as deleted with tombstone
       if (this.cache.has(fileId)) {
         const file = this.cache.get(fileId);
-        file.state = "deleted";
-        this.cache.set(fileId, file);
+        const newVersion = (file.version || 1) + 1;
+        const updatedFile = this.normalizeFile({
+          ...file,
+          state: this.FILE_STATES.DELETED,
+          version: newVersion,
+          tombstone_version: newVersion, // Set tombstone version
+          tombstone_expiry:
+            result.tombstone_expiry ||
+            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // Default 30 days
+        });
+        this.cache.set(fileId, updatedFile);
       }
 
       console.log("[FileService] File soft deleted:", fileId);
@@ -363,8 +487,17 @@ class FileService {
       fileIds.forEach((fileId) => {
         if (this.cache.has(fileId)) {
           const file = this.cache.get(fileId);
-          file.state = "deleted";
-          this.cache.set(fileId, file);
+          const newVersion = (file.version || 1) + 1;
+          const updatedFile = this.normalizeFile({
+            ...file,
+            state: this.FILE_STATES.DELETED,
+            version: newVersion,
+            tombstone_version: newVersion,
+            tombstone_expiry: new Date(
+              Date.now() + 30 * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+          });
+          this.cache.set(fileId, updatedFile);
         }
       });
 
@@ -400,7 +533,8 @@ class FileService {
 
       // Update cache with file metadata if returned
       if (response.file) {
-        this.cache.set(fileId, response.file);
+        const normalizedFile = this.normalizeFile(response.file);
+        this.cache.set(fileId, normalizedFile);
       }
 
       console.log("[FileService] Presigned upload URL generated");
@@ -435,7 +569,8 @@ class FileService {
 
       // Update cache with file metadata if returned
       if (response.file) {
-        this.cache.set(fileId, response.file);
+        const normalizedFile = this.normalizeFile(response.file);
+        this.cache.set(fileId, normalizedFile);
       }
 
       console.log("[FileService] Presigned download URL generated");
@@ -451,9 +586,12 @@ class FileService {
     }
   }
 
-  // 11. List Files by Collection
-  // 11. List Files by Collection
-  async listFilesByCollection(collectionId, forceRefresh = false) {
+  // 11. List Files by Collection with state filtering
+  async listFilesByCollection(
+    collectionId,
+    forceRefresh = false,
+    includeStates = null,
+  ) {
     try {
       this.isLoading = true;
       console.log(
@@ -461,6 +599,8 @@ class FileService {
         collectionId,
         "forceRefresh:",
         forceRefresh,
+        "includeStates:",
+        includeStates,
       );
 
       // If force refresh, clear cache for this collection first
@@ -469,17 +609,29 @@ class FileService {
       }
 
       const apiClient = await this.getApiClient();
-      const response = await apiClient.getMapleFile(
-        `/collections/${collectionId}/files`,
-      );
+      let url = `/collections/${collectionId}/files`;
+
+      // Add state filtering if specified
+      if (includeStates && Array.isArray(includeStates)) {
+        const params = new URLSearchParams();
+        includeStates.forEach((state) => params.append("states", state));
+        url += `?${params.toString()}`;
+      }
+
+      const response = await apiClient.getMapleFile(url);
 
       let files = response.files || [];
 
-      // Add default state for files that don't have one
-      files = files.map((file) => ({
-        ...file,
-        state: file.state || "active", // Default to active if no state
-      }));
+      // Normalize all files with new fields
+      files = files.map((file) => this.normalizeFile(file));
+
+      console.log(`[FileService] Found ${files.length} files:`, {
+        pending: files.filter((f) => f._is_pending).length,
+        active: files.filter((f) => f._is_active).length,
+        archived: files.filter((f) => f._is_archived).length,
+        deleted: files.filter((f) => f._is_deleted).length,
+        withTombstones: files.filter((f) => f._has_tombstone).length,
+      });
 
       // Try to decrypt files if we have collection crypto service available
       try {
@@ -554,7 +706,7 @@ class FileService {
     }
   }
 
-  // 12. List File Sync Data
+  // 12. List File Sync Data with version handling
   async syncFiles(cursor = null, limit = 5000) {
     try {
       this.isLoading = true;
@@ -569,9 +721,15 @@ class FileService {
 
       const response = await apiClient.getMapleFile(`/sync/files?${params}`);
 
+      // Normalize sync response files
+      if (response.files) {
+        response.files = response.files.map((file) => this.normalizeFile(file));
+      }
+
       console.log("[FileService] Files synced:", {
         count: response.files?.length || 0,
         hasMore: response.has_more || false,
+        nextCursor: response.next_cursor || null,
       });
 
       return response;
@@ -661,6 +819,11 @@ class FileService {
       const uploadUrl = pendingResponse.presigned_upload_url;
       const thumbnailUrl = pendingResponse.presigned_thumbnail_url;
 
+      console.log(
+        "[FileService] Pending file created with version:",
+        pendingResponse.file.version,
+      );
+
       // Step 2: Upload encrypted file content to S3
       console.log("[FileService] Uploading encrypted file content");
       await this.uploadFileToS3(uploadUrl, encryptedFileContent);
@@ -690,7 +853,12 @@ class FileService {
         completionData,
       );
 
-      console.log("[FileService] File upload workflow completed successfully");
+      console.log(
+        "[FileService] File upload workflow completed successfully. Final version:",
+        completeResponse.file.version,
+        "state:",
+        completeResponse.file.state,
+      );
 
       // NEW: Clear cache for this collection so next listFilesByCollection call fetches fresh data
       this.invalidateCollectionFilesCache(fileData.collection_id);
@@ -749,6 +917,13 @@ class FileService {
       const downloadUrl = downloadResponse.presigned_download_url;
       const thumbnailUrl = downloadResponse.presigned_thumbnail_url;
 
+      console.log(
+        "[FileService] Downloading file version:",
+        fileMetadata.version,
+        "state:",
+        fileMetadata.state,
+      );
+
       // Step 2: Download encrypted file content from S3
       console.log("[FileService] Downloading encrypted file content");
       const encryptedContent = await this.downloadFileFromS3(downloadUrl);
@@ -772,7 +947,7 @@ class FileService {
         "[FileService] File download workflow completed successfully",
       );
       return {
-        metadata: fileMetadata,
+        metadata: this.normalizeFile(fileMetadata),
         encryptedContent,
         encryptedThumbnail,
       };
@@ -800,7 +975,7 @@ class FileService {
     return allSyncedFiles;
   }
 
-  // Batch operations
+  // Batch operations with version handling
   async batchArchiveFiles(fileIds) {
     try {
       console.log("[FileService] Batch archiving files:", fileIds.length);
@@ -865,19 +1040,83 @@ class FileService {
     }
   }
 
-  // Get files by state
-  getFilesByState(collectionId, state = "active") {
+  // Get files by state with enhanced filtering
+  getFilesByState(collectionId, state = this.FILE_STATES.ACTIVE) {
     const files = [];
     for (const file of this.cache.values()) {
-      if (file.collection_id === collectionId) {
-        // If no state field exists, assume it's active (for backward compatibility)
-        const fileState = file.state || "active";
-        if (fileState === state) {
-          files.push(file);
-        }
+      if (file.collection_id === collectionId && file.state === state) {
+        files.push(file);
       }
     }
     return files;
+  }
+
+  // Get files by multiple states
+  getFilesByStates(collectionId, states = [this.FILE_STATES.ACTIVE]) {
+    const files = [];
+    for (const file of this.cache.values()) {
+      if (file.collection_id === collectionId && states.includes(file.state)) {
+        files.push(file);
+      }
+    }
+    return files;
+  }
+
+  // Get files with tombstones (deleted files)
+  getTombstoneFiles(collectionId) {
+    const files = [];
+    for (const file of this.cache.values()) {
+      if (file.collection_id === collectionId && file._has_tombstone) {
+        files.push(file);
+      }
+    }
+    return files;
+  }
+
+  // Get expired tombstone files that can be permanently deleted
+  getExpiredTombstoneFiles(collectionId) {
+    const files = [];
+    const now = new Date();
+    for (const file of this.cache.values()) {
+      if (file.collection_id === collectionId && file._tombstone_expired) {
+        files.push(file);
+      }
+    }
+    return files;
+  }
+
+  // Check if file can be restored (has tombstone but not expired)
+  canRestoreFile(file) {
+    return file._has_tombstone && !file._tombstone_expired && file._is_deleted;
+  }
+
+  // Check if file can be permanently deleted
+  canPermanentlyDeleteFile(file) {
+    return file._tombstone_expired || (file._has_tombstone && file._is_deleted);
+  }
+
+  // Get file version history (if implemented by backend)
+  async getFileVersionHistory(fileId) {
+    try {
+      console.log("[FileService] Getting version history for file:", fileId);
+
+      const apiClient = await this.getApiClient();
+      const response = await apiClient.getMapleFile(
+        `/files/${fileId}/versions`,
+      );
+
+      // Normalize version history
+      if (response.versions) {
+        response.versions = response.versions.map((version) =>
+          this.normalizeFile(version),
+        );
+      }
+
+      return response;
+    } catch (error) {
+      console.error("[FileService] Failed to get file version history:", error);
+      throw error;
+    }
   }
 
   // Get file from cache without API call
@@ -921,7 +1160,7 @@ class FileService {
     return this.isLoading;
   }
 
-  // Validate file metadata before upload
+  // Validate file metadata before upload with version support
   validateFileMetadata(fileData) {
     const errors = [];
 
@@ -952,6 +1191,24 @@ class FileService {
       errors.push("Encrypted hash is required");
     }
 
+    // Version should be a positive number if provided
+    if (
+      fileData.version !== undefined &&
+      (typeof fileData.version !== "number" || fileData.version < 1)
+    ) {
+      errors.push("Version must be a positive number");
+    }
+
+    // State should be valid if provided
+    if (
+      fileData.state !== undefined &&
+      !Object.values(this.FILE_STATES).includes(fileData.state)
+    ) {
+      errors.push(
+        `State must be one of: ${Object.values(this.FILE_STATES).join(", ")}`,
+      );
+    }
+
     return {
       isValid: errors.length === 0,
       errors,
@@ -960,19 +1217,39 @@ class FileService {
 
   // Get debug information
   getDebugInfo() {
+    const cacheStats = {
+      total: this.cache.size,
+      byState: {},
+      withTombstones: 0,
+      expiredTombstones: 0,
+    };
+
+    // Calculate cache statistics
+    for (const file of this.cache.values()) {
+      cacheStats.byState[file.state] =
+        (cacheStats.byState[file.state] || 0) + 1;
+      if (file._has_tombstone) cacheStats.withTombstones++;
+      if (file._tombstone_expired) cacheStats.expiredTombstones++;
+    }
+
     return {
       cacheSize: this.cache.size,
+      cacheStats,
       cachedFileIds: Array.from(this.cache.keys()),
       uploadQueueSize: this.uploadQueue.size,
       uploadingFileIds: Array.from(this.uploadQueue.keys()),
       isLoading: this.isLoading,
+      fileStates: this.FILE_STATES,
     };
   }
 
   // Update or add a file to cache
   updateFileInCache(file) {
-    this.cache.set(file.id, file);
-    console.log(`[FileService] Updated file ${file.id} in cache`);
+    const normalizedFile = this.normalizeFile(file);
+    this.cache.set(normalizedFile.id, normalizedFile);
+    console.log(
+      `[FileService] Updated file ${normalizedFile.id} in cache (v${normalizedFile.version}, ${normalizedFile.state})`,
+    );
   }
 
   // Remove file from cache
@@ -1015,7 +1292,19 @@ class FileService {
         );
       }
 
-      console.log("[FileService] File metadata found:", fileMetadata.name);
+      // Check if file can be downloaded (not deleted or expired)
+      if (fileMetadata._is_deleted && !this.canRestoreFile(fileMetadata)) {
+        throw new Error("File is deleted and cannot be downloaded.");
+      }
+
+      console.log(
+        "[FileService] File metadata found:",
+        fileMetadata.name,
+        "version:",
+        fileMetadata.version,
+        "state:",
+        fileMetadata.state,
+      );
 
       // Step 2: Get presigned download URL and download encrypted content
       const downloadResponse = await this.downloadFile(fileId);
@@ -1071,6 +1360,8 @@ class FileService {
         filename: filename,
         mimeType: mimeType,
         size: decryptedBlob.size,
+        version: fileMetadata.version,
+        state: fileMetadata.state,
       };
     } catch (error) {
       console.error(
