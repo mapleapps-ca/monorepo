@@ -8,8 +8,8 @@ import LocalStorageService from "../services/LocalStorageService.js";
 import ApiClient from "../services/ApiClient.js";
 import WorkerManager from "../services/WorkerManager.js";
 import PasswordStorageService from "../services/PasswordStorageService.js";
-import SyncCollectionAPIService from "../services/SyncCollectionAPIService.js";
-import SyncCollectionStorageService from "../services/SyncCollectionStorageService.js";
+import SyncCollectionAPIService from "../services/API/SyncCollectionAPIService.js";
+import SyncCollectionStorageService from "../services/Storage/SyncCollectionStorageService.js";
 import SyncCollectionService from "../services/SyncCollectionService.js";
 
 // Create a context for our services

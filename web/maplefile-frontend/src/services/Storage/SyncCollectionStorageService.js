@@ -1,4 +1,4 @@
-// SyncCollectionStorageService.js
+// File: monorepo/web/maplefile-frontend/src/services/Storage/SyncCollectionStorageService.js
 // Simple service to save/get sync collections from localStorage
 
 class SyncCollectionStorageService {

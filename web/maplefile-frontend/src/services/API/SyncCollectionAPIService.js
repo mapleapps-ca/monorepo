@@ -1,4 +1,4 @@
-// SyncCollectionAPIService.js - RENAMED FOR CLARITY
+// File: monorepo/web/maplefile-frontend/src/services/API/SyncCollectionAPIService.js
 // Service for making API calls to sync collections (paginated requests)
 
 class SyncCollectionAPIService {
@@ -12,7 +12,7 @@ class SyncCollectionAPIService {
   // Import ApiClient for authenticated requests
   async getApiClient() {
     if (!this._apiClient) {
-      const { default: ApiClient } = await import("./ApiClient.js");
+      const { default: ApiClient } = await import("../ApiClient.js");
       this._apiClient = ApiClient;
     }
     return this._apiClient;
