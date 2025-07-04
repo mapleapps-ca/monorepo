@@ -1,4 +1,4 @@
-// File: src/services/PasswordStorageService.js
+// File: monorepo/web/maplefile-frontend/src/services/PasswordStorageService.js
 // Enhanced with development mode localStorage support
 
 class PasswordStorageService {

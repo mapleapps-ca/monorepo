@@ -1,4 +1,4 @@
-// SyncCollectionService.js
+// File: monorepo/web/maplefile-frontend/src/service/SyncCollectionService.js
 class SyncCollectionService {
   constructor(
     apiService, // Inject SyncCollectionAPIService

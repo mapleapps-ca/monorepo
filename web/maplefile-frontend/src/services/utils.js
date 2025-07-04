@@ -1,3 +1,4 @@
+// File: monorepo/web/maplefile-frontend/src/service/utils.js
 // UUID v4 Generator - Compatible with Cassandra
 // Generates a random UUID v4 in the format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
 

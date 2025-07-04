@@ -1,3 +1,4 @@
+// File: monorepo/web/maplefile-frontend/src/service/LocalStorageService.js
 // Local Storage Service for managing unencrypted authentication tokens
 // Session keys are kept in memory only and NOT persisted to localStorage
 import CryptoService from "./Crypto/CryptoService.js";

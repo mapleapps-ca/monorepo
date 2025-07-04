@@ -1,3 +1,4 @@
+// File: monorepo/web/maplefile-frontend/src/service/TokenService.js
 // Token Service for managing authentication tokens
 import LocalStorageService from "./LocalStorageService.js";
 import WorkerManager from "./WorkerManager.js";

@@ -1,3 +1,4 @@
+// File: monorepo/web/maplefile-frontend/src/service/ApiClient.js
 // API Client with unencrypted token support
 import LocalStorageService from "./LocalStorageService.js";
 

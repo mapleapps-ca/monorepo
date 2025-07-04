@@ -1,4 +1,4 @@
-// Simple monorepo/web/maplefile-frontend/src/services/MeService.js
+// File: monorepo/web/maplefile-frontend/src/services/MeService.js
 // Me Service for managing current user information - Using ApiClient
 
 class MeService {

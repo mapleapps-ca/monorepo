@@ -1,3 +1,4 @@
+// File: monorepo/web/maplefile-frontend/src/service/AuthService.js
 // Authentication Service for API calls - Updated to store encrypted user data
 import LocalStorageService from "./LocalStorageService.js";
 import CryptoService from "./Crypto/CryptoService.js";

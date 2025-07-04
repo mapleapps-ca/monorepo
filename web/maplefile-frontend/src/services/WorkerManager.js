@@ -1,3 +1,4 @@
+// File: monorepo/web/maplefile-frontend/src/service/utils.js
 // File: src/services/WorkerManager.js - FIXED VERSION with Token Decryption
 import LocalStorageService from "./LocalStorageService.js";
 import passwordStorageService from "./PasswordStorageService.js";
@@ -180,7 +181,9 @@ class WorkerManager {
       }
 
       // Decrypt tokens using password
-      const { default: CryptoService } = await import("./CryptoService.js");
+      const { default: CryptoService } = await import(
+        "./Crypto/CryptoService.js"
+      );
       await CryptoService.initialize();
 
       // First, derive keys from password
