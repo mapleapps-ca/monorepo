@@ -1,6 +1,7 @@
 // File: src/pages/User/FileManager/FileManager.jsx
-import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router";
+// Enhanced consolidated file manager with inline upload and better file/folder management
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate, useParams, useLocation } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
 import useAuth from "../../../hooks/useAuth.js";
 import useCollections from "../../../hooks/useCollections.js";
@@ -9,9 +10,17 @@ import withPasswordProtection from "../../../hocs/withPasswordProtection.jsx";
 
 const FileManager = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { folderId } = useParams(); // Current folder (collection) ID from URL
-  const { collectionService, fileService, passwordStorageService } =
-    useServices();
+  const fileInputRef = useRef(null);
+
+  const {
+    collectionService,
+    fileService,
+    passwordStorageService,
+    cryptoService,
+    collectionCryptoService,
+  } = useServices();
   const { isAuthenticated } = useAuth();
 
   // Hooks
@@ -22,6 +31,7 @@ const FileManager = () => {
     error: collectionsError,
     loadAllCollections,
     deleteCollection,
+    createCollection,
   } = useCollections();
 
   const {
@@ -32,43 +42,34 @@ const FileManager = () => {
     downloadAndSaveFile,
     deleteFile,
     archiveFile,
+    restoreFile,
+    reloadFiles,
+    getActiveFiles,
+    getArchivedFiles,
+    getDeletedFiles,
+    getFileStats,
+    canDownloadFile,
+    canRestoreFile,
+    FILE_STATES,
   } = useFiles(folderId);
 
-  // State
+  // Local state
   const [currentFolder, setCurrentFolder] = useState(null);
   const [breadcrumbs, setBreadcrumbs] = useState([]);
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [viewMode, setViewMode] = useState("list"); // list or grid
   const [sortBy, setSortBy] = useState("name"); // name, date, type
   const [filterType, setFilterType] = useState("all"); // all, folders, files
+  const [fileStateFilter, setFileStateFilter] = useState("active"); // active, archived, deleted, all
+  const [showUploadArea, setShowUploadArea] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState(new Map());
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [needsPassword, setNeedsPassword] = useState(false);
   const [loadAttempted, setLoadAttempted] = useState(false);
-  const [, forceUpdate] = useState({});
 
   const hasCollections = collections.length > 0 || sharedCollections.length > 0;
-
-  // Debug - log collections when they change
-  useEffect(() => {
-    console.log("[FileManager] Collections updated:", {
-      collectionsCount: collections.length,
-      sharedCount: sharedCollections.length,
-      firstCollection: collections[0],
-      isLoading: collectionsLoading,
-      loadAttempted,
-      hasCollections,
-    });
-
-    // Force a re-render when collections change
-    if (collections.length > 0 || sharedCollections.length > 0) {
-      forceUpdate({});
-    }
-  }, [
-    collections,
-    sharedCollections,
-    collectionsLoading,
-    loadAttempted,
-    hasCollections,
-  ]);
 
   // Load collections on mount
   useEffect(() => {
@@ -79,14 +80,12 @@ const FileManager = () => {
         setLoadAttempted(false);
 
         const result = await loadAllCollections();
-
         console.log("[FileManager] Collections loaded successfully", result);
         setLoadAttempted(true);
       } catch (err) {
         console.error("[FileManager] Failed to load collections:", err);
         setLoadAttempted(true);
 
-        // Check if it's a password-related error
         if (
           err.message?.includes("Password required") ||
           err.message?.includes("session keys not available")
@@ -99,7 +98,7 @@ const FileManager = () => {
     if (!loadAttempted) {
       loadCollectionsAsync();
     }
-  }, [loadAttempted, loadAllCollections]); // Include loadAttempted to prevent re-runs
+  }, [loadAttempted, loadAllCollections]);
 
   // Check for decrypt errors when collections change
   useEffect(() => {
@@ -111,6 +110,16 @@ const FileManager = () => {
       setNeedsPassword(false);
     }
   }, [collections, sharedCollections, passwordStorageService]);
+
+  // Show success messages from navigation state
+  useEffect(() => {
+    if (location.state?.message) {
+      // You could show a toast notification here
+      console.log("[FileManager] Success:", location.state.message);
+      // Clear the message from state
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, navigate]);
 
   // Load current folder details and build breadcrumbs
   const loadCurrentFolder = useCallback(async () => {
@@ -131,7 +140,6 @@ const FileManager = () => {
 
       // Get hierarchy if available
       if (folder.ancestor_ids && folder.ancestor_ids.length > 0) {
-        // Load ancestors
         for (const ancestorId of folder.ancestor_ids) {
           try {
             const ancestor = await collectionService.getCollection(
@@ -164,7 +172,6 @@ const FileManager = () => {
       setBreadcrumbs(crumbs);
     } catch (error) {
       console.error("Failed to load folder:", error);
-      // Still set breadcrumbs to allow navigation back
       setBreadcrumbs([
         { id: null, name: "My Files", path: "/files" },
         {
@@ -180,14 +187,32 @@ const FileManager = () => {
   useEffect(() => {
     if (folderId) {
       loadCurrentFolder();
-      // Load files when entering a folder
-      loadFilesByCollection(folderId, true);
+      // Load files when entering a folder with state filtering
+      const statesToInclude = getStatesToInclude(fileStateFilter);
+      loadFilesByCollection(folderId, true, statesToInclude);
     } else {
-      // At root level, just set the breadcrumbs
       setCurrentFolder(null);
       setBreadcrumbs([{ id: null, name: "My Files", path: "/files" }]);
     }
-  }, [folderId, loadCurrentFolder, loadFilesByCollection]);
+  }, [folderId, loadCurrentFolder, loadFilesByCollection, fileStateFilter]);
+
+  // Get states to include based on filter
+  const getStatesToInclude = (filter) => {
+    switch (filter) {
+      case "active":
+        return [FILE_STATES.ACTIVE];
+      case "archived":
+        return [FILE_STATES.ARCHIVED];
+      case "deleted":
+        return [FILE_STATES.DELETED];
+      case "pending":
+        return [FILE_STATES.PENDING];
+      case "all":
+        return Object.values(FILE_STATES);
+      default:
+        return [FILE_STATES.ACTIVE];
+    }
+  };
 
   // Check if a collection is at root level
   const isRootLevel = useCallback((parentId) => {
@@ -200,42 +225,50 @@ const FileManager = () => {
 
   // Get child collections (subfolders) of current folder
   const getSubfolders = useCallback(() => {
-    // Combine owned and shared collections, removing duplicates
     const collectionMap = new Map();
-
-    // Add owned collections
     collections.forEach((c) => collectionMap.set(c.id, c));
-
-    // Add shared collections (will overwrite if duplicate)
     sharedCollections.forEach((c) => collectionMap.set(c.id, c));
-
     const allColls = Array.from(collectionMap.values());
 
     let result;
     if (!folderId) {
-      // Root level - show collections that are at root
       result = allColls.filter((c) => isRootLevel(c.parent_id));
     } else {
-      // Show collections with current folder as parent
       result = allColls.filter((c) => c.parent_id === folderId);
-    }
-
-    // Debug logging
-    if (import.meta.env.DEV) {
-      console.log("[FileManager] getSubfolders:", {
-        folderId: folderId || "root",
-        totalCollections: allColls.length,
-        resultCount: result.length,
-        sampleParentIds: allColls.slice(0, 3).map((c) => c.parent_id),
-      });
     }
 
     return result;
   }, [collections, sharedCollections, folderId, isRootLevel]);
 
+  // Get files to display based on state filter
+  const getFilesToDisplay = useCallback(() => {
+    switch (fileStateFilter) {
+      case "active":
+        return getActiveFiles();
+      case "archived":
+        return getArchivedFiles();
+      case "deleted":
+        return getDeletedFiles();
+      case "pending":
+        return files.filter((f) => f.state === FILE_STATES.PENDING);
+      case "all":
+        return files;
+      default:
+        return getActiveFiles();
+    }
+  }, [
+    files,
+    fileStateFilter,
+    getActiveFiles,
+    getArchivedFiles,
+    getDeletedFiles,
+    FILE_STATES,
+  ]);
+
   // Get items to display (folders + files)
   const getDisplayItems = useCallback(() => {
     const subfolders = getSubfolders();
+    const filesToShow = getFilesToDisplay();
 
     const folders = subfolders.map((folder) => ({
       ...folder,
@@ -245,7 +278,7 @@ const FileManager = () => {
       displayDate: folder.modified_at || folder.created_at,
     }));
 
-    const displayFiles = files.map((file) => ({
+    const displayFiles = filesToShow.map((file) => ({
       ...file,
       itemType: "file",
       displayName: file.name || "[Encrypted]",
@@ -253,26 +286,7 @@ const FileManager = () => {
       displayDate: file.modified_at || file.created_at,
     }));
 
-    // Debug logging
-    if (import.meta.env.DEV) {
-      console.log("[FileManager] Display items debug:", {
-        folderId,
-        subfoldersCount: subfolders.length,
-        foldersCount: folders.length,
-        filesCount: displayFiles.length,
-        folders: folders.map((f) => ({
-          id: f.id,
-          name: f.displayName,
-          parent_id: f.parent_id,
-        })),
-        totalCollections: collections.length + sharedCollections.length,
-        collectionsLoading,
-        filesLoading,
-      });
-    }
-
     let items = [];
-
     switch (filterType) {
       case "folders":
         items = folders;
@@ -286,7 +300,6 @@ const FileManager = () => {
 
     // Sort items
     items.sort((a, b) => {
-      // Folders first, then files
       if (a.itemType !== b.itemType) {
         return a.itemType === "folder" ? -1 : 1;
       }
@@ -305,25 +318,13 @@ const FileManager = () => {
     });
 
     return items;
-  }, [
-    files,
-    getSubfolders,
-    filterType,
-    sortBy,
-    collections,
-    sharedCollections,
-    folderId,
-    collectionsLoading,
-    filesLoading,
-  ]);
+  }, [getSubfolders, getFilesToDisplay, filterType, sortBy]);
 
-  // Handle item click
+  // Handle item click (navigation for folders, selection for files)
   const handleItemClick = (item) => {
     if (item.itemType === "folder") {
-      // Navigate into folder
       navigate(`/files/${item.id}`);
     } else {
-      // For files, toggle selection
       handleItemSelect(item.id);
     }
   };
@@ -339,7 +340,261 @@ const FileManager = () => {
     setSelectedItems(newSelected);
   };
 
-  // Handle file download
+  // Create new folder
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+
+    setIsCreatingFolder(true);
+    try {
+      const folderData = {
+        name: newFolderName.trim(),
+        collection_type: "folder",
+        parent_id: folderId || null,
+      };
+
+      const password = passwordStorageService.getPassword();
+      if (!password) {
+        throw new Error("Password required to create folder");
+      }
+
+      await collectionService.createCollectionWithPassword(
+        folderData,
+        password,
+      );
+
+      // Reload collections to show the new folder
+      await loadAllCollections();
+
+      // Clear form
+      setNewFolderName("");
+      setShowCreateFolder(false);
+
+      console.log("[FileManager] Folder created successfully");
+    } catch (error) {
+      console.error("[FileManager] Failed to create folder:", error);
+      alert("Failed to create folder: " + error.message);
+    } finally {
+      setIsCreatingFolder(false);
+    }
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (file) => {
+    if (!folderId) {
+      alert("Please select a folder first");
+      return;
+    }
+
+    const uploadId = Date.now().toString();
+    setUploadingFiles((prev) =>
+      new Map(prev).set(uploadId, {
+        id: uploadId,
+        name: file.name,
+        progress: 0,
+        status: "starting",
+      }),
+    );
+
+    try {
+      // Update progress
+      setUploadingFiles((prev) =>
+        new Map(prev).set(uploadId, {
+          ...prev.get(uploadId),
+          status: "encrypting",
+          progress: 10,
+        }),
+      );
+
+      // Get password and collection key
+      const password = passwordStorageService.getPassword();
+      if (!password) {
+        throw new Error("Password required to upload files");
+      }
+
+      // Ensure collection is loaded
+      const collection = await collectionService.getCollection(
+        folderId,
+        password,
+      );
+      let collectionKey =
+        collection.collection_key ||
+        collectionCryptoService.getCachedCollectionKey(folderId);
+
+      if (!collectionKey) {
+        throw new Error("Collection key not available");
+      }
+
+      // Generate file encryption key
+      const fileKey = cryptoService.generateRandomKey();
+
+      // Read file content
+      const fileContent = await file.arrayBuffer();
+
+      setUploadingFiles((prev) =>
+        new Map(prev).set(uploadId, {
+          ...prev.get(uploadId),
+          progress: 30,
+        }),
+      );
+
+      // Encrypt file content
+      const encryptedContent = await cryptoService.encryptWithKey(
+        new Uint8Array(fileContent),
+        fileKey,
+      );
+
+      // Generate file hash
+      const fileHash = await cryptoService.hashData(
+        new Uint8Array(fileContent),
+      );
+      const encryptedHash = cryptoService.uint8ArrayToBase64(fileHash);
+
+      setUploadingFiles((prev) =>
+        new Map(prev).set(uploadId, {
+          ...prev.get(uploadId),
+          progress: 50,
+        }),
+      );
+
+      // Prepare file metadata
+      const metadata = {
+        name: file.name,
+        mime_type: file.type || "application/octet-stream",
+        size: file.size,
+        created_at: new Date().toISOString(),
+        uploaded_at: new Date().toISOString(),
+      };
+
+      // Encrypt metadata
+      const encryptedMetadata = await cryptoService.encryptWithKey(
+        JSON.stringify(metadata),
+        fileKey,
+      );
+
+      // Encrypt file key with collection key
+      const encryptedFileKeyData = await cryptoService.encryptFileKey(
+        fileKey,
+        collectionKey,
+      );
+
+      setUploadingFiles((prev) =>
+        new Map(prev).set(uploadId, {
+          ...prev.get(uploadId),
+          progress: 70,
+        }),
+      );
+
+      // Prepare file data for API
+      const fileData = {
+        id: cryptoService.generateUUID(),
+        collection_id: folderId,
+        encrypted_metadata: encryptedMetadata,
+        encrypted_file_key: {
+          ciphertext: cryptoService.uint8ArrayToBase64(
+            encryptedFileKeyData.ciphertext,
+          ),
+          nonce: cryptoService.uint8ArrayToBase64(encryptedFileKeyData.nonce),
+          key_version: 1,
+        },
+        encryption_version: "v1.0",
+        encrypted_hash: encryptedHash,
+        expected_file_size_in_bytes:
+          cryptoService.tryDecodeBase64(encryptedContent).length,
+        version: 1,
+        state: FILE_STATES.PENDING,
+        tombstone_version: 0,
+        tombstone_expiry: "0001-01-01T00:00:00Z",
+      };
+
+      setUploadingFiles((prev) =>
+        new Map(prev).set(uploadId, {
+          ...prev.get(uploadId),
+          status: "uploading",
+          progress: 80,
+        }),
+      );
+
+      // Convert encrypted content to blob
+      const encryptedBytes = cryptoService.tryDecodeBase64(encryptedContent);
+      const encryptedBlob = new Blob([encryptedBytes], {
+        type: "application/octet-stream",
+      });
+
+      // Upload file
+      await fileService.uploadFile(fileData, encryptedBlob);
+
+      setUploadingFiles((prev) =>
+        new Map(prev).set(uploadId, {
+          ...prev.get(uploadId),
+          status: "completed",
+          progress: 100,
+        }),
+      );
+
+      // Reload files to show the new file
+      const statesToInclude = getStatesToInclude(fileStateFilter);
+      await loadFilesByCollection(folderId, true, statesToInclude);
+
+      // Remove from upload queue after a delay
+      setTimeout(() => {
+        setUploadingFiles((prev) => {
+          const next = new Map(prev);
+          next.delete(uploadId);
+          return next;
+        });
+      }, 2000);
+    } catch (error) {
+      console.error("[FileManager] File upload failed:", error);
+      setUploadingFiles((prev) =>
+        new Map(prev).set(uploadId, {
+          ...prev.get(uploadId),
+          status: "error",
+          error: error.message,
+        }),
+      );
+
+      // Remove from upload queue after delay even on error
+      setTimeout(() => {
+        setUploadingFiles((prev) => {
+          const next = new Map(prev);
+          next.delete(uploadId);
+          return next;
+        });
+      }, 5000);
+    }
+  };
+
+  // Handle file input change
+  const handleFileInputChange = (e) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      Array.from(files).forEach((file) => {
+        handleFileUpload(file);
+      });
+    }
+    // Reset input
+    e.target.value = "";
+  };
+
+  // Handle drag and drop
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      Array.from(files).forEach((file) => {
+        handleFileUpload(file);
+      });
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  // File operations
   const handleDownloadFile = async (fileId) => {
     try {
       await downloadAndSaveFile(fileId);
@@ -348,10 +603,8 @@ const FileManager = () => {
     }
   };
 
-  // Handle file deletion
   const handleDeleteFile = async (fileId) => {
     if (!window.confirm("Are you sure you want to delete this file?")) return;
-
     try {
       await deleteFile(fileId);
       setSelectedItems((prev) => {
@@ -364,7 +617,34 @@ const FileManager = () => {
     }
   };
 
-  // Handle folder deletion
+  const handleArchiveFile = async (fileId) => {
+    if (!window.confirm("Are you sure you want to archive this file?")) return;
+    try {
+      await archiveFile(fileId);
+      setSelectedItems((prev) => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
+    } catch (error) {
+      alert("Failed to archive file: " + error.message);
+    }
+  };
+
+  const handleRestoreFile = async (fileId) => {
+    if (!window.confirm("Are you sure you want to restore this file?")) return;
+    try {
+      await restoreFile(fileId);
+      setSelectedItems((prev) => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
+    } catch (error) {
+      alert("Failed to restore file: " + error.message);
+    }
+  };
+
   const handleDeleteFolder = async (folderId, folderName) => {
     if (
       !window.confirm(
@@ -372,7 +652,6 @@ const FileManager = () => {
       )
     )
       return;
-
     try {
       await deleteCollection(folderId);
     } catch (error) {
@@ -402,8 +681,9 @@ const FileManager = () => {
 
   const displayItems = getDisplayItems();
   const isLoading = collectionsLoading || filesLoading;
+  const fileStats = getFileStats();
 
-  // If we need password and don't have it, prompt
+  // If we need password and don't have it, show prompt
   if (needsPassword && !passwordStorageService.hasPassword()) {
     return (
       <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
@@ -438,100 +718,12 @@ const FileManager = () => {
     );
   }
 
-  // If collections haven't loaded yet and we're not loading, show a message
-  if (!hasCollections && !isLoading && !folderId) {
-    return (
-      <div style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
-        {/* Header */}
-        <div style={{ marginBottom: "20px" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "20px",
-            }}
-          >
-            <h1 style={{ margin: 0 }}>File Manager</h1>
-            <button onClick={() => navigate("/dashboard")}>
-              ← Back to Dashboard
-            </button>
-          </div>
-        </div>
-
-        <div
-          style={{
-            textAlign: "center",
-            padding: "60px",
-            backgroundColor: "#f8f9fa",
-            borderRadius: "8px",
-          }}
-        >
-          <div style={{ fontSize: "48px", marginBottom: "20px" }}>📂</div>
-          <h3>No collections found</h3>
-          <p style={{ color: "#666", marginBottom: "20px" }}>
-            Your collections may not have loaded yet, or you may need to create
-            your first collection.
-          </p>
-          <div
-            style={{ display: "flex", gap: "10px", justifyContent: "center" }}
-          >
-            <button
-              onClick={() => loadAllCollections()}
-              style={{
-                padding: "12px 30px",
-                backgroundColor: "#007bff",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                fontSize: "16px",
-                cursor: "pointer",
-              }}
-            >
-              Reload Collections
-            </button>
-            <button
-              onClick={() => navigate("/collections/create")}
-              style={{
-                padding: "12px 30px",
-                backgroundColor: "#28a745",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                fontSize: "16px",
-                cursor: "pointer",
-              }}
-            >
-              Create First Collection
-            </button>
-            <button
-              onClick={() => navigate("/collections")}
-              style={{
-                padding: "12px 30px",
-                backgroundColor: "#6c757d",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                fontSize: "16px",
-                cursor: "pointer",
-              }}
-            >
-              Use Legacy View
-            </button>
-          </div>
-
-          {collectionsError && (
-            <div style={{ marginTop: "20px", color: "#c00" }}>
-              <strong>Error loading collections:</strong> {collectionsError}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
+    <div
+      style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+    >
       {/* Header */}
       <div style={{ marginBottom: "20px" }}>
         <div
@@ -542,22 +734,53 @@ const FileManager = () => {
             marginBottom: "20px",
           }}
         >
-          <h1 style={{ margin: 0 }}>File Manager</h1>
+          <h1 style={{ margin: 0 }}>📁 File Manager</h1>
           <button onClick={() => navigate("/dashboard")}>
             ← Back to Dashboard
           </button>
         </div>
 
+        {/* Breadcrumbs */}
+        <div
+          style={{
+            padding: "10px",
+            backgroundColor: "#f8f9fa",
+            borderRadius: "4px",
+            marginBottom: "20px",
+          }}
+        >
+          {breadcrumbs.map((crumb, index) => (
+            <span key={crumb.id || "root"}>
+              {index > 0 && <span style={{ margin: "0 5px" }}>/</span>}
+              {index === breadcrumbs.length - 1 ? (
+                <strong>{crumb.name}</strong>
+              ) : (
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(crumb.path);
+                  }}
+                  style={{ color: "#007bff", textDecoration: "none" }}
+                >
+                  {crumb.name}
+                </a>
+              )}
+            </span>
+          ))}
+        </div>
+
         {/* Action buttons */}
-        <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "10px",
+            marginBottom: "20px",
+            flexWrap: "wrap",
+          }}
+        >
           <button
-            onClick={() =>
-              navigate(
-                folderId
-                  ? `/collections/create?parent=${folderId}`
-                  : "/collections/create",
-              )
-            }
+            onClick={() => setShowCreateFolder(true)}
             style={{
               padding: "8px 16px",
               backgroundColor: "#007bff",
@@ -568,64 +791,50 @@ const FileManager = () => {
           >
             📁 New Folder
           </button>
+
           <button
-            onClick={() =>
-              navigate(
-                folderId
-                  ? `/collections/${folderId}/add-file`
-                  : "/files/upload",
-              )
-            }
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!folderId}
             style={{
               padding: "8px 16px",
-              backgroundColor: "#28a745",
+              backgroundColor: folderId ? "#28a745" : "#ccc",
               color: "white",
               border: "none",
               borderRadius: "4px",
             }}
-            disabled={!folderId}
-            title={
-              !folderId
-                ? "Select a folder first"
-                : "Upload file to current folder"
-            }
+            title={!folderId ? "Select a folder first" : "Upload files"}
           >
-            📄 Upload File
+            📄 Upload Files
           </button>
 
-          {/* Manual refresh button for debugging */}
-          {import.meta.env.DEV && (
-            <button
-              onClick={async () => {
-                console.log("[FileManager] Manual refresh triggered");
-                console.log("[FileManager] Current collections:", {
-                  collections,
-                  sharedCollections,
-                });
-                try {
-                  const result = await loadAllCollections();
-                  console.log("[FileManager] Manual refresh result:", result);
-                  console.log("[FileManager] After refresh collections:", {
-                    collections,
-                    sharedCollections,
-                  });
-                  // Force update
-                  forceUpdate({});
-                } catch (err) {
-                  console.error("[FileManager] Manual refresh failed:", err);
-                }
-              }}
-              style={{
-                padding: "8px 16px",
-                backgroundColor: "#6c757d",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-              }}
-            >
-              🔄 Refresh Collections (Debug)
-            </button>
-          )}
+          <button
+            onClick={() => setShowUploadArea(!showUploadArea)}
+            disabled={!folderId}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: folderId ? "#17a2b8" : "#ccc",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+            }}
+          >
+            {showUploadArea ? "Hide" : "Show"} Upload Area
+          </button>
+
+          {/* File state filter */}
+          <select
+            value={fileStateFilter}
+            onChange={(e) => setFileStateFilter(e.target.value)}
+            style={{ padding: "4px 8px" }}
+          >
+            <option value="active">Active Files ({fileStats.active})</option>
+            <option value="archived">
+              Archived Files ({fileStats.archived})
+            </option>
+            <option value="deleted">Deleted Files ({fileStats.deleted})</option>
+            <option value="pending">Pending Files ({fileStats.pending})</option>
+            <option value="all">All Files ({fileStats.total})</option>
+          </select>
 
           <div style={{ marginLeft: "auto", display: "flex", gap: "10px" }}>
             {/* Filter */}
@@ -661,80 +870,172 @@ const FileManager = () => {
           </div>
         </div>
 
-        {/* Status message */}
-        {!isLoading && hasCollections && (
+        {/* Upload progress */}
+        {uploadingFiles.size > 0 && (
           <div
-            style={{ fontSize: "12px", color: "#666", marginBottom: "10px" }}
+            style={{
+              backgroundColor: "#f8f9fa",
+              border: "1px solid #dee2e6",
+              borderRadius: "4px",
+              padding: "15px",
+              marginBottom: "20px",
+            }}
           >
-            {collections.length} owned collections, {sharedCollections.length}{" "}
-            shared collections loaded
+            <h4 style={{ margin: "0 0 10px 0" }}>
+              Uploading Files ({uploadingFiles.size})
+            </h4>
+            {Array.from(uploadingFiles.values()).map((upload) => (
+              <div key={upload.id} style={{ marginBottom: "10px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span>{upload.name}</span>
+                  <span
+                    style={{
+                      color: upload.status === "error" ? "#dc3545" : "#666",
+                    }}
+                  >
+                    {upload.status === "error"
+                      ? "Failed"
+                      : `${upload.progress}%`}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    backgroundColor: "#e0e0e0",
+                    borderRadius: "4px",
+                    height: "8px",
+                    marginTop: "4px",
+                  }}
+                >
+                  <div
+                    style={{
+                      backgroundColor:
+                        upload.status === "error"
+                          ? "#dc3545"
+                          : upload.status === "completed"
+                            ? "#28a745"
+                            : "#007bff",
+                      height: "100%",
+                      borderRadius: "4px",
+                      width: `${upload.progress}%`,
+                      transition: "width 0.3s ease",
+                    }}
+                  />
+                </div>
+                {upload.status === "error" && (
+                  <div
+                    style={{
+                      color: "#dc3545",
+                      fontSize: "12px",
+                      marginTop: "2px",
+                    }}
+                  >
+                    {upload.error}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Breadcrumbs */}
-        <div
-          style={{
-            padding: "10px",
-            backgroundColor: "#f8f9fa",
-            borderRadius: "4px",
-            marginBottom: "20px",
-          }}
-        >
-          {breadcrumbs.map((crumb, index) => (
-            <span key={crumb.id || "root"}>
-              {index > 0 && <span style={{ margin: "0 5px" }}>/</span>}
-              {index === breadcrumbs.length - 1 ? (
-                <strong>{crumb.name}</strong>
-              ) : (
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate(crumb.path);
-                  }}
-                  style={{ color: "#007bff", textDecoration: "none" }}
-                >
-                  {crumb.name}
-                </a>
-              )}
-            </span>
-          ))}
-        </div>
+        {/* Upload area */}
+        {showUploadArea && folderId && (
+          <div
+            style={{
+              border: "2px dashed #ccc",
+              borderRadius: "8px",
+              padding: "40px 20px",
+              textAlign: "center",
+              backgroundColor: "#fafafa",
+              marginBottom: "20px",
+            }}
+          >
+            <div style={{ fontSize: "48px", marginBottom: "20px" }}>📁</div>
+            <h3>Drag and drop files here</h3>
+            <p style={{ color: "#666", marginBottom: "20px" }}>
+              or click the "Upload Files" button to select files
+            </p>
+            <p style={{ color: "#999", fontSize: "14px" }}>
+              Files will be encrypted before upload
+            </p>
+          </div>
+        )}
 
-        {/* Current folder info if in a subfolder */}
-        {currentFolder &&
-          currentFolder.members &&
-          currentFolder.members.length > 1 && (
-            <div
-              style={{
-                backgroundColor: "#d4edda",
-                padding: "10px",
-                borderRadius: "4px",
-                marginBottom: "10px",
-              }}
-            >
-              <small>
-                Shared with {currentFolder.members.length - 1} user(s)
-              </small>
+        {/* Create folder form */}
+        {showCreateFolder && (
+          <div
+            style={{
+              backgroundColor: "#f8f9fa",
+              border: "1px solid #dee2e6",
+              borderRadius: "4px",
+              padding: "15px",
+              marginBottom: "20px",
+            }}
+          >
+            <h4 style={{ margin: "0 0 10px 0" }}>Create New Folder</h4>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Folder name"
+                onKeyPress={(e) => e.key === "Enter" && handleCreateFolder()}
+                disabled={isCreatingFolder}
+                style={{ padding: "8px", flex: 1 }}
+              />
+              <button
+                onClick={handleCreateFolder}
+                disabled={!newFolderName.trim() || isCreatingFolder}
+                style={{
+                  padding: "8px 16px",
+                  backgroundColor: "#28a745",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                }}
+              >
+                {isCreatingFolder ? "Creating..." : "Create"}
+              </button>
+              <button
+                onClick={() => {
+                  setShowCreateFolder(false);
+                  setNewFolderName("");
+                }}
+                disabled={isCreatingFolder}
+                style={{
+                  padding: "8px 16px",
+                  backgroundColor: "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                }}
+              >
+                Cancel
+              </button>
             </div>
-          )}
+          </div>
+        )}
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        onChange={handleFileInputChange}
+        style={{ display: "none" }}
+        multiple
+      />
 
       {/* Loading state */}
       {isLoading && (
         <div style={{ textAlign: "center", padding: "40px" }}>
           <div style={{ fontSize: "32px", marginBottom: "10px" }}>⏳</div>
           <p>Loading folders and files...</p>
-          <p style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
-            {collectionsLoading && "Loading collections... "}
-            {filesLoading && "Loading files... "}
-            {!collectionsLoading && !filesLoading && "Decrypting data..."}
-          </p>
-          {!loadAttempted && (
-            <p style={{ fontSize: "11px", color: "#999", marginTop: "5px" }}>
-              Initializing collection service...
-            </p>
-          )}
         </div>
       )}
 
@@ -750,22 +1051,6 @@ const FileManager = () => {
           }}
         >
           <strong>Error:</strong> {collectionsError || filesError}
-          {collectionsError && (
-            <div style={{ marginTop: "10px" }}>
-              <button
-                onClick={() => loadAllCollections()}
-                style={{
-                  padding: "5px 10px",
-                  backgroundColor: "#c00",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "3px",
-                }}
-              >
-                Retry Loading Collections
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -799,9 +1084,23 @@ const FileManager = () => {
           <div
             style={{ display: "flex", gap: "10px", justifyContent: "center" }}
           >
-            {folderId ? (
+            <button
+              onClick={() => setShowCreateFolder(true)}
+              style={{
+                padding: "12px 30px",
+                backgroundColor: "#007bff",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                fontSize: "16px",
+                cursor: "pointer",
+              }}
+            >
+              Create New Folder
+            </button>
+            {folderId && (
               <button
-                onClick={() => navigate(`/collections/${folderId}/add-file`)}
+                onClick={() => fileInputRef.current?.click()}
                 style={{
                   padding: "12px 30px",
                   backgroundColor: "#28a745",
@@ -812,41 +1111,8 @@ const FileManager = () => {
                   cursor: "pointer",
                 }}
               >
-                Upload Your First File
+                Upload Files
               </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => navigate("/collections/create")}
-                  style={{
-                    padding: "12px 30px",
-                    backgroundColor: "#28a745",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    fontSize: "16px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Create New Folder
-                </button>
-                {!hasCollections && (
-                  <button
-                    onClick={() => loadAllCollections()}
-                    style={{
-                      padding: "12px 30px",
-                      backgroundColor: "#007bff",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      fontSize: "16px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Reload Collections
-                  </button>
-                )}
-              </>
             )}
           </div>
         </div>
@@ -911,16 +1177,27 @@ const FileManager = () => {
                     style={{
                       padding: "12px",
                       textAlign: "left",
-                      width: "150px",
+                      width: "100px",
                     }}
                   >
                     Type
                   </th>
+                  {fileStateFilter !== "active" && (
+                    <th
+                      style={{
+                        padding: "12px",
+                        textAlign: "left",
+                        width: "80px",
+                      }}
+                    >
+                      State
+                    </th>
+                  )}
                   <th
                     style={{
                       padding: "12px",
                       textAlign: "center",
-                      width: "100px",
+                      width: "150px",
                     }}
                   >
                     Actions
@@ -959,6 +1236,11 @@ const FileManager = () => {
                           {item.itemType === "folder" ? "📁" : "📄"}
                         </span>
                         <span>{item.displayName}</span>
+                        {item._decrypt_error && (
+                          <span style={{ color: "#ff6b6b", fontSize: "12px" }}>
+                            (Decrypt failed)
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td style={{ padding: "12px" }}>
@@ -972,49 +1254,53 @@ const FileManager = () => {
                         ? "Folder"
                         : item.mime_type || "File"}
                     </td>
+                    {fileStateFilter !== "active" && (
+                      <td style={{ padding: "12px" }}>
+                        {item.itemType === "file" && (
+                          <span
+                            style={{
+                              padding: "2px 6px",
+                              borderRadius: "3px",
+                              fontSize: "11px",
+                              backgroundColor:
+                                item.state === "active"
+                                  ? "#d4edda"
+                                  : item.state === "archived"
+                                    ? "#e2e3e5"
+                                    : item.state === "deleted"
+                                      ? "#f8d7da"
+                                      : "#fff3cd",
+                              color:
+                                item.state === "active"
+                                  ? "#155724"
+                                  : item.state === "archived"
+                                    ? "#383d41"
+                                    : item.state === "deleted"
+                                      ? "#721c24"
+                                      : "#856404",
+                            }}
+                          >
+                            {item.state?.toUpperCase()}
+                          </span>
+                        )}
+                      </td>
+                    )}
                     <td
                       style={{ padding: "12px", textAlign: "center" }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {item.itemType === "folder" ? (
-                        <button
-                          onClick={() =>
-                            handleDeleteFolder(item.id, item.displayName)
-                          }
-                          style={{
-                            padding: "4px 8px",
-                            fontSize: "12px",
-                            backgroundColor: "#dc3545",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "3px",
-                          }}
-                        >
-                          Delete
-                        </button>
-                      ) : (
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "4px",
-                            justifyContent: "center",
-                          }}
-                        >
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "4px",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {item.itemType === "folder" ? (
                           <button
-                            onClick={() => handleDownloadFile(item.id)}
-                            style={{
-                              padding: "4px 8px",
-                              fontSize: "12px",
-                              backgroundColor: "#007bff",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "3px",
-                            }}
-                          >
-                            Download
-                          </button>
-                          <button
-                            onClick={() => handleDeleteFile(item.id)}
+                            onClick={() =>
+                              handleDeleteFolder(item.id, item.displayName)
+                            }
                             style={{
                               padding: "4px 8px",
                               fontSize: "12px",
@@ -1026,8 +1312,71 @@ const FileManager = () => {
                           >
                             Delete
                           </button>
-                        </div>
-                      )}
+                        ) : (
+                          <>
+                            {canDownloadFile(item) && (
+                              <button
+                                onClick={() => handleDownloadFile(item.id)}
+                                style={{
+                                  padding: "4px 8px",
+                                  fontSize: "12px",
+                                  backgroundColor: "#007bff",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "3px",
+                                }}
+                              >
+                                Download
+                              </button>
+                            )}
+                            {item.state === "active" && (
+                              <button
+                                onClick={() => handleArchiveFile(item.id)}
+                                style={{
+                                  padding: "4px 8px",
+                                  fontSize: "12px",
+                                  backgroundColor: "#6c757d",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "3px",
+                                }}
+                              >
+                                Archive
+                              </button>
+                            )}
+                            {canRestoreFile(item) && (
+                              <button
+                                onClick={() => handleRestoreFile(item.id)}
+                                style={{
+                                  padding: "4px 8px",
+                                  fontSize: "12px",
+                                  backgroundColor: "#28a745",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "3px",
+                                }}
+                              >
+                                Restore
+                              </button>
+                            )}
+                            {!item._is_deleted && (
+                              <button
+                                onClick={() => handleDeleteFile(item.id)}
+                                style={{
+                                  padding: "4px 8px",
+                                  fontSize: "12px",
+                                  backgroundColor: "#dc3545",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "3px",
+                                }}
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1080,6 +1429,17 @@ const FileManager = () => {
                       ? "Folder"
                       : formatFileSize(item.displaySize)}
                   </div>
+                  {fileStateFilter !== "active" && item.itemType === "file" && (
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        color: "#999",
+                        marginTop: "2px",
+                      }}
+                    >
+                      {item.state?.toUpperCase()}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1135,130 +1495,16 @@ const FileManager = () => {
         </p>
         <ul style={{ marginBottom: 0, paddingLeft: "20px" }}>
           <li>Click on folders to navigate into them</li>
+          <li>Drag and drop files to upload them to the current folder</li>
           <li>Use the breadcrumbs to navigate back to parent folders</li>
-          <li>Files must be uploaded to a specific folder</li>
           <li>All files and folder names are end-to-end encrypted</li>
           <li>
-            Access the{" "}
-            <a href="/collections" style={{ color: "#007bff" }}>
-              legacy collections view
-            </a>{" "}
-            for advanced features
+            Files can be in different states: Active, Archived, Deleted, or
+            Pending
           </li>
+          <li>Use the state filter to view files in different states</li>
         </ul>
       </div>
-
-      {/* Debug info in development */}
-      {import.meta.env.DEV && (
-        <details
-          style={{
-            marginTop: "20px",
-            padding: "10px",
-            backgroundColor: "#f8f9fa",
-          }}
-        >
-          <summary>🔍 Debug Information</summary>
-          <div>
-            <h4>Collections State:</h4>
-            <pre>
-              {JSON.stringify(
-                {
-                  collectionsCount: collections.length,
-                  sharedCollectionsCount: sharedCollections.length,
-                  currentFolderId: folderId || "root",
-                  displayItemsCount: displayItems.length,
-                  isLoading: collectionsLoading || filesLoading,
-                  collectionsLoading,
-                  filesLoading,
-                  subfoldersInCurrentFolder: getSubfolders().length,
-                  filesInCurrentFolder: files.length,
-                  hasPassword: passwordStorageService.hasPassword(),
-                  needsPassword,
-                },
-                null,
-                2,
-              )}
-            </pre>
-            <h4>Raw collections data:</h4>
-            <pre>
-              {JSON.stringify(
-                {
-                  owned: collections.length,
-                  shared: sharedCollections.length,
-                  firstOwned: collections[0]
-                    ? {
-                        id: collections[0].id,
-                        parent_id: collections[0].parent_id,
-                        name: collections[0].name || "[Not decrypted]",
-                        decrypt_error: collections[0].decrypt_error,
-                      }
-                    : null,
-                  firstShared: sharedCollections[0]
-                    ? {
-                        id: sharedCollections[0].id,
-                        parent_id: sharedCollections[0].parent_id,
-                        name: sharedCollections[0].name || "[Not decrypted]",
-                      }
-                    : null,
-                },
-                null,
-                2,
-              )}
-            </pre>
-            <h4>First few collections:</h4>
-            <pre>
-              {JSON.stringify(
-                {
-                  collectionsSample: collections.slice(0, 2).map((c) => ({
-                    id: c.id,
-                    name: c.name || "[Not decrypted]",
-                    parent_id: c.parent_id,
-                    parent_id_type: typeof c.parent_id,
-                    isNull: c.parent_id === null,
-                    isZeroUUID:
-                      c.parent_id === "00000000-0000-0000-0000-000000000000",
-                    isRootLevel: isRootLevel(c.parent_id),
-                  })),
-                },
-                null,
-                2,
-              )}
-            </pre>
-            <h4>GetSubfolders debug:</h4>
-            <pre>
-              {JSON.stringify(
-                {
-                  currentFolderId: folderId || "root",
-                  getSubfoldersDebug: (() => {
-                    const allColls = [
-                      ...new Map(
-                        [...collections, ...sharedCollections].map((c) => [
-                          c.id,
-                          c,
-                        ]),
-                      ).values(),
-                    ];
-                    const rootColls = allColls.filter((c) =>
-                      isRootLevel(c.parent_id),
-                    );
-                    return {
-                      totalUnique: allColls.length,
-                      rootLevel: rootColls.length,
-                      rootCollections: rootColls.map((c) => ({
-                        id: c.id,
-                        name: c.name || "[Not decrypted]",
-                        parent_id: c.parent_id,
-                      })),
-                    };
-                  })(),
-                },
-                null,
-                2,
-              )}
-            </pre>
-          </div>
-        </details>
-      )}
     </div>
   );
 };

@@ -1,9 +1,14 @@
 // File: src/components/FileSyncManager.jsx
-// Component for managing file synchronization with version control and conflict resolution
+// Enhanced FileSyncManager that integrates better with the consolidated FileManager
 import React, { useState, useEffect, useCallback } from "react";
 import { useServices } from "../hooks/useService.jsx";
 
-const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
+const FileSyncManager = ({
+  onSyncComplete = null,
+  showDetailed = false,
+  currentFolderId = null, // Add current folder context
+  onRefreshNeeded = null, // Callback to refresh current view
+}) => {
   const { authService } = useServices();
   const [syncService, setSyncService] = useState(null);
   const [syncStatus, setSyncStatus] = useState(null);
@@ -12,6 +17,7 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
   const [conflicts, setConflicts] = useState([]);
   const [error, setError] = useState("");
   const [showConflicts, setShowConflicts] = useState(false);
+  const [lastSyncResult, setLastSyncResult] = useState(null);
 
   // Initialize sync service
   useEffect(() => {
@@ -69,7 +75,7 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
     console.log("[FileSyncManager] Sync progress:", progress);
   }, []);
 
-  // Perform full sync
+  // Perform full sync with FileManager integration
   const handleFullSync = useCallback(async () => {
     if (!syncService || isSyncing) return;
 
@@ -81,6 +87,12 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
 
       console.log("[FileSyncManager] Full sync completed:", stats);
       updateSyncStatus();
+      setLastSyncResult({ type: "full", stats, completedAt: new Date() });
+
+      // Notify parent component to refresh if needed
+      if (onRefreshNeeded) {
+        onRefreshNeeded();
+      }
 
       if (onSyncComplete) {
         onSyncComplete({ type: "full", stats });
@@ -97,9 +109,10 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
     handleSyncProgress,
     updateSyncStatus,
     onSyncComplete,
+    onRefreshNeeded,
   ]);
 
-  // Perform incremental sync
+  // Perform incremental sync with FileManager integration
   const handleIncrementalSync = useCallback(async () => {
     if (!syncService || isSyncing) return;
 
@@ -112,6 +125,16 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
 
       console.log("[FileSyncManager] Incremental sync completed:", stats);
       updateSyncStatus();
+      setLastSyncResult({
+        type: "incremental",
+        stats,
+        completedAt: new Date(),
+      });
+
+      // Notify parent component to refresh if needed
+      if (onRefreshNeeded) {
+        onRefreshNeeded();
+      }
 
       if (onSyncComplete) {
         onSyncComplete({ type: "incremental", stats });
@@ -128,6 +151,53 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
     handleSyncProgress,
     updateSyncStatus,
     onSyncComplete,
+    onRefreshNeeded,
+  ]);
+
+  // Quick sync for current folder only
+  const handleQuickFolderSync = useCallback(async () => {
+    if (!syncService || isSyncing || !currentFolderId) return;
+
+    try {
+      setError("");
+      setSyncProgress({ phase: "starting", processedFiles: 0 });
+
+      // This would be a folder-specific sync if the backend supports it
+      // For now, we'll do an incremental sync and filter results
+      const stats =
+        await syncService.performIncrementalSync(handleSyncProgress);
+
+      console.log("[FileSyncManager] Quick folder sync completed:", stats);
+      updateSyncStatus();
+      setLastSyncResult({
+        type: "folder",
+        folderId: currentFolderId,
+        stats,
+        completedAt: new Date(),
+      });
+
+      // Always notify for refresh on folder sync
+      if (onRefreshNeeded) {
+        onRefreshNeeded();
+      }
+
+      if (onSyncComplete) {
+        onSyncComplete({ type: "folder", folderId: currentFolderId, stats });
+      }
+    } catch (err) {
+      console.error("[FileSyncManager] Quick folder sync failed:", err);
+      setError("Quick folder sync failed: " + err.message);
+    } finally {
+      setSyncProgress(null);
+    }
+  }, [
+    syncService,
+    isSyncing,
+    currentFolderId,
+    handleSyncProgress,
+    updateSyncStatus,
+    onSyncComplete,
+    onRefreshNeeded,
   ]);
 
   // Resolve conflict
@@ -139,6 +209,12 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
         setError("");
         await syncService.resolveConflict(conflictId, resolution);
         updateSyncStatus();
+
+        // Refresh the current view after conflict resolution
+        if (onRefreshNeeded) {
+          onRefreshNeeded();
+        }
+
         console.log(
           "[FileSyncManager] Conflict resolved:",
           conflictId,
@@ -149,7 +225,7 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
         setError("Failed to resolve conflict: " + err.message);
       }
     },
-    [syncService, updateSyncStatus],
+    [syncService, updateSyncStatus, onRefreshNeeded],
   );
 
   // Clear sync data
@@ -163,8 +239,29 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
     ) {
       syncService.clearSyncData();
       updateSyncStatus();
+      setLastSyncResult(null);
     }
   }, [syncService, updateSyncStatus]);
+
+  // Auto-sync on mount if needed
+  useEffect(() => {
+    if (!syncService || isSyncing) return;
+
+    const recommendation = syncService.getRecommendedSyncAction();
+
+    // Auto-sync if it's been a while and we're not showing detailed view
+    if (!showDetailed && recommendation === "incremental_sync") {
+      const timeSinceLastSync = syncStatus?.lastSyncTime
+        ? Date.now() - new Date(syncStatus.lastSyncTime).getTime()
+        : Infinity;
+
+      // Auto-sync if more than 10 minutes since last sync
+      if (timeSinceLastSync > 10 * 60 * 1000) {
+        console.log("[FileSyncManager] Auto-triggering incremental sync");
+        handleIncrementalSync();
+      }
+    }
+  }, [syncService, isSyncing, showDetailed, syncStatus, handleIncrementalSync]);
 
   // Format time duration
   const formatDuration = (ms) => {
@@ -268,22 +365,39 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
         }}
       >
         <h3 style={{ margin: 0 }}>📡 File Synchronization</h3>
-        {showDetailed && (
-          <button
-            onClick={() => setShowConflicts(!showConflicts)}
-            style={{
-              padding: "6px 12px",
-              fontSize: "12px",
-              backgroundColor: conflicts.length > 0 ? "#dc3545" : "#6c757d",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}
-          >
-            {conflicts.length} Conflicts
-          </button>
-        )}
+        <div style={{ display: "flex", gap: "10px" }}>
+          {conflicts.length > 0 && showDetailed && (
+            <button
+              onClick={() => setShowConflicts(!showConflicts)}
+              style={{
+                padding: "6px 12px",
+                fontSize: "12px",
+                backgroundColor: "#dc3545",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+              }}
+            >
+              {conflicts.length} Conflicts
+            </button>
+          )}
+
+          {/* Last sync result indicator */}
+          {lastSyncResult && (
+            <span
+              style={{
+                padding: "6px 12px",
+                fontSize: "12px",
+                backgroundColor: "#28a745",
+                color: "white",
+                borderRadius: "4px",
+              }}
+            >
+              Last: {lastSyncResult.type} sync
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Error Display */}
@@ -453,22 +567,37 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
 
         <button
           onClick={handleIncrementalSync}
-          disabled={isSyncing || !syncStatus?.lastSyncTime}
+          disabled={isSyncing}
           style={{
             padding: "8px 16px",
             backgroundColor: "#ffc107",
             color: "white",
             border: "none",
             borderRadius: "4px",
-            cursor:
-              isSyncing || !syncStatus?.lastSyncTime
-                ? "not-allowed"
-                : "pointer",
+            cursor: isSyncing ? "not-allowed" : "pointer",
             fontSize: "14px",
           }}
         >
           Quick Sync
         </button>
+
+        {currentFolderId && (
+          <button
+            onClick={handleQuickFolderSync}
+            disabled={isSyncing}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#28a745",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: isSyncing ? "not-allowed" : "pointer",
+              fontSize: "14px",
+            }}
+          >
+            Sync Folder
+          </button>
+        )}
 
         {showDetailed && (
           <button
@@ -588,6 +717,8 @@ const FileSyncManager = ({ onSyncComplete = null, showDetailed = false }) => {
       <div style={{ fontSize: "12px", color: "#666", marginTop: "15px" }}>
         💡 Synchronization keeps your files up to date across devices. Version
         conflicts occur when the same file is modified on multiple devices.
+        {currentFolderId &&
+          " Use 'Sync Folder' for quick folder-specific sync."}
       </div>
     </div>
   );

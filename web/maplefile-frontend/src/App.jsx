@@ -1,4 +1,5 @@
 // monorepo/web/maplefile-frontend/src/App.jsx
+// Updated with consolidated file manager routing
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import { ServiceProvider } from "./contexts/ServiceContext";
@@ -20,11 +21,11 @@ import CompleteLogin from "./pages/Anonymous/Login/CompleteLogin";
 import Dashboard from "./pages/User/Dashboard/Dashboard";
 import MeDetail from "./pages/User/Me/Detail";
 
-// File Manager (NEW)
+// Consolidated File Manager (NEW - replaces multiple collection/file pages)
 import FileManager from "./pages/User/FileManager/FileManager";
 import FileUploadRedirect from "./pages/User/FileManager/FileUploadRedirect";
 
-// Collection pages (kept for specific operations)
+// Legacy Collection pages (kept for backward compatibility and advanced features)
 import CollectionList from "./pages/User/Collection/List";
 import CollectionCreate from "./pages/User/Collection/Create";
 import CollectionDetail from "./pages/User/Collection/Detail";
@@ -67,12 +68,21 @@ function App() {
             <Route path="/me" element={<MeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
 
-            {/* File Manager routes (NEW) */}
+            {/* === CONSOLIDATED FILE MANAGER ROUTES (NEW PRIMARY INTERFACE) === */}
             <Route path="/files" element={<FileManager />} />
             <Route path="/files/upload" element={<FileUploadRedirect />} />
             <Route path="/files/:folderId" element={<FileManager />} />
 
-            {/* Collection routes (kept for specific operations) */}
+            {/* File manager shortcuts for easier navigation */}
+            <Route
+              path="/file-manager"
+              element={<Navigate to="/files" replace />}
+            />
+            <Route path="/fm" element={<Navigate to="/files" replace />} />
+
+            {/* === LEGACY COLLECTION ROUTES (BACKWARD COMPATIBILITY) === */}
+            {/* These are kept for users who prefer the traditional interface */}
+            {/* or need advanced collection management features */}
             <Route path="/collections" element={<CollectionList />} />
             <Route path="/collections/create" element={<CollectionCreate />} />
             <Route
@@ -94,6 +104,12 @@ function App() {
             <Route
               path="/collections/:collectionId/delete"
               element={<CollectionDelete />}
+            />
+
+            {/* Legacy redirects to new file manager */}
+            <Route
+              path="/collections/:collectionId/upload"
+              element={<Navigate to="/files/:collectionId" replace />}
             />
 
             {/* Redirect any unknown routes to home */}
