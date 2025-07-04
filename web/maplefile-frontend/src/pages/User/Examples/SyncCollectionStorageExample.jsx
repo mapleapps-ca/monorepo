@@ -1,11 +1,11 @@
-// SyncCollectionStorageExample.jsx
-// Example page to test SyncCollectionStorageService
+// SyncCollectionStorageExample.jsx - UPDATED
+// Example page to test SyncCollectionStorageService and SyncCollectionAPIService
 
 import React, { useState, useEffect } from "react";
 import { useServices } from "../../../hooks/useService.jsx";
 
 const SyncCollectionStorageExample = () => {
-  const { syncCollectionStorageService, syncCollectionsService } =
+  const { syncCollectionStorageService, syncCollectionAPIService } =
     useServices();
   const [syncCollections, setSyncCollections] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -80,7 +80,7 @@ const SyncCollectionStorageExample = () => {
 
       // First, sync all collections from the API
       const syncedCollections =
-        await syncCollectionsService.syncAllCollections();
+        await syncCollectionAPIService.syncAllCollections();
       setSyncCollections(syncedCollections);
 
       // Then, save them to localStorage
@@ -89,7 +89,7 @@ const SyncCollectionStorageExample = () => {
       if (success) {
         updateStorageInfo();
         console.log(
-          "✅ Synced and saved:",
+          "✅ Synced from API and saved to localStorage:",
           syncedCollections.length,
           "sync collections",
         );
@@ -127,6 +127,11 @@ const SyncCollectionStorageExample = () => {
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
       <h2>💾 Sync Collection Storage Service Test</h2>
+      <p style={{ color: "#666", marginBottom: "20px" }}>
+        This page demonstrates both the{" "}
+        <strong>SyncCollectionAPIService</strong> (for API calls) and the{" "}
+        <strong>SyncCollectionStorageService</strong> (for localStorage).
+      </p>
 
       {/* Action Buttons */}
       <div
@@ -182,7 +187,7 @@ const SyncCollectionStorageExample = () => {
             cursor: loading ? "not-allowed" : "pointer",
           }}
         >
-          {loading ? "🔄 Syncing..." : "🔄 Sync & Save"}
+          {loading ? "🔄 Syncing..." : "🔄 Sync from API & Save"}
         </button>
 
         <button
@@ -274,7 +279,7 @@ const SyncCollectionStorageExample = () => {
             </p>
             <p style={{ color: "#6c757d" }}>
               Click "Load from Storage" to load saved sync collections, or "Sync
-              & Save" to fetch from API.
+              from API & Save" to fetch from API.
             </p>
           </div>
         ) : (

@@ -1,12 +1,12 @@
-// SyncCollectionsService.js - SIMPLIFIED VERSION
-// Just one main function: syncAllCollections() that returns everything
+// SyncCollectionAPIService.js - RENAMED FOR CLARITY
+// Service for making API calls to sync collections (paginated requests)
 
-class SyncCollectionsService {
+class SyncCollectionAPIService {
   constructor(authService) {
     this.authService = authService;
     this.isLoading = false;
     this._apiClient = null;
-    console.log("[SyncCollectionsService] Simple service initialized");
+    console.log("[SyncCollectionAPIService] API service initialized");
   }
 
   // Import ApiClient for authenticated requests
@@ -19,11 +19,11 @@ class SyncCollectionsService {
   }
 
   /**
-   * Sync ALL collections by automatically paginating through all pages
+   * Sync ALL collections by automatically paginating through all API pages
    * This is the ONLY function you need to call!
    * @param {Object} options - Optional settings
    * @param {number} options.pageSize - Collections per page (default: 1000, max: 5000)
-   * @returns {Promise<Array>} - Complete array of all collections
+   * @returns {Promise<Array>} - Complete array of all sync collections from API
    */
   async syncAllCollections(options = {}) {
     if (!this.authService.isAuthenticated()) {
@@ -32,9 +32,9 @@ class SyncCollectionsService {
 
     try {
       this.isLoading = true;
-      console.log("[SyncCollectionsService] Starting complete sync...");
+      console.log("[SyncCollectionAPIService] Starting complete API sync...");
 
-      const allCollections = [];
+      const allSyncCollections = [];
       let cursor = null;
       let hasMore = true;
       let pageCount = 0;
@@ -42,16 +42,18 @@ class SyncCollectionsService {
 
       while (hasMore) {
         pageCount++;
-        console.log(`[SyncCollectionsService] Fetching page ${pageCount}...`);
+        console.log(
+          `[SyncCollectionAPIService] Fetching API page ${pageCount}...`,
+        );
 
         // Make single page request
         const response = await this.fetchSinglePage(pageSize, cursor);
 
-        // Add collections to the result
+        // Add sync collections to the result
         if (response.collections && response.collections.length > 0) {
-          allCollections.push(...response.collections);
+          allSyncCollections.push(...response.collections);
           console.log(
-            `[SyncCollectionsService] Page ${pageCount}: ${response.collections.length} collections (Total: ${allCollections.length})`,
+            `[SyncCollectionAPIService] Page ${pageCount}: ${response.collections.length} sync collections (Total: ${allSyncCollections.length})`,
           );
         }
 
@@ -61,11 +63,11 @@ class SyncCollectionsService {
       }
 
       console.log(
-        `[SyncCollectionsService] ✅ Complete! ${allCollections.length} collections across ${pageCount} pages`,
+        `[SyncCollectionAPIService] ✅ API sync complete! ${allSyncCollections.length} sync collections across ${pageCount} pages`,
       );
-      return allCollections;
+      return allSyncCollections;
     } catch (error) {
-      console.error("[SyncCollectionsService] ❌ Sync failed:", error);
+      console.error("[SyncCollectionAPIService] ❌ API sync failed:", error);
       throw error;
     } finally {
       this.isLoading = false;
@@ -73,7 +75,7 @@ class SyncCollectionsService {
   }
 
   /**
-   * Internal method to fetch a single page
+   * Internal method to fetch a single page from API
    * @private
    */
   async fetchSinglePage(limit, cursor) {
@@ -90,13 +92,13 @@ class SyncCollectionsService {
     // Build endpoint URL
     const endpoint = `/sync/collections?${queryParams.toString()}`;
 
-    console.log(`[SyncCollectionsService] → GET ${endpoint}`);
+    console.log(`[SyncCollectionAPIService] → GET ${endpoint}`);
 
     // Make the API request
     const response = await apiClient.getMapleFile(endpoint);
 
     console.log(
-      `[SyncCollectionsService] ← Response: ${response.collections?.length || 0} collections, hasMore: ${response.has_more}`,
+      `[SyncCollectionAPIService] ← API Response: ${response.collections?.length || 0} collections, hasMore: ${response.has_more}`,
     );
 
     return response;
@@ -104,7 +106,7 @@ class SyncCollectionsService {
 
   /**
    * Get loading state
-   * @returns {boolean} - True if currently syncing
+   * @returns {boolean} - True if currently syncing from API
    */
   isLoadingSync() {
     return this.isLoading;
@@ -119,9 +121,9 @@ class SyncCollectionsService {
       isAuthenticated: this.authService.isAuthenticated(),
       isLoading: this.isLoading,
       canMakeRequests: this.authService.canMakeAuthenticatedRequests(),
-      serviceName: "SyncCollectionsService (Simplified)",
+      serviceName: "SyncCollectionAPIService",
     };
   }
 }
 
-export default SyncCollectionsService;
+export default SyncCollectionAPIService;

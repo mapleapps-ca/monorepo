@@ -20,15 +20,17 @@ const Dashboard = () => {
       icon: "📁",
     },
     {
-      path: "/sync-collections-example",
-      title: "Sync Collections Example",
-      description: "Test syncing collections from the API.",
+      path: "/sync-collection-api-example",
+      title: "Sync Collection API Example",
+      description:
+        "Test the SyncCollectionAPIService - sync collections from API.",
       icon: "🔄",
     },
     {
       path: "/sync-collection-storage-example",
       title: "Sync Collection Storage Example",
-      description: "Test saving/loading sync collections to/from localStorage.",
+      description:
+        "Test the SyncCollectionStorageService - save/load sync collections to/from localStorage.",
       icon: "💾",
     },
     {

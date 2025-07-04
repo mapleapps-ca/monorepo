@@ -1,50 +1,50 @@
-// useSyncCollections.js - SIMPLIFIED HOOK
-// Just one function: syncAllCollections()
+// useSyncCollections.js - UPDATED
+// Custom React hook for easy sync collection API functionality
 
 import { useState, useCallback } from "react";
 import { useServices } from "./useService.jsx";
 
 const useSyncCollections = () => {
-  const { syncCollectionsService } = useServices();
-  const [collections, setCollections] = useState([]);
+  const { syncCollectionAPIService } = useServices();
+  const [syncCollections, setSyncCollections] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // The ONLY function you need - sync all collections
+  // The ONLY function you need - sync all collections from API
   const syncAllCollections = useCallback(
     async (options = {}) => {
       setLoading(true);
       setError(null);
-      setCollections([]);
+      setSyncCollections([]);
 
       try {
-        console.log("[useSyncCollections] Starting complete sync...");
+        console.log("[useSyncCollections] Starting complete API sync...");
 
-        const allCollections =
-          await syncCollectionsService.syncAllCollections(options);
+        const allSyncCollections =
+          await syncCollectionAPIService.syncAllCollections(options);
 
-        setCollections(allCollections);
+        setSyncCollections(allSyncCollections);
         console.log(
-          "[useSyncCollections] ✅ Sync complete:",
-          allCollections.length,
-          "collections",
+          "[useSyncCollections] ✅ API sync complete:",
+          allSyncCollections.length,
+          "sync collections",
         );
 
-        return allCollections;
+        return allSyncCollections;
       } catch (err) {
-        console.error("[useSyncCollections] ❌ Sync failed:", err);
+        console.error("[useSyncCollections] ❌ API sync failed:", err);
         setError(err.message);
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    [syncCollectionsService],
+    [syncCollectionAPIService],
   );
 
   return {
     // State
-    collections,
+    syncCollections,
     loading,
     error,
 
@@ -52,10 +52,25 @@ const useSyncCollections = () => {
     syncAllCollections,
 
     // Computed values
-    collectionsCount: collections.length,
-    activeCollections: collections.filter((c) => c.state === "active"),
-    deletedCollections: collections.filter((c) => c.state === "deleted"),
-    archivedCollections: collections.filter((c) => c.state === "archived"),
+    syncCollectionsCount: syncCollections.length,
+    activeSyncCollections: syncCollections.filter((c) => c.state === "active"),
+    deletedSyncCollections: syncCollections.filter(
+      (c) => c.state === "deleted",
+    ),
+    archivedSyncCollections: syncCollections.filter(
+      (c) => c.state === "archived",
+    ),
+
+    // Service state
+    isServiceLoading: syncCollectionAPIService.isLoadingSync(),
+
+    // Debug info
+    debugInfo: {
+      syncCollections: syncCollections.length,
+      loading,
+      error,
+      serviceDebug: syncCollectionAPIService.getDebugInfo(),
+    },
   };
 };
 

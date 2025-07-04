@@ -30,12 +30,6 @@ const styles = {
     minHeight: "100vh",
     backgroundColor: "#f5f5f5",
   },
-  home: {
-    textAlign: "center",
-    padding: "2rem",
-    maxWidth: "800px",
-    margin: "0 auto",
-  },
 };
 
 // Main App component
@@ -69,7 +63,7 @@ function App() {
 
             {/* Example routes */}
             <Route
-              path="/sync-collections-example"
+              path="/sync-collection-api-example"
               element={<SyncCollectionsExample />}
             />
             <Route

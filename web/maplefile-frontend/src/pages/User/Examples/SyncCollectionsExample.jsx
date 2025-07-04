@@ -1,32 +1,37 @@
-// SyncCollectionsExample.jsx - SIMPLIFIED VERSION
-// Just one button that syncs all collections
+// SyncCollectionsExample.jsx - UPDATED
+// Example component demonstrating how to use the SyncCollectionAPIService
 
 import React, { useState } from "react";
 import { useServices } from "../../../hooks/useService.jsx";
 
 const SyncCollectionsExample = () => {
-  const { syncCollectionsService } = useServices();
-  const [collections, setCollections] = useState([]);
+  const { syncCollectionAPIService } = useServices();
+  const [syncCollections, setSyncCollections] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // The ONLY function you need - sync all collections
+  // The ONLY function you need - sync all collections from API
   const handleSyncAll = async () => {
     setLoading(true);
     setError(null);
-    setCollections([]);
+    setSyncCollections([]);
 
     try {
-      console.log("🔄 Starting complete sync...");
+      console.log("🔄 Starting complete API sync...");
 
-      // This ONE function call gets ALL collections automatically
-      const allCollections = await syncCollectionsService.syncAllCollections();
+      // This ONE function call gets ALL sync collections from API automatically
+      const allSyncCollections =
+        await syncCollectionAPIService.syncAllCollections();
 
-      setCollections(allCollections);
-      console.log("✅ Sync complete:", allCollections.length, "collections");
+      setSyncCollections(allSyncCollections);
+      console.log(
+        "✅ API sync complete:",
+        allSyncCollections.length,
+        "sync collections",
+      );
     } catch (err) {
       setError(err.message);
-      console.error("❌ Sync failed:", err);
+      console.error("❌ API sync failed:", err);
     } finally {
       setLoading(false);
     }
@@ -34,7 +39,7 @@ const SyncCollectionsExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <h2>🔄 Sync All Collections (Simplified)</h2>
+      <h2>🔄 Sync All Collections from API (Simplified)</h2>
 
       <div style={{ marginBottom: "30px" }}>
         <button
@@ -51,7 +56,9 @@ const SyncCollectionsExample = () => {
             minWidth: "200px",
           }}
         >
-          {loading ? "🔄 Syncing..." : "🚀 Sync All Collections"}
+          {loading
+            ? "🔄 Syncing from API..."
+            : "🚀 Sync All Collections from API"}
         </button>
       </div>
 
@@ -67,10 +74,11 @@ const SyncCollectionsExample = () => {
       >
         <h4 style={{ margin: "0 0 10px 0" }}>Status:</h4>
         <p style={{ margin: "5px 0" }}>
-          <strong>Collections Found:</strong> {collections.length}
+          <strong>Sync Collections Found:</strong> {syncCollections.length}
         </p>
         <p style={{ margin: "5px 0" }}>
-          <strong>Status:</strong> {loading ? "🔄 Loading..." : "✅ Ready"}
+          <strong>Status:</strong>{" "}
+          {loading ? "🔄 Loading from API..." : "✅ Ready"}
         </p>
       </div>
 
@@ -91,10 +99,10 @@ const SyncCollectionsExample = () => {
         </div>
       )}
 
-      {/* Collections Display */}
+      {/* Sync Collections Display */}
       <div>
-        <h3>📁 Collections ({collections.length})</h3>
-        {collections.length === 0 ? (
+        <h3>📁 Sync Collections from API ({syncCollections.length})</h3>
+        {syncCollections.length === 0 ? (
           <div
             style={{
               padding: "40px",
@@ -105,10 +113,11 @@ const SyncCollectionsExample = () => {
             }}
           >
             <p style={{ fontSize: "18px", color: "#6c757d" }}>
-              No collections loaded yet.
+              No sync collections loaded yet.
             </p>
             <p style={{ color: "#6c757d" }}>
-              Click "Sync All Collections" to load all your collections.
+              Click "Sync All Collections from API" to load all your sync
+              collections.
             </p>
           </div>
         ) : (
@@ -120,16 +129,16 @@ const SyncCollectionsExample = () => {
               overflow: "auto",
             }}
           >
-            {collections.map((collection, index) => (
+            {syncCollections.map((syncCollection, index) => (
               <div
-                key={`${collection.id}-${index}`}
+                key={`${syncCollection.id}-${index}`}
                 style={{
                   padding: "12px",
                   border: "1px solid #dee2e6",
                   borderRadius: "6px",
                   backgroundColor:
-                    collection.state === "active" ? "#d1ecf1" : "#fff3cd",
-                  borderLeft: `4px solid ${collection.state === "active" ? "#0c5460" : "#856404"}`,
+                    syncCollection.state === "active" ? "#d1ecf1" : "#fff3cd",
+                  borderLeft: `4px solid ${syncCollection.state === "active" ? "#0c5460" : "#856404"}`,
                 }}
               >
                 <div
@@ -141,10 +150,11 @@ const SyncCollectionsExample = () => {
                 >
                   <div>
                     <p style={{ margin: "0 0 5px 0", fontWeight: "bold" }}>
-                      ID: {collection.id}
+                      ID: {syncCollection.id}
                     </p>
                     <p style={{ margin: "0", fontSize: "14px", color: "#666" }}>
-                      State: {collection.state} | Version: {collection.version}
+                      State: {syncCollection.state} | Version:{" "}
+                      {syncCollection.version}
                     </p>
                   </div>
                   <div
@@ -155,11 +165,11 @@ const SyncCollectionsExample = () => {
                     }}
                   >
                     Modified:{" "}
-                    {new Date(collection.modified_at).toLocaleDateString()}
+                    {new Date(syncCollection.modified_at).toLocaleDateString()}
                   </div>
                 </div>
 
-                {collection.parent_id && (
+                {syncCollection.parent_id && (
                   <p
                     style={{
                       margin: "5px 0 0 0",
@@ -167,11 +177,11 @@ const SyncCollectionsExample = () => {
                       color: "#666",
                     }}
                   >
-                    Parent: {collection.parent_id}
+                    Parent: {syncCollection.parent_id}
                   </p>
                 )}
 
-                {collection.tombstone_version > 0 && (
+                {syncCollection.tombstone_version > 0 && (
                   <p
                     style={{
                       margin: "5px 0 0 0",
@@ -179,7 +189,7 @@ const SyncCollectionsExample = () => {
                       color: "#d63384",
                     }}
                   >
-                    🪦 Tombstone Version: {collection.tombstone_version}
+                    🪦 Tombstone Version: {syncCollection.tombstone_version}
                   </p>
                 )}
               </div>
