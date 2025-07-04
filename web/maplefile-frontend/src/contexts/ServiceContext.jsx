@@ -4,12 +4,9 @@ import AuthService from "../services/AuthService.js";
 import MeService from "../services/MeService.js";
 import TokenService from "../services/TokenService.js";
 import CryptoService from "../services/CryptoService.js";
-import CollectionCryptoService from "../services/CollectionCryptoService.js";
 import LocalStorageService from "../services/LocalStorageService.js";
 import ApiClient from "../services/ApiClient.js";
 import WorkerManager from "../services/WorkerManager.js";
-import CollectionService from "../services/CollectionService.js";
-import FileService from "../services/FileService.js";
 import PasswordStorageService from "../services/PasswordStorageService.js";
 
 // Create a context for our services
@@ -32,12 +29,9 @@ export function ServiceProvider({ children }) {
     authService: AuthService,
     cryptoService: CryptoService,
     passwordStorageService: PasswordStorageService,
-    collectionCryptoService: CollectionCryptoService,
     localStorageService: LocalStorageService,
     apiClient: ApiClient,
     workerManager: WorkerManager,
-    collectionService: CollectionService,
-    fileService: FileService,
 
     // Services that need dependency injection
     meService,
@@ -53,10 +47,6 @@ export function ServiceProvider({ children }) {
         // Initialize crypto service
         await CryptoService.initialize();
         console.log("[ServiceProvider] CryptoService initialized");
-
-        // Initialize collection crypto service
-        await CollectionCryptoService.initialize();
-        console.log("[ServiceProvider] CollectionCryptoService initialized");
 
         // Initialize password storage service
         await PasswordStorageService.initialize();
@@ -133,10 +123,6 @@ export function ServiceProvider({ children }) {
       console.log(
         "[ServiceProvider] CryptoService ready:",
         CryptoService.isInitialized,
-      );
-      console.log(
-        "[ServiceProvider] CollectionCryptoService ready:",
-        CollectionCryptoService.isInitialized,
       );
       console.log(
         "[ServiceProvider] AuthService authenticated:",
