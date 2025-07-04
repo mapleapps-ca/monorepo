@@ -21,19 +21,6 @@ import CompleteLogin from "./pages/Anonymous/Login/CompleteLogin";
 import Dashboard from "./pages/User/Dashboard/Dashboard";
 import MeDetail from "./pages/User/Me/Detail";
 
-// Consolidated File Manager (NEW - replaces multiple collection/file pages)
-import FileManager from "./pages/User/FileManager/FileManager";
-import FileUploadRedirect from "./pages/User/FileManager/FileUploadRedirect";
-
-// Legacy Collection pages (kept for backward compatibility and advanced features)
-import CollectionList from "./pages/User/Collection/List";
-import CollectionCreate from "./pages/User/Collection/Create";
-import CollectionDetail from "./pages/User/Collection/Detail";
-import CollectionFiles from "./pages/User/Collection/Files";
-import CollectionUpdate from "./pages/User/Collection/Update.jsx";
-import CollectionDelete from "./pages/User/Collection/Delete.jsx";
-import AddFile from "./pages/User/Collection/AddFile.jsx";
-
 // Main App component
 function App() {
   return (
@@ -67,50 +54,6 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/me" element={<MeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
-
-            {/* === CONSOLIDATED FILE MANAGER ROUTES (NEW PRIMARY INTERFACE) === */}
-            <Route path="/files" element={<FileManager />} />
-            <Route path="/files/upload" element={<FileUploadRedirect />} />
-            <Route path="/files/:folderId" element={<FileManager />} />
-
-            {/* File manager shortcuts for easier navigation */}
-            <Route
-              path="/file-manager"
-              element={<Navigate to="/files" replace />}
-            />
-            <Route path="/fm" element={<Navigate to="/files" replace />} />
-
-            {/* === LEGACY COLLECTION ROUTES (BACKWARD COMPATIBILITY) === */}
-            {/* These are kept for users who prefer the traditional interface */}
-            {/* or need advanced collection management features */}
-            <Route path="/collections" element={<CollectionList />} />
-            <Route path="/collections/create" element={<CollectionCreate />} />
-            <Route
-              path="/collections/:collectionId"
-              element={<CollectionDetail />}
-            />
-            <Route
-              path="/collections/:collectionId/files"
-              element={<CollectionFiles />}
-            />
-            <Route
-              path="/collections/:collectionId/add-file"
-              element={<AddFile />}
-            />
-            <Route
-              path="/collections/:collectionId/edit"
-              element={<CollectionUpdate />}
-            />
-            <Route
-              path="/collections/:collectionId/delete"
-              element={<CollectionDelete />}
-            />
-
-            {/* Legacy redirects to new file manager */}
-            <Route
-              path="/collections/:collectionId/upload"
-              element={<Navigate to="/files/:collectionId" replace />}
-            />
 
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />
