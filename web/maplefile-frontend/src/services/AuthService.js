@@ -1,14 +1,19 @@
 // File: monorepo/web/maplefile-frontend/src/services/AuthService.js
-// Authentication Service - Updated without worker dependencies
-import LocalStorageService from "./LocalStorageService.js";
+// Main Authentication Service - Orchestrates API and Storage services
+import AuthAPIService from "./API/AuthAPIService.js";
+import AuthStorageService from "./Storage/AuthStorageService.js";
 import CryptoService from "./Crypto/CryptoService.js";
 import WorkerManager from "./WorkerManager.js";
-
-const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config
 
 class AuthService {
   constructor() {
     this.isInitialized = false;
+
+    // Initialize dependent services
+    this.apiService = new AuthAPIService();
+    this.storageService = new AuthStorageService();
+
+    console.log("[AuthService] Main authentication service initialized");
   }
 
   // Initialize the service (simplified without workers)
@@ -26,77 +31,35 @@ class AuthService {
     }
   }
 
-  // Helper method to make API requests
-  async makeRequest(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
-
-    const defaultOptions = {
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    };
-
-    const requestOptions = {
-      ...defaultOptions,
-      ...options,
-    };
-
-    try {
-      console.log(`Making ${requestOptions.method || "GET"} request to:`, url);
-      const response = await fetch(url, requestOptions);
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error("API Error:", data);
-        throw new Error(
-          data.details
-            ? Object.values(data.details)[0]
-            : data.error || "Request failed",
-        );
-      }
-
-      console.log("API Response:", data);
-      return data;
-    } catch (error) {
-      console.error("Request failed:", error);
-      throw error;
-    }
-  }
+  // === Authentication Flow Methods ===
 
   // Step 1: Request One-Time Token (OTT)
   async requestOTT(email) {
     try {
-      const response = await this.makeRequest("/request-ott", {
-        method: "POST",
-        body: JSON.stringify({
-          email: email.toLowerCase().trim(),
-        }),
-      });
+      console.log("[AuthService] Requesting OTT for:", email);
+
+      const response = await this.apiService.requestOTT(email);
 
       // Store email for next steps
-      LocalStorageService.setUserEmail(email);
+      this.storageService.setUserEmail(email);
 
+      console.log("[AuthService] OTT request completed successfully");
       return response;
     } catch (error) {
-      throw new Error(`Failed to request OTT: ${error.message}`);
+      console.error("[AuthService] OTT request failed:", error);
+      throw error;
     }
   }
 
   // Step 2: Verify One-Time Token
   async verifyOTT(email, ott) {
     try {
-      const response = await this.makeRequest("/verify-ott", {
-        method: "POST",
-        body: JSON.stringify({
-          email: email.toLowerCase().trim(),
-          ott: ott.trim(),
-        }),
-      });
+      console.log("[AuthService] Verifying OTT for:", email);
+
+      const response = await this.apiService.verifyOTT(email, ott);
 
       // Store verification data for the final step
-      LocalStorageService.setLoginSessionData("verify_response", response);
+      this.storageService.setLoginSessionData("verify_response", response);
 
       // Store the user's encrypted data for future password-based decryption
       if (
@@ -107,7 +70,7 @@ class AuthService {
         console.log(
           "[AuthService] Storing user's encrypted data for future use",
         );
-        LocalStorageService.storeUserEncryptedData(
+        this.storageService.storeUserEncryptedData(
           response.salt,
           response.encryptedMasterKey,
           response.encryptedPrivateKey,
@@ -136,7 +99,7 @@ class AuthService {
           console.log(
             "[AuthService] Storing user's encrypted data (alternative field names)",
           );
-          LocalStorageService.storeUserEncryptedData(
+          this.storageService.storeUserEncryptedData(
             salt,
             encryptedMasterKey,
             encryptedPrivateKey,
@@ -145,25 +108,28 @@ class AuthService {
         }
       }
 
+      console.log("[AuthService] OTT verification completed successfully");
       return response;
     } catch (error) {
-      throw new Error(`Failed to verify OTT: ${error.message}`);
+      console.error("[AuthService] OTT verification failed:", error);
+      throw error;
     }
   }
 
   // Step 3: Complete Login with Token Decryption and Storage
   async completeLogin(email, challengeId, decryptedChallenge) {
     try {
-      const response = await this.makeRequest("/complete-login", {
-        method: "POST",
-        body: JSON.stringify({
-          email: email.toLowerCase().trim(),
-          challengeId: challengeId,
-          decryptedData: decryptedChallenge,
-        }),
-      });
+      console.log("[AuthService] Completing login for:", email);
 
-      console.log("[AuthService] Complete login response:", response);
+      const response = await this.apiService.completeLogin(
+        email,
+        challengeId,
+        decryptedChallenge,
+      );
+
+      console.log(
+        "[AuthService] Login API call successful, processing tokens...",
+      );
 
       // Handle encrypted tokens from backend - decrypt and store unencrypted
       if (
@@ -175,7 +141,7 @@ class AuthService {
         console.log("[AuthService] Received encrypted tokens - decrypting...");
 
         // Check if we have session keys for decryption
-        if (!LocalStorageService.hasSessionKeys()) {
+        if (!this.storageService.hasSessionKeys()) {
           throw new Error("No session keys available for token decryption");
         }
 
@@ -199,13 +165,13 @@ class AuthService {
           );
 
           const accessTokenData =
-            await LocalStorageService.decryptTokensFromLogin(
+            await this.storageService.decryptTokensFromLogin(
               response.encrypted_access_token,
               response.token_nonce,
             );
 
           const refreshTokenData =
-            await LocalStorageService.decryptTokensFromLogin(
+            await this.storageService.decryptTokensFromLogin(
               response.encrypted_refresh_token,
               response.token_nonce,
             );
@@ -225,7 +191,7 @@ class AuthService {
           // Handle single encrypted_tokens field containing both tokens
           console.log("[AuthService] Decrypting combined token blob");
 
-          decryptedTokens = await LocalStorageService.decryptTokensFromLogin(
+          decryptedTokens = await this.storageService.decryptTokensFromLogin(
             response.encrypted_tokens,
             response.token_nonce,
           );
@@ -233,8 +199,8 @@ class AuthService {
 
         console.log("[AuthService] Token decryption successful");
 
-        // Store unencrypted tokens in localStorage
-        LocalStorageService.setTokens(
+        // Store unencrypted tokens
+        this.storageService.setTokens(
           decryptedTokens.access_token,
           decryptedTokens.refresh_token,
           response.access_token_expiry_date,
@@ -247,7 +213,7 @@ class AuthService {
         console.log("[AuthService] Received unencrypted tokens");
 
         if (response.access_token && response.refresh_token) {
-          LocalStorageService.setTokens(
+          this.storageService.setTokens(
             response.access_token,
             response.refresh_token,
             response.access_token_expiry_date,
@@ -260,33 +226,35 @@ class AuthService {
 
       // Store username/email
       if (response.username) {
-        LocalStorageService.setUserEmail(response.username);
+        this.storageService.setUserEmail(response.username);
       }
 
       // Clear login session data but NOT session keys
-      LocalStorageService.clearAllLoginSessionData();
+      this.storageService.clearAllLoginSessionData();
 
       // Clear session keys after successful login
       console.log(
         "[AuthService] Clearing session keys after login - they will be re-derived from password when needed",
       );
-      LocalStorageService.clearSessionKeys();
+      this.storageService.clearSessionKeys();
 
       // Clean up any old encrypted token data
-      LocalStorageService.cleanupEncryptedTokenData();
+      this.storageService.cleanupEncryptedTokenData();
 
       console.log(
         "[AuthService] Login completed successfully with unencrypted tokens",
       );
       return response;
     } catch (error) {
+      console.error("[AuthService] Login completion failed:", error);
       // Clear session keys on error
-      LocalStorageService.clearSessionKeys();
-      throw new Error(`Failed to complete login: ${error.message}`);
+      this.storageService.clearSessionKeys();
+      throw error;
     }
   }
 
-  // Real challenge decryption using CryptoService
+  // === Challenge Decryption ===
+
   async decryptChallenge(password, verifyData) {
     try {
       console.log("[AuthService] Starting challenge decryption");
@@ -421,8 +389,8 @@ class AuthService {
       const derivedPublicKey =
         publicKey || CryptoService.sodium.crypto_scalarmult_base(privateKey);
 
-      // Cache the keys in LocalStorageService for token decryption during login
-      LocalStorageService.setSessionKeys(
+      // Cache the keys in storage service for token decryption during login
+      this.storageService.setSessionKeys(
         masterKey, // decrypted master key
         privateKey, // decrypted private key
         derivedPublicKey, // derived public key
@@ -439,11 +407,19 @@ class AuthService {
     }
   }
 
+  // === Token Management ===
+
   // Token refresh is now handled by ApiClient automatically
   async refreshToken() {
-    // Import ApiClient to use its refresh functionality
-    const { default: ApiClient } = await import("./ApiClient.js");
-    return await ApiClient.refreshTokens();
+    try {
+      console.log("[AuthService] Delegating token refresh to ApiClient");
+      // Import ApiClient to use its refresh functionality
+      const { default: ApiClient } = await import("./ApiClient.js");
+      return await ApiClient.refreshTokens();
+    } catch (error) {
+      console.error("[AuthService] Token refresh failed:", error);
+      throw error;
+    }
   }
 
   // Manual token refresh (delegated to ApiClient)
@@ -459,7 +435,84 @@ class AuthService {
     );
   }
 
-  // Get status (simplified without worker)
+  // === Registration and Email Verification ===
+
+  async registerUser(userData) {
+    try {
+      console.log("[AuthService] Registering user");
+      return await this.apiService.registerUser(userData);
+    } catch (error) {
+      console.error("[AuthService] Registration failed:", error);
+      throw error;
+    }
+  }
+
+  async verifyEmail(verificationCode) {
+    try {
+      console.log("[AuthService] Verifying email");
+      return await this.apiService.verifyEmail(verificationCode);
+    } catch (error) {
+      console.error("[AuthService] Email verification failed:", error);
+      throw error;
+    }
+  }
+
+  // === Authentication State Methods ===
+
+  isAuthenticated() {
+    return this.storageService.isAuthenticated();
+  }
+
+  getCurrentUserEmail() {
+    return this.storageService.getUserEmail();
+  }
+
+  getAccessToken() {
+    return this.storageService.getAccessToken();
+  }
+
+  shouldRefreshTokens() {
+    return this.storageService.shouldRefreshTokens(5); // 5 minutes threshold
+  }
+
+  canMakeAuthenticatedRequests() {
+    return this.storageService.canMakeAuthenticatedRequests();
+  }
+
+  getSessionKeyStatus() {
+    return this.storageService.getSessionKeyStatus();
+  }
+
+  // === Logout and Cleanup ===
+
+  logout() {
+    console.log("[AuthService] Logging out user");
+
+    // Clear all authentication data
+    this.storageService.clearAuthData();
+
+    // Notify listeners of logout
+    WorkerManager.notifyAuthStateChange("force_logout", {
+      reason: "manual_logout",
+    });
+  }
+
+  // === Utility Methods ===
+
+  async generateE2EEData(password) {
+    return await CryptoService.generateE2EEData(password);
+  }
+
+  generateVerificationID(publicKey) {
+    return CryptoService.generateVerificationID(publicKey);
+  }
+
+  validateMnemonic(mnemonic) {
+    return CryptoService.validateMnemonic(mnemonic);
+  }
+
+  // === Status and Debug Methods ===
+
   async getWorkerStatus() {
     return {
       isInitialized: this.isInitialized,
@@ -468,139 +521,20 @@ class AuthService {
     };
   }
 
-  // Logout and clean up
-  logout() {
-    console.log("[AuthService] Logging out user");
-
-    // Clear all authentication data
-    LocalStorageService.clearAuthData();
-    LocalStorageService.clearAllLoginSessionData();
-    LocalStorageService.clearSessionKeys();
-
-    // Notify listeners of logout
-    WorkerManager.notifyAuthStateChange("force_logout", {
-      reason: "manual_logout",
-    });
-  }
-
-  // Check if user is authenticated
-  isAuthenticated() {
-    return LocalStorageService.isAuthenticated();
-  }
-
-  // Get current user email
-  getCurrentUserEmail() {
-    return LocalStorageService.getUserEmail();
-  }
-
-  // Get access token for API calls
-  getAccessToken() {
-    return LocalStorageService.getAccessToken();
-  }
-
-  // Check if tokens need refresh
-  shouldRefreshTokens() {
-    return LocalStorageService.isAccessTokenExpiringSoon(5); // 5 minutes threshold
-  }
-
-  // Check if we can make authenticated requests
-  canMakeAuthenticatedRequests() {
-    return LocalStorageService.hasValidTokens();
-  }
-
-  // Get session key status for debugging (only used during login)
-  getSessionKeyStatus() {
+  getDebugInfo() {
     return {
-      hasSessionKeys: LocalStorageService.hasSessionKeys(),
-      hasUserEncryptedData: LocalStorageService.hasUserEncryptedData(),
-      isAuthenticated: this.isAuthenticated(),
-      canMakeRequests: this.canMakeAuthenticatedRequests(),
+      serviceName: "AuthService",
+      isInitialized: this.isInitialized,
+      apiService: this.apiService.getDebugInfo(),
+      storageService: this.storageService.getDebugInfo(),
+      authenticationState: {
+        isAuthenticated: this.isAuthenticated(),
+        userEmail: this.getCurrentUserEmail(),
+        canMakeRequests: this.canMakeAuthenticatedRequests(),
+        shouldRefreshTokens: this.shouldRefreshTokens(),
+        sessionKeyStatus: this.getSessionKeyStatus(),
+      },
     };
-  }
-
-  // Registration method
-  async registerUser(userData) {
-    try {
-      const url = `${API_BASE_URL}/register`;
-      console.log("Making registration request to:", url);
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userData),
-      });
-
-      console.log("Registration response status:", response.status);
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        console.error("Registration failed with status:", response.status);
-        console.error("Error details:", result);
-        throw new Error(
-          result.details
-            ? JSON.stringify(result.details)
-            : result.error || "Registration failed",
-        );
-      }
-
-      return result;
-    } catch (error) {
-      console.error("Registration error:", error);
-      throw error;
-    }
-  }
-
-  // Email verification method
-  async verifyEmail(verificationCode) {
-    try {
-      const url = `${API_BASE_URL}/verify-email-code`;
-      console.log("Making email verification request to:", url);
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: verificationCode.trim(),
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        console.error(
-          "Email verification failed with status:",
-          response.status,
-        );
-        console.error("Error details:", result);
-        throw new Error(
-          result.details?.code || result.error || "Email verification failed",
-        );
-      }
-
-      return result;
-    } catch (error) {
-      console.error("Email verification error:", error);
-      throw error;
-    }
-  }
-
-  // Generate E2EE data for registration
-  async generateE2EEData(password) {
-    return await CryptoService.generateE2EEData(password);
-  }
-
-  // Utility methods for debugging
-  generateVerificationID(publicKey) {
-    return CryptoService.generateVerificationID(publicKey);
-  }
-
-  validateMnemonic(mnemonic) {
-    return CryptoService.validateMnemonic(mnemonic);
   }
 }
 
