@@ -1,4 +1,4 @@
-// monorepo/web/maplefile-frontend/src/pages/Anonymous/Register/VerifySuccess.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Register/VerifySuccess.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 

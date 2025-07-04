@@ -1,5 +1,4 @@
-// monorepo/web/maplefile-frontend/src/App.jsx
-// Updated with consolidated file manager routing
+// File: monorepo/web/maplefile-frontend/src/App.jsx
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import { ServiceProvider } from "./contexts/ServiceContext";

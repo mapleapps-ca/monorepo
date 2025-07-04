@@ -1,4 +1,4 @@
-// File: src/pages/User/Dashboard/Dashboard.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/Dashboard/Dashboard.jsx
 // A simple navigation page for the user dashboard.
 import { useNavigate } from "react-router";
 import useAuth from "../../../hooks/useAuth.js";

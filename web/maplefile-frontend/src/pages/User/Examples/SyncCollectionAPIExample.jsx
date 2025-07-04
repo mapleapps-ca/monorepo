@@ -1,4 +1,4 @@
-// SyncCollectionAPIExample.jsx - UPDATED
+// File: monorepo/web/maplefile-frontend/src/pages/User/Examples/SyncCollectionAPIExample.jsx
 // Example component demonstrating how to use the SyncCollectionAPIService
 
 import React, { useState } from "react";

@@ -1,4 +1,4 @@
-// SyncCollectionExample.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/User/Examples/SyncCollectionExample.jsx
 import React, { useState, useEffect } from "react";
 import { useServices } from "../../../hooks/useService.jsx";
 

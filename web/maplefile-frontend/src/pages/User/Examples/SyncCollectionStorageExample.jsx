@@ -1,4 +1,4 @@
-// SyncCollectionStorageExample.jsx - UPDATED
+// File: monorepo/web/maplefile-frontend/src/pages/User/Examples/SyncCollectionStorageExample.jsx
 // Example page to test SyncCollectionStorageService and SyncCollectionAPIService
 
 import React, { useState, useEffect } from "react";

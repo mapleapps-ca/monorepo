@@ -1,4 +1,4 @@
-// monorepo/web/maplefile-frontend/src/pages/Anonymous/Index/IndexPage.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Index/IndexPage.jsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
 

@@ -1,4 +1,4 @@
-// monorepo/web/maplefile-frontend/src/pages/Anonymous/Register/Register.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Register/Register.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";

@@ -1,4 +1,4 @@
-// monorepo/web/maplefile-frontend/src/pages/Anonymous/Login/CompleteLogin.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Login/CompleteLogin.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";

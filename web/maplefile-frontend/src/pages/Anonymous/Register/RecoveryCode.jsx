@@ -1,4 +1,4 @@
-// monorepo/web/maplefile-frontend/src/pages/Anonymous/Register/RecoveryCode.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Register/RecoveryCode.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 

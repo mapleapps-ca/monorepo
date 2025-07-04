@@ -1,4 +1,4 @@
-// monorepo/web/maplefile-frontend/src/pages/Anonymous/Register/VerifyEmail.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Register/VerifyEmail.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
