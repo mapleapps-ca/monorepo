@@ -1,6 +1,6 @@
 // Authentication Service for API calls - Updated to store encrypted user data
 import LocalStorageService from "./LocalStorageService.js";
-import CryptoService from "./CryptoService.js";
+import CryptoService from "./Crypto/CryptoService.js";
 import WorkerManager from "./WorkerManager.js";
 
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config

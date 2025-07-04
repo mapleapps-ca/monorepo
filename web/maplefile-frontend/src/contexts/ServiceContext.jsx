@@ -3,7 +3,7 @@ import React, { createContext, useEffect, useMemo } from "react";
 import AuthService from "../services/AuthService.js";
 import MeService from "../services/MeService.js";
 import TokenService from "../services/TokenService.js";
-import CryptoService from "../services/CryptoService.js";
+import CryptoService from "../services/Crypto/CryptoService.js";
 import LocalStorageService from "../services/LocalStorageService.js";
 import ApiClient from "../services/ApiClient.js";
 import WorkerManager from "../services/WorkerManager.js";

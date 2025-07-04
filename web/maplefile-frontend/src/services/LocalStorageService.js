@@ -1,6 +1,6 @@
 // Local Storage Service for managing unencrypted authentication tokens
 // Session keys are kept in memory only and NOT persisted to localStorage
-import CryptoService from "./CryptoService.js";
+import CryptoService from "./Crypto/CryptoService.js";
 
 const LOCAL_STORAGE_KEYS = {
   ACCESS_TOKEN: "mapleapps_access_token",
@@ -395,7 +395,9 @@ class LocalStorageService {
       );
 
       // Import the crypto service for decryption
-      const { default: CryptoService } = await import("./CryptoService.js");
+      const { default: CryptoService } = await import(
+        "./Crypto/CryptoService.js"
+      );
       await CryptoService.initialize();
 
       // Decode the nonce and encrypted data using tryDecodeBase64 to handle different encoding variants
