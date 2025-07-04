@@ -1,8 +1,9 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// ServiceContext - Updated to use MeManager instead of MeService
-import React, { createContext, useEffect, useMemo } from "react";
+// ServiceContext - Updated to use both MeManager and SyncCollectionManager
+import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
-import MeManager from "../services/Manager/MeManager.js"; // Updated import
+import MeManager from "../services/Manager/MeManager.js";
+import SyncCollectionManager from "../services/Manager/SyncCollectionManager.js";
 import TokenService from "../services/TokenService.js";
 import CryptoService from "../services/Crypto/CryptoService.js";
 import LocalStorageService from "../services/LocalStorageService.js";
@@ -11,7 +12,6 @@ import WorkerManager from "../services/WorkerManager.js";
 import PasswordStorageService from "../services/PasswordStorageService.js";
 import SyncCollectionAPIService from "../services/API/SyncCollectionAPIService.js";
 import SyncCollectionStorageService from "../services/Storage/SyncCollectionStorageService.js";
-import SyncCollectionService from "../services/SyncCollectionService.js";
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -33,15 +33,8 @@ export function ServiceProvider({ children }) {
   // Initialize SyncCollectionStorageService (no dependencies needed)
   const syncCollectionStorageService = new SyncCollectionStorageService();
 
-  // Inject dependencies for SyncCollectionService
-  const syncCollectionService = useMemo(
-    () =>
-      new SyncCollectionService(
-        syncCollectionAPIService,
-        syncCollectionStorageService,
-      ), // Pass the dependencies
-    [syncCollectionAPIService, syncCollectionStorageService], // Add dependencies to the dependency array
-  );
+  // Initialize SyncCollectionManager with AuthManager dependency
+  const syncCollectionManager = new SyncCollectionManager(authManager);
 
   // Create services object with all services
   const services = {
@@ -60,7 +53,8 @@ export function ServiceProvider({ children }) {
     tokenService,
     syncCollectionAPIService,
     syncCollectionStorageService,
-    syncCollectionService,
+    syncCollectionManager, // New: SyncCollectionManager (replaces syncCollectionService)
+    syncCollectionService: syncCollectionManager, // Backward compatibility alias
   };
 
   // Initialize services that need async initialization
@@ -114,6 +108,17 @@ export function ServiceProvider({ children }) {
           );
         }
 
+        // Initialize sync collection manager
+        try {
+          await syncCollectionManager.initialize();
+          console.log("[ServiceProvider] SyncCollectionManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] SyncCollectionManager initialization failed:",
+            error,
+          );
+        }
+
         console.log(
           "[ServiceProvider] All services initialized successfully with AuthManager",
         );
@@ -126,7 +131,7 @@ export function ServiceProvider({ children }) {
     };
 
     initializeServices();
-  }, [authManager, meManager]);
+  }, [authManager, meManager, syncCollectionManager]);
 
   // Set up error handling for services
   useEffect(() => {
