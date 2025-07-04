@@ -20,6 +20,12 @@ const Dashboard = () => {
       icon: "📁",
     },
     {
+      path: "/sync-collections-example",
+      title: "Sync Collections Example",
+      description: "Developers page to test sync collections.",
+      icon: "📁",
+    },
+    {
       path: "/profile",
       title: "My Profile",
       description: "Manage account settings and security keys.",

@@ -21,6 +21,9 @@ import CompleteLogin from "./pages/Anonymous/Login/CompleteLogin";
 import Dashboard from "./pages/User/Dashboard/Dashboard";
 import MeDetail from "./pages/User/Me/Detail";
 
+// Example Pages
+import SyncCollectionsExample from "./pages/User/Examples/SyncCollectionsExample";
+
 // Main App component
 function App() {
   return (
@@ -54,6 +57,11 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/me" element={<MeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
+
+            <Route
+              path="/sync-collections-example"
+              element={<SyncCollectionsExample />}
+            />
 
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />
