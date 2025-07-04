@@ -1,12 +1,14 @@
 // File: monorepo/web/maplefile-frontend/src/services/MeService.js
-// Me Service for managing current user information - Using ApiClient
+// Me Service for managing current user information.
 
 class MeService {
-  constructor(authService) {
-    // MeService depends on AuthService to get the current user
-    this.authService = authService;
+  constructor(authManager) {
+    // MeService depends on AuthManager to get the current user
+    this.authManager = authManager;
     this.currentUser = null;
     this.isLoading = false;
+
+    console.log("[MeService] Initialized with AuthManager dependency");
   }
 
   // Import ApiClient for authenticated requests
@@ -20,23 +22,31 @@ class MeService {
 
   // Get current user information
   async getCurrentUser() {
-    if (!this.authService.isAuthenticated()) {
+    if (!this.authManager.isAuthenticated()) {
       throw new Error("User not authenticated");
     }
 
     try {
       this.isLoading = true;
-      console.log("[MeService] Fetching current user information");
+      console.log(
+        "[MeService] Fetching current user information via AuthManager",
+      );
 
       const apiClient = await this.getApiClient();
       const userData = await apiClient.getMapleFile("/me");
 
       this.currentUser = userData;
-      console.log("[MeService] Current user data retrieved:", userData);
+      console.log(
+        "[MeService] Current user data retrieved via AuthManager:",
+        userData,
+      );
 
       return userData;
     } catch (error) {
-      console.error("[MeService] Failed to get current user:", error);
+      console.error(
+        "[MeService] Failed to get current user via AuthManager:",
+        error,
+      );
       throw error;
     } finally {
       this.isLoading = false;
@@ -45,23 +55,31 @@ class MeService {
 
   // Update current user information
   async updateCurrentUser(updateData) {
-    if (!this.authService.isAuthenticated()) {
+    if (!this.authManager.isAuthenticated()) {
       throw new Error("User not authenticated");
     }
 
     try {
       this.isLoading = true;
-      console.log("[MeService] Updating current user information");
+      console.log(
+        "[MeService] Updating current user information via AuthManager",
+      );
 
       const apiClient = await this.getApiClient();
       const updatedUser = await apiClient.putMapleFile("/me", updateData);
 
       this.currentUser = updatedUser;
-      console.log("[MeService] User data updated:", updatedUser);
+      console.log(
+        "[MeService] User data updated via AuthManager:",
+        updatedUser,
+      );
 
       return updatedUser;
     } catch (error) {
-      console.error("[MeService] Failed to update current user:", error);
+      console.error(
+        "[MeService] Failed to update current user via AuthManager:",
+        error,
+      );
       throw error;
     } finally {
       this.isLoading = false;
@@ -70,7 +88,7 @@ class MeService {
 
   // Delete current user account
   async deleteCurrentUser(password) {
-    if (!this.authService.isAuthenticated()) {
+    if (!this.authManager.isAuthenticated()) {
       throw new Error("User not authenticated");
     }
 
@@ -80,7 +98,7 @@ class MeService {
 
     try {
       this.isLoading = true;
-      console.log("[MeService] Deleting current user account");
+      console.log("[MeService] Deleting current user account via AuthManager");
 
       const apiClient = await this.getApiClient();
       await apiClient.deleteMapleFile("/me", {
@@ -91,9 +109,14 @@ class MeService {
 
       // Clear cached user data
       this.currentUser = null;
-      console.log("[MeService] User account deleted successfully");
+      console.log(
+        "[MeService] User account deleted successfully via AuthManager",
+      );
     } catch (error) {
-      console.error("[MeService] Failed to delete current user:", error);
+      console.error(
+        "[MeService] Failed to delete current user via AuthManager:",
+        error,
+      );
       throw error;
     } finally {
       this.isLoading = false;
@@ -102,7 +125,7 @@ class MeService {
 
   // Get user profile from cache or fetch if needed
   async getUserProfile(forceRefresh = false) {
-    if (!this.authService.isAuthenticated()) {
+    if (!this.authManager.isAuthenticated()) {
       throw new Error("User not authenticated");
     }
 
@@ -114,10 +137,10 @@ class MeService {
     return await this.getCurrentUser();
   }
 
-  // Get user's email from auth service or profile
+  // Get user's email from auth manager or profile
   getUserEmail() {
-    // First try to get from auth service (from token storage)
-    const emailFromAuth = this.authService.getCurrentUserEmail();
+    // First try to get from auth manager (from token storage)
+    const emailFromAuth = this.authManager.getCurrentUserEmail();
     if (emailFromAuth) {
       return emailFromAuth;
     }
@@ -256,7 +279,9 @@ class MeService {
   // Get debug information
   getDebugInfo() {
     return {
-      isAuthenticated: this.authService.isAuthenticated(),
+      serviceName: "MeService",
+      managedBy: "AuthManager",
+      isAuthenticated: this.authManager.isAuthenticated(),
       currentUser: this.currentUser,
       userEmail: this.getUserEmail(),
       displayName: this.getUserDisplayName(),
@@ -264,8 +289,10 @@ class MeService {
       subscriptionInfo: this.getSubscriptionInfo(),
       isLoading: this.isLoading,
       hasUserData: this.hasUserData(),
-      authTokensAvailable: this.authService.canMakeAuthenticatedRequests(),
-      hasSessionKeys: this.authService.getSessionKeyStatus(),
+      authManagerStatus: {
+        canMakeRequests: this.authManager.canMakeAuthenticatedRequests(),
+        hasSessionKeys: this.authManager.getSessionKeyStatus(),
+      },
     };
   }
 }

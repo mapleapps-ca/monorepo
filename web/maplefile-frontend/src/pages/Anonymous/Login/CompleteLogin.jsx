@@ -1,11 +1,12 @@
 // File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Login/CompleteLogin.jsx
+// Complete Login Page
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
 
 const CompleteLogin = () => {
   const navigate = useNavigate();
-  const { authService, localStorageService, passwordStorageService } =
+  const { authManager, localStorageService, passwordStorageService } =
     useServices();
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
@@ -27,10 +28,13 @@ const CompleteLogin = () => {
 
       // Log the available data for debugging
       console.log(
-        "[CompleteLogin] Available verify data:",
+        "[CompleteLogin] Available verify data via AuthManager:",
         Object.keys(storedVerifyData),
       );
-      console.log("[CompleteLogin] Verify data:", storedVerifyData);
+      console.log(
+        "[CompleteLogin] Verify data via AuthManager:",
+        storedVerifyData,
+      );
     } else {
       // If no data from previous steps, redirect to start
       console.error(
@@ -59,7 +63,9 @@ const CompleteLogin = () => {
         );
       }
 
-      console.log("[CompleteLogin] Starting challenge decryption process...");
+      console.log(
+        "[CompleteLogin] Starting challenge decryption process via AuthManager...",
+      );
       console.log("Challenge ID:", verifyData.challengeId);
 
       // Update progress
@@ -79,8 +85,8 @@ const CompleteLogin = () => {
 
       setDecryptionProgress("Decrypting challenge data...");
 
-      // Perform the actual decryption
-      const decryptedChallenge = await authService.decryptChallenge(
+      // Perform the actual decryption via AuthManager
+      const decryptedChallenge = await authManager.decryptChallenge(
         password,
         verifyData,
       );
@@ -88,14 +94,16 @@ const CompleteLogin = () => {
       setDecryptionProgress("Completing authentication...");
       setDecrypting(false);
 
-      // Complete the login with the decrypted challenge
-      const response = await authService.completeLogin(
+      // Complete the login with the decrypted challenge via AuthManager
+      const response = await authManager.completeLogin(
         email,
         verifyData.challengeId,
         decryptedChallenge,
       );
 
-      console.log("[CompleteLogin] Login completed successfully!");
+      console.log(
+        "[CompleteLogin] Login completed successfully via AuthManager!",
+      );
       console.log("[CompleteLogin] Response:", response);
 
       // Wait a moment for tokens to be fully stored
@@ -105,7 +113,7 @@ const CompleteLogin = () => {
       const accessToken = localStorageService.getAccessToken();
       const refreshToken = localStorageService.getRefreshToken();
 
-      console.log("[CompleteLogin] Stored tokens check:");
+      console.log("[CompleteLogin] Stored tokens check via AuthManager:");
       console.log("- Access token exists:", !!accessToken);
       console.log("- Refresh token exists:", !!refreshToken);
 
@@ -121,31 +129,33 @@ const CompleteLogin = () => {
 
       if (hasTokens) {
         console.log(
-          "[CompleteLogin] Saving password to session storage for better convenience...",
+          "[CompleteLogin] Saving password to session storage for better convenience via AuthManager...",
         );
 
         // AFTER successful login, store the password
         passwordStorageService.setPassword(password);
-        console.log("[CompleteLogin] Password stored for session");
+        console.log(
+          "[CompleteLogin] Password stored for session via AuthManager",
+        );
         console.log(
           "[CompleteLogin] Password stored in",
           passwordStorageService.getStorageInfo().mode,
         );
 
         console.log(
-          "[CompleteLogin] Unencrypted tokens found, navigating to dashboard...",
+          "[CompleteLogin] Unencrypted tokens found via AuthManager, navigating to dashboard...",
         );
         navigate("/dashboard", { replace: true });
       } else {
         console.error(
-          "[CompleteLogin] No authentication tokens found after login",
+          "[CompleteLogin] No authentication tokens found after login via AuthManager",
         );
         setError(
           "Login completed but no authentication tokens were received. Please try again.",
         );
       }
     } catch (error) {
-      console.error("[CompleteLogin] Login failed:", error);
+      console.error("[CompleteLogin] Login failed via AuthManager:", error);
       setError(error.message);
       setDecrypting(false);
       setDecryptionProgress("");
@@ -187,7 +197,8 @@ const CompleteLogin = () => {
               autoComplete="current-password"
             />
             <div>
-              Your password will be used to decrypt your secure keys locally
+              Your password will be used to decrypt your secure keys locally via
+              AuthManager
             </div>
           </div>
 
@@ -245,6 +256,11 @@ const CompleteLogin = () => {
             )}
             <p>
               <strong>Token System:</strong> Unencrypted tokens stored locally
+              via AuthManager
+            </p>
+            <p>
+              <strong>Architecture:</strong> AuthManager orchestrator with
+              API/Storage services
             </p>
           </div>
         </div>
@@ -262,12 +278,14 @@ const CompleteLogin = () => {
               ChaCha20-Poly1305
             </li>
             <li>No passwords or private keys are ever sent to the server</li>
-            <li>All decryption happens locally in your browser</li>
+            <li>
+              All decryption happens locally in your browser via AuthManager
+            </li>
             <li>
               Authentication tokens are decrypted during login and stored
               unencrypted locally
             </li>
-            <li>Automatic background token refresh maintains your session</li>
+            <li>Automatic token refresh via ApiClient interceptors</li>
           </ul>
         </div>
 

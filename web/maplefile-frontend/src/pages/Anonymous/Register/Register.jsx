@@ -1,11 +1,12 @@
 // File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Register/Register.jsx
+// Registration Page
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
 
 const Register = () => {
   const navigate = useNavigate();
-  const { authService, cryptoService } = useServices();
+  const { authManager, cryptoService } = useServices();
 
   const [formData, setFormData] = useState({
     beta_access_code: "",
@@ -130,10 +131,12 @@ const Register = () => {
     setGeneralError("");
 
     try {
-      // Generate E2EE data using the crypto service
-      console.log("Generating encryption data...");
-      const e2eeData = await cryptoService.generateE2EEData(formData.password);
-      console.log("Encryption data generated successfully!");
+      // Generate E2EE data using the crypto service via AuthManager
+      console.log("[Register] Generating encryption data via AuthManager...");
+      const e2eeData = await authManager.generateE2EEData(formData.password);
+      console.log(
+        "[Register] Encryption data generated successfully via AuthManager!",
+      );
 
       // Extract the mnemonic and remove it from the data sent to server
       const { recoveryMnemonic, ...e2eeDataForServer } = e2eeData;
@@ -155,10 +158,13 @@ const Register = () => {
         ...e2eeDataForServer,
       };
 
-      console.log("Sending registration request...");
-      const result = await authService.registerUser(registrationData);
+      console.log("[Register] Sending registration request via AuthManager...");
+      const result = await authManager.registerUser(registrationData);
 
-      console.log("Registration successful:", result);
+      console.log(
+        "[Register] Registration successful via AuthManager:",
+        result,
+      );
 
       // Store data for next page - include the recovery mnemonic
       const registrationWithMnemonic = {
@@ -175,7 +181,7 @@ const Register = () => {
       // Navigate to recovery code page
       navigate("/register/recovery");
     } catch (error) {
-      console.error("Registration failed:", error);
+      console.error("[Register] Registration failed via AuthManager:", error);
 
       // Parse error details if they exist
       try {
@@ -309,9 +315,9 @@ const Register = () => {
             placeholder="Enter a strong password"
           />
           <div>
-            This password is used to generate your encryption keys and is never
-            sent to the server. Key generation may take a few seconds on first
-            use.
+            This password is used to generate your encryption keys via
+            AuthManager and is never sent to the server. Key generation may take
+            a few seconds on first use.
           </div>
           {errors.password && <div>{errors.password}</div>}
         </div>
@@ -383,7 +389,7 @@ const Register = () => {
 
         <button type="submit" disabled={loading}>
           {loading
-            ? "Generating encryption keys and creating account..."
+            ? "Generating encryption keys via AuthManager and creating account..."
             : "Create Account"}
         </button>
       </form>

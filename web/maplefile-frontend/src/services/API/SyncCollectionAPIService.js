@@ -2,11 +2,13 @@
 // Service for making API calls to sync collections (paginated requests)
 
 class SyncCollectionAPIService {
-  constructor(authService) {
-    this.authService = authService;
+  constructor(authManager) {
+    this.authManager = authManager;
     this.isLoading = false;
     this._apiClient = null;
-    console.log("[SyncCollectionAPIService] API service initialized");
+    console.log(
+      "[SyncCollectionAPIService] API service initialized with AuthManager",
+    );
   }
 
   // Import ApiClient for authenticated requests
@@ -26,13 +28,15 @@ class SyncCollectionAPIService {
    * @returns {Promise<Array>} - Complete array of all sync collections from API
    */
   async syncAllCollections(options = {}) {
-    if (!this.authService.isAuthenticated()) {
-      throw new Error("User not authenticated");
+    if (!this.authManager.isAuthenticated()) {
+      throw new Error("User not authenticated via AuthManager");
     }
 
     try {
       this.isLoading = true;
-      console.log("[SyncCollectionAPIService] Starting complete API sync...");
+      console.log(
+        "[SyncCollectionAPIService] Starting complete API sync via AuthManager...",
+      );
 
       const allSyncCollections = [];
       let cursor = null;
@@ -43,7 +47,7 @@ class SyncCollectionAPIService {
       while (hasMore) {
         pageCount++;
         console.log(
-          `[SyncCollectionAPIService] Fetching API page ${pageCount}...`,
+          `[SyncCollectionAPIService] Fetching API page ${pageCount} via AuthManager...`,
         );
 
         // Make single page request
@@ -53,7 +57,7 @@ class SyncCollectionAPIService {
         if (response.collections && response.collections.length > 0) {
           allSyncCollections.push(...response.collections);
           console.log(
-            `[SyncCollectionAPIService] Page ${pageCount}: ${response.collections.length} sync collections (Total: ${allSyncCollections.length})`,
+            `[SyncCollectionAPIService] Page ${pageCount} via AuthManager: ${response.collections.length} sync collections (Total: ${allSyncCollections.length})`,
           );
         }
 
@@ -63,11 +67,14 @@ class SyncCollectionAPIService {
       }
 
       console.log(
-        `[SyncCollectionAPIService] ✅ API sync complete! ${allSyncCollections.length} sync collections across ${pageCount} pages`,
+        `[SyncCollectionAPIService] ✅ API sync complete via AuthManager! ${allSyncCollections.length} sync collections across ${pageCount} pages`,
       );
       return allSyncCollections;
     } catch (error) {
-      console.error("[SyncCollectionAPIService] ❌ API sync failed:", error);
+      console.error(
+        "[SyncCollectionAPIService] ❌ API sync failed via AuthManager:",
+        error,
+      );
       throw error;
     } finally {
       this.isLoading = false;
@@ -92,13 +99,13 @@ class SyncCollectionAPIService {
     // Build endpoint URL
     const endpoint = `/sync/collections?${queryParams.toString()}`;
 
-    console.log(`[SyncCollectionAPIService] → GET ${endpoint}`);
+    console.log(`[SyncCollectionAPIService] → GET ${endpoint} via AuthManager`);
 
     // Make the API request
     const response = await apiClient.getMapleFile(endpoint);
 
     console.log(
-      `[SyncCollectionAPIService] ← API Response: ${response.collections?.length || 0} collections, hasMore: ${response.has_more}`,
+      `[SyncCollectionAPIService] ← API Response via AuthManager: ${response.collections?.length || 0} collections, hasMore: ${response.has_more}`,
     );
 
     return response;
@@ -118,10 +125,15 @@ class SyncCollectionAPIService {
    */
   getDebugInfo() {
     return {
-      isAuthenticated: this.authService.isAuthenticated(),
-      isLoading: this.isLoading,
-      canMakeRequests: this.authService.canMakeAuthenticatedRequests(),
       serviceName: "SyncCollectionAPIService",
+      managedBy: "AuthManager",
+      isAuthenticated: this.authManager.isAuthenticated(),
+      isLoading: this.isLoading,
+      canMakeRequests: this.authManager.canMakeAuthenticatedRequests(),
+      authManagerStatus: {
+        userEmail: this.authManager.getCurrentUserEmail(),
+        sessionKeyStatus: this.authManager.getSessionKeyStatus(),
+      },
     };
   }
 }

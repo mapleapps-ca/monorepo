@@ -1,11 +1,11 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useAuth.js
-// Custom hook for authentication management with automatic token refresh via ApiClient interceptors
+// Custom hook for authentication management with AuthManager orchestrator
 import { useState, useEffect, useCallback } from "react";
-import AuthService from "../services/AuthService.js";
+import AuthManager from "../services/Manager/AuthManager.js";
 import LocalStorageService from "../services/LocalStorageService.js";
 import WorkerManager from "../services/WorkerManager.js";
 
-// Custom hook for authentication management
+// Custom hook for authentication management with AuthManager
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -16,8 +16,8 @@ const useAuth = () => {
   // Update authentication state
   const updateAuthState = useCallback(() => {
     try {
-      const authenticated = AuthService.isAuthenticated();
-      const userEmail = AuthService.getCurrentUserEmail();
+      const authenticated = AuthManager.isAuthenticated();
+      const userEmail = AuthManager.getCurrentUserEmail();
 
       setIsAuthenticated(authenticated);
       setUser(userEmail ? { email: userEmail } : null);
@@ -33,10 +33,11 @@ const useAuth = () => {
         hasTokens,
         tokenSystem: "unencrypted",
         refreshMethod: "api_interceptor",
+        managedBy: "AuthManager",
         ...tokenExpiryInfo,
       });
 
-      console.log("[useAuth] Auth state updated:", {
+      console.log("[useAuth] Auth state updated via AuthManager:", {
         authenticated,
         userEmail,
         hasTokens,
@@ -48,24 +49,35 @@ const useAuth = () => {
     }
   }, []);
 
-  // Handle worker/auth manager events
+  // Handle auth manager events
   const handleAuthMessage = useCallback(
     (type, data) => {
-      console.log(`[useAuth] Received auth message: ${type}`, data);
+      console.log(
+        `[useAuth] Received auth message via AuthManager: ${type}`,
+        data,
+      );
 
       switch (type) {
         case "token_refresh_success":
-          console.log("[useAuth] Tokens refreshed automatically");
+          console.log(
+            "[useAuth] Tokens refreshed automatically via AuthManager",
+          );
           updateAuthState();
           break;
 
         case "token_refresh_failed":
-          console.error("[useAuth] Token refresh failed:", data);
+          console.error(
+            "[useAuth] Token refresh failed via AuthManager:",
+            data,
+          );
           // Auth state will be updated by the logout handling
           break;
 
         case "force_logout":
-          console.log("[useAuth] Force logout received:", data.reason);
+          console.log(
+            "[useAuth] Force logout received via AuthManager:",
+            data.reason,
+          );
           setIsAuthenticated(false);
           setUser(null);
           setTokenInfo({});
@@ -86,23 +98,26 @@ const useAuth = () => {
     [updateAuthState],
   );
 
-  // Manual token refresh (now delegated to ApiClient)
+  // Manual token refresh (now delegated to AuthManager -> ApiClient)
   const manualRefresh = useCallback(async () => {
     try {
-      console.log("[useAuth] Initiating manual token refresh");
+      console.log("[useAuth] Initiating manual token refresh via AuthManager");
 
       // Check if we have a refresh token
       if (!LocalStorageService.getRefreshToken()) {
         throw new Error("No refresh token available for refresh");
       }
 
-      // Use AuthService which delegates to ApiClient
-      await AuthService.refreshToken();
+      // Use AuthManager which delegates to ApiClient
+      await AuthManager.refreshToken();
       updateAuthState();
-      console.log("[useAuth] Manual token refresh successful");
+      console.log("[useAuth] Manual token refresh via AuthManager successful");
       return true;
     } catch (error) {
-      console.error("[useAuth] Manual token refresh failed:", error);
+      console.error(
+        "[useAuth] Manual token refresh via AuthManager failed:",
+        error,
+      );
       setIsAuthenticated(false);
       setUser(null);
       setTokenInfo({});
@@ -113,15 +128,15 @@ const useAuth = () => {
   // Force token check (no-op since handled automatically)
   const forceTokenCheck = useCallback(() => {
     console.log(
-      "[useAuth] Force token check - handled automatically by ApiClient",
+      "[useAuth] Force token check - handled automatically by AuthManager -> ApiClient",
     );
     updateAuthState();
   }, [updateAuthState]);
 
   // Logout function
   const logout = useCallback(() => {
-    console.log("[useAuth] Logging out user");
-    AuthService.logout();
+    console.log("[useAuth] Logging out user via AuthManager");
+    AuthManager.logout();
     setIsAuthenticated(false);
     setUser(null);
     setTokenInfo({});
@@ -134,6 +149,7 @@ const useAuth = () => {
       recommendations: [],
       canRefresh: false,
       needsReauth: false,
+      managedBy: "AuthManager",
     };
 
     if (!tokenInfo.hasTokens) {
@@ -149,13 +165,13 @@ const useAuth = () => {
     } else if (tokenInfo.accessTokenExpired) {
       health.status = "needs_refresh";
       health.recommendations.push(
-        "Access token expired - refresh will happen automatically",
+        "Access token expired - refresh will happen automatically via AuthManager",
       );
       health.canRefresh = true;
     } else if (tokenInfo.accessTokenExpiringSoon) {
       health.status = "expiring_soon";
       health.recommendations.push(
-        "Access token expiring soon - refresh will happen automatically",
+        "Access token expiring soon - refresh will happen automatically via AuthManager",
       );
       health.canRefresh = true;
     } else {
@@ -166,30 +182,37 @@ const useAuth = () => {
     return health;
   }, [tokenInfo]);
 
-  // Initialize authentication
+  // Initialize authentication with AuthManager
   useEffect(() => {
     const initAuth = async () => {
       setIsLoading(true);
 
       try {
-        console.log("[useAuth] Initializing authentication system");
+        console.log(
+          "[useAuth] Initializing authentication system with AuthManager",
+        );
 
         // Clean up any old encrypted token data
         LocalStorageService.cleanupEncryptedTokenData();
 
-        // Initialize the auth service (simplified)
-        await AuthService.initializeWorker();
+        // Initialize the auth manager (simplified)
+        await AuthManager.initializeWorker();
 
         // Update initial authentication state
         updateAuthState();
 
         // Get auth status
-        const status = await AuthService.getWorkerStatus();
+        const status = await AuthManager.getWorkerStatus();
         setAuthStatus(status);
 
-        console.log("[useAuth] Authentication system initialized successfully");
+        console.log(
+          "[useAuth] Authentication system initialized successfully with AuthManager",
+        );
       } catch (error) {
-        console.error("[useAuth] Failed to initialize auth:", error);
+        console.error(
+          "[useAuth] Failed to initialize auth with AuthManager:",
+          error,
+        );
         // Set safe defaults on initialization failure
         setIsAuthenticated(false);
         setUser(null);
@@ -230,7 +253,7 @@ const useAuth = () => {
     };
   }, [updateAuthState]);
 
-  // API call wrapper with automatic token management
+  // API call wrapper with automatic token management via AuthManager
   const apiCall = useCallback(
     async (apiFunction) => {
       try {
@@ -242,7 +265,7 @@ const useAuth = () => {
           throw new Error("Authentication required. Please log in again.");
         }
 
-        // No need to manually refresh - ApiClient handles this automatically
+        // No need to manually refresh - ApiClient handles this automatically via AuthManager
         // Make the API call
         return await apiFunction();
       } catch (error) {
@@ -253,7 +276,9 @@ const useAuth = () => {
           error.message?.includes("expired") ||
           error.message?.includes("Session expired")
         ) {
-          console.log("[useAuth] Authentication error detected, logging out");
+          console.log(
+            "[useAuth] Authentication error detected, logging out via AuthManager",
+          );
           logout();
           throw new Error("Session expired. Please log in again.");
         }
@@ -271,13 +296,15 @@ const useAuth = () => {
       tokenInfo,
       authStatus,
       tokenHealth: getTokenHealth(),
-      canMakeAuthenticatedRequests: AuthService.canMakeAuthenticatedRequests(),
+      canMakeAuthenticatedRequests: AuthManager.canMakeAuthenticatedRequests(),
       storageKeys: {
         hasAccessToken: !!LocalStorageService.getAccessToken(),
         hasRefreshToken: !!LocalStorageService.getRefreshToken(),
         hasUserEmail: !!LocalStorageService.getUserEmail(),
       },
       refreshMethod: "api_interceptor",
+      managedBy: "AuthManager",
+      architecture: "Manager/API/Storage",
     };
   }, [isAuthenticated, user, tokenInfo, authStatus, getTokenHealth]);
 
@@ -305,9 +332,10 @@ const useAuth = () => {
     hasTokens: tokenInfo.hasTokens,
     tokenSystem: tokenInfo.tokenSystem || "unencrypted",
     refreshMethod: "api_interceptor",
+    managedBy: "AuthManager",
 
     // Simplified capabilities
-    canMakeAuthenticatedRequests: AuthService.canMakeAuthenticatedRequests(),
+    canMakeAuthenticatedRequests: AuthManager.canMakeAuthenticatedRequests(),
   };
 };
 

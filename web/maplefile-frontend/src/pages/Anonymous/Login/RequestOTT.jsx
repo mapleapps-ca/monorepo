@@ -1,11 +1,12 @@
 // File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Login/RequestOTT.jsx
+// Request OTT Page
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
 
 const RequestOTT = () => {
   const navigate = useNavigate();
-  const { authService } = useServices();
+  const { authManager } = useServices();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -27,15 +28,18 @@ const RequestOTT = () => {
         throw new Error("Please enter a valid email address");
       }
 
-      const response = await authService.requestOTT(email);
+      console.log("[RequestOTT] Requesting OTT via AuthManager for:", email);
+      const response = await authManager.requestOTT(email);
 
       setMessage(response.message || "Verification code sent successfully!");
+      console.log("[RequestOTT] OTT request successful via AuthManager");
 
       // Wait a moment to show the success message, then navigate
       setTimeout(() => {
         navigate("/login/verify-ott");
       }, 2000);
     } catch (error) {
+      console.error("[RequestOTT] OTT request failed via AuthManager:", error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -76,6 +80,7 @@ const RequestOTT = () => {
             <li>We'll send a 6-digit verification code to your email</li>
             <li>Check your inbox (and spam folder) for the code</li>
             <li>Enter the code on the next page to continue</li>
+            <li>AuthManager will orchestrate the authentication flow</li>
           </ul>
         </div>
       </div>

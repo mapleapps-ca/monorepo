@@ -1,7 +1,7 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// ServiceContext - Updated without worker dependencies
+// ServiceContext
 import React, { createContext, useEffect, useMemo } from "react";
-import AuthService from "../services/AuthService.js";
+import AuthManager from "../services/Manager/AuthManager.js";
 import MeService from "../services/MeService.js";
 import TokenService from "../services/TokenService.js";
 import CryptoService from "../services/Crypto/CryptoService.js";
@@ -18,17 +18,17 @@ export const ServiceContext = createContext();
 
 // Create a provider component that will wrap our app
 export function ServiceProvider({ children }) {
-  // All services are singletons that are already instantiated
-  // We just need to import them and provide them via context
+  // Initialize AuthManager (singleton)
+  const authManager = new AuthManager();
 
-  // Initialize MeService with AuthService dependency
-  const meService = new MeService(AuthService);
+  // Initialize MeService with AuthManager dependency
+  const meService = new MeService(authManager);
 
   // Initialize TokenService
   const tokenService = new TokenService();
 
-  // Initialize SyncCollectionAPIService with AuthService dependency
-  const syncCollectionAPIService = new SyncCollectionAPIService(AuthService);
+  // Initialize SyncCollectionAPIService with AuthManager dependency
+  const syncCollectionAPIService = new SyncCollectionAPIService(authManager);
 
   // Initialize SyncCollectionStorageService (no dependencies needed)
   const syncCollectionStorageService = new SyncCollectionStorageService();
@@ -43,10 +43,11 @@ export function ServiceProvider({ children }) {
     [syncCollectionAPIService, syncCollectionStorageService], // Add dependencies to the dependency array
   );
 
-  // Create services object with all singleton services
+  // Create services object with all services
   const services = {
     // Core services (singletons)
-    authService: AuthService,
+    authManager: authManager, // New: AuthManager for orchestration
+    authService: authManager, // Backward compatibility alias
     cryptoService: CryptoService,
     passwordStorageService: PasswordStorageService,
     localStorageService: LocalStorageService,
@@ -66,7 +67,7 @@ export function ServiceProvider({ children }) {
     const initializeServices = async () => {
       try {
         console.log(
-          "[ServiceProvider] Initializing services (no web workers)...",
+          "[ServiceProvider] Initializing services with AuthManager...",
         );
 
         // Initialize crypto service
@@ -90,19 +91,19 @@ export function ServiceProvider({ children }) {
           );
         }
 
-        // Initialize auth service (simplified)
+        // Initialize auth manager (simplified)
         try {
-          await AuthService.initializeWorker();
-          console.log("[ServiceProvider] AuthService initialized (no workers)");
+          await authManager.initializeWorker();
+          console.log("[ServiceProvider] AuthManager initialized (no workers)");
         } catch (error) {
           console.warn(
-            "[ServiceProvider] AuthService initialization failed:",
+            "[ServiceProvider] AuthManager initialization failed:",
             error,
           );
         }
 
         console.log(
-          "[ServiceProvider] All services initialized successfully (no web workers)",
+          "[ServiceProvider] All services initialized successfully with AuthManager",
         );
       } catch (error) {
         console.error(
@@ -113,7 +114,7 @@ export function ServiceProvider({ children }) {
     };
 
     initializeServices();
-  }, []);
+  }, [authManager]);
 
   // Set up error handling for services
   useEffect(() => {
@@ -154,11 +155,11 @@ export function ServiceProvider({ children }) {
         CryptoService.isInitialized,
       );
       console.log(
-        "[ServiceProvider] AuthService authenticated:",
-        AuthService.isAuthenticated(),
+        "[ServiceProvider] AuthManager authenticated:",
+        authManager.isAuthenticated(),
       );
       console.log(
-        "[ServiceProvider] Token refresh method: API interceptor (no workers)",
+        "[ServiceProvider] Architecture: Manager/API/Storage pattern with AuthManager orchestrator",
       );
 
       // Add services to window for debugging in development
@@ -167,7 +168,7 @@ export function ServiceProvider({ children }) {
         "[ServiceProvider] Services added to window.mapleAppsServices for debugging",
       );
     }
-  }, [services]);
+  }, [services, authManager]);
 
   return (
     <ServiceContext.Provider value={services}>

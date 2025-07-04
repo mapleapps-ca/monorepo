@@ -1,11 +1,12 @@
 // File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Login/VerifyOTT.jsx
+// Verify OTT Page
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
 
 const VerifyOTT = () => {
   const navigate = useNavigate();
-  const { authService, localStorageService } = useServices();
+  const { authManager, localStorageService } = useServices();
   const [ott, setOtt] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,8 +17,13 @@ const VerifyOTT = () => {
     const storedEmail = localStorageService.getUserEmail();
     if (storedEmail) {
       setEmail(storedEmail);
+      console.log(
+        "[VerifyOTT] Using stored email via AuthManager:",
+        storedEmail,
+      );
     } else {
       // If no email stored, redirect to first step
+      console.log("[VerifyOTT] No stored email found, redirecting to start");
       navigate("/login/request-ott");
     }
   }, [navigate, localStorageService]);
@@ -37,13 +43,17 @@ const VerifyOTT = () => {
         throw new Error("Verification code must be 6 digits");
       }
 
-      const response = await authService.verifyOTT(email, ott);
+      console.log("[VerifyOTT] Verifying OTT via AuthManager for:", email);
+      const response = await authManager.verifyOTT(email, ott);
 
-      console.log("Verification successful, received encrypted keys");
+      console.log(
+        "[VerifyOTT] Verification successful via AuthManager, received encrypted keys",
+      );
 
       // Navigate to complete login step
       navigate("/login/complete");
     } catch (error) {
+      console.error("[VerifyOTT] Verification failed via AuthManager:", error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -103,6 +113,7 @@ const VerifyOTT = () => {
             <li>
               Use the "Change Email" button to go back and request a new code
             </li>
+            <li>AuthManager will handle the verification orchestration</li>
           </ul>
         </div>
       </div>
