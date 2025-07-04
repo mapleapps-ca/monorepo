@@ -1,6 +1,6 @@
 // File: monorepo/web/maplefile-frontend/src/services/TokenService.js
 // Token Service - Updated without worker dependencies, delegates to ApiClient
-import LocalStorageService from "./LocalStorageService.js";
+import LocalStorageService from "./Storage/LocalStorageService.js";
 
 class TokenService {
   constructor() {

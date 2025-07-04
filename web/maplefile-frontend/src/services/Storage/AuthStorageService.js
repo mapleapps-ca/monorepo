@@ -1,6 +1,6 @@
 // File: monorepo/web/maplefile-frontend/src/services/Storage/AuthStorageService.js
 // Authentication Storage Service - Handles all local storage operations for authentication
-import LocalStorageService from "../LocalStorageService.js";
+import LocalStorageService from "./LocalStorageService.js";
 
 class AuthStorageService {
   constructor() {

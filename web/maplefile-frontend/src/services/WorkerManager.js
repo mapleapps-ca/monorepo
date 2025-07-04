@@ -1,6 +1,6 @@
 // File: monorepo/web/maplefile-frontend/src/services/WorkerManager.js
 // Simplified WorkerManager without web workers - just event management
-import LocalStorageService from "./LocalStorageService.js";
+import LocalStorageService from "./Storage/LocalStorageService.js";
 
 class WorkerManager {
   constructor() {

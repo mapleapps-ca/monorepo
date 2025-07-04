@@ -2,7 +2,7 @@
 // Custom hook for authentication management with AuthManager orchestrator
 import { useState, useEffect, useCallback } from "react";
 import { useServices } from "./useService.jsx"; // Add this import
-import LocalStorageService from "../services/LocalStorageService.js";
+import LocalStorageService from "../services/Storage/LocalStorageService.js";
 import WorkerManager from "../services/WorkerManager.js";
 
 // Custom hook for authentication management with AuthManager

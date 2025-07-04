@@ -1,6 +1,6 @@
 // File: monorepo/web/maplefile-frontend/src/services/API/ApiClient.js
 // Enhanced API Client with automatic token refresh interceptor
-import LocalStorageService from "../LocalStorageService.js";
+import LocalStorageService from "../Storage/LocalStorageService.js";
 import WorkerManager from "../WorkerManager.js";
 
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config

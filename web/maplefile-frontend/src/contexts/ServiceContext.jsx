@@ -6,7 +6,7 @@ import MeManager from "../services/Manager/MeManager.js";
 import SyncCollectionManager from "../services/Manager/SyncCollectionManager.js";
 import TokenService from "../services/TokenService.js";
 import CryptoService from "../services/Crypto/CryptoService.js";
-import LocalStorageService from "../services/LocalStorageService.js";
+import LocalStorageService from "../services/Storage/LocalStorageService.js";
 import ApiClient from "../services/API/ApiClient.js";
 import WorkerManager from "../services/WorkerManager.js";
 import PasswordStorageService from "../services/PasswordStorageService.js";
