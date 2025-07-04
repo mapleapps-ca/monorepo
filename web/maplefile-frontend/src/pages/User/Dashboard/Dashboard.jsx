@@ -22,8 +22,14 @@ const Dashboard = () => {
     {
       path: "/sync-collections-example",
       title: "Sync Collections Example",
-      description: "Developers page to test sync collections.",
-      icon: "📁",
+      description: "Test syncing collections from the API.",
+      icon: "🔄",
+    },
+    {
+      path: "/sync-collection-storage-example",
+      title: "Sync Collection Storage Example",
+      description: "Test saving/loading sync collections to/from localStorage.",
+      icon: "💾",
     },
     {
       path: "/profile",

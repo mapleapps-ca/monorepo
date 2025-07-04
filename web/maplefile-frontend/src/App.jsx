@@ -3,7 +3,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import { ServiceProvider } from "./contexts/ServiceContext";
-// import Navigation from "./components/Navigation";
 import IndexPage from "./pages/Anonymous/Index/IndexPage";
 
 // Registration pages
@@ -23,18 +22,28 @@ import MeDetail from "./pages/User/Me/Detail";
 
 // Example Pages
 import SyncCollectionsExample from "./pages/User/Examples/SyncCollectionsExample";
+import SyncCollectionStorageExample from "./pages/User/Examples/SyncCollectionStorageExample";
+
+// Styles
+const styles = {
+  app: {
+    minHeight: "100vh",
+    backgroundColor: "#f5f5f5",
+  },
+  home: {
+    textAlign: "center",
+    padding: "2rem",
+    maxWidth: "800px",
+    margin: "0 auto",
+  },
+};
 
 // Main App component
 function App() {
   return (
-    // Wrap entire app with ServiceProvider for dependency injection
     <ServiceProvider>
       <Router>
         <div style={styles.app}>
-          {/* Navigation will be shown on all pages */}
-          {/*<Navigation />*/}
-
-          {/* Define all routes */}
           <Routes>
             <Route path="/" element={<IndexPage />} />
 
@@ -58,9 +67,14 @@ function App() {
             <Route path="/me" element={<MeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
 
+            {/* Example routes */}
             <Route
               path="/sync-collections-example"
               element={<SyncCollectionsExample />}
+            />
+            <Route
+              path="/sync-collection-storage-example"
+              element={<SyncCollectionStorageExample />}
             />
 
             {/* Redirect any unknown routes to home */}
@@ -71,18 +85,5 @@ function App() {
     </ServiceProvider>
   );
 }
-
-const styles = {
-  app: {
-    minHeight: "100vh",
-    backgroundColor: "#f5f5f5",
-  },
-  home: {
-    textAlign: "center",
-    padding: "2rem",
-    maxWidth: "800px",
-    margin: "0 auto",
-  },
-};
 
 export default App;

@@ -1,4 +1,4 @@
-// Updated ServiceContext.jsx with SyncCollectionsService
+// Updated ServiceContext.jsx with SyncCollectionStorageService
 import React, { createContext, useEffect } from "react";
 import AuthService from "../services/AuthService.js";
 import MeService from "../services/MeService.js";
@@ -9,6 +9,7 @@ import ApiClient from "../services/ApiClient.js";
 import WorkerManager from "../services/WorkerManager.js";
 import PasswordStorageService from "../services/PasswordStorageService.js";
 import SyncCollectionsService from "../services/SyncCollectionsService.js";
+import SyncCollectionStorageService from "../services/SyncCollectionStorageService.js";
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -27,6 +28,9 @@ export function ServiceProvider({ children }) {
   // Initialize SyncCollectionsService with AuthService dependency
   const syncCollectionsService = new SyncCollectionsService(AuthService);
 
+  // Initialize SyncCollectionStorageService (no dependencies needed)
+  const syncCollectionStorageService = new SyncCollectionStorageService();
+
   // Create services object with all singleton services
   const services = {
     // Core services (singletons)
@@ -41,6 +45,7 @@ export function ServiceProvider({ children }) {
     meService,
     tokenService,
     syncCollectionsService,
+    syncCollectionStorageService,
   };
 
   // Initialize services that need async initialization
