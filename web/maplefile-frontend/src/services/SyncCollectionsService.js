@@ -1,13 +1,12 @@
-// SyncCollectionsService.js
-// Service for syncing collections with paginated API calls
-// Save this file to: src/services/SyncCollectionsService.js
+// SyncCollectionsService.js - SIMPLIFIED VERSION
+// Just one main function: syncAllCollections() that returns everything
 
 class SyncCollectionsService {
   constructor(authService) {
     this.authService = authService;
     this.isLoading = false;
     this._apiClient = null;
-    console.log("[SyncCollectionsService] Service initialized");
+    console.log("[SyncCollectionsService] Simple service initialized");
   }
 
   // Import ApiClient for authenticated requests
@@ -20,75 +19,11 @@ class SyncCollectionsService {
   }
 
   /**
-   * Sync collections with pagination support
-   * @param {Object} options - Sync options
-   * @param {number} options.limit - Maximum number of results (default: 1000, max: 5000)
-   * @param {string} options.cursor - Base64 encoded cursor for pagination
-   * @returns {Promise<Object>} - Sync response with collections, next_cursor, and has_more
-   */
-  async syncCollections(options = {}) {
-    if (!this.authService.isAuthenticated()) {
-      throw new Error("User not authenticated");
-    }
-
-    try {
-      this.isLoading = true;
-      console.log(
-        "[SyncCollectionsService] Syncing collections with options:",
-        options,
-      );
-
-      const apiClient = await this.getApiClient();
-
-      // Build query parameters
-      const queryParams = new URLSearchParams();
-
-      // Add limit parameter (default: 1000, max: 5000)
-      if (options.limit !== undefined) {
-        const limit = Math.min(Math.max(1, parseInt(options.limit)), 5000);
-        queryParams.append("limit", limit.toString());
-      }
-
-      // Add cursor parameter if provided
-      if (options.cursor) {
-        queryParams.append("cursor", options.cursor);
-      }
-
-      // Build endpoint URL with query parameters
-      const endpoint = `/sync/collections${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
-
-      console.log(
-        "[SyncCollectionsService] Requesting sync endpoint:",
-        endpoint,
-      );
-
-      // Make the API request
-      const response = await apiClient.getMapleFile(endpoint);
-
-      console.log("[SyncCollectionsService] Sync response received:", {
-        collectionsCount: response.collections?.length || 0,
-        hasMore: response.has_more,
-        hasNextCursor: !!response.next_cursor,
-      });
-
-      return response;
-    } catch (error) {
-      console.error(
-        "[SyncCollectionsService] Failed to sync collections:",
-        error,
-      );
-      throw error;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  /**
-   * Sync all collections by automatically paginating through all pages
-   * @param {Object} options - Sync options
-   * @param {number} options.limit - Maximum number of results per page (default: 1000)
-   * @param {Function} options.onPageReceived - Callback function called for each page of results
-   * @returns {Promise<Array>} - Array of all collections
+   * Sync ALL collections by automatically paginating through all pages
+   * This is the ONLY function you need to call!
+   * @param {Object} options - Optional settings
+   * @param {number} options.pageSize - Collections per page (default: 1000, max: 5000)
+   * @returns {Promise<Array>} - Complete array of all collections
    */
   async syncAllCollections(options = {}) {
     if (!this.authService.isAuthenticated()) {
@@ -97,69 +32,40 @@ class SyncCollectionsService {
 
     try {
       this.isLoading = true;
-      console.log("[SyncCollectionsService] Syncing all collections");
+      console.log("[SyncCollectionsService] Starting complete sync...");
 
       const allCollections = [];
       let cursor = null;
       let hasMore = true;
       let pageCount = 0;
+      const pageSize = Math.min(options.pageSize || 1000, 5000);
 
       while (hasMore) {
         pageCount++;
         console.log(`[SyncCollectionsService] Fetching page ${pageCount}...`);
 
-        const syncOptions = {
-          limit: options.limit || 1000,
-          ...(cursor && { cursor }),
-        };
-
-        const response = await this.syncCollections(syncOptions);
+        // Make single page request
+        const response = await this.fetchSinglePage(pageSize, cursor);
 
         // Add collections to the result
         if (response.collections && response.collections.length > 0) {
           allCollections.push(...response.collections);
-
-          // Call the callback if provided
-          if (
-            options.onPageReceived &&
-            typeof options.onPageReceived === "function"
-          ) {
-            try {
-              await options.onPageReceived(
-                response.collections,
-                pageCount,
-                response,
-              );
-            } catch (callbackError) {
-              console.error(
-                "[SyncCollectionsService] Error in page callback:",
-                callbackError,
-              );
-            }
-          }
+          console.log(
+            `[SyncCollectionsService] Page ${pageCount}: ${response.collections.length} collections (Total: ${allCollections.length})`,
+          );
         }
 
         // Check if there are more pages
         hasMore = response.has_more;
         cursor = response.next_cursor;
-
-        console.log(`[SyncCollectionsService] Page ${pageCount} completed:`, {
-          collectionsInPage: response.collections?.length || 0,
-          totalCollections: allCollections.length,
-          hasMore,
-          nextCursor: cursor ? `${cursor.substring(0, 20)}...` : null,
-        });
       }
 
       console.log(
-        `[SyncCollectionsService] Sync complete: ${allCollections.length} collections across ${pageCount} pages`,
+        `[SyncCollectionsService] ✅ Complete! ${allCollections.length} collections across ${pageCount} pages`,
       );
       return allCollections;
     } catch (error) {
-      console.error(
-        "[SyncCollectionsService] Failed to sync all collections:",
-        error,
-      );
+      console.error("[SyncCollectionsService] ❌ Sync failed:", error);
       throw error;
     } finally {
       this.isLoading = false;
@@ -167,73 +73,38 @@ class SyncCollectionsService {
   }
 
   /**
-   * Sync collections since a specific modification time
-   * @param {string} sinceModified - ISO timestamp to sync from
-   * @param {Object} options - Additional sync options
-   * @returns {Promise<Array>} - Array of collections modified since the specified time
+   * Internal method to fetch a single page
+   * @private
    */
-  async syncCollectionsSince(sinceModified, options = {}) {
-    if (!this.authService.isAuthenticated()) {
-      throw new Error("User not authenticated");
+  async fetchSinglePage(limit, cursor) {
+    const apiClient = await this.getApiClient();
+
+    // Build query parameters
+    const queryParams = new URLSearchParams();
+    queryParams.append("limit", limit.toString());
+
+    if (cursor) {
+      queryParams.append("cursor", cursor);
     }
 
-    try {
-      console.log(
-        "[SyncCollectionsService] Syncing collections since:",
-        sinceModified,
-      );
+    // Build endpoint URL
+    const endpoint = `/sync/collections?${queryParams.toString()}`;
 
-      const allCollections = [];
-      let cursor = null;
-      let hasMore = true;
-      let foundOlderData = false;
+    console.log(`[SyncCollectionsService] → GET ${endpoint}`);
 
-      while (hasMore && !foundOlderData) {
-        const syncOptions = {
-          limit: options.limit || 1000,
-          ...(cursor && { cursor }),
-        };
+    // Make the API request
+    const response = await apiClient.getMapleFile(endpoint);
 
-        const response = await this.syncCollections(syncOptions);
+    console.log(
+      `[SyncCollectionsService] ← Response: ${response.collections?.length || 0} collections, hasMore: ${response.has_more}`,
+    );
 
-        if (response.collections && response.collections.length > 0) {
-          // Filter collections that are newer than the specified time
-          const filteredCollections = response.collections.filter(
-            (collection) => {
-              const modifiedAt = new Date(collection.modified_at);
-              const sinceDate = new Date(sinceModified);
-              return modifiedAt >= sinceDate;
-            },
-          );
-
-          // If we got fewer filtered results than total results, we've reached older data
-          if (filteredCollections.length < response.collections.length) {
-            foundOlderData = true;
-          }
-
-          allCollections.push(...filteredCollections);
-        }
-
-        hasMore = response.has_more;
-        cursor = response.next_cursor;
-      }
-
-      console.log(
-        `[SyncCollectionsService] Sync since ${sinceModified} complete: ${allCollections.length} collections`,
-      );
-      return allCollections;
-    } catch (error) {
-      console.error(
-        "[SyncCollectionsService] Failed to sync collections since:",
-        error,
-      );
-      throw error;
-    }
+    return response;
   }
 
   /**
    * Get loading state
-   * @returns {boolean} - True if currently loading
+   * @returns {boolean} - True if currently syncing
    */
   isLoadingSync() {
     return this.isLoading;
@@ -248,7 +119,7 @@ class SyncCollectionsService {
       isAuthenticated: this.authService.isAuthenticated(),
       isLoading: this.isLoading,
       canMakeRequests: this.authService.canMakeAuthenticatedRequests(),
-      serviceName: "SyncCollectionsService",
+      serviceName: "SyncCollectionsService (Simplified)",
     };
   }
 }

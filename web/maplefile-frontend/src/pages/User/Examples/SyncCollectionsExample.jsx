@@ -1,5 +1,5 @@
-// SyncCollectionsExample.jsx
-// Example component demonstrating how to use the SyncCollectionsService
+// SyncCollectionsExample.jsx - SIMPLIFIED VERSION
+// Just one button that syncs all collections
 
 import React, { useState } from "react";
 import { useServices } from "../../../hooks/useService.jsx";
@@ -9,133 +9,24 @@ const SyncCollectionsExample = () => {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [nextCursor, setNextCursor] = useState(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [pageCount, setPageCount] = useState(0);
 
-  // Example 1: Simple sync with default parameters
-  const handleSimpleSync = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await syncCollectionsService.syncCollections();
-      setCollections(response.collections || []);
-      setNextCursor(response.next_cursor);
-      setHasMore(response.has_more);
-      setPageCount(1);
-      console.log("Simple sync completed:", response);
-    } catch (err) {
-      setError(err.message);
-      console.error("Simple sync failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Example 2: Sync with custom limit
-  const handleSyncWithLimit = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await syncCollectionsService.syncCollections({
-        limit: 10,
-      });
-      setCollections(response.collections || []);
-      setNextCursor(response.next_cursor);
-      setHasMore(response.has_more);
-      setPageCount(1);
-      console.log("Sync with limit completed:", response);
-    } catch (err) {
-      setError(err.message);
-      console.error("Sync with limit failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Example 3: Load next page using cursor
-  const handleLoadNextPage = async () => {
-    if (!nextCursor) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await syncCollectionsService.syncCollections({
-        limit: 10,
-        cursor: nextCursor,
-      });
-
-      // Append new collections to existing ones
-      setCollections((prev) => [...prev, ...(response.collections || [])]);
-      setNextCursor(response.next_cursor);
-      setHasMore(response.has_more);
-      setPageCount((prev) => prev + 1);
-      console.log("Next page loaded:", response);
-    } catch (err) {
-      setError(err.message);
-      console.error("Load next page failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Example 4: Sync all collections (automatic pagination)
+  // The ONLY function you need - sync all collections
   const handleSyncAll = async () => {
     setLoading(true);
     setError(null);
     setCollections([]);
-    setPageCount(0);
 
     try {
-      const allCollections = await syncCollectionsService.syncAllCollections({
-        limit: 10, // Small limit for demonstration
-        onPageReceived: (pageCollections, pageNum, response) => {
-          console.log(
-            `Received page ${pageNum} with ${pageCollections.length} collections`,
-          );
-          setPageCount(pageNum);
-          // Optionally update UI with each page as it arrives
-          setCollections((prev) => [...prev, ...pageCollections]);
-        },
-      });
+      console.log("🔄 Starting complete sync...");
 
-      console.log("All collections synced:", allCollections);
-      setHasMore(false);
-      setNextCursor(null);
+      // This ONE function call gets ALL collections automatically
+      const allCollections = await syncCollectionsService.syncAllCollections();
+
+      setCollections(allCollections);
+      console.log("✅ Sync complete:", allCollections.length, "collections");
     } catch (err) {
       setError(err.message);
-      console.error("Sync all failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Example 5: Sync collections since a specific time
-  const handleSyncSince = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Sync collections modified in the last 24 hours
-      const since = new Date();
-      since.setHours(since.getHours() - 24);
-
-      const recentCollections =
-        await syncCollectionsService.syncCollectionsSince(since.toISOString(), {
-          limit: 10,
-        });
-
-      setCollections(recentCollections);
-      setHasMore(false);
-      setNextCursor(null);
-      setPageCount(1);
-      console.log("Recent collections synced:", recentCollections);
-    } catch (err) {
-      setError(err.message);
-      console.error("Sync since failed:", err);
+      console.error("❌ Sync failed:", err);
     } finally {
       setLoading(false);
     }
@@ -143,85 +34,24 @@ const SyncCollectionsExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <h2>🔄 Sync Collections Service Examples</h2>
+      <h2>🔄 Sync All Collections (Simplified)</h2>
 
-      {/* Action Buttons */}
-      <div
-        style={{
-          marginBottom: "20px",
-          display: "flex",
-          gap: "10px",
-          flexWrap: "wrap",
-        }}
-      >
-        <button
-          onClick={handleSimpleSync}
-          disabled={loading}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-          }}
-        >
-          Simple Sync (Default)
-        </button>
-
-        <button
-          onClick={handleSyncWithLimit}
-          disabled={loading}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#28a745",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-          }}
-        >
-          Sync with Limit (10)
-        </button>
-
-        <button
-          onClick={handleLoadNextPage}
-          disabled={loading || !hasMore}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#ffc107",
-            color: "black",
-            border: "none",
-            borderRadius: "4px",
-          }}
-        >
-          Load Next Page
-        </button>
-
+      <div style={{ marginBottom: "30px" }}>
         <button
           onClick={handleSyncAll}
           disabled={loading}
           style={{
-            padding: "8px 16px",
-            backgroundColor: "#dc3545",
+            padding: "12px 24px",
+            fontSize: "16px",
+            backgroundColor: loading ? "#6c757d" : "#007bff",
             color: "white",
             border: "none",
-            borderRadius: "4px",
+            borderRadius: "6px",
+            cursor: loading ? "not-allowed" : "pointer",
+            minWidth: "200px",
           }}
         >
-          Sync All (Auto-paginate)
-        </button>
-
-        <button
-          onClick={handleSyncSince}
-          disabled={loading}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#6c757d",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-          }}
-        >
-          Sync Last 24h
+          {loading ? "🔄 Syncing..." : "🚀 Sync All Collections"}
         </button>
       </div>
 
@@ -229,26 +59,18 @@ const SyncCollectionsExample = () => {
       <div
         style={{
           marginBottom: "20px",
-          padding: "10px",
+          padding: "15px",
           backgroundColor: "#f8f9fa",
-          borderRadius: "4px",
+          borderRadius: "6px",
+          border: "1px solid #dee2e6",
         }}
       >
-        <p>
-          <strong>Status:</strong> {loading ? "Loading..." : "Ready"}
+        <h4 style={{ margin: "0 0 10px 0" }}>Status:</h4>
+        <p style={{ margin: "5px 0" }}>
+          <strong>Collections Found:</strong> {collections.length}
         </p>
-        <p>
-          <strong>Collections Count:</strong> {collections.length}
-        </p>
-        <p>
-          <strong>Pages Loaded:</strong> {pageCount}
-        </p>
-        <p>
-          <strong>Has More:</strong> {hasMore ? "Yes" : "No"}
-        </p>
-        <p>
-          <strong>Next Cursor:</strong>{" "}
-          {nextCursor ? `${nextCursor.substring(0, 20)}...` : "None"}
+        <p style={{ margin: "5px 0" }}>
+          <strong>Status:</strong> {loading ? "🔄 Loading..." : "✅ Ready"}
         </p>
       </div>
 
@@ -257,58 +79,107 @@ const SyncCollectionsExample = () => {
         <div
           style={{
             marginBottom: "20px",
-            padding: "10px",
+            padding: "15px",
             backgroundColor: "#f8d7da",
-            borderRadius: "4px",
+            borderRadius: "6px",
             color: "#721c24",
+            border: "1px solid #f5c6cb",
           }}
         >
-          <strong>Error:</strong> {error}
+          <h4 style={{ margin: "0 0 10px 0" }}>❌ Error:</h4>
+          <p style={{ margin: 0 }}>{error}</p>
         </div>
       )}
 
       {/* Collections Display */}
       <div>
-        <h3>Collections ({collections.length})</h3>
+        <h3>📁 Collections ({collections.length})</h3>
         {collections.length === 0 ? (
-          <p>
-            No collections found. Try clicking one of the sync buttons above.
-          </p>
+          <div
+            style={{
+              padding: "40px",
+              textAlign: "center",
+              backgroundColor: "#f8f9fa",
+              borderRadius: "6px",
+              border: "2px dashed #dee2e6",
+            }}
+          >
+            <p style={{ fontSize: "18px", color: "#6c757d" }}>
+              No collections loaded yet.
+            </p>
+            <p style={{ color: "#6c757d" }}>
+              Click "Sync All Collections" to load all your collections.
+            </p>
+          </div>
         ) : (
-          <div style={{ display: "grid", gap: "10px" }}>
+          <div
+            style={{
+              display: "grid",
+              gap: "10px",
+              maxHeight: "400px",
+              overflow: "auto",
+            }}
+          >
             {collections.map((collection, index) => (
               <div
                 key={`${collection.id}-${index}`}
                 style={{
-                  padding: "10px",
-                  border: "1px solid #ddd",
-                  borderRadius: "4px",
+                  padding: "12px",
+                  border: "1px solid #dee2e6",
+                  borderRadius: "6px",
                   backgroundColor:
-                    collection.state === "active" ? "#f8f9fa" : "#fff3cd",
+                    collection.state === "active" ? "#d1ecf1" : "#fff3cd",
+                  borderLeft: `4px solid ${collection.state === "active" ? "#0c5460" : "#856404"}`,
                 }}
               >
-                <p>
-                  <strong>ID:</strong> {collection.id}
-                </p>
-                <p>
-                  <strong>State:</strong> {collection.state}
-                </p>
-                <p>
-                  <strong>Version:</strong> {collection.version}
-                </p>
-                <p>
-                  <strong>Modified:</strong>{" "}
-                  {new Date(collection.modified_at).toLocaleString()}
-                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <p style={{ margin: "0 0 5px 0", fontWeight: "bold" }}>
+                      ID: {collection.id}
+                    </p>
+                    <p style={{ margin: "0", fontSize: "14px", color: "#666" }}>
+                      State: {collection.state} | Version: {collection.version}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#999",
+                      textAlign: "right",
+                    }}
+                  >
+                    Modified:{" "}
+                    {new Date(collection.modified_at).toLocaleDateString()}
+                  </div>
+                </div>
+
                 {collection.parent_id && (
-                  <p>
-                    <strong>Parent ID:</strong> {collection.parent_id}
+                  <p
+                    style={{
+                      margin: "5px 0 0 0",
+                      fontSize: "12px",
+                      color: "#666",
+                    }}
+                  >
+                    Parent: {collection.parent_id}
                   </p>
                 )}
+
                 {collection.tombstone_version > 0 && (
-                  <p>
-                    <strong>Tombstone Version:</strong>{" "}
-                    {collection.tombstone_version}
+                  <p
+                    style={{
+                      margin: "5px 0 0 0",
+                      fontSize: "12px",
+                      color: "#d63384",
+                    }}
+                  >
+                    🪦 Tombstone Version: {collection.tombstone_version}
                   </p>
                 )}
               </div>
