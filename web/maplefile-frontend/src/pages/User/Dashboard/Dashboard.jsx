@@ -34,11 +34,11 @@ const Dashboard = () => {
       icon: "💾",
     },
     {
-      path: "/sync-collection-example",
-      title: "Sync Collection Example",
+      path: "/sync-collection-manager-example",
+      title: "Sync Collection Manager Example",
       description:
-        "Test the SyncCollectionExample - save/load sync collections to/from localStorage.",
-      icon: "💾",
+        "Test the SyncCollectionManagerExample - save/load sync collections to/from localStorage.",
+      icon: "👨‍🏫",
     },
     {
       path: "/profile",

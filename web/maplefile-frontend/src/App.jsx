@@ -22,7 +22,7 @@ import MeDetail from "./pages/User/Me/Detail";
 // Example Pages
 import SyncCollectionAPIExample from "./pages/User/Examples/SyncCollectionAPIExample";
 import SyncCollectionStorageExample from "./pages/User/Examples/SyncCollectionStorageExample";
-import SyncCollectionExample from "./pages/User/Examples/SyncCollectionExample.jsx";
+import SyncCollectionManagerExample from "./pages/User/Examples/SyncCollectionManagerExample.jsx";
 
 // Styles
 const styles = {
@@ -71,8 +71,8 @@ function App() {
               element={<SyncCollectionStorageExample />}
             />
             <Route
-              path="/sync-collection-example"
-              element={<SyncCollectionExample />}
+              path="/sync-collection-manager-example"
+              element={<SyncCollectionManagerExample />}
             />
 
             {/* Redirect any unknown routes to home */}

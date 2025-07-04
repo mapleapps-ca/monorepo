@@ -1,10 +1,10 @@
-// File: monorepo/web/maplefile-frontend/src/pages/User/Examples/SyncCollectionExample.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/User/Examples/SyncCollectionManagerExample.jsx
 // Updated to use SyncCollectionManager instead of SyncCollectionService
 import React, { useState, useEffect } from "react";
 import { useServices } from "../../../hooks/useService.jsx";
 import useSyncCollectionManager from "../../../hooks/useSyncCollectionManager.js";
 
-const SyncCollectionExample = () => {
+const SyncCollectionManagerExample = () => {
   // Option 1: Use the new hook (recommended)
   const {
     syncCollections,
@@ -517,4 +517,4 @@ const SyncCollectionExample = () => {
   );
 };
 
-export default SyncCollectionExample;
+export default SyncCollectionManagerExample;
