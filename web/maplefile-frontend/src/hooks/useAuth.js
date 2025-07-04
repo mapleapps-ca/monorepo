@@ -1,12 +1,13 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useAuth.js
 // Custom hook for authentication management with AuthManager orchestrator
 import { useState, useEffect, useCallback } from "react";
-import AuthManager from "../services/Manager/AuthManager.js";
+import { useServices } from "./useService.jsx"; // Add this import
 import LocalStorageService from "../services/LocalStorageService.js";
 import WorkerManager from "../services/WorkerManager.js";
 
 // Custom hook for authentication management with AuthManager
 const useAuth = () => {
+  const { authManager } = useServices(); // Get authManager instance from ServiceContext
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
@@ -16,8 +17,8 @@ const useAuth = () => {
   // Update authentication state
   const updateAuthState = useCallback(() => {
     try {
-      const authenticated = AuthManager.isAuthenticated();
-      const userEmail = AuthManager.getCurrentUserEmail();
+      const authenticated = authManager.isAuthenticated();
+      const userEmail = authManager.getCurrentUserEmail();
 
       setIsAuthenticated(authenticated);
       setUser(userEmail ? { email: userEmail } : null);
@@ -47,7 +48,7 @@ const useAuth = () => {
       console.error("[useAuth] Error updating auth state:", error);
       // Don't clear state on error, just log it
     }
-  }, []);
+  }, [authManager]);
 
   // Handle auth manager events
   const handleAuthMessage = useCallback(
@@ -109,7 +110,7 @@ const useAuth = () => {
       }
 
       // Use AuthManager which delegates to ApiClient
-      await AuthManager.refreshToken();
+      await authManager.refreshToken();
       updateAuthState();
       console.log("[useAuth] Manual token refresh via AuthManager successful");
       return true;
@@ -123,7 +124,7 @@ const useAuth = () => {
       setTokenInfo({});
       throw error;
     }
-  }, [updateAuthState]);
+  }, [authManager, updateAuthState]);
 
   // Force token check (no-op since handled automatically)
   const forceTokenCheck = useCallback(() => {
@@ -136,11 +137,11 @@ const useAuth = () => {
   // Logout function
   const logout = useCallback(() => {
     console.log("[useAuth] Logging out user via AuthManager");
-    AuthManager.logout();
+    authManager.logout();
     setIsAuthenticated(false);
     setUser(null);
     setTokenInfo({});
-  }, []);
+  }, [authManager]);
 
   // Check token health and suggest actions
   const getTokenHealth = useCallback(() => {
@@ -196,13 +197,13 @@ const useAuth = () => {
         LocalStorageService.cleanupEncryptedTokenData();
 
         // Initialize the auth manager (simplified)
-        await AuthManager.initializeWorker();
+        await authManager.initializeWorker();
 
         // Update initial authentication state
         updateAuthState();
 
         // Get auth status
-        const status = await AuthManager.getWorkerStatus();
+        const status = await authManager.getWorkerStatus();
         setAuthStatus(status);
 
         console.log(
@@ -223,7 +224,7 @@ const useAuth = () => {
     };
 
     initAuth();
-  }, [updateAuthState]);
+  }, [authManager, updateAuthState]);
 
   // Set up auth message listener
   useEffect(() => {
@@ -296,7 +297,7 @@ const useAuth = () => {
       tokenInfo,
       authStatus,
       tokenHealth: getTokenHealth(),
-      canMakeAuthenticatedRequests: AuthManager.canMakeAuthenticatedRequests(),
+      canMakeAuthenticatedRequests: authManager.canMakeAuthenticatedRequests(),
       storageKeys: {
         hasAccessToken: !!LocalStorageService.getAccessToken(),
         hasRefreshToken: !!LocalStorageService.getRefreshToken(),
@@ -306,7 +307,14 @@ const useAuth = () => {
       managedBy: "AuthManager",
       architecture: "Manager/API/Storage",
     };
-  }, [isAuthenticated, user, tokenInfo, authStatus, getTokenHealth]);
+  }, [
+    isAuthenticated,
+    user,
+    tokenInfo,
+    authStatus,
+    getTokenHealth,
+    authManager,
+  ]);
 
   return {
     // State
@@ -335,7 +343,7 @@ const useAuth = () => {
     managedBy: "AuthManager",
 
     // Simplified capabilities
-    canMakeAuthenticatedRequests: AuthManager.canMakeAuthenticatedRequests(),
+    canMakeAuthenticatedRequests: authManager.canMakeAuthenticatedRequests(),
   };
 };
 
