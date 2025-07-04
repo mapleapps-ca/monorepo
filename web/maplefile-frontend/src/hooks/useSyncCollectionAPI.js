@@ -1,10 +1,10 @@
-// useSyncCollections.js - UPDATED
+// useSyncCollectionAPI.js
 // Custom React hook for easy sync collection API functionality
 
 import { useState, useCallback } from "react";
 import { useServices } from "./useService.jsx";
 
-const useSyncCollections = () => {
+const useSyncCollectionAPI = () => {
   const { syncCollectionAPIService } = useServices();
   const [syncCollections, setSyncCollections] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -18,21 +18,21 @@ const useSyncCollections = () => {
       setSyncCollections([]);
 
       try {
-        console.log("[useSyncCollections] Starting complete API sync...");
+        console.log("[useSyncCollectionAPI] Starting complete API sync...");
 
         const allSyncCollections =
           await syncCollectionAPIService.syncAllCollections(options);
 
         setSyncCollections(allSyncCollections);
         console.log(
-          "[useSyncCollections] ✅ API sync complete:",
+          "[useSyncCollectionAPI] ✅ API sync complete:",
           allSyncCollections.length,
           "sync collections",
         );
 
         return allSyncCollections;
       } catch (err) {
-        console.error("[useSyncCollections] ❌ API sync failed:", err);
+        console.error("[useSyncCollectionAPI] ❌ API sync failed:", err);
         setError(err.message);
         throw err;
       } finally {
@@ -74,4 +74,4 @@ const useSyncCollections = () => {
   };
 };
 
-export default useSyncCollections;
+export default useSyncCollectionAPI;

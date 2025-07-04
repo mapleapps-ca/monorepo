@@ -1,10 +1,10 @@
-// SyncCollectionsExample.jsx - UPDATED
+// SyncCollectionAPIExample.jsx - UPDATED
 // Example component demonstrating how to use the SyncCollectionAPIService
 
 import React, { useState } from "react";
 import { useServices } from "../../../hooks/useService.jsx";
 
-const SyncCollectionsExample = () => {
+const SyncCollectionAPIExample = () => {
   const { syncCollectionAPIService } = useServices();
   const [syncCollections, setSyncCollections] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -201,4 +201,4 @@ const SyncCollectionsExample = () => {
   );
 };
 
-export default SyncCollectionsExample;
+export default SyncCollectionAPIExample;

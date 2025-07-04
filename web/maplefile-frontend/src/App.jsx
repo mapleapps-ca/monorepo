@@ -21,7 +21,7 @@ import Dashboard from "./pages/User/Dashboard/Dashboard";
 import MeDetail from "./pages/User/Me/Detail";
 
 // Example Pages
-import SyncCollectionsExample from "./pages/User/Examples/SyncCollectionsExample";
+import SyncCollectionAPIExample from "./pages/User/Examples/SyncCollectionAPIExample";
 import SyncCollectionStorageExample from "./pages/User/Examples/SyncCollectionStorageExample";
 
 // Styles
@@ -64,7 +64,7 @@ function App() {
             {/* Example routes */}
             <Route
               path="/sync-collection-api-example"
-              element={<SyncCollectionsExample />}
+              element={<SyncCollectionAPIExample />}
             />
             <Route
               path="/sync-collection-storage-example"
