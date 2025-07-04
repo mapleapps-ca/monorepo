@@ -34,6 +34,13 @@ const Dashboard = () => {
       icon: "💾",
     },
     {
+      path: "/sync-collection-example",
+      title: "Sync Collection Example",
+      description:
+        "Test the SyncCollectionExample - save/load sync collections to/from localStorage.",
+      icon: "💾",
+    },
+    {
       path: "/profile",
       title: "My Profile",
       description: "Manage account settings and security keys.",

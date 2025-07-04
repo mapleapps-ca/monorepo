@@ -23,6 +23,7 @@ import MeDetail from "./pages/User/Me/Detail";
 // Example Pages
 import SyncCollectionAPIExample from "./pages/User/Examples/SyncCollectionAPIExample";
 import SyncCollectionStorageExample from "./pages/User/Examples/SyncCollectionStorageExample";
+import SyncCollectionExample from "./pages/User/Examples/SyncCollectionExample.jsx";
 
 // Styles
 const styles = {
@@ -69,6 +70,10 @@ function App() {
             <Route
               path="/sync-collection-storage-example"
               element={<SyncCollectionStorageExample />}
+            />
+            <Route
+              path="/sync-collection-example"
+              element={<SyncCollectionExample />}
             />
 
             {/* Redirect any unknown routes to home */}
