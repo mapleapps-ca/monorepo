@@ -1,8 +1,8 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// ServiceContext
+// ServiceContext - Updated to use MeManager instead of MeService
 import React, { createContext, useEffect, useMemo } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
-import MeService from "../services/MeService.js";
+import MeManager from "../services/Manager/MeManager.js"; // Updated import
 import TokenService from "../services/TokenService.js";
 import CryptoService from "../services/Crypto/CryptoService.js";
 import LocalStorageService from "../services/LocalStorageService.js";
@@ -21,8 +21,8 @@ export function ServiceProvider({ children }) {
   // Initialize AuthManager (singleton)
   const authManager = new AuthManager();
 
-  // Initialize MeService with AuthManager dependency
-  const meService = new MeService(authManager);
+  // Initialize MeManager with AuthManager dependency (replaces MeService)
+  const meManager = new MeManager(authManager);
 
   // Initialize TokenService
   const tokenService = new TokenService();
@@ -55,7 +55,8 @@ export function ServiceProvider({ children }) {
     workerManager: WorkerManager, // Simplified version without web workers
 
     // Services that need dependency injection
-    meService,
+    meManager, // New: MeManager (replaces meService)
+    meService: meManager, // Backward compatibility alias
     tokenService,
     syncCollectionAPIService,
     syncCollectionStorageService,
@@ -102,6 +103,17 @@ export function ServiceProvider({ children }) {
           );
         }
 
+        // Initialize me manager
+        try {
+          await meManager.initialize();
+          console.log("[ServiceProvider] MeManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] MeManager initialization failed:",
+            error,
+          );
+        }
+
         console.log(
           "[ServiceProvider] All services initialized successfully with AuthManager",
         );
@@ -114,7 +126,7 @@ export function ServiceProvider({ children }) {
     };
 
     initializeServices();
-  }, [authManager]);
+  }, [authManager, meManager]);
 
   // Set up error handling for services
   useEffect(() => {

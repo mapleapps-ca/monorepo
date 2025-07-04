@@ -7,7 +7,7 @@ import withPasswordProtection from "../../../hocs/withPasswordProtection.jsx";
 
 const MeDetail = () => {
   const navigate = useNavigate();
-  const { meService, authService } = useServices();
+  const { meManager } = useServices();
   const { logout } = useAuth();
 
   // State for user data
@@ -76,16 +76,16 @@ const MeDetail = () => {
   useEffect(() => {
     loadUserData();
   }, []);
-
   const loadUserData = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const userData = await meService.getCurrentUser();
+      // Updated: Use meManager instead of meService
+      const userData = await meManager.getCurrentUser();
       setUser(userData);
 
-      // Populate form data for editing
+      // Populate form data for editing (same logic as before)
       setFormData({
         email: userData.email || "",
         first_name: userData.first_name || "",
@@ -152,7 +152,7 @@ const MeDetail = () => {
           formData.agree_to_tracking_across_third_party_apps_and_services,
       };
 
-      const updatedUser = await meService.updateCurrentUser(updateData);
+      const updatedUser = await meManager.updateCurrentUser(updateData);
       setUser(updatedUser);
       setIsEditing(false);
 
@@ -205,8 +205,8 @@ const MeDetail = () => {
       setDeleteLoading(true);
       setDeleteError("");
 
-      // Use the MeService to delete the account
-      await meService.deleteCurrentUser(deletePassword);
+      // Updated: Use meManager instead of meService
+      await meManager.deleteCurrentUser(deletePassword);
 
       // Account deleted successfully, logout and redirect
       logout();
@@ -646,8 +646,8 @@ const MeDetail = () => {
             <h4>Form Data:</h4>
             <pre>{JSON.stringify(formData, null, 2)}</pre>
 
-            <h4>Service Info:</h4>
-            <pre>{JSON.stringify(meService.getDebugInfo(), null, 2)}</pre>
+            <h4>MeManager Info:</h4>
+            <pre>{JSON.stringify(meManager.getDebugInfo(), null, 2)}</pre>
           </div>
         </details>
       )}
