@@ -7,7 +7,7 @@ import SyncCollectionManager from "../services/Manager/SyncCollectionManager.js"
 import TokenService from "../services/TokenService.js";
 import CryptoService from "../services/Crypto/CryptoService.js";
 import LocalStorageService from "../services/LocalStorageService.js";
-import ApiClient from "../services/ApiClient.js";
+import ApiClient from "../services/API/ApiClient.js";
 import WorkerManager from "../services/WorkerManager.js";
 import PasswordStorageService from "../services/PasswordStorageService.js";
 import SyncCollectionAPIService from "../services/API/SyncCollectionAPIService.js";

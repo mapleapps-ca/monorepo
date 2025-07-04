@@ -423,7 +423,7 @@ class AuthManager {
     try {
       console.log("[AuthManager] Delegating token refresh to ApiClient");
       // Import ApiClient to use its refresh functionality
-      const { default: ApiClient } = await import("../ApiClient.js");
+      const { default: ApiClient } = await import("../API/ApiClient.js");
       return await ApiClient.refreshTokens();
     } catch (error) {
       console.error("[AuthManager] Token refresh delegation failed:", error);

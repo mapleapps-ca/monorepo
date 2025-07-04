@@ -1,7 +1,7 @@
-// File: monorepo/web/maplefile-frontend/src/services/ApiClient.js
+// File: monorepo/web/maplefile-frontend/src/services/API/ApiClient.js
 // Enhanced API Client with automatic token refresh interceptor
-import LocalStorageService from "./LocalStorageService.js";
-import WorkerManager from "./WorkerManager.js";
+import LocalStorageService from "../LocalStorageService.js";
+import WorkerManager from "../WorkerManager.js";
 
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config
 
@@ -53,7 +53,7 @@ class ApiClient {
 
       // Get password from PasswordStorageService
       const { default: passwordStorageService } = await import(
-        "./PasswordStorageService.js"
+        "../PasswordStorageService.js"
       );
       const password = passwordStorageService.getPassword();
 
@@ -77,7 +77,7 @@ class ApiClient {
 
       // Import and initialize CryptoService
       const { default: CryptoService } = await import(
-        "./Crypto/CryptoService.js"
+        "../Crypto/CryptoService.js"
       );
       await CryptoService.initialize();
 

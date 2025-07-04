@@ -164,7 +164,7 @@ class TokenService {
   async refreshTokens() {
     try {
       console.log("[TokenService] Delegating token refresh to ApiClient");
-      const { default: ApiClient } = await import("./ApiClient.js");
+      const { default: ApiClient } = await import("./API/ApiClient.js");
       return await ApiClient.refreshTokens();
     } catch (error) {
       console.error("[TokenService] Token refresh failed:", error);
