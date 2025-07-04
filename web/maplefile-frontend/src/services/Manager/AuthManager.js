@@ -3,7 +3,6 @@
 import AuthAPIService from "../API/AuthAPIService.js";
 import AuthStorageService from "../Storage/AuthStorageService.js";
 import CryptoService from "../Crypto/CryptoService.js";
-import WorkerManager from "../WorkerManager.js";
 
 class AuthManager {
   constructor() {
@@ -12,6 +11,9 @@ class AuthManager {
     // Initialize dependent services
     this.apiService = new AuthAPIService();
     this.storageService = new AuthStorageService();
+
+    // Event listener management (replacing WorkerManager)
+    this.authStateListeners = new Set();
 
     console.log("[AuthManager] Authentication manager initialized");
   }
@@ -22,13 +24,49 @@ class AuthManager {
 
     try {
       console.log("[AuthManager] Initializing auth manager (no workers)...");
-      await WorkerManager.initialize();
       this.isInitialized = true;
       console.log("[AuthManager] Auth manager initialized successfully");
     } catch (error) {
       console.error("[AuthManager] Failed to initialize:", error);
       this.isInitialized = true; // Continue anyway
     }
+  }
+
+  // === Event Management (Replacing WorkerManager) ===
+
+  // Add auth state change listener
+  addAuthStateChangeListener(callback) {
+    if (typeof callback === "function") {
+      this.authStateListeners.add(callback);
+      console.log(
+        "[AuthManager] Auth state listener added. Total listeners:",
+        this.authStateListeners.size,
+      );
+    }
+  }
+
+  // Remove auth state change listener
+  removeAuthStateChangeListener(callback) {
+    this.authStateListeners.delete(callback);
+    console.log(
+      "[AuthManager] Auth state listener removed. Total listeners:",
+      this.authStateListeners.size,
+    );
+  }
+
+  // Notify auth state change
+  notifyAuthStateChange(eventType, eventData) {
+    console.log(
+      `[AuthManager] Notifying ${this.authStateListeners.size} listeners of ${eventType}`,
+    );
+
+    this.authStateListeners.forEach((callback) => {
+      try {
+        callback(eventType, eventData);
+      } catch (error) {
+        console.error("[AuthManager] Error in auth state listener:", error);
+      }
+    });
   }
 
   // === Authentication Flow Methods ===
@@ -504,7 +542,7 @@ class AuthManager {
     this.storageService.clearAuthData();
 
     // Notify listeners of logout
-    WorkerManager.notifyAuthStateChange("force_logout", {
+    this.notifyAuthStateChange("force_logout", {
       reason: "manual_logout",
     });
   }
@@ -546,6 +584,9 @@ class AuthManager {
         canMakeRequests: this.canMakeAuthenticatedRequests(),
         shouldRefreshTokens: this.shouldRefreshTokens(),
         sessionKeyStatus: this.getSessionKeyStatus(),
+      },
+      eventListeners: {
+        count: this.authStateListeners.size,
       },
     };
   }

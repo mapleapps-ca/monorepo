@@ -4,11 +4,12 @@ import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
 import SyncCollectionManager from "../services/Manager/SyncCollectionManager.js";
-import TokenService from "../services/TokenService.js";
+import TokenManager from "../services/Manager/TokenManager.js";
 import CryptoService from "../services/Crypto/CryptoService.js";
 import LocalStorageService from "../services/Storage/LocalStorageService.js";
-import ApiClient from "../services/API/ApiClient.js";
-import WorkerManager from "../services/WorkerManager.js";
+import ApiClient, {
+  setApiClientAuthManager,
+} from "../services/API/ApiClient.js";
 import PasswordStorageService from "../services/PasswordStorageService.js";
 import SyncCollectionAPIService from "../services/API/SyncCollectionAPIService.js";
 import SyncCollectionStorageService from "../services/Storage/SyncCollectionStorageService.js";
@@ -24,8 +25,8 @@ export function ServiceProvider({ children }) {
   // Initialize MeManager with AuthManager dependency (replaces MeService)
   const meManager = new MeManager(authManager);
 
-  // Initialize TokenService
-  const tokenService = new TokenService();
+  // Initialize TokenManager with AuthManager dependency (replaces TokenService)
+  const tokenManager = new TokenManager(authManager);
 
   // Initialize SyncCollectionAPIService with AuthManager dependency
   const syncCollectionAPIService = new SyncCollectionAPIService(authManager);
@@ -36,6 +37,9 @@ export function ServiceProvider({ children }) {
   // Initialize SyncCollectionManager with AuthManager dependency
   const syncCollectionManager = new SyncCollectionManager(authManager);
 
+  // Set AuthManager on ApiClient for event notifications
+  setApiClientAuthManager(authManager);
+
   // Create services object with all services
   const services = {
     // Core services (singletons)
@@ -45,12 +49,12 @@ export function ServiceProvider({ children }) {
     passwordStorageService: PasswordStorageService,
     localStorageService: LocalStorageService,
     apiClient: ApiClient,
-    workerManager: WorkerManager, // Simplified version without web workers
 
     // Services that need dependency injection
     meManager, // New: MeManager (replaces meService)
     meService: meManager, // Backward compatibility alias
-    tokenService,
+    tokenManager, // New: TokenManager (replaces tokenService)
+    tokenService: tokenManager, // Backward compatibility alias
     syncCollectionAPIService,
     syncCollectionStorageService,
     syncCollectionManager, // New: SyncCollectionManager (replaces syncCollectionService)
@@ -73,23 +77,10 @@ export function ServiceProvider({ children }) {
         await PasswordStorageService.initialize();
         console.log("[ServiceProvider] PasswordStorageService initialized");
 
-        // Initialize simplified worker manager (no actual workers)
-        try {
-          await WorkerManager.initialize();
-          console.log(
-            "[ServiceProvider] WorkerManager initialized (simplified)",
-          );
-        } catch (error) {
-          console.warn(
-            "[ServiceProvider] WorkerManager initialization failed, continuing:",
-            error,
-          );
-        }
-
-        // Initialize auth manager (simplified)
+        // Initialize auth manager
         try {
           await authManager.initializeWorker();
-          console.log("[ServiceProvider] AuthManager initialized (no workers)");
+          console.log("[ServiceProvider] AuthManager initialized");
         } catch (error) {
           console.warn(
             "[ServiceProvider] AuthManager initialization failed:",
@@ -104,6 +95,17 @@ export function ServiceProvider({ children }) {
         } catch (error) {
           console.warn(
             "[ServiceProvider] MeManager initialization failed:",
+            error,
+          );
+        }
+
+        // Initialize token manager
+        try {
+          await tokenManager.initialize();
+          console.log("[ServiceProvider] TokenManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] TokenManager initialization failed:",
             error,
           );
         }
@@ -131,7 +133,7 @@ export function ServiceProvider({ children }) {
     };
 
     initializeServices();
-  }, [authManager, meManager, syncCollectionManager]);
+  }, [authManager, meManager, tokenManager, syncCollectionManager]);
 
   // Set up error handling for services
   useEffect(() => {

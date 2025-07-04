@@ -1,9 +1,8 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useAuth.js
 // Custom hook for authentication management with AuthManager orchestrator
 import { useState, useEffect, useCallback } from "react";
-import { useServices } from "./useService.jsx"; // Add this import
+import { useServices } from "./useService.jsx";
 import LocalStorageService from "../services/Storage/LocalStorageService.js";
-import WorkerManager from "../services/WorkerManager.js";
 
 // Custom hook for authentication management with AuthManager
 const useAuth = () => {
@@ -228,14 +227,14 @@ const useAuth = () => {
 
   // Set up auth message listener
   useEffect(() => {
-    // Add auth message listener
-    WorkerManager.addAuthStateChangeListener(handleAuthMessage);
+    // Add auth message listener to AuthManager
+    authManager.addAuthStateChangeListener(handleAuthMessage);
 
     // Cleanup listener on unmount
     return () => {
-      WorkerManager.removeAuthStateChangeListener(handleAuthMessage);
+      authManager.removeAuthStateChangeListener(handleAuthMessage);
     };
-  }, [handleAuthMessage]);
+  }, [authManager, handleAuthMessage]);
 
   // Listen for localStorage changes (cross-tab synchronization)
   useEffect(() => {

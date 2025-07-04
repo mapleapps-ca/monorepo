@@ -1,7 +1,6 @@
 // File: monorepo/web/maplefile-frontend/src/services/API/ApiClient.js
 // Enhanced API Client with automatic token refresh interceptor
 import LocalStorageService from "../Storage/LocalStorageService.js";
-import WorkerManager from "../WorkerManager.js";
 
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config
 
@@ -9,6 +8,22 @@ class ApiClient {
   constructor() {
     this.isRefreshing = false;
     this.failedQueue = [];
+    this._authManager = null; // Will be set by setAuthManager
+  }
+
+  // Set AuthManager instance for event notifications
+  setAuthManager(authManager) {
+    this._authManager = authManager;
+    console.log("[ApiClient] AuthManager set for event notifications");
+  }
+
+  // Notify auth state change via AuthManager
+  notifyAuthStateChange(eventType, eventData) {
+    if (this._authManager && this._authManager.notifyAuthStateChange) {
+      this._authManager.notifyAuthStateChange(eventType, eventData);
+    } else {
+      console.log(`[ApiClient] Auth state change: ${eventType}`, eventData);
+    }
   }
 
   // Process failed requests queue after token refresh
@@ -240,7 +255,7 @@ class ApiClient {
       console.log("[ApiClient] Tokens refreshed and stored successfully");
 
       // Notify listeners of successful refresh
-      WorkerManager.notifyAuthStateChange("token_refresh_success", {
+      this.notifyAuthStateChange("token_refresh_success", {
         accessTokenExpiry: result.access_token_expiry_date,
         refreshTokenExpiry: result.refresh_token_expiry_date,
         username: result.username,
@@ -251,7 +266,7 @@ class ApiClient {
       console.error("[ApiClient] Token refresh failed:", error);
 
       // Notify listeners of failed refresh
-      WorkerManager.notifyAuthStateChange("token_refresh_failed", {
+      this.notifyAuthStateChange("token_refresh_failed", {
         error: error.message,
       });
 
@@ -619,4 +634,11 @@ class ApiClient {
 }
 
 // Export singleton instance
-export default new ApiClient();
+const apiClient = new ApiClient();
+
+// Helper function to set AuthManager after initialization
+export const setApiClientAuthManager = (authManager) => {
+  apiClient.setAuthManager(authManager);
+};
+
+export default apiClient;

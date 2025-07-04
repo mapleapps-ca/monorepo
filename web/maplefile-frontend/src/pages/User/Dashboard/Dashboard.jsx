@@ -14,6 +14,12 @@ const Dashboard = () => {
 
   const navItems = [
     {
+      path: "/token-manager-example",
+      title: "Token Manager Example",
+      description: "Test the TokenManager - orchestrated token management.",
+      icon: "🔑",
+    },
+    {
       path: "/files",
       title: "File Manager",
       description: "Browse, upload, and manage your encrypted files.",
