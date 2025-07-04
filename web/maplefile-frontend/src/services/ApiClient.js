@@ -1,6 +1,7 @@
-// File: monorepo/web/maplefile-frontend/src/service/ApiClient.js
-// API Client with unencrypted token support
+// File: monorepo/web/maplefile-frontend/src/services/ApiClient.js
+// Enhanced API Client with automatic token refresh interceptor
 import LocalStorageService from "./LocalStorageService.js";
+import WorkerManager from "./WorkerManager.js";
 
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config
 
@@ -41,6 +42,297 @@ class ApiClient {
     return LocalStorageService.hasValidTokens();
   }
 
+  // Decrypt encrypted tokens using password and user's private key
+  async decryptTokensFromRefresh(
+    encryptedAccessToken,
+    encryptedRefreshToken,
+    tokenNonce,
+  ) {
+    try {
+      console.log("[ApiClient] Starting token decryption process");
+
+      // Get password from PasswordStorageService
+      const { default: passwordStorageService } = await import(
+        "./PasswordStorageService.js"
+      );
+      const password = passwordStorageService.getPassword();
+
+      if (!password) {
+        throw new Error(
+          "No password available for token decryption - please log in again",
+        );
+      }
+
+      // Get user's encrypted data
+      const userEncryptedData = LocalStorageService.getUserEncryptedData();
+      if (
+        !userEncryptedData.salt ||
+        !userEncryptedData.encryptedMasterKey ||
+        !userEncryptedData.encryptedPrivateKey
+      ) {
+        throw new Error(
+          "Missing user encrypted data for token decryption - please log in again",
+        );
+      }
+
+      // Import and initialize CryptoService
+      const { default: CryptoService } = await import(
+        "./Crypto/CryptoService.js"
+      );
+      await CryptoService.initialize();
+
+      console.log("[ApiClient] Deriving keys from password...");
+
+      // Decode user's encrypted data
+      const salt = CryptoService.tryDecodeBase64(userEncryptedData.salt);
+      const encryptedMasterKey = CryptoService.tryDecodeBase64(
+        userEncryptedData.encryptedMasterKey,
+      );
+      const encryptedPrivateKey = CryptoService.tryDecodeBase64(
+        userEncryptedData.encryptedPrivateKey,
+      );
+
+      // Derive key encryption key from password
+      const keyEncryptionKey = await CryptoService.deriveKeyFromPassword(
+        password,
+        salt,
+      );
+
+      // Decrypt master key
+      const masterKey = CryptoService.decryptWithSecretBox(
+        encryptedMasterKey,
+        keyEncryptionKey,
+      );
+
+      // Decrypt private key
+      const privateKey = CryptoService.decryptWithSecretBox(
+        encryptedPrivateKey,
+        masterKey,
+      );
+
+      // Derive public key
+      let publicKey;
+      if (userEncryptedData.publicKey) {
+        publicKey = CryptoService.tryDecodeBase64(userEncryptedData.publicKey);
+      } else {
+        publicKey = CryptoService.sodium.crypto_scalarmult_base(privateKey);
+      }
+
+      console.log(
+        "[ApiClient] Keys derived successfully, decrypting tokens...",
+      );
+
+      // Decode encrypted tokens
+      const encryptedAccessBytes =
+        CryptoService.tryDecodeBase64(encryptedAccessToken);
+      const encryptedRefreshBytes = CryptoService.tryDecodeBase64(
+        encryptedRefreshToken,
+      );
+
+      // Decrypt tokens using sealed box (anonymous encryption)
+      const decryptedAccessBytes = CryptoService.sodium.crypto_box_seal_open(
+        encryptedAccessBytes,
+        publicKey,
+        privateKey,
+      );
+      const decryptedRefreshBytes = CryptoService.sodium.crypto_box_seal_open(
+        encryptedRefreshBytes,
+        publicKey,
+        privateKey,
+      );
+
+      // Convert to strings
+      const decryptedAccessToken = new TextDecoder().decode(
+        decryptedAccessBytes,
+      );
+      const decryptedRefreshToken = new TextDecoder().decode(
+        decryptedRefreshBytes,
+      );
+
+      // Validate JWT format
+      if (
+        decryptedAccessToken.split(".").length !== 3 ||
+        decryptedRefreshToken.split(".").length !== 3
+      ) {
+        throw new Error("Decrypted tokens are not valid JWT format");
+      }
+
+      console.log("[ApiClient] Tokens decrypted successfully");
+
+      return {
+        access_token: decryptedAccessToken,
+        refresh_token: decryptedRefreshToken,
+      };
+    } catch (error) {
+      console.error("[ApiClient] Token decryption failed:", error);
+      throw new Error(`Token decryption failed: ${error.message}`);
+    }
+  }
+
+  // Enhanced token refresh with decryption
+  async refreshTokens() {
+    try {
+      console.log("[ApiClient] Starting token refresh process");
+
+      const refreshToken = LocalStorageService.getRefreshToken();
+      if (!refreshToken) {
+        throw new Error("No refresh token available");
+      }
+
+      // Call refresh endpoint
+      const response = await fetch(`${API_BASE_URL}/token/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          value: refreshToken,
+        }),
+      });
+
+      if (response.status !== 201) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Token refresh failed");
+      }
+
+      const result = await response.json();
+      console.log("[ApiClient] Token refresh response received");
+
+      // Handle different response formats
+      let decryptedTokens;
+
+      if (
+        result.encrypted_access_token &&
+        result.encrypted_refresh_token &&
+        result.token_nonce
+      ) {
+        // Encrypted tokens - need to decrypt
+        console.log("[ApiClient] Received encrypted tokens, decrypting...");
+        decryptedTokens = await this.decryptTokensFromRefresh(
+          result.encrypted_access_token,
+          result.encrypted_refresh_token,
+          result.token_nonce,
+        );
+      } else if (result.access_token && result.refresh_token) {
+        // Already unencrypted tokens
+        console.log("[ApiClient] Received unencrypted tokens");
+        decryptedTokens = {
+          access_token: result.access_token,
+          refresh_token: result.refresh_token,
+        };
+      } else {
+        throw new Error("Invalid token refresh response format");
+      }
+
+      // Store the new unencrypted tokens
+      LocalStorageService.setTokens(
+        decryptedTokens.access_token,
+        decryptedTokens.refresh_token,
+        result.access_token_expiry_date,
+        result.refresh_token_expiry_date,
+      );
+
+      // Update user email if provided
+      if (result.username) {
+        LocalStorageService.setUserEmail(result.username);
+      }
+
+      console.log("[ApiClient] Tokens refreshed and stored successfully");
+
+      // Notify listeners of successful refresh
+      WorkerManager.notifyAuthStateChange("token_refresh_success", {
+        accessTokenExpiry: result.access_token_expiry_date,
+        refreshTokenExpiry: result.refresh_token_expiry_date,
+        username: result.username,
+      });
+
+      return result;
+    } catch (error) {
+      console.error("[ApiClient] Token refresh failed:", error);
+
+      // Notify listeners of failed refresh
+      WorkerManager.notifyAuthStateChange("token_refresh_failed", {
+        error: error.message,
+      });
+
+      throw error;
+    }
+  }
+
+  // Handle 401 Unauthorized responses with automatic token refresh
+  async handleUnauthorizedResponse(
+    url,
+    originalRequestOptions,
+    isMapleFileAPI = false,
+  ) {
+    // If already refreshing, queue this request
+    if (this.isRefreshing) {
+      return new Promise((resolve, reject) => {
+        this.failedQueue.push({ resolve, reject });
+      }).then(async () => {
+        // Retry original request with new token
+        const authHeader = this.getAuthorizationHeader();
+        if (authHeader) {
+          originalRequestOptions.headers["Authorization"] = authHeader;
+        }
+        const response = await fetch(url, originalRequestOptions);
+
+        if (isMapleFileAPI && response.status === 204) {
+          return null;
+        }
+
+        return response.json();
+      });
+    }
+
+    this.isRefreshing = true;
+
+    try {
+      console.log("[ApiClient] Access token expired, refreshing tokens...");
+
+      // Refresh the tokens
+      await this.refreshTokens();
+
+      // Update authorization header with new token
+      const newAuthHeader = this.getAuthorizationHeader();
+      if (newAuthHeader) {
+        originalRequestOptions.headers["Authorization"] = newAuthHeader;
+      }
+
+      this.isRefreshing = false;
+      this.processQueue(null, newAuthHeader);
+
+      // Retry the original request
+      const response = await fetch(url, originalRequestOptions);
+
+      if (isMapleFileAPI && response.status === 204) {
+        return null;
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.details
+            ? Object.values(data.details)[0]
+            : data.error || "Request failed",
+        );
+      }
+
+      return data;
+    } catch (refreshError) {
+      console.error("[ApiClient] Token refresh failed:", refreshError);
+      this.isRefreshing = false;
+      this.processQueue(refreshError, null);
+
+      // Clear authentication data and redirect to login
+      this.clearAuthData();
+      this.redirectToLogin("Session expired - please log in again");
+
+      throw new Error("Session expired. Please log in again.");
+    }
+  }
+
   // Make authenticated API request with automatic token refresh
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -76,9 +368,9 @@ class ApiClient {
       // Make the API request
       const response = await fetch(url, requestOptions);
 
-      // Handle authentication errors
+      // Handle authentication errors with automatic refresh
       if (response.status === 401) {
-        return this.handleUnauthorized(url, requestOptions);
+        return this.handleUnauthorizedResponse(url, requestOptions, false);
       }
 
       const data = await response.json();
@@ -138,9 +430,9 @@ class ApiClient {
       // Make the API request
       const response = await fetch(url, requestOptions);
 
-      // Handle authentication errors
+      // Handle authentication errors with automatic refresh
       if (response.status === 401) {
-        return this.handleUnauthorizedMapleFile(url, requestOptions);
+        return this.handleUnauthorizedResponse(url, requestOptions, true);
       }
 
       // Handle 204 No Content responses
@@ -170,153 +462,6 @@ class ApiClient {
     }
   }
 
-  // Handle 401 Unauthorized responses with token refresh for IAM API
-  async handleUnauthorized(url, originalRequestOptions) {
-    // If already refreshing, queue this request
-    if (this.isRefreshing) {
-      return new Promise((resolve, reject) => {
-        this.failedQueue.push({ resolve, reject });
-      }).then(async () => {
-        // Retry original request with new token
-        const authHeader = this.getAuthorizationHeader();
-        if (authHeader) {
-          originalRequestOptions.headers["Authorization"] = authHeader;
-        }
-        const response = await fetch(url, originalRequestOptions);
-        return response.json();
-      });
-    }
-
-    this.isRefreshing = true;
-
-    try {
-      console.log("[ApiClient] Access token expired, attempting refresh...");
-
-      // Check if we have a refresh token
-      const refreshToken = LocalStorageService.getRefreshToken();
-      if (!refreshToken) {
-        throw new Error("No refresh token available");
-      }
-
-      // Try to refresh the token directly using the API
-      await this.refreshTokenDirect();
-
-      // Update authorization header with new token
-      const newAuthHeader = this.getAuthorizationHeader();
-      if (newAuthHeader) {
-        originalRequestOptions.headers["Authorization"] = newAuthHeader;
-      }
-
-      this.isRefreshing = false;
-      this.processQueue(null, newAuthHeader);
-
-      // Retry the original request
-      const response = await fetch(url, originalRequestOptions);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.details
-            ? Object.values(data.details)[0]
-            : data.error || "Request failed",
-        );
-      }
-
-      return data;
-    } catch (refreshError) {
-      console.error("[ApiClient] Token refresh failed:", refreshError);
-      this.isRefreshing = false;
-      this.processQueue(refreshError, null);
-
-      // Clear authentication data and redirect to login
-      this.clearAuthData();
-      this.redirectToLogin("Session expired - please log in again");
-
-      throw new Error("Session expired. Please log in again.");
-    }
-  }
-
-  // Handle 401 Unauthorized responses for MapleFile API
-  async handleUnauthorizedMapleFile(url, originalRequestOptions) {
-    // If already refreshing, queue this request
-    if (this.isRefreshing) {
-      return new Promise((resolve, reject) => {
-        this.failedQueue.push({ resolve, reject });
-      }).then(async () => {
-        // Retry original request with new token
-        const authHeader = this.getAuthorizationHeader();
-        if (authHeader) {
-          originalRequestOptions.headers["Authorization"] = authHeader;
-        }
-        const response = await fetch(url, originalRequestOptions);
-
-        if (response.status === 204) {
-          return null;
-        }
-
-        return response.json();
-      });
-    }
-
-    this.isRefreshing = true;
-
-    try {
-      console.log(
-        "[ApiClient] MapleFile access token expired, attempting refresh...",
-      );
-
-      // Check if we have a refresh token
-      const refreshToken = LocalStorageService.getRefreshToken();
-      if (!refreshToken) {
-        throw new Error("No refresh token available");
-      }
-
-      // Try to refresh the token directly using the IAM API
-      await this.refreshTokenDirect();
-
-      // Update authorization header with new token
-      const newAuthHeader = this.getAuthorizationHeader();
-      if (newAuthHeader) {
-        originalRequestOptions.headers["Authorization"] = newAuthHeader;
-      }
-
-      this.isRefreshing = false;
-      this.processQueue(null, newAuthHeader);
-
-      // Retry the original request
-      const response = await fetch(url, originalRequestOptions);
-
-      if (response.status === 204) {
-        return null;
-      }
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.details
-            ? Object.values(data.details)[0]
-            : data.error || "Request failed",
-        );
-      }
-
-      return data;
-    } catch (refreshError) {
-      console.error(
-        "[ApiClient] MapleFile token refresh failed:",
-        refreshError,
-      );
-      this.isRefreshing = false;
-      this.processQueue(refreshError, null);
-
-      // Clear authentication data and redirect to login
-      this.clearAuthData();
-      this.redirectToLogin("Session expired - please log in again");
-
-      throw new Error("Session expired. Please log in again.");
-    }
-  }
-
   // Redirect to login page with message
   redirectToLogin(message) {
     console.log(`[ApiClient] Redirecting to login: ${message}`);
@@ -329,76 +474,6 @@ class ApiClient {
         window.location.href = "/";
       }
     }, 100);
-  }
-
-  // Direct token refresh method
-  async refreshTokenDirect() {
-    try {
-      console.log("[ApiClient] Starting direct token refresh");
-
-      const refreshToken = LocalStorageService.getRefreshToken();
-      if (!refreshToken) {
-        throw new Error("No refresh token available");
-      }
-
-      // Use the token refresh API endpoint
-      const response = await fetch(`${API_BASE_URL}/token/refresh`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          value: refreshToken,
-        }),
-      });
-
-      if (response.status !== 201) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Token refresh failed");
-      }
-
-      const result = await response.json();
-      console.log("[ApiClient] Direct token refresh successful");
-
-      // Handle refreshed tokens - should be unencrypted
-      if (result.access_token && result.refresh_token) {
-        console.log("[ApiClient] Received unencrypted tokens from refresh");
-
-        // Store the new unencrypted tokens
-        LocalStorageService.setTokens(
-          result.access_token,
-          result.refresh_token,
-          result.access_token_expiry_date,
-          result.refresh_token_expiry_date,
-        );
-
-        // Update user email if provided
-        if (result.username) {
-          LocalStorageService.setUserEmail(result.username);
-        }
-
-        console.log("[ApiClient] New tokens stored successfully");
-        return result;
-      } else if (result.encrypted_tokens && result.token_nonce) {
-        // This shouldn't happen after initial login
-        console.error(
-          "[ApiClient] Received encrypted tokens in refresh - this is unexpected",
-        );
-        throw new Error(
-          "Backend returned encrypted tokens in refresh response - configuration issue",
-        );
-      } else {
-        console.error("[ApiClient] No valid tokens in refresh response");
-        console.error(
-          "[ApiClient] Available response fields:",
-          Object.keys(result),
-        );
-        throw new Error("Token refresh failed: No valid tokens received");
-      }
-    } catch (error) {
-      console.error("[ApiClient] Direct token refresh failed:", error);
-      throw error;
-    }
   }
 
   // Clear authentication data

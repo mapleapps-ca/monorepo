@@ -1,52 +1,29 @@
-// File: monorepo/web/maplefile-frontend/src/service/AuthService.js
-// Authentication Service for API calls - Updated to store encrypted user data
+// File: monorepo/web/maplefile-frontend/src/services/AuthService.js
+// Authentication Service - Updated without worker dependencies
 import LocalStorageService from "./LocalStorageService.js";
 import CryptoService from "./Crypto/CryptoService.js";
 import WorkerManager from "./WorkerManager.js";
 
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config
+
 class AuthService {
   constructor() {
     this.isInitialized = false;
-    this.workerDisabled = false;
-    this.initializationPromise = null;
   }
 
-  async _doInitialize() {
-    try {
-      console.log("[AuthService] Initializing background worker...");
-      await WorkerManager.initialize();
-      this.isInitialized = true;
-      console.log("[AuthService] Background worker initialized successfully");
-
-      // Start monitoring if authenticated
-      if (this.isAuthenticated()) {
-        console.log("[AuthService] Starting token monitoring");
-        WorkerManager.startMonitoring();
-      }
-    } catch (error) {
-      console.error("[AuthService] Failed to initialize worker:", error);
-      console.warn(
-        "[AuthService] Continuing without background worker - token refresh will be manual only",
-      );
-
-      // Set a flag to indicate we're running without worker
-      this.isInitialized = false;
-      this.workerDisabled = true;
-    }
-  }
-
-  // Initialize the background worker
+  // Initialize the service (simplified without workers)
   async initializeWorker() {
     if (this.isInitialized) return;
 
-    // Prevent multiple simultaneous initializations
-    if (this.initializationPromise) {
-      return this.initializationPromise;
+    try {
+      console.log("[AuthService] Initializing auth service (no workers)...");
+      await WorkerManager.initialize();
+      this.isInitialized = true;
+      console.log("[AuthService] Auth service initialized successfully");
+    } catch (error) {
+      console.error("[AuthService] Failed to initialize:", error);
+      this.isInitialized = true; // Continue anyway
     }
-
-    this.initializationPromise = this._doInitialize();
-    return this.initializationPromise;
   }
 
   // Helper method to make API requests
@@ -121,7 +98,7 @@ class AuthService {
       // Store verification data for the final step
       LocalStorageService.setLoginSessionData("verify_response", response);
 
-      // IMPORTANT: Store the user's encrypted data for future password-based decryption
+      // Store the user's encrypted data for future password-based decryption
       if (
         response.salt &&
         response.encryptedMasterKey &&
@@ -188,35 +165,6 @@ class AuthService {
 
       console.log("[AuthService] Complete login response:", response);
 
-      // Log the actual token data without truncation
-      if (response.encrypted_access_token) {
-        console.log(
-          "[AuthService] Full encrypted_access_token:",
-          response.encrypted_access_token,
-        );
-        console.log(
-          "[AuthService] encrypted_access_token first 50 chars:",
-          response.encrypted_access_token.substring(0, 50),
-        );
-        console.log(
-          "[AuthService] encrypted_access_token last 50 chars:",
-          response.encrypted_access_token.substring(
-            response.encrypted_access_token.length - 50,
-          ),
-        );
-      }
-
-      if (response.encrypted_refresh_token) {
-        console.log(
-          "[AuthService] Full encrypted_refresh_token:",
-          response.encrypted_refresh_token,
-        );
-      }
-
-      if (response.token_nonce) {
-        console.log("[AuthService] Full token_nonce:", response.token_nonce);
-      }
-
       // Handle encrypted tokens from backend - decrypt and store unencrypted
       if (
         (response.encrypted_access_token &&
@@ -225,18 +173,6 @@ class AuthService {
         (response.encrypted_tokens && response.token_nonce)
       ) {
         console.log("[AuthService] Received encrypted tokens - decrypting...");
-        console.log(
-          "[AuthService] Encrypted access token length:",
-          response.encrypted_access_token?.length,
-        );
-        console.log(
-          "[AuthService] Encrypted refresh token length:",
-          response.encrypted_refresh_token?.length,
-        );
-        console.log(
-          "[AuthService] Token nonce length:",
-          response.token_nonce?.length,
-        );
 
         // Check if we have session keys for decryption
         if (!LocalStorageService.hasSessionKeys()) {
@@ -255,19 +191,6 @@ class AuthService {
             !response.encrypted_refresh_token
           ) {
             throw new Error("Missing encrypted tokens in response");
-          }
-
-          if (
-            response.encrypted_access_token.includes("…") ||
-            response.encrypted_refresh_token.includes("…")
-          ) {
-            console.error(
-              "[AuthService] ERROR: Encrypted tokens appear to be truncated!",
-            );
-            console.error(
-              "This might be a console display issue or actual data truncation",
-            );
-            throw new Error("Encrypted tokens appear to be truncated");
           }
 
           // Handle separate encrypted tokens
@@ -309,10 +232,6 @@ class AuthService {
         }
 
         console.log("[AuthService] Token decryption successful");
-        console.log(
-          "[AuthService] Decrypted token keys:",
-          Object.keys(decryptedTokens),
-        );
 
         // Store unencrypted tokens in localStorage
         LocalStorageService.setTokens(
@@ -347,8 +266,7 @@ class AuthService {
       // Clear login session data but NOT session keys
       LocalStorageService.clearAllLoginSessionData();
 
-      // IMPORTANT: Clear session keys after successful login
-      // They were only needed temporarily for token decryption
+      // Clear session keys after successful login
       console.log(
         "[AuthService] Clearing session keys after login - they will be re-derived from password when needed",
       );
@@ -356,11 +274,6 @@ class AuthService {
 
       // Clean up any old encrypted token data
       LocalStorageService.cleanupEncryptedTokenData();
-
-      // Start background monitoring after successful login
-      if (this.isInitialized) {
-        WorkerManager.startMonitoring();
-      }
 
       console.log(
         "[AuthService] Login completed successfully with unencrypted tokens",
@@ -471,7 +384,7 @@ class AuthService {
       // After successful decryption, cache the keys for token decryption
       console.log("[AuthService] Caching session keys for token decryption");
 
-      // We need to re-derive the keys to cache them
+      // Re-derive the keys to cache them
       await CryptoService.initialize();
 
       // Decode the encrypted data
@@ -526,146 +439,48 @@ class AuthService {
     }
   }
 
-  // Token Refresh using unencrypted tokens
+  // Token refresh is now handled by ApiClient automatically
   async refreshToken() {
-    try {
-      console.log(
-        "[AuthService] Starting token refresh with unencrypted tokens",
-      );
-
-      const refreshToken = LocalStorageService.getRefreshToken();
-      if (!refreshToken) {
-        throw new Error("No refresh token available");
-      }
-
-      // Use the new API endpoint format
-      const response = await this.makeRequest("/token/refresh", {
-        method: "POST",
-        body: JSON.stringify({
-          value: refreshToken,
-        }),
-      });
-
-      console.log("[AuthService] Token refresh successful:", response);
-
-      // Handle refreshed tokens - they might be encrypted or unencrypted
-      if (response.encrypted_tokens && response.token_nonce) {
-        console.log(
-          "[AuthService] Received encrypted tokens from refresh - this shouldn't happen",
-        );
-        console.warn(
-          "[AuthService] Backend should return unencrypted tokens after initial login",
-        );
-        throw new Error(
-          "Unexpected encrypted tokens in refresh response - backend configuration issue",
-        );
-      } else if (response.access_token && response.refresh_token) {
-        // Handle unencrypted tokens (expected)
-        console.log("[AuthService] Received unencrypted tokens from refresh");
-
-        LocalStorageService.setTokens(
-          response.access_token,
-          response.refresh_token,
-          response.access_token_expiry_date,
-          response.refresh_token_expiry_date,
-        );
-
-        // Update user email if provided
-        if (response.username) {
-          LocalStorageService.setUserEmail(response.username);
-        }
-
-        console.log("[AuthService] Refreshed tokens stored successfully");
-        return response;
-      } else {
-        console.error("[AuthService] No valid tokens in refresh response");
-        throw new Error("Token refresh failed: No valid tokens received");
-      }
-    } catch (error) {
-      console.error("[AuthService] Token refresh failed:", error);
-
-      // Clear tokens on refresh failure
-      LocalStorageService.clearAuthData();
-
-      // Stop monitoring
-      if (this.isInitialized) {
-        WorkerManager.stopMonitoring();
-      }
-
-      throw new Error(`Failed to refresh tokens: ${error.message}`);
-    }
+    // Import ApiClient to use its refresh functionality
+    const { default: ApiClient } = await import("./ApiClient.js");
+    return await ApiClient.refreshTokens();
   }
 
-  // Refresh tokens using background worker
+  // Manual token refresh (delegated to ApiClient)
   async refreshTokenViaWorker() {
-    if (!this.isInitialized && !this.workerDisabled) {
-      await this.initializeWorker();
-    }
-
-    if (this.workerDisabled) {
-      console.warn("[AuthService] Worker disabled, using direct refresh");
-      return this.refreshToken();
-    }
-
-    try {
-      console.log("[AuthService] Requesting token refresh via worker");
-      const result = await WorkerManager.manualRefresh();
-      console.log("[AuthService] Worker token refresh successful");
-      return result;
-    } catch (error) {
-      console.error("[AuthService] Worker token refresh failed:", error);
-      throw new Error(`Failed to refresh tokens via worker: ${error.message}`);
-    }
+    console.log("[AuthService] Manual refresh delegated to ApiClient");
+    return await this.refreshToken();
   }
 
-  // Force a token check (useful for testing)
+  // Force a token check (no-op since handled by ApiClient interceptors)
   forceTokenCheck() {
-    if (this.isInitialized && !this.workerDisabled) {
-      WorkerManager.forceTokenCheck();
-    }
+    console.log(
+      "[AuthService] Force token check - handled by ApiClient interceptors",
+    );
   }
 
-  // Get worker status for debugging
+  // Get status (simplified without worker)
   async getWorkerStatus() {
-    if (this.workerDisabled) {
-      return {
-        isInitialized: false,
-        workerDisabled: true,
-        error: "Worker initialization failed - running in manual mode",
-      };
-    }
-
-    if (!this.isInitialized) {
-      return {
-        isInitialized: false,
-        workerDisabled: false,
-        status: "not_initialized",
-      };
-    }
-
-    try {
-      return await WorkerManager.getWorkerStatus();
-    } catch (error) {
-      return {
-        isInitialized: this.isInitialized,
-        error: error.message,
-      };
-    }
+    return {
+      isInitialized: this.isInitialized,
+      method: "api_interceptor",
+      hasWorker: false,
+    };
   }
 
-  // Logout and stop background monitoring
+  // Logout and clean up
   logout() {
     console.log("[AuthService] Logging out user");
-
-    // Stop background monitoring
-    if (this.isInitialized) {
-      WorkerManager.stopMonitoring();
-    }
 
     // Clear all authentication data
     LocalStorageService.clearAuthData();
     LocalStorageService.clearAllLoginSessionData();
     LocalStorageService.clearSessionKeys();
+
+    // Notify listeners of logout
+    WorkerManager.notifyAuthStateChange("force_logout", {
+      reason: "manual_logout",
+    });
   }
 
   // Check if user is authenticated

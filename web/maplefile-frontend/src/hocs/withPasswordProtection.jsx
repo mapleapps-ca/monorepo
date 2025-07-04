@@ -1,11 +1,12 @@
-// File: src/hocs/withPasswordProtection.jsx - FIXED VERSION
+// File: monorepo/web/maplefile-frontend/src/hocs/withPasswordProtection.jsx
+// HOC that protects components by checking if password is available - Updated without worker dependencies
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import passwordStorageService from "../services/PasswordStorageService.js";
 
 /**
  * HOC that protects components by checking if password is available
- * FIXED: Now waits for service initialization and password restoration
+ * Updated: Simplified without worker dependencies
  */
 const withPasswordProtection = (WrappedComponent, options = {}) => {
   const {
@@ -127,6 +128,8 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
           {import.meta.env.DEV && (
             <p style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
               Dev mode: Attempting to restore password from localStorage...
+              <br />
+              Token refresh: Automatic via ApiClient interceptors (no workers)
             </p>
           )}
         </div>
@@ -156,7 +159,7 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
 
 export default withPasswordProtection;
 
-// Additional debug helper
+// Additional debug helper - updated without worker references
 export const debugPasswordProtection = () => {
   const service = passwordStorageService;
   const info = service.getStorageInfo();
@@ -166,6 +169,7 @@ export const debugPasswordProtection = () => {
   console.log("Storage mode:", info.mode);
   console.log("Is development:", info.isDevelopment);
   console.log("Has password in memory:", service.password !== null);
+  console.log("Token refresh method: ApiClient interceptors (no workers)");
   console.log(
     "Storage type:",
     service.storage === localStorage
@@ -185,5 +189,7 @@ export const debugPasswordProtection = () => {
     serviceInfo: info,
     hasPasswordInMemory: service.password !== null,
     localStorageKeys: keys,
+    refreshMethod: "api_interceptor",
+    hasWorkers: false,
   };
 };

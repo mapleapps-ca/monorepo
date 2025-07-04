@@ -1,4 +1,5 @@
-// ServiceContext.jsx
+// File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
+// ServiceContext - Updated without worker dependencies
 import React, { createContext, useEffect, useMemo } from "react";
 import AuthService from "../services/AuthService.js";
 import MeService from "../services/MeService.js";
@@ -50,7 +51,7 @@ export function ServiceProvider({ children }) {
     passwordStorageService: PasswordStorageService,
     localStorageService: LocalStorageService,
     apiClient: ApiClient,
-    workerManager: WorkerManager,
+    workerManager: WorkerManager, // Simplified version without web workers
 
     // Services that need dependency injection
     meService,
@@ -64,7 +65,9 @@ export function ServiceProvider({ children }) {
   useEffect(() => {
     const initializeServices = async () => {
       try {
-        console.log("[ServiceProvider] Initializing services...");
+        console.log(
+          "[ServiceProvider] Initializing services (no web workers)...",
+        );
 
         // Initialize crypto service
         await CryptoService.initialize();
@@ -74,29 +77,33 @@ export function ServiceProvider({ children }) {
         await PasswordStorageService.initialize();
         console.log("[ServiceProvider] PasswordStorageService initialized");
 
-        // Initialize worker manager (this will also initialize the auth worker)
+        // Initialize simplified worker manager (no actual workers)
         try {
           await WorkerManager.initialize();
-          console.log("[ServiceProvider] WorkerManager initialized");
+          console.log(
+            "[ServiceProvider] WorkerManager initialized (simplified)",
+          );
         } catch (error) {
           console.warn(
-            "[ServiceProvider] WorkerManager initialization failed, continuing without worker:",
+            "[ServiceProvider] WorkerManager initialization failed, continuing:",
             error,
           );
         }
 
-        // Initialize auth service worker
+        // Initialize auth service (simplified)
         try {
           await AuthService.initializeWorker();
-          console.log("[ServiceProvider] AuthService worker initialized");
+          console.log("[ServiceProvider] AuthService initialized (no workers)");
         } catch (error) {
           console.warn(
-            "[ServiceProvider] AuthService worker initialization failed:",
+            "[ServiceProvider] AuthService initialization failed:",
             error,
           );
         }
 
-        console.log("[ServiceProvider] All services initialized successfully");
+        console.log(
+          "[ServiceProvider] All services initialized successfully (no web workers)",
+        );
       } catch (error) {
         console.error(
           "[ServiceProvider] Service initialization failed:",
@@ -149,6 +156,9 @@ export function ServiceProvider({ children }) {
       console.log(
         "[ServiceProvider] AuthService authenticated:",
         AuthService.isAuthenticated(),
+      );
+      console.log(
+        "[ServiceProvider] Token refresh method: API interceptor (no workers)",
       );
 
       // Add services to window for debugging in development

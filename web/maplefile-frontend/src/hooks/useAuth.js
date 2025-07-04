@@ -1,18 +1,19 @@
-// Custom hook for authentication management with unencrypted token system (ente.io style)
+// File: monorepo/web/maplefile-frontend/src/hooks/useAuth.js
+// Custom hook for authentication management with automatic token refresh via ApiClient interceptors
 import { useState, useEffect, useCallback } from "react";
 import AuthService from "../services/AuthService.js";
 import LocalStorageService from "../services/LocalStorageService.js";
 import WorkerManager from "../services/WorkerManager.js";
 
-// Custom hook for authentication management with unencrypted token system
+// Custom hook for authentication management
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [tokenInfo, setTokenInfo] = useState({});
-  const [workerStatus, setWorkerStatus] = useState({ isInitialized: false });
+  const [authStatus, setAuthStatus] = useState({ isInitialized: false });
 
-  // Update authentication state for unencrypted token system
+  // Update authentication state
   const updateAuthState = useCallback(() => {
     try {
       const authenticated = AuthService.isAuthenticated();
@@ -21,7 +22,7 @@ const useAuth = () => {
       setIsAuthenticated(authenticated);
       setUser(userEmail ? { email: userEmail } : null);
 
-      // Update token information for unencrypted tokens
+      // Update token information
       const tokenExpiryInfo = LocalStorageService.getTokenExpiryInfo();
       const hasTokens = !!(
         LocalStorageService.getAccessToken() &&
@@ -31,6 +32,7 @@ const useAuth = () => {
       setTokenInfo({
         hasTokens,
         tokenSystem: "unencrypted",
+        refreshMethod: "api_interceptor",
         ...tokenExpiryInfo,
       });
 
@@ -46,17 +48,14 @@ const useAuth = () => {
     }
   }, []);
 
-  // Handle worker messages
-  const handleWorkerMessage = useCallback(
+  // Handle worker/auth manager events
+  const handleAuthMessage = useCallback(
     (type, data) => {
-      console.log(`[useAuth] Received worker message: ${type}`, data);
+      console.log(`[useAuth] Received auth message: ${type}`, data);
 
       switch (type) {
-        case "token_refreshed":
         case "token_refresh_success":
-        case "token_status_update":
-          // Update auth state when tokens change
-          console.log("[useAuth] Tokens updated, refreshing auth state");
+          console.log("[useAuth] Tokens refreshed automatically");
           updateAuthState();
           break;
 
@@ -70,11 +69,14 @@ const useAuth = () => {
           setIsAuthenticated(false);
           setUser(null);
           setTokenInfo({});
-          // Worker manager will handle redirect
-          break;
-
-        case "worker_error":
-          console.error("[useAuth] Worker error:", data);
+          // Redirect to login
+          if (data.shouldRedirect !== false) {
+            setTimeout(() => {
+              if (window.location.pathname !== "/") {
+                window.location.href = "/";
+              }
+            }, 1000);
+          }
           break;
 
         default:
@@ -84,7 +86,7 @@ const useAuth = () => {
     [updateAuthState],
   );
 
-  // Manual token refresh via worker
+  // Manual token refresh (now delegated to ApiClient)
   const manualRefresh = useCallback(async () => {
     try {
       console.log("[useAuth] Initiating manual token refresh");
@@ -94,7 +96,8 @@ const useAuth = () => {
         throw new Error("No refresh token available for refresh");
       }
 
-      await AuthService.refreshTokenViaWorker();
+      // Use AuthService which delegates to ApiClient
+      await AuthService.refreshToken();
       updateAuthState();
       console.log("[useAuth] Manual token refresh successful");
       return true;
@@ -107,11 +110,13 @@ const useAuth = () => {
     }
   }, [updateAuthState]);
 
-  // Force token check
+  // Force token check (no-op since handled automatically)
   const forceTokenCheck = useCallback(() => {
-    console.log("[useAuth] Forcing token check");
-    AuthService.forceTokenCheck();
-  }, []);
+    console.log(
+      "[useAuth] Force token check - handled automatically by ApiClient",
+    );
+    updateAuthState();
+  }, [updateAuthState]);
 
   // Logout function
   const logout = useCallback(() => {
@@ -143,12 +148,14 @@ const useAuth = () => {
       health.needsReauth = true;
     } else if (tokenInfo.accessTokenExpired) {
       health.status = "needs_refresh";
-      health.recommendations.push("Access token expired - refresh recommended");
+      health.recommendations.push(
+        "Access token expired - refresh will happen automatically",
+      );
       health.canRefresh = true;
     } else if (tokenInfo.accessTokenExpiringSoon) {
       health.status = "expiring_soon";
       health.recommendations.push(
-        "Access token expiring soon - refresh recommended",
+        "Access token expiring soon - refresh will happen automatically",
       );
       health.canRefresh = true;
     } else {
@@ -159,7 +166,7 @@ const useAuth = () => {
     return health;
   }, [tokenInfo]);
 
-  // Initialize authentication and worker
+  // Initialize authentication
   useEffect(() => {
     const initAuth = async () => {
       setIsLoading(true);
@@ -170,15 +177,15 @@ const useAuth = () => {
         // Clean up any old encrypted token data
         LocalStorageService.cleanupEncryptedTokenData();
 
-        // Initialize the worker
+        // Initialize the auth service (simplified)
         await AuthService.initializeWorker();
 
         // Update initial authentication state
         updateAuthState();
 
-        // Get worker status
+        // Get auth status
         const status = await AuthService.getWorkerStatus();
-        setWorkerStatus(status);
+        setAuthStatus(status);
 
         console.log("[useAuth] Authentication system initialized successfully");
       } catch (error) {
@@ -195,16 +202,16 @@ const useAuth = () => {
     initAuth();
   }, [updateAuthState]);
 
-  // Set up worker message listener
+  // Set up auth message listener
   useEffect(() => {
-    // Add worker message listener
-    WorkerManager.addAuthStateChangeListener(handleWorkerMessage);
+    // Add auth message listener
+    WorkerManager.addAuthStateChangeListener(handleAuthMessage);
 
     // Cleanup listener on unmount
     return () => {
-      WorkerManager.removeAuthStateChangeListener(handleWorkerMessage);
+      WorkerManager.removeAuthStateChangeListener(handleAuthMessage);
     };
-  }, [handleWorkerMessage]);
+  }, [handleAuthMessage]);
 
   // Listen for localStorage changes (cross-tab synchronization)
   useEffect(() => {
@@ -223,7 +230,7 @@ const useAuth = () => {
     };
   }, [updateAuthState]);
 
-  // API call wrapper with token management
+  // API call wrapper with automatic token management
   const apiCall = useCallback(
     async (apiFunction) => {
       try {
@@ -235,19 +242,7 @@ const useAuth = () => {
           throw new Error("Authentication required. Please log in again.");
         }
 
-        if (tokenHealth.canRefresh && tokenHealth.status === "needs_refresh") {
-          console.log(
-            "[useAuth] Auto-refreshing expired tokens before API call",
-          );
-          try {
-            await manualRefresh();
-          } catch (refreshError) {
-            console.error("[useAuth] Auto-refresh failed:", refreshError);
-            logout();
-            throw new Error("Session expired. Please log in again.");
-          }
-        }
-
+        // No need to manually refresh - ApiClient handles this automatically
         // Make the API call
         return await apiFunction();
       } catch (error) {
@@ -255,27 +250,17 @@ const useAuth = () => {
         if (
           error.message?.includes("401") ||
           error.message?.includes("Unauthorized") ||
-          error.message?.includes("expired")
+          error.message?.includes("expired") ||
+          error.message?.includes("Session expired")
         ) {
-          try {
-            console.log(
-              "[useAuth] API call failed with auth error, attempting refresh",
-            );
-            await manualRefresh();
-            return await apiFunction();
-          } catch (refreshError) {
-            console.error(
-              "[useAuth] Refresh after API error failed:",
-              refreshError,
-            );
-            logout();
-            throw new Error("Session expired. Please log in again.");
-          }
+          console.log("[useAuth] Authentication error detected, logging out");
+          logout();
+          throw new Error("Session expired. Please log in again.");
         }
         throw error;
       }
     },
-    [getTokenHealth, logout, manualRefresh],
+    [getTokenHealth, logout],
   );
 
   // Get debug information
@@ -284,7 +269,7 @@ const useAuth = () => {
       isAuthenticated,
       user,
       tokenInfo,
-      workerStatus,
+      authStatus,
       tokenHealth: getTokenHealth(),
       canMakeAuthenticatedRequests: AuthService.canMakeAuthenticatedRequests(),
       storageKeys: {
@@ -292,8 +277,9 @@ const useAuth = () => {
         hasRefreshToken: !!LocalStorageService.getRefreshToken(),
         hasUserEmail: !!LocalStorageService.getUserEmail(),
       },
+      refreshMethod: "api_interceptor",
     };
-  }, [isAuthenticated, user, tokenInfo, workerStatus, getTokenHealth]);
+  }, [isAuthenticated, user, tokenInfo, authStatus, getTokenHealth]);
 
   return {
     // State
@@ -301,7 +287,7 @@ const useAuth = () => {
     isLoading,
     user,
     tokenInfo,
-    workerStatus,
+    authStatus,
 
     // Actions
     logout,
@@ -318,6 +304,7 @@ const useAuth = () => {
     isAccessTokenExpiringSoon: tokenInfo.accessTokenExpiringSoon,
     hasTokens: tokenInfo.hasTokens,
     tokenSystem: tokenInfo.tokenSystem || "unencrypted",
+    refreshMethod: "api_interceptor",
 
     // Simplified capabilities
     canMakeAuthenticatedRequests: AuthService.canMakeAuthenticatedRequests(),

@@ -1,75 +1,45 @@
-// File: monorepo/web/maplefile-frontend/src/service/TokenService.js
-// Token Service for managing authentication tokens
+// File: monorepo/web/maplefile-frontend/src/services/TokenService.js
+// Token Service - Updated without worker dependencies, delegates to ApiClient
 import LocalStorageService from "./LocalStorageService.js";
-import WorkerManager from "./WorkerManager.js";
 
 class TokenService {
   constructor() {
-    this.ACCESS_TOKEN_KEY = "access_token";
-    this.REFRESH_TOKEN_KEY = "refresh_token";
-
-    // New encrypted token keys
-    this.ENCRYPTED_ACCESS_TOKEN_KEY = "mapleapps_encrypted_access_token";
-    this.ENCRYPTED_REFRESH_TOKEN_KEY = "mapleapps_encrypted_refresh_token";
-    this.TOKEN_NONCE_KEY = "mapleapps_token_nonce";
+    // Token storage keys
+    this.ACCESS_TOKEN_KEY = "mapleapps_access_token";
+    this.REFRESH_TOKEN_KEY = "mapleapps_refresh_token";
     this.ACCESS_TOKEN_EXPIRY_KEY = "mapleapps_access_token_expiry";
     this.REFRESH_TOKEN_EXPIRY_KEY = "mapleapps_refresh_token_expiry";
     this.USER_EMAIL_KEY = "mapleapps_user_email";
   }
 
-  // Store encrypted access token
-  setEncryptedAccessToken(token, expiry) {
-    return LocalStorageService.setEncryptedAccessToken(token, expiry);
+  // Store unencrypted access token with expiry
+  setAccessToken(token, expiryTime) {
+    return LocalStorageService.setAccessToken(token, expiryTime);
   }
 
-  // Store encrypted refresh token
-  setEncryptedRefreshToken(token, expiry) {
-    return LocalStorageService.setEncryptedRefreshToken(token, expiry);
+  // Store unencrypted refresh token with expiry
+  setRefreshToken(token, expiryTime) {
+    return LocalStorageService.setRefreshToken(token, expiryTime);
   }
 
-  // Store token nonce
-  setTokenNonce(nonce) {
-    return LocalStorageService.setTokenNonce(nonce);
-  }
-
-  // Store encrypted tokens (legacy method)
-  setEncryptedTokens(tokens, nonce, accessExpiry, refreshExpiry) {
-    return LocalStorageService.setEncryptedTokens(
-      tokens,
-      nonce,
-      accessExpiry,
-      refreshExpiry,
+  // Store both tokens with expiry times
+  setTokens(accessToken, refreshToken, accessTokenExpiry, refreshTokenExpiry) {
+    return LocalStorageService.setTokens(
+      accessToken,
+      refreshToken,
+      accessTokenExpiry,
+      refreshTokenExpiry,
     );
   }
 
-  // Get encrypted access token
-  getEncryptedAccessToken() {
-    return LocalStorageService.getEncryptedAccessToken();
-  }
-
-  // Get encrypted refresh token
-  getEncryptedRefreshToken() {
-    return LocalStorageService.getEncryptedRefreshToken();
-  }
-
-  // Get encrypted tokens (for refresh calls)
-  getEncryptedTokens() {
-    return LocalStorageService.getEncryptedTokens();
-  }
-
-  // Get token nonce
-  getTokenNonce() {
-    return LocalStorageService.getTokenNonce();
-  }
-
-  // Get refresh token for API calls
-  getRefreshToken() {
-    return LocalStorageService.getRefreshToken();
-  }
-
-  // Get access token (legacy compatibility)
+  // Get unencrypted access token
   getAccessToken() {
     return LocalStorageService.getAccessToken();
+  }
+
+  // Get unencrypted refresh token
+  getRefreshToken() {
+    return LocalStorageService.getRefreshToken();
   }
 
   // Check if access token is expired
@@ -90,11 +60,6 @@ class TokenService {
   // Check if user has valid tokens
   hasValidTokens() {
     return LocalStorageService.hasValidTokens();
-  }
-
-  // Check if user has encrypted tokens
-  hasEncryptedTokens() {
-    return LocalStorageService.hasEncryptedTokens();
   }
 
   // Get token expiry information
@@ -142,12 +107,7 @@ class TokenService {
     return LocalStorageService.clearAllLoginSessionData();
   }
 
-  // Migrate legacy tokens
-  migrateLegacyTokens() {
-    return LocalStorageService.migrateLegacyTokens();
-  }
-
-  // Get all storage data for worker communication
+  // Get all storage data for debugging
   getAllStorageData() {
     return LocalStorageService.getAllStorageData();
   }
@@ -160,88 +120,86 @@ class TokenService {
   // Get token health status
   getTokenHealth() {
     const tokenInfo = this.getTokenExpiryInfo();
-    const hasEncrypted = this.hasEncryptedTokens();
-    const hasLegacy = !!(
-      localStorage.getItem("mapleapps_access_token") ||
-      localStorage.getItem("mapleapps_refresh_token")
-    );
+    const hasTokens = this.hasValidTokens();
 
     const health = {
       status: "unknown",
       recommendations: [],
       canRefresh: false,
       needsReauth: false,
+      refreshMethod: "api_interceptor",
     };
 
-    if (!hasEncrypted && hasLegacy) {
-      health.status = "legacy_migration_needed";
-      health.recommendations.push(
-        "Migrate to encrypted token system by re-authenticating",
-      );
-      health.needsReauth = true;
-    } else if (hasEncrypted) {
-      if (tokenInfo.refreshTokenExpired) {
-        health.status = "expired";
-        health.recommendations.push(
-          "Refresh token expired - re-authentication required",
-        );
-        health.needsReauth = true;
-      } else if (tokenInfo.accessTokenExpired) {
-        health.status = "needs_refresh";
-        health.recommendations.push(
-          "Access token expired - refresh recommended",
-        );
-        health.canRefresh = true;
-      } else if (tokenInfo.accessTokenExpiringSoon) {
-        health.status = "expiring_soon";
-        health.recommendations.push(
-          "Access token expiring soon - refresh recommended",
-        );
-        health.canRefresh = true;
-      } else {
-        health.status = "healthy";
-        health.recommendations.push("Tokens are valid and healthy");
-      }
-    } else {
+    if (!hasTokens) {
       health.status = "no_tokens";
       health.recommendations.push("No authentication tokens found");
       health.needsReauth = true;
+    } else if (tokenInfo.refreshTokenExpired) {
+      health.status = "expired";
+      health.recommendations.push(
+        "Refresh token expired - re-authentication required",
+      );
+      health.needsReauth = true;
+    } else if (tokenInfo.accessTokenExpired) {
+      health.status = "needs_refresh";
+      health.recommendations.push(
+        "Access token expired - refresh handled automatically by ApiClient",
+      );
+      health.canRefresh = true;
+    } else if (tokenInfo.accessTokenExpiringSoon) {
+      health.status = "expiring_soon";
+      health.recommendations.push(
+        "Access token expiring soon - refresh handled automatically by ApiClient",
+      );
+      health.canRefresh = true;
+    } else {
+      health.status = "healthy";
+      health.recommendations.push("Tokens are valid and healthy");
     }
 
     return health;
   }
 
-  // Refresh tokens via worker
-  async refreshTokensViaWorker() {
+  // Refresh tokens via ApiClient (replaces worker refresh)
+  async refreshTokens() {
     try {
-      const result = await WorkerManager.manualRefresh();
-      return result;
+      console.log("[TokenService] Delegating token refresh to ApiClient");
+      const { default: ApiClient } = await import("./ApiClient.js");
+      return await ApiClient.refreshTokens();
     } catch (error) {
-      console.error("[TokenService] Worker token refresh failed:", error);
+      console.error("[TokenService] Token refresh failed:", error);
       throw error;
     }
   }
 
-  // Force token check via worker
+  // Force token check (no-op since handled by ApiClient interceptors)
   forceTokenCheck() {
-    WorkerManager.forceTokenCheck();
+    console.log(
+      "[TokenService] Force token check - handled automatically by ApiClient interceptors",
+    );
+  }
+
+  // Legacy method names for backward compatibility
+  async refreshTokensViaWorker() {
+    console.log(
+      "[TokenService] refreshTokensViaWorker() is now handled by ApiClient",
+    );
+    return await this.refreshTokens();
   }
 
   // Get debug information
   getDebugInfo() {
     return {
-      hasEncryptedTokens: this.hasEncryptedTokens(),
       hasValidTokens: this.hasValidTokens(),
       isAuthenticated: this.isAuthenticated(),
       tokenHealth: this.getTokenHealth(),
       tokenInfo: this.getTokenExpiryInfo(),
       userEmail: this.getUserEmail(),
-      hasSessionKeys: LocalStorageService.hasSessionKeys(),
-      canDecryptTokens: LocalStorageService.hasSessionKeys(),
+      refreshMethod: "api_interceptor",
+      hasWorker: false,
       storageKeys: {
-        encryptedAccessToken: !!this.getEncryptedAccessToken(),
-        encryptedRefreshToken: !!this.getEncryptedRefreshToken(),
-        tokenNonce: !!this.getTokenNonce(),
+        accessToken: !!this.getAccessToken(),
+        refreshToken: !!this.getRefreshToken(),
         accessTokenExpiry: !!localStorage.getItem(this.ACCESS_TOKEN_EXPIRY_KEY),
         refreshTokenExpiry: !!localStorage.getItem(
           this.REFRESH_TOKEN_EXPIRY_KEY,
@@ -251,36 +209,12 @@ class TokenService {
     };
   }
 
-  // Check if we have session keys for token decryption
-  hasSessionKeys() {
-    return LocalStorageService.hasSessionKeys();
-  }
-
-  // Get decrypted access token
-  async getDecryptedAccessToken() {
-    return await LocalStorageService.getDecryptedAccessToken();
-  }
-
   // Check if we can make authenticated API calls
   canMakeAuthenticatedRequests() {
-    return this.hasSessionKeys() && this.hasEncryptedTokens();
+    return this.hasValidTokens();
   }
 
-  // Clear session keys (for logout)
-  clearSessionKeys() {
-    return LocalStorageService.clearSessionKeys();
-  }
-
-  // Legacy methods for backward compatibility
-  setAccessToken(token, expiryTime) {
-    return LocalStorageService.setAccessToken(token, expiryTime);
-  }
-
-  setRefreshToken(token, expiryTime) {
-    return LocalStorageService.setRefreshToken(token, expiryTime);
-  }
-
-  // Auto-refresh tokens if needed
+  // Auto-refresh tokens if needed (delegated to ApiClient interceptors)
   async autoRefreshIfNeeded() {
     const tokenHealth = this.getTokenHealth();
 
@@ -288,23 +222,25 @@ class TokenService {
       throw new Error("Re-authentication required");
     }
 
-    if (
-      tokenHealth.canRefresh &&
-      (tokenHealth.status === "needs_refresh" ||
-        tokenHealth.status === "expiring_soon")
-    ) {
-      console.log("[TokenService] Auto-refreshing tokens...");
-      try {
-        await this.refreshTokensViaWorker();
-        console.log("[TokenService] Auto-refresh successful");
-        return true;
-      } catch (error) {
-        console.error("[TokenService] Auto-refresh failed:", error);
-        throw error;
-      }
+    if (tokenHealth.canRefresh) {
+      console.log(
+        "[TokenService] Auto-refresh is handled automatically by ApiClient interceptors",
+      );
+      return false; // No manual refresh needed - handled automatically
     }
 
     return false; // No refresh needed
+  }
+
+  // Get method info
+  getRefreshMethod() {
+    return {
+      method: "api_interceptor",
+      description:
+        "Automatic token refresh via ApiClient interceptors on 401 responses",
+      hasWorker: false,
+      isAutomatic: true,
+    };
   }
 }
 
