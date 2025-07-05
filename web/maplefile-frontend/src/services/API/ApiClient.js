@@ -66,6 +66,24 @@ class ApiClient {
     try {
       console.log("[ApiClient] Starting token decryption process");
 
+      // Import and initialize CryptoService
+      const { default: CryptoService } = await import(
+        "../Crypto/CryptoService.js"
+      );
+      await CryptoService.initialize();
+
+      // Try to get cached public key first
+      let publicKey = LocalStorageService.getDerivedPublicKey();
+      let privateKey = null;
+
+      if (publicKey) {
+        console.log("[ApiClient] Using cached public key for token decryption");
+      } else {
+        console.log(
+          "[ApiClient] No cached public key, will derive from password",
+        );
+      }
+
       // Get password from PasswordStorageService
       const { default: passwordStorageService } = await import(
         "../PasswordStorageService.js"
@@ -90,13 +108,7 @@ class ApiClient {
         );
       }
 
-      // Import and initialize CryptoService
-      const { default: CryptoService } = await import(
-        "../Crypto/CryptoService.js"
-      );
-      await CryptoService.initialize();
-
-      console.log("[ApiClient] Deriving keys from password...");
+      console.log("[ApiClient] Deriving private key from password...");
 
       // Decode user's encrypted data
       const salt = CryptoService.tryDecodeBase64(userEncryptedData.salt);
@@ -120,22 +132,21 @@ class ApiClient {
       );
 
       // Decrypt private key
-      const privateKey = CryptoService.decryptWithSecretBox(
+      privateKey = CryptoService.decryptWithSecretBox(
         encryptedPrivateKey,
         masterKey,
       );
 
-      // Derive public key
-      let publicKey;
-      if (userEncryptedData.publicKey) {
-        publicKey = CryptoService.tryDecodeBase64(userEncryptedData.publicKey);
-      } else {
+      // If we didn't have a cached public key, derive it now and cache it
+      if (!publicKey) {
         publicKey = CryptoService.sodium.crypto_scalarmult_base(privateKey);
+
+        // Cache the derived public key for future use
+        LocalStorageService.storeDerivedPublicKey(publicKey);
+        console.log("[ApiClient] Derived and cached public key for future use");
       }
 
-      console.log(
-        "[ApiClient] Keys derived successfully, decrypting tokens...",
-      );
+      console.log("[ApiClient] Keys ready, decrypting tokens...");
 
       // Decode encrypted tokens
       const encryptedAccessBytes =
@@ -144,17 +155,57 @@ class ApiClient {
         encryptedRefreshToken,
       );
 
-      // Decrypt tokens using sealed box (anonymous encryption)
-      const decryptedAccessBytes = CryptoService.sodium.crypto_box_seal_open(
-        encryptedAccessBytes,
-        publicKey,
-        privateKey,
+      console.log(
+        "[ApiClient] Encrypted access token length:",
+        encryptedAccessBytes.length,
       );
-      const decryptedRefreshBytes = CryptoService.sodium.crypto_box_seal_open(
-        encryptedRefreshBytes,
-        publicKey,
-        privateKey,
+      console.log(
+        "[ApiClient] Encrypted refresh token length:",
+        encryptedRefreshBytes.length,
       );
+
+      // Decrypt tokens using sealed box
+      let decryptedAccessBytes, decryptedRefreshBytes;
+
+      try {
+        console.log("[ApiClient] Decrypting access token...");
+        decryptedAccessBytes = CryptoService.sodium.crypto_box_seal_open(
+          encryptedAccessBytes,
+          publicKey,
+          privateKey,
+        );
+      } catch (error) {
+        console.error("[ApiClient] Access token decryption failed:", error);
+
+        // If decryption fails with cached public key, try deriving fresh
+        if (LocalStorageService.getDerivedPublicKey()) {
+          console.log(
+            "[ApiClient] Retrying with freshly derived public key...",
+          );
+          publicKey = CryptoService.sodium.crypto_scalarmult_base(privateKey);
+          LocalStorageService.storeDerivedPublicKey(publicKey);
+
+          decryptedAccessBytes = CryptoService.sodium.crypto_box_seal_open(
+            encryptedAccessBytes,
+            publicKey,
+            privateKey,
+          );
+        } else {
+          throw error;
+        }
+      }
+
+      try {
+        console.log("[ApiClient] Decrypting refresh token...");
+        decryptedRefreshBytes = CryptoService.sodium.crypto_box_seal_open(
+          encryptedRefreshBytes,
+          publicKey,
+          privateKey,
+        );
+      } catch (error) {
+        console.error("[ApiClient] Refresh token decryption failed:", error);
+        throw new Error(`Refresh token decryption failed: ${error.message}`);
+      }
 
       // Convert to strings
       const decryptedAccessToken = new TextDecoder().decode(
@@ -165,11 +216,15 @@ class ApiClient {
       );
 
       // Validate JWT format
-      if (
-        decryptedAccessToken.split(".").length !== 3 ||
-        decryptedRefreshToken.split(".").length !== 3
-      ) {
-        throw new Error("Decrypted tokens are not valid JWT format");
+      const accessParts = decryptedAccessToken.split(".");
+      const refreshParts = decryptedRefreshToken.split(".");
+
+      if (accessParts.length !== 3) {
+        throw new Error(`Invalid access token format`);
+      }
+
+      if (refreshParts.length !== 3) {
+        throw new Error(`Invalid refresh token format`);
       }
 
       console.log("[ApiClient] Tokens decrypted successfully");
@@ -180,6 +235,15 @@ class ApiClient {
       };
     } catch (error) {
       console.error("[ApiClient] Token decryption failed:", error);
+
+      // Clear cached public key if decryption failed
+      if (LocalStorageService.getDerivedPublicKey()) {
+        console.log(
+          "[ApiClient] Clearing cached public key due to decryption failure",
+        );
+        localStorage.removeItem("mapleapps_user_derived_public_key");
+      }
+
       throw new Error(`Token decryption failed: ${error.message}`);
     }
   }

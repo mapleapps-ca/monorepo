@@ -441,8 +441,12 @@ class AuthManager {
         keyEncryptionKey, // derived from password
       );
 
+      // NEW: Also cache the derived public key separately for future token refreshes
+      // This is safe because the public key is not sensitive
+      this.storageService.storeDerivedPublicKey(derivedPublicKey);
+
       console.log(
-        "[AuthManager] Challenge decryption orchestrated successfully and session keys cached",
+        "[AuthManager] Challenge decryption orchestrated successfully and keys cached",
       );
       return decryptedChallenge;
     } catch (error) {

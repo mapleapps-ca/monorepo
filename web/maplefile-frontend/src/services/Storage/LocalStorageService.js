@@ -15,6 +15,7 @@ const LOCAL_STORAGE_KEYS = {
   USER_ENCRYPTED_MASTER_KEY: "mapleapps_user_encrypted_master_key",
   USER_ENCRYPTED_PRIVATE_KEY: "mapleapps_user_encrypted_private_key",
   USER_PUBLIC_KEY: "mapleapps_user_public_key",
+  USER_DERIVED_PUBLIC_KEY: "mapleapps_user_derived_public_key", // Cache the derived public key
 
   // Deprecated encrypted token keys (for cleanup)
   ENCRYPTED_ACCESS_TOKEN: "mapleapps_encrypted_access_token",
@@ -294,6 +295,7 @@ class LocalStorageService {
     localStorage.removeItem(LOCAL_STORAGE_KEYS.ACCESS_TOKEN_EXPIRY);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN_EXPIRY);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.USER_EMAIL);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.USER_DERIVED_PUBLIC_KEY);
 
     // Clear user encrypted data
     localStorage.removeItem(LOCAL_STORAGE_KEYS.USER_SALT);
@@ -505,6 +507,47 @@ class LocalStorageService {
     } catch (error) {
       console.error("[LocalStorageService] Failed to decrypt tokens:", error);
       throw error;
+    }
+  }
+  storeDerivedPublicKey(publicKey) {
+    try {
+      // Convert Uint8Array to base64 for storage
+      const publicKeyBase64 = CryptoService.to_base64(
+        publicKey,
+        CryptoService.base64_variants.URLSAFE_NO_PADDING,
+      );
+      localStorage.setItem(
+        LOCAL_STORAGE_KEYS.USER_DERIVED_PUBLIC_KEY,
+        publicKeyBase64,
+      );
+      console.log(
+        "[LocalStorageService] Derived public key cached for future use",
+      );
+    } catch (error) {
+      console.error(
+        "[LocalStorageService] Failed to store derived public key:",
+        error,
+      );
+    }
+  }
+
+  getDerivedPublicKey() {
+    const publicKeyBase64 = localStorage.getItem(
+      LOCAL_STORAGE_KEYS.USER_DERIVED_PUBLIC_KEY,
+    );
+    if (!publicKeyBase64) return null;
+
+    try {
+      return this.sodium.from_base64(
+        publicKeyBase64,
+        this.sodium.base64_variants.URLSAFE_NO_PADDING,
+      );
+    } catch (error) {
+      console.error(
+        "[LocalStorageService] Failed to decode cached public key:",
+        error,
+      );
+      return null;
     }
   }
 }

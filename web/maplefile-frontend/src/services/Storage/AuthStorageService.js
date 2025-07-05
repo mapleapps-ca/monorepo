@@ -120,6 +120,11 @@ class AuthStorageService {
     console.log("[AuthStorageService] Session keys cleared from memory");
   }
 
+  storeDerivedPublicKey(publicKey) {
+    LocalStorageService.storeDerivedPublicKey(publicKey);
+    console.log("[AuthStorageService] Stored derived public key");
+  }
+
   // === Login Session Data (Multi-step login) ===
 
   setLoginSessionData(key, data) {
