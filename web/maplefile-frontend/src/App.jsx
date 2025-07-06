@@ -25,6 +25,10 @@ import SyncCollectionAPIExample from "./pages/User/Examples/SyncCollectionAPIExa
 import SyncCollectionStorageExample from "./pages/User/Examples/SyncCollectionStorageExample";
 import SyncCollectionManagerExample from "./pages/User/Examples/SyncCollectionManagerExample.jsx";
 
+import SyncFileAPIExample from "./pages/User/Examples/SyncFileAPIExample";
+import SyncFileStorageExample from "./pages/User/Examples/SyncFileStorageExample";
+import SyncFileManagerExample from "./pages/User/Examples/SyncFileManagerExample.jsx";
+
 // Styles
 const styles = {
   app: {
@@ -78,6 +82,19 @@ function App() {
             <Route
               path="/sync-collection-manager-example"
               element={<SyncCollectionManagerExample />}
+            />
+
+            <Route
+              path="/sync-File-api-example"
+              element={<SyncFileAPIExample />}
+            />
+            <Route
+              path="/sync-File-storage-example"
+              element={<SyncFileStorageExample />}
+            />
+            <Route
+              path="/sync-File-manager-example"
+              element={<SyncFileManagerExample />}
             />
 
             {/* Redirect any unknown routes to home */}

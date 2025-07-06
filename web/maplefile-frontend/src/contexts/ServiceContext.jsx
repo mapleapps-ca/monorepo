@@ -3,7 +3,6 @@
 import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
-import SyncCollectionManager from "../services/Manager/SyncCollectionManager.js";
 import TokenManager from "../services/Manager/TokenManager.js";
 import CryptoService from "../services/Crypto/CryptoService.js";
 import LocalStorageService from "../services/Storage/LocalStorageService.js";
@@ -13,6 +12,11 @@ import ApiClient, {
 import PasswordStorageService from "../services/PasswordStorageService.js";
 import SyncCollectionAPIService from "../services/API/SyncCollectionAPIService.js";
 import SyncCollectionStorageService from "../services/Storage/SyncCollectionStorageService.js";
+import SyncCollectionManager from "../services/Manager/SyncCollectionManager.js";
+
+import SyncFileAPIService from "../services/API/SyncFileAPIService.js";
+import SyncFileStorageService from "../services/Storage/SyncFileStorageService.js";
+import SyncFileManager from "../services/Manager/SyncFileManager.js";
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -37,6 +41,15 @@ export function ServiceProvider({ children }) {
   // Initialize SyncCollectionManager with AuthManager dependency
   const syncCollectionManager = new SyncCollectionManager(authManager);
 
+  // Initialize SyncFileAPIService with AuthManager dependency
+  const syncFileAPIService = new SyncFileAPIService(authManager);
+
+  // Initialize SyncFileStorageService (no dependencies needed)
+  const syncFileStorageService = new SyncFileStorageService();
+
+  // Initialize SyncFileManager with AuthManager dependency
+  const syncFileManager = new SyncFileManager(authManager);
+
   // Set AuthManager on ApiClient for event notifications
   setApiClientAuthManager(authManager);
 
@@ -58,7 +71,9 @@ export function ServiceProvider({ children }) {
     syncCollectionAPIService,
     syncCollectionStorageService,
     syncCollectionManager, // New: SyncCollectionManager (replaces syncCollectionService)
-    syncCollectionService: syncCollectionManager, // Backward compatibility alias
+    syncFileAPIService,
+    syncFileStorageService,
+    syncFileManager, // New: SyncFileManager (replaces syncFileService)
   };
 
   // Initialize services that need async initialization
@@ -117,6 +132,17 @@ export function ServiceProvider({ children }) {
         } catch (error) {
           console.warn(
             "[ServiceProvider] SyncCollectionManager initialization failed:",
+            error,
+          );
+        }
+
+        // Initialize sync file manager
+        try {
+          await syncFileManager.initialize();
+          console.log("[ServiceProvider] SyncFileManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] SyncFileManager initialization failed:",
             error,
           );
         }

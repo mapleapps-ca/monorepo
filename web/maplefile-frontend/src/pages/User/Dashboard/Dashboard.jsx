@@ -41,6 +41,27 @@ const Dashboard = () => {
       icon: "👨‍🏫",
     },
     {
+      path: "/sync-file-api-example",
+      title: "Sync File API Example",
+      description: "Test the SyncFileAPIService - sync collections from API.",
+      icon: "🔄",
+    },
+    {
+      path: "/sync-file-storage-example",
+      title: "Sync File Storage Example",
+      description:
+        "Test the SyncFileStorageService - save/load sync collections to/from localStorage.",
+      icon: "💾",
+    },
+    {
+      path: "/sync-file-manager-example",
+      title: "Sync File Manager Example",
+      description:
+        "Test the SyncFileManagerExample - save/load sync collections to/from localStorage.",
+      icon: "👨‍🏫",
+    },
+
+    {
       path: "/profile",
       title: "My Profile",
       description: "Manage account settings and security keys.",
