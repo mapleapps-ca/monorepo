@@ -220,10 +220,6 @@ const TokenManagerExample = () => {
             {managerStatus.isLoading ? "🔄 Yes" : "✅ No"}
           </div>
           <div>
-            <strong>Active Refresh:</strong>{" "}
-            {managerStatus.hasActiveRefresh ? "🔄 Yes" : "❌ No"}
-          </div>
-          <div>
             <strong>Refresh Method:</strong>{" "}
             {managerStatus.refreshMethod || "Unknown"}
           </div>
@@ -330,10 +326,6 @@ const TokenManagerExample = () => {
         </h4>
         <p style={{ margin: "5px 0" }}>
           <strong>Status:</strong> {tokenHealth.status || "Unknown"}
-        </p>
-        <p style={{ margin: "5px 0" }}>
-          <strong>Can Refresh:</strong>{" "}
-          {tokenHealth.canRefresh ? "✅ Yes" : "❌ No"}
         </p>
         <p style={{ margin: "5px 0" }}>
           <strong>Needs Re-auth:</strong>{" "}
