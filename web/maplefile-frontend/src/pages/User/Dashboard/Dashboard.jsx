@@ -20,12 +20,6 @@ const Dashboard = () => {
       icon: "🔑",
     },
     {
-      path: "/files",
-      title: "File Manager",
-      description: "Browse, upload, and manage your encrypted files.",
-      icon: "📁",
-    },
-    {
       path: "/sync-collection-api-example",
       title: "Sync Collection API Example",
       description:
