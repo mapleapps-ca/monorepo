@@ -164,44 +164,98 @@ class ApiClient {
         encryptedRefreshBytes.length,
       );
 
-      // Decrypt tokens using sealed box
+      // Decrypt tokens using regular NaCl box (NOT sealed box)
+      // Format: [32 bytes ephemeral pubkey][24 bytes nonce][encrypted data]
       let decryptedAccessBytes, decryptedRefreshBytes;
 
       try {
-        console.log("[ApiClient] Decrypting access token...");
-        decryptedAccessBytes = CryptoService.sodium.crypto_box_seal_open(
-          encryptedAccessBytes,
-          publicKey,
+        console.log("[ApiClient] Decrypting access token using NaCl box...");
+
+        // Extract components for access token
+        const ephemeralPubKeyLength = 32;
+        const nonceLength = 24;
+
+        if (encryptedAccessBytes.length < ephemeralPubKeyLength + nonceLength) {
+          throw new Error("Encrypted access token too short");
+        }
+
+        const accessEphemeralPubKey = encryptedAccessBytes.slice(
+          0,
+          ephemeralPubKeyLength,
+        );
+        const accessNonce = encryptedAccessBytes.slice(
+          ephemeralPubKeyLength,
+          ephemeralPubKeyLength + nonceLength,
+        );
+        const accessCiphertext = encryptedAccessBytes.slice(
+          ephemeralPubKeyLength + nonceLength,
+        );
+
+        console.log("[ApiClient] Access token components:");
+        console.log(
+          "- Ephemeral public key length:",
+          accessEphemeralPubKey.length,
+        );
+        console.log("- Nonce length:", accessNonce.length);
+        console.log("- Ciphertext length:", accessCiphertext.length);
+
+        // Decrypt using regular box
+        decryptedAccessBytes = CryptoService.sodium.crypto_box_open_easy(
+          accessCiphertext,
+          accessNonce,
+          accessEphemeralPubKey,
           privateKey,
         );
+
+        console.log("[ApiClient] Access token decrypted successfully");
       } catch (error) {
         console.error("[ApiClient] Access token decryption failed:", error);
-
-        // If decryption fails with cached public key, try deriving fresh
-        if (LocalStorageService.getDerivedPublicKey()) {
-          console.log(
-            "[ApiClient] Retrying with freshly derived public key...",
-          );
-          publicKey = CryptoService.sodium.crypto_scalarmult_base(privateKey);
-          LocalStorageService.storeDerivedPublicKey(publicKey);
-
-          decryptedAccessBytes = CryptoService.sodium.crypto_box_seal_open(
-            encryptedAccessBytes,
-            publicKey,
-            privateKey,
-          );
-        } else {
-          throw error;
-        }
+        throw new Error(`Access token decryption failed: ${error.message}`);
       }
 
       try {
-        console.log("[ApiClient] Decrypting refresh token...");
-        decryptedRefreshBytes = CryptoService.sodium.crypto_box_seal_open(
-          encryptedRefreshBytes,
-          publicKey,
+        console.log("[ApiClient] Decrypting refresh token using NaCl box...");
+
+        // Extract components for refresh token
+        const ephemeralPubKeyLength = 32;
+        const nonceLength = 24;
+
+        if (
+          encryptedRefreshBytes.length <
+          ephemeralPubKeyLength + nonceLength
+        ) {
+          throw new Error("Encrypted refresh token too short");
+        }
+
+        const refreshEphemeralPubKey = encryptedRefreshBytes.slice(
+          0,
+          ephemeralPubKeyLength,
+        );
+        const refreshNonce = encryptedRefreshBytes.slice(
+          ephemeralPubKeyLength,
+          ephemeralPubKeyLength + nonceLength,
+        );
+        const refreshCiphertext = encryptedRefreshBytes.slice(
+          ephemeralPubKeyLength + nonceLength,
+        );
+
+        console.log("[ApiClient] Refresh token components:");
+        console.log(
+          "- Ephemeral public key length:",
+          refreshEphemeralPubKey.length,
+        );
+        console.log("- Nonce length:", refreshNonce.length);
+        console.log("- Ciphertext length:", refreshCiphertext.length);
+
+        // Decrypt using regular box
+        decryptedRefreshBytes = CryptoService.sodium.crypto_box_open_easy(
+          refreshCiphertext,
+          refreshNonce,
+          refreshEphemeralPubKey,
           privateKey,
         );
+
+        console.log("[ApiClient] Refresh token decrypted successfully");
       } catch (error) {
         console.error("[ApiClient] Refresh token decryption failed:", error);
         throw new Error(`Refresh token decryption failed: ${error.message}`);

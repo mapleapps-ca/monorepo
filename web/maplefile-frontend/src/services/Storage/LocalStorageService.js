@@ -1,4 +1,4 @@
-// File: monorepo/web/maplefile-frontend/src/service/LocalStorageService.js
+// File: monorepo/web/maplefile-frontend/src/services/Storage/LocalStorageService.js
 // Local Storage Service for managing unencrypted authentication tokens
 // Session keys are kept in memory only and NOT persisted to localStorage
 import CryptoService from "../Crypto/CryptoService.js";
@@ -284,7 +284,48 @@ class LocalStorageService {
       accessTokenExpired: this.isAccessTokenExpired(),
       refreshTokenExpired: this.isRefreshTokenExpired(),
       accessTokenExpiringSoon: this.isAccessTokenExpiringSoon(5),
+      hasTokens: !!(this.getAccessToken() && this.getRefreshToken()),
     };
+  }
+
+  // Get token health
+  getTokenHealth() {
+    const tokenInfo = this.getTokenExpiryInfo();
+    const health = {
+      status: "unknown",
+      recommendations: [],
+      canRefresh: false,
+      needsReauth: false,
+    };
+
+    if (!tokenInfo.hasTokens) {
+      health.status = "no_tokens";
+      health.recommendations.push("No authentication tokens found");
+      health.needsReauth = true;
+    } else if (tokenInfo.refreshTokenExpired) {
+      health.status = "expired";
+      health.recommendations.push(
+        "Refresh token expired - re-authentication required",
+      );
+      health.needsReauth = true;
+    } else if (tokenInfo.accessTokenExpired) {
+      health.status = "needs_refresh";
+      health.recommendations.push(
+        "Access token expired - refresh will happen automatically via AuthManager",
+      );
+      health.canRefresh = true;
+    } else if (tokenInfo.accessTokenExpiringSoon) {
+      health.status = "expiring_soon";
+      health.recommendations.push(
+        "Access token expiring soon - refresh will happen automatically via AuthManager",
+      );
+      health.canRefresh = true;
+    } else {
+      health.status = "healthy";
+      health.recommendations.push("Tokens are valid and healthy");
+    }
+
+    return health;
   }
 
   // Clear all authentication data
@@ -509,13 +550,11 @@ class LocalStorageService {
       throw error;
     }
   }
+
   storeDerivedPublicKey(publicKey) {
     try {
       // Convert Uint8Array to base64 for storage
-      const publicKeyBase64 = CryptoService.to_base64(
-        publicKey,
-        CryptoService.base64_variants.URLSAFE_NO_PADDING,
-      );
+      const publicKeyBase64 = CryptoService.uint8ArrayToBase64(publicKey);
       localStorage.setItem(
         LOCAL_STORAGE_KEYS.USER_DERIVED_PUBLIC_KEY,
         publicKeyBase64,
@@ -538,10 +577,7 @@ class LocalStorageService {
     if (!publicKeyBase64) return null;
 
     try {
-      return this.sodium.from_base64(
-        publicKeyBase64,
-        this.sodium.base64_variants.URLSAFE_NO_PADDING,
-      );
+      return CryptoService.base64ToUint8Array(publicKeyBase64);
     } catch (error) {
       console.error(
         "[LocalStorageService] Failed to decode cached public key:",
