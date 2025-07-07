@@ -67,7 +67,6 @@ const Dashboard = () => {
         "Test the CreateCollectionManager - create encrypted collections with E2EE.",
       icon: "📁",
     },
-
     {
       path: "/get-collection-manager-example",
       title: "Get Collection Manager Example",
@@ -89,6 +88,13 @@ const Dashboard = () => {
         "Test the DeleteCollectionManager - soft delete and restore collections with E2EE.",
       icon: "🗑️",
     },
+    {
+      path: "/list-collection-manager-example",
+      title: "List Collection Manager Example",
+      description:
+        "Test the ListCollectionManager - list user collections, filtered collections, root collections with E2EE and caching.",
+      icon: "📂",
+    }, // NEW
     {
       path: "/profile",
       title: "My Profile",

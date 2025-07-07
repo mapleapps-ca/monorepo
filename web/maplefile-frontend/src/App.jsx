@@ -33,6 +33,7 @@ import CreateCollectionManagerExample from "./pages/User/Examples/Collection/Cre
 import GetCollectionManagerExample from "./pages/User/Examples/Collection/GetCollectionManagerExample.jsx";
 import UpdateCollectionManagerExample from "./pages/User/Examples/Collection/UpdateCollectionManagerExample.jsx";
 import DeleteCollectionManagerExample from "./pages/User/Examples/Collection/DeleteCollectionManagerExample.jsx";
+import ListCollectionManagerExample from "./pages/User/Examples/Collection/ListCollectionManagerExample.jsx"; // NEW
 
 // Styles
 const styles = {
@@ -50,7 +51,6 @@ function App() {
         <div style={styles.app}>
           <Routes>
             <Route path="/" element={<IndexPage />} />
-
             {/* Registration routes */}
             <Route path="/register" element={<Register />} />
             <Route path="/register/recovery" element={<RecoveryCode />} />
@@ -59,18 +59,15 @@ function App() {
               path="/register/verify-success"
               element={<VerifySuccess />}
             />
-
             {/* Login routes */}
             <Route path="/login" element={<RequestOTT />} />
             <Route path="/login/request-ott" element={<RequestOTT />} />
             <Route path="/login/verify-ott" element={<VerifyOTT />} />
             <Route path="/login/complete" element={<CompleteLogin />} />
-
             {/* User routes */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/me" element={<MeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
-
             {/* Example routes */}
             <Route
               path="/token-manager-example"
@@ -104,7 +101,11 @@ function App() {
               path="/delete-collection-manager-example"
               element={<DeleteCollectionManagerExample />}
             />
-
+            <Route
+              path="/list-collection-manager-example"
+              element={<ListCollectionManagerExample />}
+            />{" "}
+            {/* NEW */}
             <Route
               path="/sync-File-api-example"
               element={<SyncFileAPIExample />}
@@ -117,7 +118,6 @@ function App() {
               path="/sync-File-manager-example"
               element={<SyncFileManagerExample />}
             />
-
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

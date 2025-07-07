@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useService.jsx
-// Updated to include UpdateCollectionManager
+// Updated to include ListCollectionManager
 import { useContext } from "react";
 import { ServiceContext } from "../contexts/ServiceContext.jsx";
 
@@ -56,6 +56,7 @@ export const useCollections = () => {
     getCollectionManager: services.getCollectionManager,
     updateCollectionManager: services.updateCollectionManager,
     deleteCollectionManager: services.deleteCollectionManager,
+    listCollectionManager: services.listCollectionManager, // NEW
   };
 };
 
