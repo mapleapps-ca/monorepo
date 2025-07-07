@@ -1,9 +1,9 @@
-// File: monorepo/web/maplefile-frontend/src/pages/User/Examples/CreateCollectionManagerExample.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/User/Collection/Examples/CreateCollectionManagerExample.jsx
 // Example component demonstrating how to use the useCollectionCreation hook
 
 import React, { useState, useEffect } from "react";
-import useCollectionCreation from "../../../hooks/useCollectionCreation.jsx";
-import useAuth from "../../../hooks/useAuth.js";
+import useCollectionCreation from "../../../../hooks/Collection/useCollectionCreation.jsx";
+import useAuth from "../../../../hooks/useAuth.js";
 
 const CreateCollectionManagerExample = () => {
   const {

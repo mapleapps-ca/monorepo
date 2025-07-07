@@ -24,11 +24,12 @@ import TokenManagerExample from "./pages/User/Examples/TokenManagerExample";
 import SyncCollectionAPIExample from "./pages/User/Examples/SyncCollectionAPIExample";
 import SyncCollectionStorageExample from "./pages/User/Examples/SyncCollectionStorageExample";
 import SyncCollectionManagerExample from "./pages/User/Examples/SyncCollectionManagerExample.jsx";
-import CreateCollectionManagerExample from "./pages/User/Examples/CreateCollectionManagerExample.jsx";
 
 import SyncFileAPIExample from "./pages/User/Examples/SyncFileAPIExample";
 import SyncFileStorageExample from "./pages/User/Examples/SyncFileStorageExample";
 import SyncFileManagerExample from "./pages/User/Examples/SyncFileManagerExample.jsx";
+
+import CreateCollectionManagerExample from "./pages/User/Examples/Collection/CreateCollectionManagerExample.jsx";
 
 // Styles
 const styles = {

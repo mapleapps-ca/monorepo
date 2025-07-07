@@ -1,4 +1,4 @@
-// File: monorepo/web/maplefile-frontend/src/services/Storage/CreateCollectionStorageService.js
+// File: monorepo/web/maplefile-frontend/src/services/Storage/Collection/CreateCollectionStorageService.js
 // Create Collection Storage Service - Handles localStorage operations for collections
 
 class CreateCollectionStorageService {

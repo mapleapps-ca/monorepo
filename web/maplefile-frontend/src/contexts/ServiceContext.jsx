@@ -13,11 +13,12 @@ import PasswordStorageService from "../services/PasswordStorageService.js";
 import SyncCollectionAPIService from "../services/API/SyncCollectionAPIService.js";
 import SyncCollectionStorageService from "../services/Storage/SyncCollectionStorageService.js";
 import SyncCollectionManager from "../services/Manager/SyncCollectionManager.js";
-import CreateCollectionManager from "../services/Manager/CreateCollectionManager.js";
 
 import SyncFileAPIService from "../services/API/SyncFileAPIService.js";
 import SyncFileStorageService from "../services/Storage/SyncFileStorageService.js";
 import SyncFileManager from "../services/Manager/SyncFileManager.js";
+
+import CreateCollectionManager from "../services/Manager/Collection/CreateCollectionManager.js";
 
 // Create a context for our services
 export const ServiceContext = createContext();

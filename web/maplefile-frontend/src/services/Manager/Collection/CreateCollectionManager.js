@@ -1,8 +1,8 @@
-// File: monorepo/web/maplefile-frontend/src/services/Manager/CreateCollectionManager.js
+// File: monorepo/web/maplefile-frontend/src/services/Manager/Colleciton/ CreateCollectionManager.js
 // Create Collection Manager - Orchestrates API and Storage services for collection creation
 
-import CreateCollectionAPIService from "../API/CreateCollectionAPIService.js";
-import CreateCollectionStorageService from "../Storage/CreateCollectionStorageService.js";
+import CreateCollectionAPIService from "../../API/Collection/CreateCollectionAPIService.js";
+import CreateCollectionStorageService from "../../Storage/Collection/CreateCollectionStorageService.js";
 
 class CreateCollectionManager {
   constructor(authManager) {
@@ -31,7 +31,7 @@ class CreateCollectionManager {
 
       // Initialize crypto service
       const { default: CryptoService } = await import(
-        "../Crypto/CryptoService.js"
+        "../../Crypto/CryptoService.js"
       );
       await CryptoService.initialize();
 
@@ -72,7 +72,7 @@ class CreateCollectionManager {
 
       // Generate collection ID
       const { default: CryptoService } = await import(
-        "../Crypto/CryptoService.js"
+        "../../Crypto/CryptoService.js"
       );
       const collectionId = CryptoService.generateUUID();
 
@@ -178,7 +178,7 @@ class CreateCollectionManager {
   async encryptCollectionName(name, collectionKey) {
     try {
       const { default: CryptoService } = await import(
-        "../Crypto/CryptoService.js"
+        "../../Crypto/CryptoService.js"
       );
 
       // Use the crypto service to encrypt the name
@@ -204,10 +204,10 @@ class CreateCollectionManager {
   async encryptCollectionKeyWithPassword(collectionKey, password) {
     try {
       const { default: CryptoService } = await import(
-        "../Crypto/CryptoService.js"
+        "../../Crypto/CryptoService.js"
       );
       const { default: LocalStorageService } = await import(
-        "../Storage/LocalStorageService.js"
+        "../../Storage/LocalStorageService.js"
       );
 
       // Get user's encrypted data
@@ -265,7 +265,7 @@ class CreateCollectionManager {
   async getUserPassword() {
     try {
       const { default: passwordStorageService } = await import(
-        "../PasswordStorageService.js"
+        "../../PasswordStorageService.js"
       );
       return passwordStorageService.getPassword();
     } catch (error) {
@@ -313,7 +313,7 @@ class CreateCollectionManager {
 
       // Decrypt collection name
       const { default: CryptoService } = await import(
-        "../Crypto/CryptoService.js"
+        "../../Crypto/CryptoService.js"
       );
       const decryptedNameBytes = await CryptoService.decryptWithKey(
         encryptedCollection.encrypted_name,
@@ -348,10 +348,10 @@ class CreateCollectionManager {
   async decryptCollectionKey(encryptedCollectionKey, password) {
     try {
       const { default: CryptoService } = await import(
-        "../Crypto/CryptoService.js"
+        "../../Crypto/CryptoService.js"
       );
       const { default: LocalStorageService } = await import(
-        "../Storage/LocalStorageService.js"
+        "../../Storage/LocalStorageService.js"
       );
 
       // Get user's encrypted data

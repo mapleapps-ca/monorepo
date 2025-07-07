@@ -1,7 +1,7 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useCollectionCreation.jsx
 // Custom hook for collection creation with convenient API
 import { useState, useEffect, useCallback } from "react";
-import { useCollections, useAuth } from "./useService.jsx";
+import { useCollections, useAuth } from "../useService.jsx";
 
 /**
  * Hook for collection creation with state management and convenience methods

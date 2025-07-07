@@ -1,4 +1,4 @@
-// File: monorepo/web/maplefile-frontend/src/services/API/CreateCollectionAPIService.js
+// File: monorepo/web/maplefile-frontend/src/services/API/Collection/CreateCollectionAPIService.js
 // Create Collection API Service - Handles collection creation API calls
 
 class CreateCollectionAPIService {
@@ -14,7 +14,7 @@ class CreateCollectionAPIService {
   // Import ApiClient for authenticated requests
   async getApiClient() {
     if (!this._apiClient) {
-      const { default: ApiClient } = await import("./ApiClient.js");
+      const { default: ApiClient } = await import("../ApiClient.js");
       this._apiClient = ApiClient;
     }
     return this._apiClient;
