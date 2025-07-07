@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/Collection/useCollectionRetrieval.jsx
-// Custom hook for collection retrieval with convenient API
+// Custom hook for collection retrieval with convenient API (FIXED)
 import { useState, useEffect, useCallback } from "react";
 import { useCollections, useAuth } from "../useService.jsx";
 
@@ -70,6 +70,8 @@ const useCollectionRetrieval = () => {
         console.log(
           "[useCollectionRetrieval] Getting collection:",
           collectionId,
+          "forceRefresh:",
+          forceRefresh,
         );
 
         const result = await getCollectionManager.getCollection(
@@ -138,11 +140,11 @@ const useCollectionRetrieval = () => {
     [getCollectionManager],
   );
 
-  // Refresh collection from API (uses PasswordStorageService automatically)
+  // Refresh collection from API (force update cache) - Uses PasswordStorageService automatically
   const refreshCollection = useCallback(
     async (collectionId) => {
       console.log(
-        "[useCollectionRetrieval] Refreshing collection:",
+        "[useCollectionRetrieval] Force refreshing collection from API:",
         collectionId,
       );
       return getCollection(collectionId, true);
@@ -150,7 +152,7 @@ const useCollectionRetrieval = () => {
     [getCollection],
   );
 
-  // Get multiple collections (uses PasswordStorageService automatically)
+  // Get multiple collections (batch operation) - Uses PasswordStorageService automatically
   const getCollections = useCallback(
     async (collectionIds, forceRefresh = false) => {
       if (!getCollectionManager) {
