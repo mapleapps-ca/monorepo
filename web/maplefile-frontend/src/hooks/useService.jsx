@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useService.jsx
-// Custom hook to access services from ServiceContext
+// Custom hook to access services from ServiceContext - Updated with CollectionCrypto
 import { useContext } from "react";
 import { ServiceContext } from "../contexts/ServiceContext.jsx";
 
@@ -87,6 +87,7 @@ export const useCrypto = () => {
 
   return {
     cryptoService: services.cryptoService,
+    collectionCrypto: services.collectionCrypto, // New: Collection-specific crypto
     passwordStorageService: services.passwordStorageService,
   };
 };
@@ -116,6 +117,33 @@ export const useAPI = () => {
     apiClient: services.apiClient,
     syncCollectionAPIService: services.syncCollectionAPIService,
     syncFileAPIService: services.syncFileAPIService,
+  };
+};
+
+/**
+ * Hook to access collection-specific crypto operations
+ * @returns {Object} Collection crypto service
+ */
+export const useCollectionCrypto = () => {
+  const services = useServices();
+
+  return {
+    collectionCrypto: services.collectionCrypto,
+    // Convenience methods for direct access
+    generateCollectionKey: () =>
+      services.collectionCrypto.generateCollectionKey(),
+    encryptCollectionName: (name, key) =>
+      services.collectionCrypto.encryptCollectionName(name, key),
+    decryptCollectionName: (encrypted, key) =>
+      services.collectionCrypto.decryptCollectionName(encrypted, key),
+    encryptCollectionForAPI: (data, password) =>
+      services.collectionCrypto.encryptCollectionForAPI(data, password),
+    decryptCollectionFromAPI: (encrypted, key, password) =>
+      services.collectionCrypto.decryptCollectionFromAPI(
+        encrypted,
+        key,
+        password,
+      ),
   };
 };
 

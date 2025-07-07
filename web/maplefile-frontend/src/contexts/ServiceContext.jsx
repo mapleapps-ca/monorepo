@@ -1,10 +1,11 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// ServiceContext - Updated to include CreateCollectionManager
+// ServiceContext - Updated to include CollectionCrypto
 import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
 import TokenManager from "../services/Manager/TokenManager.js";
 import CryptoService from "../services/Crypto/CryptoService.js";
+import CollectionCrypto from "../services/Crypto/CollectionCrypto.js";
 import LocalStorageService from "../services/Storage/LocalStorageService.js";
 import ApiClient, {
   setApiClientAuthManager,
@@ -64,6 +65,7 @@ export function ServiceProvider({ children }) {
     authManager: authManager, // New: AuthManager for orchestration
     authService: authManager, // Backward compatibility alias
     cryptoService: CryptoService,
+    collectionCrypto: CollectionCrypto, // New: Collection-specific crypto operations
     passwordStorageService: PasswordStorageService,
     localStorageService: LocalStorageService,
     apiClient: ApiClient,
@@ -97,6 +99,10 @@ export function ServiceProvider({ children }) {
         // Initialize crypto service
         await CryptoService.initialize();
         console.log("[ServiceProvider] CryptoService initialized");
+
+        // Initialize collection crypto service
+        await CollectionCrypto.initialize();
+        console.log("[ServiceProvider] CollectionCrypto initialized");
 
         // Initialize password storage service
         await PasswordStorageService.initialize();
@@ -228,11 +234,15 @@ export function ServiceProvider({ children }) {
         CryptoService.isInitialized,
       );
       console.log(
+        "[ServiceProvider] CollectionCrypto ready:",
+        CollectionCrypto.isReady(),
+      );
+      console.log(
         "[ServiceProvider] AuthManager authenticated:",
         authManager.isAuthenticated(),
       );
       console.log(
-        "[ServiceProvider] Architecture: Manager/API/Storage pattern with AuthManager orchestrator",
+        "[ServiceProvider] Architecture: Manager/API/Storage/Crypto pattern with AuthManager orchestrator",
       );
 
       // Add services to window for debugging in development

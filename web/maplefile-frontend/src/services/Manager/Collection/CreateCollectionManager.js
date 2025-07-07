@@ -1,18 +1,20 @@
-// File: monorepo/web/maplefile-frontend/src/services/Manager/Colleciton/ CreateCollectionManager.js
-// Create Collection Manager - Orchestrates API and Storage services for collection creation
+// File: monorepo/web/maplefile-frontend/src/services/Manager/Collection/CreateCollectionManager.js
+// Create Collection Manager - Orchestrates API, Storage, and Crypto services for collection creation
 
 import CreateCollectionAPIService from "../../API/Collection/CreateCollectionAPIService.js";
 import CreateCollectionStorageService from "../../Storage/Collection/CreateCollectionStorageService.js";
+import CollectionCrypto from "../../Crypto/CollectionCrypto.js";
 
 class CreateCollectionManager {
   constructor(authManager) {
-    // CreateCollectionManager depends on AuthManager and orchestrates API and Storage services
+    // CreateCollectionManager depends on AuthManager and orchestrates API, Storage, and Crypto services
     this.authManager = authManager;
     this.isLoading = false;
 
     // Initialize dependent services
     this.apiService = new CreateCollectionAPIService(authManager);
     this.storageService = new CreateCollectionStorageService();
+    this.cryptoService = CollectionCrypto; // Use singleton instance
 
     // Event listeners for collection creation events
     this.collectionCreationListeners = new Set();
@@ -30,10 +32,7 @@ class CreateCollectionManager {
       );
 
       // Initialize crypto service
-      const { default: CryptoService } = await import(
-        "../../Crypto/CryptoService.js"
-      );
-      await CryptoService.initialize();
+      await this.cryptoService.initialize();
 
       console.log(
         "[CreateCollectionManager] Collection manager initialized successfully",
@@ -70,74 +69,37 @@ class CreateCollectionManager {
         throw new Error("Password required for collection encryption");
       }
 
-      // Generate collection ID
-      const { default: CryptoService } = await import(
-        "../../Crypto/CryptoService.js"
-      );
-      const collectionId = CryptoService.generateUUID();
+      console.log("[CreateCollectionManager] Encrypting collection data");
 
-      console.log(
-        "[CreateCollectionManager] Generated collection ID:",
-        collectionId,
-      );
-
-      // Step 1: Generate collection key (32 bytes)
-      const collectionKey = CryptoService.generateRandomKey();
-      console.log("[CreateCollectionManager] Generated collection key");
-
-      // Step 2: Encrypt collection name with collection key
-      const encryptedName = await this.encryptCollectionName(
-        collectionData.name,
-        collectionKey,
-      );
-      console.log("[CreateCollectionManager] Encrypted collection name");
-
-      // Step 3: Get user's master key and encrypt collection key
-      const encryptedCollectionKey =
-        await this.encryptCollectionKeyWithPassword(
-          collectionKey,
+      // Use CollectionCrypto to encrypt all collection data for API
+      const { apiData, collectionKey, collectionId } =
+        await this.cryptoService.encryptCollectionForAPI(
+          collectionData,
           userPassword,
         );
-      console.log("[CreateCollectionManager] Encrypted collection key");
 
-      // Step 4: Prepare API data
-      const apiData = {
-        id: collectionId,
-        encrypted_name: encryptedName,
-        collection_type: collectionData.collection_type || "folder",
-        encrypted_collection_key: encryptedCollectionKey,
-      };
+      console.log(
+        "[CreateCollectionManager] Collection data encrypted, sending to API",
+      );
 
-      // Add optional fields
-      if (collectionData.parent_id) {
-        apiData.parent_id = collectionData.parent_id;
-      }
-      if (
-        collectionData.ancestor_ids &&
-        collectionData.ancestor_ids.length > 0
-      ) {
-        apiData.ancestor_ids = collectionData.ancestor_ids;
-      }
-
-      // Step 5: Create collection via API
-      console.log("[CreateCollectionManager] Sending to API");
+      // Create collection via API
       const createdCollection = await this.apiService.createCollection(apiData);
 
-      // Step 6: Store collection key in memory for future use
+      // Store collection key in memory for future use
       this.storageService.storeCollectionKey(collectionId, collectionKey);
 
-      // Step 7: Prepare decrypted collection for local storage
+      // Prepare decrypted collection for local storage
       const decryptedCollection = {
         ...createdCollection,
         name: collectionData.name, // Store decrypted name
-        _originalEncryptedName: encryptedName,
+        _originalEncryptedName: apiData.encrypted_name,
         _hasCollectionKey: true,
       };
 
-      // Step 8: Store in local storage
+      // Store in local storage
       this.storageService.storeCreatedCollection(decryptedCollection);
 
-      // Step 9: Notify listeners
+      // Notify listeners
       this.notifyCollectionCreationListeners("collection_created", {
         collectionId,
         name: collectionData.name,
@@ -172,90 +134,59 @@ class CreateCollectionManager {
     }
   }
 
-  // === Encryption Helper Methods ===
+  // === Collection Decryption ===
 
-  // Encrypt collection name with collection key
-  async encryptCollectionName(name, collectionKey) {
+  // Decrypt collection data (for displaying stored collections)
+  async decryptCollection(encryptedCollection, password = null) {
     try {
-      const { default: CryptoService } = await import(
-        "../../Crypto/CryptoService.js"
-      );
-
-      // Use the crypto service to encrypt the name
-      const encryptedName = await CryptoService.encryptWithKey(
-        name,
-        collectionKey,
-      );
-
       console.log(
-        "[CreateCollectionManager] Collection name encrypted successfully",
-      );
-      return encryptedName;
-    } catch (error) {
-      console.error(
-        "[CreateCollectionManager] Failed to encrypt collection name:",
-        error,
-      );
-      throw new Error(`Name encryption failed: ${error.message}`);
-    }
-  }
-
-  // Encrypt collection key with user's master key (derived from password)
-  async encryptCollectionKeyWithPassword(collectionKey, password) {
-    try {
-      const { default: CryptoService } = await import(
-        "../../Crypto/CryptoService.js"
-      );
-      const { default: LocalStorageService } = await import(
-        "../../Storage/LocalStorageService.js"
+        "[CreateCollectionManager] Decrypting collection:",
+        encryptedCollection.id,
       );
 
-      // Get user's encrypted data
-      const userEncryptedData = LocalStorageService.getUserEncryptedData();
-      if (!userEncryptedData.salt || !userEncryptedData.encryptedMasterKey) {
-        throw new Error("Missing user encrypted data. Please log in again.");
+      // Get collection key from storage
+      let collectionKey = this.storageService.getCollectionKey(
+        encryptedCollection.id,
+      );
+
+      // Get password if needed
+      const userPassword = password || (await this.getUserPassword());
+
+      // Use CollectionCrypto to decrypt the collection
+      const decryptedCollection =
+        await this.cryptoService.decryptCollectionFromAPI(
+          encryptedCollection,
+          collectionKey,
+          userPassword,
+        );
+
+      // If we successfully decrypted and didn't have the key cached, cache it now
+      if (decryptedCollection._isDecrypted && !collectionKey && userPassword) {
+        try {
+          const newCollectionKey =
+            await this.cryptoService.decryptCollectionKeyWithPassword(
+              encryptedCollection.encrypted_collection_key,
+              userPassword,
+            );
+          this.storageService.storeCollectionKey(
+            encryptedCollection.id,
+            newCollectionKey,
+          );
+        } catch (keyError) {
+          console.warn(
+            "[CreateCollectionManager] Could not cache collection key:",
+            keyError,
+          );
+        }
       }
 
-      console.log("[CreateCollectionManager] Decrypting user's master key...");
-
-      // Decode encrypted data
-      const salt = CryptoService.tryDecodeBase64(userEncryptedData.salt);
-      const encryptedMasterKey = CryptoService.tryDecodeBase64(
-        userEncryptedData.encryptedMasterKey,
-      );
-
-      // Derive key encryption key from password
-      const keyEncryptionKey = await CryptoService.deriveKeyFromPassword(
-        password,
-        salt,
-      );
-
-      // Decrypt master key
-      const masterKey = CryptoService.decryptWithSecretBox(
-        encryptedMasterKey,
-        keyEncryptionKey,
-      );
-
-      console.log(
-        "[CreateCollectionManager] Master key decrypted, encrypting collection key...",
-      );
-
-      // Encrypt collection key with master key using the same pattern as file keys
-      const encryptedKey = await CryptoService.encryptFileKey(
-        collectionKey,
-        masterKey,
-      );
-
-      console.log(
-        "[CreateCollectionManager] Collection key encrypted successfully",
-      );
-      return encryptedKey;
+      return decryptedCollection;
     } catch (error) {
       console.error(
-        "[CreateCollectionManager] Failed to encrypt collection key:",
+        "[CreateCollectionManager] Failed to decrypt collection:",
         error,
       );
-      throw new Error(`Collection key encryption failed: ${error.message}`);
+      throw error;
     }
   }
 
@@ -274,119 +205,6 @@ class CreateCollectionManager {
         error,
       );
       return null;
-    }
-  }
-
-  // === Collection Decryption ===
-
-  // Decrypt collection data (for displaying stored collections)
-  async decryptCollection(encryptedCollection, password = null) {
-    try {
-      console.log(
-        "[CreateCollectionManager] Decrypting collection:",
-        encryptedCollection.id,
-      );
-
-      // Get collection key
-      let collectionKey = this.storageService.getCollectionKey(
-        encryptedCollection.id,
-      );
-
-      if (!collectionKey) {
-        // Try to decrypt collection key if we have the password
-        const userPassword = password || (await this.getUserPassword());
-        if (!userPassword) {
-          throw new Error("Password required to decrypt collection");
-        }
-
-        collectionKey = await this.decryptCollectionKey(
-          encryptedCollection.encrypted_collection_key,
-          userPassword,
-        );
-
-        // Cache the decrypted key
-        this.storageService.storeCollectionKey(
-          encryptedCollection.id,
-          collectionKey,
-        );
-      }
-
-      // Decrypt collection name
-      const { default: CryptoService } = await import(
-        "../../Crypto/CryptoService.js"
-      );
-      const decryptedNameBytes = await CryptoService.decryptWithKey(
-        encryptedCollection.encrypted_name,
-        collectionKey,
-      );
-
-      const name = new TextDecoder().decode(decryptedNameBytes);
-
-      return {
-        ...encryptedCollection,
-        name,
-        _isDecrypted: true,
-        _hasCollectionKey: true,
-      };
-    } catch (error) {
-      console.error(
-        "[CreateCollectionManager] Failed to decrypt collection:",
-        error,
-      );
-
-      // Return collection with error marker
-      return {
-        ...encryptedCollection,
-        name: "[Decryption Failed]",
-        _isDecrypted: false,
-        _decryptionError: error.message,
-      };
-    }
-  }
-
-  // Decrypt collection key with password
-  async decryptCollectionKey(encryptedCollectionKey, password) {
-    try {
-      const { default: CryptoService } = await import(
-        "../../Crypto/CryptoService.js"
-      );
-      const { default: LocalStorageService } = await import(
-        "../../Storage/LocalStorageService.js"
-      );
-
-      // Get user's encrypted data
-      const userEncryptedData = LocalStorageService.getUserEncryptedData();
-      if (!userEncryptedData.salt || !userEncryptedData.encryptedMasterKey) {
-        throw new Error("Missing user encrypted data");
-      }
-
-      // Decrypt user's master key
-      const salt = CryptoService.tryDecodeBase64(userEncryptedData.salt);
-      const encryptedMasterKey = CryptoService.tryDecodeBase64(
-        userEncryptedData.encryptedMasterKey,
-      );
-      const keyEncryptionKey = await CryptoService.deriveKeyFromPassword(
-        password,
-        salt,
-      );
-      const masterKey = CryptoService.decryptWithSecretBox(
-        encryptedMasterKey,
-        keyEncryptionKey,
-      );
-
-      // Decrypt collection key with master key
-      const collectionKey = await CryptoService.decryptFileKey(
-        encryptedCollectionKey,
-        masterKey,
-      );
-
-      return collectionKey;
-    } catch (error) {
-      console.error(
-        "[CreateCollectionManager] Failed to decrypt collection key:",
-        error,
-      );
-      throw error;
     }
   }
 
@@ -453,6 +271,34 @@ class CreateCollectionManager {
     }
   }
 
+  // === Collection Key Management ===
+
+  // Generate a new collection key (delegates to crypto service)
+  generateCollectionKey() {
+    return this.cryptoService.generateCollectionKey();
+  }
+
+  // Encrypt collection key for sharing (delegates to crypto service)
+  async encryptCollectionKeyForRecipient(collectionKey, recipientPublicKey) {
+    return this.cryptoService.encryptCollectionKeyForRecipient(
+      collectionKey,
+      recipientPublicKey,
+    );
+  }
+
+  // Decrypt shared collection key (delegates to crypto service)
+  async decryptSharedCollectionKey(
+    encryptedKey,
+    userPrivateKey,
+    userPublicKey,
+  ) {
+    return this.cryptoService.decryptSharedCollectionKey(
+      encryptedKey,
+      userPrivateKey,
+      userPublicKey,
+    );
+  }
+
   // === Event Management ===
 
   // Add collection creation listener
@@ -498,12 +344,14 @@ class CreateCollectionManager {
   // Get manager status and information
   getManagerStatus() {
     const storageInfo = this.storageService.getStorageInfo();
+    const cryptoStatus = this.cryptoService.getStatus();
 
     return {
       isAuthenticated: this.authManager.isAuthenticated(),
       isLoading: this.isLoading,
       canCreateCollections: this.authManager.canMakeAuthenticatedRequests(),
       storage: storageInfo,
+      crypto: cryptoStatus,
       listenerCount: this.collectionCreationListeners.size,
       hasPasswordService: !!this.getUserPassword,
     };
@@ -519,6 +367,7 @@ class CreateCollectionManager {
       isAuthenticated: this.authManager.isAuthenticated(),
       apiService: this.apiService.getDebugInfo(),
       storageService: this.storageService.getDebugInfo(),
+      cryptoService: this.cryptoService.getDebugInfo(),
       managerStatus: this.getManagerStatus(),
       authManagerStatus: {
         userEmail: this.authManager.getCurrentUserEmail(),
