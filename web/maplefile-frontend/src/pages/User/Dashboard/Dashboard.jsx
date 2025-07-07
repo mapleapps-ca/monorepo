@@ -1,4 +1,4 @@
-// File: monorepo/web/maplefile-frontend/src/pages/Dashboard/Dashboard.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/User/Dashboard/Dashboard.jsx
 // A simple navigation page for the user dashboard.
 import { useNavigate } from "react-router";
 import useAuth from "../../../hooks/useAuth.js";
@@ -66,6 +66,13 @@ const Dashboard = () => {
       title: "My Profile",
       description: "Manage account settings and security keys.",
       icon: "👤",
+    },
+    {
+      path: "/create-collection-manager-example",
+      title: "Create Collection Manager Example",
+      description:
+        "Test the CreateCollectionManager - create encrypted collections with E2EE.",
+      icon: "📁",
     },
   ];
 

@@ -24,6 +24,7 @@ import TokenManagerExample from "./pages/User/Examples/TokenManagerExample";
 import SyncCollectionAPIExample from "./pages/User/Examples/SyncCollectionAPIExample";
 import SyncCollectionStorageExample from "./pages/User/Examples/SyncCollectionStorageExample";
 import SyncCollectionManagerExample from "./pages/User/Examples/SyncCollectionManagerExample.jsx";
+import CreateCollectionManagerExample from "./pages/User/Examples/CreateCollectionManagerExample.jsx";
 
 import SyncFileAPIExample from "./pages/User/Examples/SyncFileAPIExample";
 import SyncFileStorageExample from "./pages/User/Examples/SyncFileStorageExample";
@@ -82,6 +83,10 @@ function App() {
             <Route
               path="/sync-collection-manager-example"
               element={<SyncCollectionManagerExample />}
+            />
+            <Route
+              path="/create-collection-manager-example"
+              element={<CreateCollectionManagerExample />}
             />
 
             <Route

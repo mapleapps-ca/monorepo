@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// ServiceContext - Updated to use both MeManager and SyncCollectionManager
+// ServiceContext - Updated to include CreateCollectionManager
 import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
@@ -13,6 +13,7 @@ import PasswordStorageService from "../services/PasswordStorageService.js";
 import SyncCollectionAPIService from "../services/API/SyncCollectionAPIService.js";
 import SyncCollectionStorageService from "../services/Storage/SyncCollectionStorageService.js";
 import SyncCollectionManager from "../services/Manager/SyncCollectionManager.js";
+import CreateCollectionManager from "../services/Manager/CreateCollectionManager.js";
 
 import SyncFileAPIService from "../services/API/SyncFileAPIService.js";
 import SyncFileStorageService from "../services/Storage/SyncFileStorageService.js";
@@ -41,6 +42,9 @@ export function ServiceProvider({ children }) {
   // Initialize SyncCollectionManager with AuthManager dependency
   const syncCollectionManager = new SyncCollectionManager(authManager);
 
+  // Initialize CreateCollectionManager with AuthManager dependency
+  const createCollectionManager = new CreateCollectionManager(authManager);
+
   // Initialize SyncFileAPIService with AuthManager dependency
   const syncFileAPIService = new SyncFileAPIService(authManager);
 
@@ -68,9 +72,14 @@ export function ServiceProvider({ children }) {
     meService: meManager, // Backward compatibility alias
     tokenManager, // New: TokenManager (replaces tokenService)
     tokenService: tokenManager, // Backward compatibility alias
+
+    // Collection services
     syncCollectionAPIService,
     syncCollectionStorageService,
     syncCollectionManager, // New: SyncCollectionManager (replaces syncCollectionService)
+    createCollectionManager, // New: CreateCollectionManager for collection creation
+
+    // File services
     syncFileAPIService,
     syncFileStorageService,
     syncFileManager, // New: SyncFileManager (replaces syncFileService)
@@ -136,6 +145,17 @@ export function ServiceProvider({ children }) {
           );
         }
 
+        // Initialize create collection manager
+        try {
+          await createCollectionManager.initialize();
+          console.log("[ServiceProvider] CreateCollectionManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] CreateCollectionManager initialization failed:",
+            error,
+          );
+        }
+
         // Initialize sync file manager
         try {
           await syncFileManager.initialize();
@@ -159,7 +179,14 @@ export function ServiceProvider({ children }) {
     };
 
     initializeServices();
-  }, [authManager, meManager, tokenManager, syncCollectionManager]);
+  }, [
+    authManager,
+    meManager,
+    tokenManager,
+    syncCollectionManager,
+    createCollectionManager,
+    syncFileManager,
+  ]);
 
   // Set up error handling for services
   useEffect(() => {

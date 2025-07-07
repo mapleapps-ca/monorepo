@@ -1,348 +1,235 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useAuth.js
-// Custom hook for authentication management with AuthManager orchestrator
+// Authentication hook that integrates with ServiceContext
 import { useState, useEffect, useCallback } from "react";
 import { useServices } from "./useService.jsx";
-import LocalStorageService from "../services/Storage/LocalStorageService.js";
 
-// Custom hook for authentication management with AuthManager
+/**
+ * Hook for authentication operations
+ * @returns {Object} Authentication API
+ */
 const useAuth = () => {
-  const { authManager } = useServices(); // Get authManager instance from ServiceContext
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { authManager, tokenManager, meManager } = useServices();
+
+  // State management
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
-  const [tokenInfo, setTokenInfo] = useState({});
-  const [authStatus, setAuthStatus] = useState({ isInitialized: false });
+  const [authStatus, setAuthStatus] = useState({});
 
-  // Update authentication state
-  const updateAuthState = useCallback(() => {
+  // Load user data
+  const loadUser = useCallback(async () => {
+    if (!authManager || !meManager) return;
+
     try {
-      const authenticated = authManager.isAuthenticated();
-      const userEmail = authManager.getCurrentUserEmail();
-
-      setIsAuthenticated(authenticated);
-      setUser(userEmail ? { email: userEmail } : null);
-
-      // Update token information
-      const tokenExpiryInfo = LocalStorageService.getTokenExpiryInfo();
-      const hasTokens = !!(
-        LocalStorageService.getAccessToken() &&
-        LocalStorageService.getRefreshToken()
-      );
-
-      setTokenInfo({
-        hasTokens,
-        tokenSystem: "unencrypted",
-        refreshMethod: "api_interceptor",
-        managedBy: "AuthManager",
-        ...tokenExpiryInfo,
-      });
-
-      console.log("[useAuth] Auth state updated via AuthManager:", {
-        authenticated,
-        userEmail,
-        hasTokens,
-        tokenExpiryInfo,
-      });
-    } catch (error) {
-      console.error("[useAuth] Error updating auth state:", error);
-      // Don't clear state on error, just log it
-    }
-  }, [authManager]);
-
-  // Handle auth manager events
-  const handleAuthMessage = useCallback(
-    (type, data) => {
-      console.log(
-        `[useAuth] Received auth message via AuthManager: ${type}`,
-        data,
-      );
-
-      switch (type) {
-        case "token_refresh_success":
-          console.log(
-            "[useAuth] Tokens refreshed automatically via AuthManager",
-          );
-          updateAuthState();
-          break;
-
-        case "token_refresh_failed":
-          console.error(
-            "[useAuth] Token refresh failed via AuthManager:",
-            data,
-          );
-          // Auth state will be updated by the logout handling
-          break;
-
-        case "force_logout":
-          console.log(
-            "[useAuth] Force logout received via AuthManager:",
-            data.reason,
-          );
-          setIsAuthenticated(false);
-          setUser(null);
-          setTokenInfo({});
-          // Redirect to login
-          if (data.shouldRedirect !== false) {
-            setTimeout(() => {
-              if (window.location.pathname !== "/") {
-                window.location.href = "/";
-              }
-            }, 1000);
-          }
-          break;
-
-        default:
-          break;
-      }
-    },
-    [updateAuthState],
-  );
-
-  // Manual token refresh (now delegated to AuthManager -> ApiClient)
-  const manualRefresh = useCallback(async () => {
-    try {
-      console.log("[useAuth] Initiating manual token refresh via AuthManager");
-
-      // Check if we have a refresh token
-      if (!LocalStorageService.getRefreshToken()) {
-        throw new Error("No refresh token available for refresh");
-      }
-
-      // Use AuthManager which delegates to ApiClient
-      await authManager.refreshToken();
-      updateAuthState();
-      console.log("[useAuth] Manual token refresh via AuthManager successful");
-      return true;
-    } catch (error) {
-      console.error(
-        "[useAuth] Manual token refresh via AuthManager failed:",
-        error,
-      );
-      setIsAuthenticated(false);
-      setUser(null);
-      setTokenInfo({});
-      throw error;
-    }
-  }, [authManager, updateAuthState]);
-
-  // Force token check (no-op since handled automatically)
-  const forceTokenCheck = useCallback(() => {
-    console.log(
-      "[useAuth] Force token check - handled automatically by AuthManager -> ApiClient",
-    );
-    updateAuthState();
-  }, [updateAuthState]);
-
-  // Logout function
-  const logout = useCallback(() => {
-    console.log("[useAuth] Logging out user via AuthManager");
-    authManager.logout();
-    setIsAuthenticated(false);
-    setUser(null);
-    setTokenInfo({});
-  }, [authManager]);
-
-  // Check token health and suggest actions
-  const getTokenHealth = useCallback(() => {
-    const health = {
-      status: "unknown",
-      recommendations: [],
-      canRefresh: false,
-      needsReauth: false,
-      managedBy: "AuthManager",
-    };
-
-    if (!tokenInfo.hasTokens) {
-      health.status = "no_tokens";
-      health.recommendations.push("No authentication tokens found");
-      health.needsReauth = true;
-    } else if (tokenInfo.refreshTokenExpired) {
-      health.status = "expired";
-      health.recommendations.push(
-        "Refresh token expired - re-authentication required",
-      );
-      health.needsReauth = true;
-    } else if (tokenInfo.accessTokenExpired) {
-      health.status = "needs_refresh";
-      health.recommendations.push(
-        "Access token expired - refresh will happen automatically via AuthManager",
-      );
-      health.canRefresh = true;
-    } else if (tokenInfo.accessTokenExpiringSoon) {
-      health.status = "expiring_soon";
-      health.recommendations.push(
-        "Access token expiring soon - refresh will happen automatically via AuthManager",
-      );
-      health.canRefresh = true;
-    } else {
-      health.status = "healthy";
-      health.recommendations.push("Tokens are valid and healthy");
-    }
-
-    return health;
-  }, [tokenInfo]);
-
-  // Initialize authentication with AuthManager
-  useEffect(() => {
-    const initAuth = async () => {
-      setIsLoading(true);
-
-      try {
-        console.log(
-          "[useAuth] Initializing authentication system with AuthManager",
-        );
-
-        // Clean up any old encrypted token data
-        LocalStorageService.cleanupEncryptedTokenData();
-
-        // Initialize the auth manager (simplified)
-        await authManager.initializeWorker();
-
-        // Update initial authentication state
-        updateAuthState();
-
-        // Get auth status
-        const status = await authManager.getWorkerStatus();
-        setAuthStatus(status);
-
-        console.log(
-          "[useAuth] Authentication system initialized successfully with AuthManager",
-        );
-      } catch (error) {
-        console.error(
-          "[useAuth] Failed to initialize auth with AuthManager:",
-          error,
-        );
-        // Set safe defaults on initialization failure
-        setIsAuthenticated(false);
+      if (authManager.isAuthenticated()) {
+        // Try to get user data from meManager
+        const userData = await meManager.getCurrentUser();
+        setUser(userData);
+        console.log("[useAuth] User data loaded:", userData);
+      } else {
         setUser(null);
-        setTokenInfo({});
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (err) {
+      console.error("[useAuth] Failed to load user:", err);
+      setUser(null);
+    }
+  }, [authManager, meManager]);
 
-    initAuth();
-  }, [authManager, updateAuthState]);
+  // Load auth status
+  const loadAuthStatus = useCallback(() => {
+    if (!authManager || !tokenManager) return;
 
-  // Set up auth message listener
+    try {
+      const status = {
+        isAuthenticated: authManager.isAuthenticated(),
+        canMakeRequests: authManager.canMakeAuthenticatedRequests(),
+        tokenHealth: tokenManager.getTokenHealth(),
+        userEmail: authManager.getCurrentUserEmail(),
+      };
+
+      setAuthStatus(status);
+      console.log("[useAuth] Auth status loaded:", status);
+    } catch (err) {
+      console.error("[useAuth] Failed to load auth status:", err);
+    }
+  }, [authManager, tokenManager]);
+
+  // Check if user is authenticated
+  const isAuthenticated = useCallback(() => {
+    return authManager?.isAuthenticated() || false;
+  }, [authManager]);
+
+  // Logout user
+  const logout = useCallback(async () => {
+    if (!authManager) {
+      console.error("[useAuth] AuthManager not available for logout");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      console.log("[useAuth] Starting logout process");
+
+      // Clear authentication data
+      await authManager.logout();
+
+      // Clear user state
+      setUser(null);
+      setAuthStatus({});
+
+      console.log("[useAuth] Logout completed successfully");
+    } catch (err) {
+      console.error("[useAuth] Logout failed:", err);
+      setError(`Logout failed: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [authManager]);
+
+  // Refresh tokens
+  const refreshTokens = useCallback(async () => {
+    if (!tokenManager) {
+      throw new Error("TokenManager not available");
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      console.log("[useAuth] Refreshing tokens");
+
+      const result = await tokenManager.refreshTokens();
+
+      // Reload auth status
+      loadAuthStatus();
+
+      console.log("[useAuth] Tokens refreshed successfully");
+      return result;
+    } catch (err) {
+      console.error("[useAuth] Token refresh failed:", err);
+      setError(`Token refresh failed: ${err.message}`);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [tokenManager, loadAuthStatus]);
+
+  // Get current user email
+  const getCurrentUserEmail = useCallback(() => {
+    return authManager?.getCurrentUserEmail() || user?.email || null;
+  }, [authManager, user]);
+
+  // Check if user can make authenticated requests
+  const canMakeAuthenticatedRequests = useCallback(() => {
+    return authManager?.canMakeAuthenticatedRequests() || false;
+  }, [authManager]);
+
+  // Get token information
+  const getTokenInfo = useCallback(() => {
+    if (!tokenManager) return null;
+
+    return tokenManager.getTokenExpiryInfo();
+  }, [tokenManager]);
+
+  // Get token health
+  const getTokenHealth = useCallback(() => {
+    if (!tokenManager) return null;
+
+    return tokenManager.getTokenHealth();
+  }, [tokenManager]);
+
+  // Clear error
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  // Force reload all auth data
+  const reloadAuthData = useCallback(async () => {
+    loadAuthStatus();
+    await loadUser();
+  }, [loadAuthStatus, loadUser]);
+
+  // Load data on mount and when managers change
   useEffect(() => {
-    // Add auth message listener to AuthManager
-    authManager.addAuthStateChangeListener(handleAuthMessage);
+    if (authManager && tokenManager && meManager) {
+      loadAuthStatus();
+      loadUser();
+    }
+  }, [authManager, tokenManager, meManager, loadAuthStatus, loadUser]);
 
-    // Cleanup listener on unmount
-    return () => {
-      authManager.removeAuthStateChangeListener(handleAuthMessage);
-    };
-  }, [authManager, handleAuthMessage]);
-
-  // Listen for localStorage changes (cross-tab synchronization)
+  // Set up event listeners for auth state changes
   useEffect(() => {
-    const handleStorageChange = (event) => {
-      if (event.key && event.key.startsWith("mapleapps_")) {
-        console.log("[useAuth] Storage change detected:", event.key);
-        updateAuthState();
+    if (!authManager) return;
+
+    const handleAuthStateChange = (eventType, eventData) => {
+      console.log("[useAuth] Auth state change:", eventType, eventData);
+
+      // Reload data on relevant events
+      if (
+        ["tokens_updated", "token_refresh_success", "login_completed"].includes(
+          eventType,
+        )
+      ) {
+        reloadAuthData();
+      } else if (
+        ["tokens_cleared", "logout_completed", "force_logout"].includes(
+          eventType,
+        )
+      ) {
+        setUser(null);
+        setAuthStatus({});
       }
     };
 
-    // Listen for storage events from other tabs
-    window.addEventListener("storage", handleStorageChange);
+    // Add listener if the method exists
+    if (authManager.addAuthStateChangeListener) {
+      authManager.addAuthStateChangeListener(handleAuthStateChange);
 
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, [updateAuthState]);
-
-  // API call wrapper with automatic token management via AuthManager
-  const apiCall = useCallback(
-    async (apiFunction) => {
-      try {
-        // Check token health before making API calls
-        const tokenHealth = getTokenHealth();
-
-        if (tokenHealth.needsReauth) {
-          logout();
-          throw new Error("Authentication required. Please log in again.");
+      return () => {
+        if (authManager.removeAuthStateChangeListener) {
+          authManager.removeAuthStateChangeListener(handleAuthStateChange);
         }
-
-        // No need to manually refresh - ApiClient handles this automatically via AuthManager
-        // Make the API call
-        return await apiFunction();
-      } catch (error) {
-        // Handle authentication errors
-        if (
-          error.message?.includes("401") ||
-          error.message?.includes("Unauthorized") ||
-          error.message?.includes("expired") ||
-          error.message?.includes("Session expired")
-        ) {
-          console.log(
-            "[useAuth] Authentication error detected, logging out via AuthManager",
-          );
-          logout();
-          throw new Error("Session expired. Please log in again.");
-        }
-        throw error;
-      }
-    },
-    [getTokenHealth, logout],
-  );
-
-  // Get debug information
-  const getDebugInfo = useCallback(() => {
-    return {
-      isAuthenticated,
-      user,
-      tokenInfo,
-      authStatus,
-      tokenHealth: getTokenHealth(),
-      canMakeAuthenticatedRequests: authManager.canMakeAuthenticatedRequests(),
-      storageKeys: {
-        hasAccessToken: !!LocalStorageService.getAccessToken(),
-        hasRefreshToken: !!LocalStorageService.getRefreshToken(),
-        hasUserEmail: !!LocalStorageService.getUserEmail(),
-      },
-      refreshMethod: "api_interceptor",
-      managedBy: "AuthManager",
-      architecture: "Manager/API/Storage",
-    };
-  }, [
-    isAuthenticated,
-    user,
-    tokenInfo,
-    authStatus,
-    getTokenHealth,
-    authManager,
-  ]);
+      };
+    }
+  }, [authManager, reloadAuthData]);
 
   return {
     // State
-    isAuthenticated,
     isLoading,
+    error,
     user,
-    tokenInfo,
     authStatus,
 
-    // Actions
+    // Core operations
     logout,
-    manualRefresh,
-    forceTokenCheck,
-    updateAuthState,
-    apiCall,
+    refreshTokens,
 
-    // Utilities
+    // Status checks
+    isAuthenticated: isAuthenticated(),
+    canMakeAuthenticatedRequests: canMakeAuthenticatedRequests(),
+
+    // User information
+    getCurrentUserEmail,
+    userEmail: getCurrentUserEmail(),
+
+    // Token information
+    getTokenInfo,
     getTokenHealth,
-    getDebugInfo,
-    isAccessTokenExpired: tokenInfo.accessTokenExpired,
-    isRefreshTokenExpired: tokenInfo.refreshTokenExpired,
-    isAccessTokenExpiringSoon: tokenInfo.accessTokenExpiringSoon,
-    hasTokens: tokenInfo.hasTokens,
-    tokenSystem: tokenInfo.tokenSystem || "unencrypted",
-    refreshMethod: "api_interceptor",
-    managedBy: "AuthManager",
+    tokenInfo: getTokenInfo(),
+    tokenHealth: getTokenHealth(),
 
-    // Simplified capabilities
-    canMakeAuthenticatedRequests: authManager.canMakeAuthenticatedRequests(),
+    // Utility operations
+    loadUser,
+    loadAuthStatus,
+    reloadAuthData,
+    clearError,
+
+    // Managers (for advanced usage)
+    authManager,
+    tokenManager,
+    meManager,
   };
 };
 
