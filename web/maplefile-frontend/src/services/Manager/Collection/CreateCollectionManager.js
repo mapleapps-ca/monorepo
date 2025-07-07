@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/services/Manager/Collection/CreateCollectionManager.js
-// Create Collection Manager - Orchestrates API, Storage, and Crypto services for collection creation
+// Create Collection Manager - Orchestrates API, Storage, and Crypto services for collection creation (FIXED)
 
 import CreateCollectionAPIService from "../../API/Collection/CreateCollectionAPIService.js";
 import CreateCollectionStorageService from "../../Storage/Collection/CreateCollectionStorageService.js";
@@ -58,8 +58,8 @@ class CreateCollectionManager {
         hasParent: !!collectionData.parent_id,
       });
 
-      // Validate input
-      if (!collectionData.name) {
+      // Validate input early
+      if (!collectionData.name || !collectionData.name.trim()) {
         throw new Error("Collection name is required");
       }
 
@@ -79,11 +79,23 @@ class CreateCollectionManager {
         );
 
       console.log(
-        "[CreateCollectionManager] Collection data encrypted, sending to API",
+        "[CreateCollectionManager] Collection data encrypted successfully",
       );
+      console.log("[CreateCollectionManager] API data prepared:", {
+        id: apiData.id,
+        hasEncryptedName: !!apiData.encrypted_name,
+        hasEncryptedKey: !!apiData.encrypted_collection_key,
+        collection_type: apiData.collection_type,
+      });
+
+      console.log("[CreateCollectionManager] Sending to API");
 
       // Create collection via API
       const createdCollection = await this.apiService.createCollection(apiData);
+
+      console.log(
+        "[CreateCollectionManager] Collection created via API successfully",
+      );
 
       // Store collection key in memory for future use
       this.storageService.storeCollectionKey(collectionId, collectionKey);
