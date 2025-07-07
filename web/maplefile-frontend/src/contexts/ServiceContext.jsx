@@ -1,5 +1,4 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// ServiceContext - Updated to include GetCollectionManager
 import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
@@ -20,7 +19,8 @@ import SyncFileStorageService from "../services/Storage/SyncFileStorageService.j
 import SyncFileManager from "../services/Manager/SyncFileManager.js";
 
 import CreateCollectionManager from "../services/Manager/Collection/CreateCollectionManager.js";
-import GetCollectionManager from "../services/Manager/Collection/GetCollectionManager.js"; // NEW
+import GetCollectionManager from "../services/Manager/Collection/GetCollectionManager.js";
+import UpdateCollectionManager from "../services/Manager/Collection/UpdateCollectionManager.js"; // NEW
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -48,8 +48,11 @@ export function ServiceProvider({ children }) {
   // Initialize CreateCollectionManager with AuthManager dependency
   const createCollectionManager = new CreateCollectionManager(authManager);
 
-  // Initialize GetCollectionManager with AuthManager dependency (NEW)
+  // Initialize GetCollectionManager with AuthManager dependency
   const getCollectionManager = new GetCollectionManager(authManager);
+
+  // Initialize UpdateCollectionManager with AuthManager dependency (NEW)
+  const updateCollectionManager = new UpdateCollectionManager(authManager);
 
   // Initialize SyncFileAPIService with AuthManager dependency
   const syncFileAPIService = new SyncFileAPIService(authManager);
@@ -85,7 +88,8 @@ export function ServiceProvider({ children }) {
     syncCollectionStorageService,
     syncCollectionManager, // New: SyncCollectionManager (replaces syncCollectionService)
     createCollectionManager, // New: CreateCollectionManager for collection creation
-    getCollectionManager, // NEW: GetCollectionManager for collection retrieval
+    getCollectionManager, // GetCollectionManager for collection retrieval
+    updateCollectionManager, // NEW: UpdateCollectionManager for collection updates
 
     // File services
     syncFileAPIService,
@@ -168,13 +172,24 @@ export function ServiceProvider({ children }) {
           );
         }
 
-        // Initialize get collection manager (NEW)
+        // Initialize get collection manager
         try {
           await getCollectionManager.initialize();
           console.log("[ServiceProvider] GetCollectionManager initialized");
         } catch (error) {
           console.warn(
             "[ServiceProvider] GetCollectionManager initialization failed:",
+            error,
+          );
+        }
+
+        // Initialize update collection manager (NEW)
+        try {
+          await updateCollectionManager.initialize();
+          console.log("[ServiceProvider] UpdateCollectionManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] UpdateCollectionManager initialization failed:",
             error,
           );
         }
@@ -208,7 +223,8 @@ export function ServiceProvider({ children }) {
     tokenManager,
     syncCollectionManager,
     createCollectionManager,
-    getCollectionManager, // NEW
+    getCollectionManager,
+    updateCollectionManager, // NEW
     syncFileManager,
   ]);
 

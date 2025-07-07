@@ -67,12 +67,20 @@ const Dashboard = () => {
         "Test the CreateCollectionManager - create encrypted collections with E2EE.",
       icon: "📁",
     },
+
     {
       path: "/get-collection-manager-example",
       title: "Get Collection Manager Example",
       description:
         "Test the GetCollectionManager - retrieve and decrypt collections with caching.",
       icon: "🔍",
+    },
+    {
+      path: "/update-collection-manager-example",
+      title: "Update Collection Manager Example",
+      description:
+        "Test the UpdateCollectionManager - update collections with E2EE and version control.",
+      icon: "✏️",
     },
     {
       path: "/profile",

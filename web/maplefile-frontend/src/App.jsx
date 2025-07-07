@@ -30,7 +30,8 @@ import SyncFileStorageExample from "./pages/User/Examples/SyncFileStorageExample
 import SyncFileManagerExample from "./pages/User/Examples/SyncFileManagerExample.jsx";
 
 import CreateCollectionManagerExample from "./pages/User/Examples/Collection/CreateCollectionManagerExample.jsx";
-import GetCollectionManagerExample from "./pages/User/Examples/Collection/GetCollectionManagerExample.jsx"; // NEW
+import GetCollectionManagerExample from "./pages/User/Examples/Collection/GetCollectionManagerExample.jsx";
+import UpdateCollectionManagerExample from "./pages/User/Examples/Collection/UpdateCollectionManagerExample.jsx";
 
 // Styles
 const styles = {
@@ -93,6 +94,10 @@ function App() {
             <Route
               path="/get-collection-manager-example"
               element={<GetCollectionManagerExample />}
+            />
+            <Route
+              path="/update-collection-manager-example"
+              element={<UpdateCollectionManagerExample />}
             />
 
             <Route
