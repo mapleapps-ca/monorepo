@@ -94,7 +94,14 @@ const Dashboard = () => {
       description:
         "Test the ListCollectionManager - list user collections, filtered collections, root collections with E2EE and caching.",
       icon: "📂",
-    }, // NEW
+    },
+    {
+      path: "/create-file-manager-example",
+      title: "Create File Manager Example",
+      description: "Test the CreateFileManagerExample.",
+      icon: "🗄️",
+    },
+
     {
       path: "/profile",
       title: "My Profile",

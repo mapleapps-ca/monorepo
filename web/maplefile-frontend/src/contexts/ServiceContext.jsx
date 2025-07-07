@@ -22,7 +22,9 @@ import CreateCollectionManager from "../services/Manager/Collection/CreateCollec
 import GetCollectionManager from "../services/Manager/Collection/GetCollectionManager.js";
 import UpdateCollectionManager from "../services/Manager/Collection/UpdateCollectionManager.js";
 import DeleteCollectionManager from "../services/Manager/Collection/DeleteCollectionManager.js";
-import ListCollectionManager from "../services/Manager/Collection/ListCollectionManager.js"; // NEW
+import ListCollectionManager from "../services/Manager/Collection/ListCollectionManager.js";
+
+import CreateFileManager from "../services/Manager/File/CreateFileManager.js";
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -71,6 +73,8 @@ export function ServiceProvider({ children }) {
   // Initialize SyncFileManager with AuthManager dependency
   const syncFileManager = new SyncFileManager(authManager);
 
+  const createFileManager = new CreateFileManager(authManager);
+
   // Set AuthManager on ApiClient for event notifications
   setApiClientAuthManager(authManager);
 
@@ -99,7 +103,9 @@ export function ServiceProvider({ children }) {
     getCollectionManager,
     updateCollectionManager,
     deleteCollectionManager,
-    listCollectionManager, // NEW
+    listCollectionManager,
+
+    createFileManager,
 
     // File services
     syncFileAPIService,
@@ -222,6 +228,16 @@ export function ServiceProvider({ children }) {
         } catch (error) {
           console.warn(
             "[ServiceProvider] ListCollectionManager initialization failed:",
+            error,
+          );
+        }
+
+        try {
+          await createFileManager.initialize();
+          console.log("[ServiceProvider] CreateFileManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] CreateFileManager initialization failed:",
             error,
           );
         }

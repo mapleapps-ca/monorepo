@@ -35,6 +35,8 @@ import UpdateCollectionManagerExample from "./pages/User/Examples/Collection/Upd
 import DeleteCollectionManagerExample from "./pages/User/Examples/Collection/DeleteCollectionManagerExample.jsx";
 import ListCollectionManagerExample from "./pages/User/Examples/Collection/ListCollectionManagerExample.jsx"; // NEW
 
+import CreateFileManagerExample from "./pages/User/Examples/File/CreateFileManagerExample.jsx";
+
 // Styles
 const styles = {
   app: {
@@ -105,7 +107,10 @@ function App() {
               path="/list-collection-manager-example"
               element={<ListCollectionManagerExample />}
             />{" "}
-            {/* NEW */}
+            <Route
+              path="/create-file-manager-example"
+              element={<CreateFileManagerExample />}
+            />
             <Route
               path="/sync-File-api-example"
               element={<SyncFileAPIExample />}
