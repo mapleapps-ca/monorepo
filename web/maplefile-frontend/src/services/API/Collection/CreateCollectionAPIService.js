@@ -23,32 +23,80 @@ class CreateCollectionAPIService {
   // Create collection via API
   async createCollection(collectionData) {
     try {
-      console.log("[CreateCollectionAPIService] Creating collection via API");
-      console.log("[CreateCollectionAPIService] Collection data:", {
-        id: collectionData.id,
-        collection_type: collectionData.collection_type,
-        hasEncryptedName: !!collectionData.encrypted_name,
-        hasEncryptedKey: !!collectionData.encrypted_collection_key,
-        parent_id: collectionData.parent_id,
-        membersCount: collectionData.members?.length || 0,
+      this.isLoading = true;
+      console.log("[CreateCollectionManager] Starting collection creation");
+      console.log("[CreateCollectionManager] Collection data:", {
+        name: collectionData.name,
+        type: collectionData.collection_type || "folder",
+        hasParent: !!collectionData.parent_id,
       });
 
-      const apiClient = await this.getApiClient();
-      const response = await apiClient.postMapleFile(
-        "/collections",
-        collectionData,
-      );
+      // Validate input
+      if (!collectionData.name) {
+        throw new Error("Collection name is required");
+      }
 
       console.log(
-        "[CreateCollectionAPIService] Collection created successfully",
+        "[CreateCollectionManager] Encrypting collection data using PasswordStorageService",
       );
-      return response;
+
+      // Use CollectionCryptoService to encrypt all collection data for API (it uses PasswordStorageService automatically)
+      const { apiData, collectionKey, collectionId } =
+        await this.cryptoService.encryptCollectionForAPI(collectionData);
+
+      console.log(
+        "[CreateCollectionManager] Collection data encrypted, sending to API",
+      );
+
+      // Create collection via API
+      const createdCollection = await this.apiService.createCollection(apiData);
+
+      // Store collection key in memory for future use
+      this.storageService.storeCollectionKey(collectionId, collectionKey);
+
+      // Prepare decrypted collection for local storage
+      const decryptedCollection = {
+        ...createdCollection,
+        name: collectionData.name, // Store decrypted name
+        _originalEncryptedName: apiData.encrypted_name,
+        _hasCollectionKey: true,
+      };
+
+      // Store in local storage
+      this.storageService.storeCreatedCollection(decryptedCollection);
+
+      // Notify listeners
+      this.notifyCollectionCreationListeners("collection_created", {
+        collectionId,
+        name: collectionData.name,
+        type: collectionData.collection_type || "folder",
+      });
+
+      console.log(
+        "[CreateCollectionManager] Collection created successfully:",
+        collectionId,
+      );
+
+      return {
+        collection: decryptedCollection,
+        collectionId,
+        success: true,
+      };
     } catch (error) {
       console.error(
-        "[CreateCollectionAPIService] Collection creation failed:",
+        "[CreateCollectionManager] Collection creation failed:",
         error,
       );
+
+      // Notify listeners of failure
+      this.notifyCollectionCreationListeners("collection_creation_failed", {
+        error: error.message,
+        collectionData,
+      });
+
       throw error;
+    } finally {
+      this.isLoading = false;
     }
   }
 

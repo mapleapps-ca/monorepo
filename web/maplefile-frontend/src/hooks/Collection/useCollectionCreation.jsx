@@ -126,9 +126,9 @@ const useCollectionCreation = () => {
     [createCollection],
   );
 
-  // Decrypt collection
+  // Decrypt collection (uses PasswordStorageService automatically)
   const decryptCollection = useCallback(
-    async (collection, password = null) => {
+    async (collection, collectionKey = null) => {
       if (!createCollectionManager) {
         throw new Error("Collection manager not available");
       }
@@ -144,7 +144,7 @@ const useCollectionCreation = () => {
 
         const decrypted = await createCollectionManager.decryptCollection(
           collection,
-          password,
+          collectionKey,
         );
 
         console.log("[useCollectionCreation] Collection decrypted:", decrypted);

@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// ServiceContext - Updated to include CollectionCryptoService
+// ServiceContext - Updated to include GetCollectionManager
 import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
@@ -20,6 +20,7 @@ import SyncFileStorageService from "../services/Storage/SyncFileStorageService.j
 import SyncFileManager from "../services/Manager/SyncFileManager.js";
 
 import CreateCollectionManager from "../services/Manager/Collection/CreateCollectionManager.js";
+import GetCollectionManager from "../services/Manager/Collection/GetCollectionManager.js"; // NEW
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -46,6 +47,9 @@ export function ServiceProvider({ children }) {
 
   // Initialize CreateCollectionManager with AuthManager dependency
   const createCollectionManager = new CreateCollectionManager(authManager);
+
+  // Initialize GetCollectionManager with AuthManager dependency (NEW)
+  const getCollectionManager = new GetCollectionManager(authManager);
 
   // Initialize SyncFileAPIService with AuthManager dependency
   const syncFileAPIService = new SyncFileAPIService(authManager);
@@ -81,6 +85,7 @@ export function ServiceProvider({ children }) {
     syncCollectionStorageService,
     syncCollectionManager, // New: SyncCollectionManager (replaces syncCollectionService)
     createCollectionManager, // New: CreateCollectionManager for collection creation
+    getCollectionManager, // NEW: GetCollectionManager for collection retrieval
 
     // File services
     syncFileAPIService,
@@ -163,6 +168,17 @@ export function ServiceProvider({ children }) {
           );
         }
 
+        // Initialize get collection manager (NEW)
+        try {
+          await getCollectionManager.initialize();
+          console.log("[ServiceProvider] GetCollectionManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] GetCollectionManager initialization failed:",
+            error,
+          );
+        }
+
         // Initialize sync file manager
         try {
           await syncFileManager.initialize();
@@ -192,6 +208,7 @@ export function ServiceProvider({ children }) {
     tokenManager,
     syncCollectionManager,
     createCollectionManager,
+    getCollectionManager, // NEW
     syncFileManager,
   ]);
 

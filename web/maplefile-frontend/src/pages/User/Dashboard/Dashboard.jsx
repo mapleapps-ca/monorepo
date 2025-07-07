@@ -60,19 +60,25 @@ const Dashboard = () => {
         "Test the SyncFileManagerExample - save/load sync collections to/from localStorage.",
       icon: "👨‍🏫",
     },
-
-    {
-      path: "/profile",
-      title: "My Profile",
-      description: "Manage account settings and security keys.",
-      icon: "👤",
-    },
     {
       path: "/create-collection-manager-example",
       title: "Create Collection Manager Example",
       description:
         "Test the CreateCollectionManager - create encrypted collections with E2EE.",
       icon: "📁",
+    },
+    {
+      path: "/get-collection-manager-example",
+      title: "Get Collection Manager Example",
+      description:
+        "Test the GetCollectionManager - retrieve and decrypt collections with caching.",
+      icon: "🔍",
+    },
+    {
+      path: "/profile",
+      title: "My Profile",
+      description: "Manage account settings and security keys.",
+      icon: "👤",
     },
   ];
 

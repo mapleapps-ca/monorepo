@@ -30,6 +30,7 @@ import SyncFileStorageExample from "./pages/User/Examples/SyncFileStorageExample
 import SyncFileManagerExample from "./pages/User/Examples/SyncFileManagerExample.jsx";
 
 import CreateCollectionManagerExample from "./pages/User/Examples/Collection/CreateCollectionManagerExample.jsx";
+import GetCollectionManagerExample from "./pages/User/Examples/Collection/GetCollectionManagerExample.jsx"; // NEW
 
 // Styles
 const styles = {
@@ -88,6 +89,10 @@ function App() {
             <Route
               path="/create-collection-manager-example"
               element={<CreateCollectionManagerExample />}
+            />
+            <Route
+              path="/get-collection-manager-example"
+              element={<GetCollectionManagerExample />}
             />
 
             <Route

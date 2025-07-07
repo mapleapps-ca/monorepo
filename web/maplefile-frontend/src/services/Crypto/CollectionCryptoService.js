@@ -1,9 +1,14 @@
 // File: monorepo/web/maplefile-frontend/src/services/Crypto/CollectionCryptoService.js
-// Collection-specific encryption operations following E2EE architecture
+// Collection-specific encryption operations following E2EE architecture - FIXED with PasswordStorageService
 
 class CollectionCryptoService {
   constructor() {
     this.isInitialized = false;
+    this.sodium = null;
+
+    // In-memory cache for collection keys (NEVER stored in localStorage)
+    this._collectionKeyCache = new Map();
+
     console.log(
       "[CollectionCryptoService] Collection crypto service initialized",
     );
@@ -17,6 +22,11 @@ class CollectionCryptoService {
       // Initialize the main crypto service
       const { default: CryptoService } = await import("./CryptoService.js");
       await CryptoService.initialize();
+
+      // Initialize libsodium directly
+      const sodium = await import("libsodium-wrappers-sumo");
+      await sodium.ready;
+      this.sodium = sodium.default;
 
       this.cryptoService = CryptoService;
       this.isInitialized = true;
@@ -32,77 +42,119 @@ class CollectionCryptoService {
     }
   }
 
+  // === Password Management via PasswordStorageService ===
+
+  // Get user password from PasswordStorageService
+  async getUserPassword() {
+    try {
+      const { default: passwordStorageService } = await import(
+        "../PasswordStorageService.js"
+      );
+      const password = passwordStorageService.getPassword();
+
+      if (!password) {
+        throw new Error(
+          "No password available in PasswordStorageService. Please log in again.",
+        );
+      }
+
+      console.log(
+        "[CollectionCryptoService] Retrieved password from PasswordStorageService",
+      );
+      return password;
+    } catch (error) {
+      console.error(
+        "[CollectionCryptoService] Failed to get password from PasswordStorageService:",
+        error,
+      );
+      throw error;
+    }
+  }
+
   // === Collection Key Generation ===
 
   // Generate a new 32-byte collection key
   generateCollectionKey() {
-    if (!this.isInitialized) {
+    if (!this.isInitialized || !this.sodium) {
       throw new Error("CollectionCryptoService not initialized");
     }
 
-    return this.cryptoService.generateRandomKey();
+    return this.sodium.randombytes_buf(32);
   }
 
-  // === Collection Name Encryption ===
+  // === Collection Name Encryption/Decryption ===
 
   // Encrypt collection name with collection key
-  async encryptCollectionName(name, collectionKey) {
-    try {
-      if (!this.isInitialized) {
-        throw new Error("CollectionCryptoService not initialized");
-      }
-
-      if (!name || !collectionKey) {
-        throw new Error("Name and collection key are required");
-      }
-
-      console.log("[CollectionCryptoService] Encrypting collection name");
-
-      // Use the crypto service to encrypt the name with the collection key
-      const encryptedName = await this.cryptoService.encryptWithKey(
-        name,
-        collectionKey,
-      );
-
-      console.log(
-        "[CollectionCryptoService] Collection name encrypted successfully",
-      );
-      return encryptedName;
-    } catch (error) {
-      console.error(
-        "[CollectionCryptoService] Failed to encrypt collection name:",
-        error,
-      );
-      throw new Error(`Name encryption failed: ${error.message}`);
+  encryptCollectionName(name, collectionKey) {
+    if (!name || !collectionKey) {
+      throw new Error("Name and collection key are required");
     }
+
+    if (!this.sodium) {
+      throw new Error("CollectionCryptoService not initialized");
+    }
+
+    const encoder = new TextEncoder();
+    const nameBytes = encoder.encode(name);
+
+    // Generate nonce
+    const nonce = this.sodium.randombytes_buf(
+      this.sodium.crypto_secretbox_NONCEBYTES,
+    );
+
+    // Encrypt name
+    const encrypted = this.sodium.crypto_secretbox_easy(
+      nameBytes,
+      nonce,
+      collectionKey,
+    );
+
+    // Combine nonce + encrypted data
+    const combined = new Uint8Array(nonce.length + encrypted.length);
+    combined.set(nonce, 0);
+    combined.set(encrypted, nonce.length);
+
+    // Return base64 encoded
+    return this.cryptoService.uint8ArrayToBase64(combined);
   }
 
   // Decrypt collection name with collection key
-  async decryptCollectionName(encryptedName, collectionKey) {
+  decryptCollectionName(encryptedName, collectionKey) {
+    if (!encryptedName || !collectionKey) {
+      console.warn(
+        "[CollectionCryptoService] Missing encrypted name or collection key",
+      );
+      return "[Unable to decrypt]";
+    }
+
+    if (!this.sodium) {
+      console.error("[CollectionCryptoService] Service not initialized");
+      return "[Not initialized]";
+    }
+
     try {
-      if (!this.isInitialized) {
-        throw new Error("CollectionCryptoService not initialized");
-      }
+      // Decode from base64
+      const combined = this.cryptoService.tryDecodeBase64(encryptedName);
 
-      if (!encryptedName || !collectionKey) {
-        console.warn(
-          "[CollectionCryptoService] Missing encrypted name or collection key",
-        );
-        return "[Unable to decrypt]";
-      }
+      // Extract nonce and ciphertext
+      const nonceLength = this.sodium.crypto_secretbox_NONCEBYTES;
+      const nonce = combined.slice(0, nonceLength);
+      const ciphertext = combined.slice(nonceLength);
 
-      console.log("[CollectionCryptoService] Decrypting collection name");
-
-      // Decrypt the name with the collection key
-      const decryptedNameBytes = await this.cryptoService.decryptWithKey(
-        encryptedName,
+      // Decrypt
+      const decrypted = this.sodium.crypto_secretbox_open_easy(
+        ciphertext,
+        nonce,
         collectionKey,
       );
 
-      const name = new TextDecoder().decode(decryptedNameBytes);
+      // Convert to string
+      const decoder = new TextDecoder();
+      const name = decoder.decode(decrypted);
 
       console.log(
-        "[CollectionCryptoService] Collection name decrypted successfully",
+        "[CollectionCryptoService] Collection name decrypted successfully:",
+        name,
       );
       return name;
     } catch (error) {
@@ -110,110 +162,50 @@ class CollectionCryptoService {
         "[CollectionCryptoService] Failed to decrypt collection name:",
         error,
       );
-      return "[Decryption Failed]";
+      return "[Encrypted]";
     }
   }
 
-  // === Collection Key Encryption ===
+  // === User Key Management ===
 
-  // Encrypt collection key with user's master key (derived from password)
-  async encryptCollectionKeyWithPassword(collectionKey, password) {
+  // Decrypt user keys with password from PasswordStorageService
+  async decryptUserKeysWithPassword() {
     try {
-      if (!this.isInitialized) {
-        throw new Error("CollectionCryptoService not initialized");
-      }
+      await this.initialize();
 
-      if (!collectionKey || !password) {
-        throw new Error("Collection key and password are required");
-      }
+      // Get password from PasswordStorageService automatically
+      const password = await this.getUserPassword();
 
-      console.log(
-        "[CollectionCryptoService] Encrypting collection key with user's master key",
-      );
-
-      // Get user's master key
-      const masterKey = await this.getUserMasterKeyFromPassword(password);
-
-      // Encrypt collection key with master key using the same pattern as file keys
-      const encryptedKey = await this.cryptoService.encryptFileKey(
-        collectionKey,
-        masterKey,
-      );
-
-      console.log(
-        "[CollectionCryptoService] Collection key encrypted successfully",
-      );
-      return encryptedKey;
-    } catch (error) {
-      console.error(
-        "[CollectionCryptoService] Failed to encrypt collection key:",
-        error,
-      );
-      throw new Error(`Collection key encryption failed: ${error.message}`);
-    }
-  }
-
-  // Decrypt collection key with user's master key (derived from password)
-  async decryptCollectionKeyWithPassword(encryptedCollectionKey, password) {
-    try {
-      if (!this.isInitialized) {
-        throw new Error("CollectionCryptoService not initialized");
-      }
-
-      if (!encryptedCollectionKey || !password) {
-        throw new Error("Encrypted collection key and password are required");
-      }
-
-      console.log(
-        "[CollectionCryptoService] Decrypting collection key with user's master key",
-      );
-
-      // Get user's master key
-      const masterKey = await this.getUserMasterKeyFromPassword(password);
-
-      // Decrypt collection key with master key
-      const collectionKey = await this.cryptoService.decryptFileKey(
-        encryptedCollectionKey,
-        masterKey,
-      );
-
-      console.log(
-        "[CollectionCryptoService] Collection key decrypted successfully",
-      );
-      return collectionKey;
-    } catch (error) {
-      console.error(
-        "[CollectionCryptoService] Failed to decrypt collection key:",
-        error,
-      );
-      throw error;
-    }
-  }
-
-  // === User Master Key Derivation ===
-
-  // Get user's master key from password (private helper method)
-  async getUserMasterKeyFromPassword(password) {
-    try {
+      // Get stored encrypted user data
       const { default: LocalStorageService } = await import(
         "../Storage/LocalStorageService.js"
       );
 
-      // Get user's encrypted data
-      const userEncryptedData = LocalStorageService.getUserEncryptedData();
-      if (!userEncryptedData.salt || !userEncryptedData.encryptedMasterKey) {
-        throw new Error("Missing user encrypted data. Please log in again.");
+      const encryptedData = LocalStorageService.getUserEncryptedData();
+
+      if (
+        !encryptedData.salt ||
+        !encryptedData.encryptedMasterKey ||
+        !encryptedData.encryptedPrivateKey
+      ) {
+        throw new Error("Missing encrypted user data. Please log in again.");
       }
 
       console.log(
-        "[CollectionCryptoService] Deriving user's master key from password",
+        "[CollectionCryptoService] Decrypting user keys with password from PasswordStorageService",
       );
 
-      // Decode encrypted data
-      const salt = this.cryptoService.tryDecodeBase64(userEncryptedData.salt);
+      // Decode the encrypted data
+      const salt = this.cryptoService.tryDecodeBase64(encryptedData.salt);
       const encryptedMasterKey = this.cryptoService.tryDecodeBase64(
-        userEncryptedData.encryptedMasterKey,
+        encryptedData.encryptedMasterKey,
       );
+      const encryptedPrivateKey = this.cryptoService.tryDecodeBase64(
+        encryptedData.encryptedPrivateKey,
+      );
+      const publicKey = encryptedData.publicKey
+        ? this.cryptoService.tryDecodeBase64(encryptedData.publicKey)
+        : null;
 
       // Derive key encryption key from password
       const keyEncryptionKey = await this.cryptoService.deriveKeyFromPassword(
@@ -221,36 +213,255 @@ class CollectionCryptoService {
         salt,
       );
 
-      // Decrypt master key
+      // Decrypt master key with KEK
       const masterKey = this.cryptoService.decryptWithSecretBox(
         encryptedMasterKey,
         keyEncryptionKey,
       );
 
-      console.log(
-        "[CollectionCryptoService] User's master key derived successfully",
+      // Decrypt private key with master key
+      const privateKey = this.cryptoService.decryptWithSecretBox(
+        encryptedPrivateKey,
+        masterKey,
       );
-      return masterKey;
+
+      // Derive public key if not provided
+      const derivedPublicKey =
+        publicKey || this.sodium.crypto_scalarmult_base(privateKey);
+
+      console.log(
+        "[CollectionCryptoService] User keys decrypted successfully using PasswordStorageService",
+      );
+
+      return {
+        masterKey,
+        privateKey,
+        publicKey: derivedPublicKey,
+        keyEncryptionKey,
+      };
     } catch (error) {
       console.error(
-        "[CollectionCryptoService] Failed to derive user's master key:",
+        "[CollectionCryptoService] Failed to decrypt user keys:",
         error,
       );
-      throw new Error(`Master key derivation failed: ${error.message}`);
+      throw new Error(
+        `Failed to decrypt keys: ${error.message}. Please check your password or log in again.`,
+      );
+    }
+  }
+
+  // Get user's encryption keys from session or decrypt with PasswordStorageService
+  async getUserKeys() {
+    // First check if we have session keys in memory
+    const { default: LocalStorageService } = await import(
+      "../Storage/LocalStorageService.js"
+    );
+
+    const sessionKeys = LocalStorageService.getSessionKeys();
+
+    if (sessionKeys.masterKey && sessionKeys.publicKey) {
+      console.log("[CollectionCryptoService] Using session keys from memory");
+      return {
+        masterKey: sessionKeys.masterKey,
+        publicKey: sessionKeys.publicKey,
+        privateKey: sessionKeys.privateKey,
+      };
+    }
+
+    // If no session keys, decrypt keys using PasswordStorageService
+    console.log(
+      "[CollectionCryptoService] No session keys found, decrypting with PasswordStorageService",
+    );
+    return await this.decryptUserKeysWithPassword();
+  }
+
+  // === Collection Key Encryption/Decryption ===
+
+  // Encrypt collection key with user's master key (matching deprecated format)
+  async encryptCollectionKey(collectionKey, userMasterKey) {
+    if (!collectionKey || !userMasterKey) {
+      throw new Error("Collection key and user master key are required");
+    }
+
+    if (!this.sodium) {
+      throw new Error("CollectionCryptoService not initialized");
+    }
+
+    // Generate nonce
+    const nonce = this.sodium.randombytes_buf(
+      this.sodium.crypto_secretbox_NONCEBYTES,
+    );
+
+    // Encrypt collection key with master key (ChaCha20-Poly1305)
+    const encrypted = this.sodium.crypto_secretbox_easy(
+      collectionKey,
+      nonce,
+      userMasterKey,
+    );
+
+    // Combine nonce + ciphertext for storage (matching deprecated format)
+    const combined = new Uint8Array(nonce.length + encrypted.length);
+    combined.set(nonce, 0);
+    combined.set(encrypted, nonce.length);
+
+    // Return structure expected by API with base64 strings (matching deprecated format)
+    return {
+      ciphertext: this.cryptoService.uint8ArrayToBase64(combined), // Base64 string, not array!
+      nonce: this.cryptoService.uint8ArrayToBase64(nonce), // Base64 string for separate storage
+      key_version: 1,
+      rotated_at: new Date().toISOString(),
+      previous_keys: [],
+    };
+  }
+
+  // Decrypt collection key with user's master key (matching deprecated format)
+  async decryptCollectionKey(encryptedKeyData, userMasterKey) {
+    if (!encryptedKeyData || !userMasterKey) {
+      throw new Error("Encrypted key data and user master key are required");
+    }
+
+    if (!this.sodium) {
+      throw new Error("CollectionCryptoService not initialized");
+    }
+
+    try {
+      // Decode from base64 (matching deprecated format logic)
+      let combined;
+
+      // Handle different formats - some APIs store nonce+ciphertext together
+      if (typeof encryptedKeyData.ciphertext === "string") {
+        combined = this.cryptoService.tryDecodeBase64(
+          encryptedKeyData.ciphertext,
+        );
+      } else if (Array.isArray(encryptedKeyData.ciphertext)) {
+        // Legacy format - convert array to Uint8Array
+        const ciphertext = new Uint8Array(encryptedKeyData.ciphertext);
+        const nonce = new Uint8Array(encryptedKeyData.nonce);
+        combined = new Uint8Array(nonce.length + ciphertext.length);
+        combined.set(nonce, 0);
+        combined.set(ciphertext, nonce.length);
+      } else {
+        throw new Error("Invalid encrypted key format");
+      }
+
+      // Extract nonce and ciphertext
+      const nonceLength = this.sodium.crypto_secretbox_NONCEBYTES;
+      const nonce = combined.slice(0, nonceLength);
+      const ciphertext = combined.slice(nonceLength);
+
+      console.log(
+        `[CollectionCryptoService] Decrypting collection key - nonce: ${nonce.length}, ciphertext: ${ciphertext.length}`,
+      );
+
+      // Decrypt with master key
+      const decrypted = this.sodium.crypto_secretbox_open_easy(
+        ciphertext,
+        nonce,
+        userMasterKey,
+      );
+
+      console.log(
+        `[CollectionCryptoService] Collection key decrypted successfully, length: ${decrypted.length}`,
+      );
+      return decrypted;
+    } catch (error) {
+      console.error(
+        "[CollectionCryptoService] Failed to decrypt collection key:",
+        error,
+      );
+
+      // Try previous keys if available
+      if (
+        encryptedKeyData.previous_keys &&
+        encryptedKeyData.previous_keys.length > 0
+      ) {
+        for (const prevKey of encryptedKeyData.previous_keys) {
+          try {
+            return await this.decryptCollectionKey(prevKey, userMasterKey);
+          } catch {
+            continue;
+          }
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  // === Collection Key Sharing (for future use) ===
+
+  // Encrypt collection key for sharing with another user (uses their public key)
+  async encryptCollectionKeyForRecipient(collectionKey, recipientPublicKey) {
+    if (!collectionKey || !recipientPublicKey) {
+      throw new Error("Collection key and recipient public key are required");
+    }
+
+    if (!this.sodium) {
+      throw new Error("CollectionCryptoService not initialized");
+    }
+
+    // Ensure public key is Uint8Array
+    const publicKey =
+      recipientPublicKey instanceof Uint8Array
+        ? recipientPublicKey
+        : new Uint8Array(recipientPublicKey);
+
+    // Use sealed box (anonymous encryption) for sharing
+    const encrypted = this.sodium.crypto_box_seal(collectionKey, publicKey);
+
+    // Return base64 string as API expects
+    return this.cryptoService.uint8ArrayToBase64(encrypted);
+  }
+
+  // Decrypt collection key shared with us (uses our private key)
+  async decryptSharedCollectionKey(
+    encryptedKey,
+    userPrivateKey,
+    userPublicKey,
+  ) {
+    if (!encryptedKey || !userPrivateKey || !userPublicKey) {
+      throw new Error("Encrypted key and user keypair are required");
+    }
+
+    if (!this.sodium) {
+      throw new Error("CollectionCryptoService not initialized");
+    }
+
+    try {
+      // Decode from base64
+      const encryptedData =
+        typeof encryptedKey === "string"
+          ? this.cryptoService.tryDecodeBase64(encryptedKey)
+          : new Uint8Array(encryptedKey);
+
+      // Decrypt with our private key
+      const decrypted = this.sodium.crypto_box_seal_open(
+        encryptedData,
+        userPublicKey,
+        userPrivateKey,
+      );
+
+      return decrypted;
+    } catch (error) {
+      console.error(
+        "[CollectionCryptoService] Failed to decrypt shared collection key:",
+        error,
+      );
+      throw error;
     }
   }
 
   // === Collection Data Encryption/Decryption ===
 
-  // Encrypt complete collection data for API
-  async encryptCollectionForAPI(collectionData, password) {
+  // Encrypt complete collection data for API (uses PasswordStorageService automatically)
+  async encryptCollectionForAPI(collectionData) {
     try {
       if (!this.isInitialized) {
         throw new Error("CollectionCryptoService not initialized");
       }
 
       console.log(
-        "[CollectionCryptoService] Encrypting collection data for API",
+        "[CollectionCryptoService] Encrypting collection data for API using PasswordStorageService",
       );
 
       // Validate input
@@ -258,19 +469,26 @@ class CollectionCryptoService {
         throw new Error("Collection name is required");
       }
 
-      // Generate collection ID and key
-      const collectionId = this.cryptoService.generateUUID();
+      // Get user's encryption keys using PasswordStorageService
+      const userKeys = await this.getUserKeys();
+
+      // Generate collection key
       const collectionKey = this.generateCollectionKey();
 
+      // Generate collection ID
+      const collectionId = this.cryptoService.generateUUID();
+
       // Encrypt collection name with collection key
-      const encryptedName = await this.encryptCollectionName(
+      const encryptedName = this.encryptCollectionName(
         collectionData.name,
         collectionKey,
       );
 
       // Encrypt collection key with user's master key
-      const encryptedCollectionKey =
-        await this.encryptCollectionKeyWithPassword(collectionKey, password);
+      const encryptedCollectionKey = await this.encryptCollectionKey(
+        collectionKey,
+        userKeys.masterKey,
+      );
 
       // Prepare API data
       const apiData = {
@@ -292,7 +510,7 @@ class CollectionCryptoService {
       }
 
       console.log(
-        "[CollectionCryptoService] Collection data encrypted for API successfully",
+        "[CollectionCryptoService] Collection data encrypted for API successfully using PasswordStorageService",
       );
 
       return {
@@ -309,29 +527,51 @@ class CollectionCryptoService {
     }
   }
 
-  // Decrypt collection data from API response
-  async decryptCollectionFromAPI(
-    encryptedCollection,
-    collectionKey = null,
-    password = null,
-  ) {
-    try {
-      if (!this.isInitialized) {
-        throw new Error("CollectionCryptoService not initialized");
-      }
+  // Decrypt collection data from API response (uses PasswordStorageService automatically)
+  async decryptCollectionFromAPI(encryptedCollection, collectionKey = null) {
+    if (!encryptedCollection) return null;
 
+    await this.initialize();
+
+    try {
       console.log(
-        "[CollectionCryptoService] Decrypting collection data from API",
+        "[CollectionCryptoService] Decrypting collection data from API using PasswordStorageService:",
+        encryptedCollection.id,
       );
 
       let workingCollectionKey = collectionKey;
 
-      // If no collection key provided, try to decrypt it
-      if (!workingCollectionKey && password) {
-        workingCollectionKey = await this.decryptCollectionKeyWithPassword(
-          encryptedCollection.encrypted_collection_key,
-          password,
-        );
+      // If no collection key provided, we need to decrypt it
+      if (!workingCollectionKey) {
+        // Get user keys using PasswordStorageService automatically
+        const userKeys = await this.getUserKeys();
+
+        // Check if this is our collection or shared with us
+        if (encryptedCollection.encrypted_collection_key) {
+          // Our collection - decrypt with master key
+          workingCollectionKey = await this.decryptCollectionKey(
+            encryptedCollection.encrypted_collection_key,
+            userKeys.masterKey,
+          );
+        } else {
+          // Shared collection - find our encrypted key in members
+          const ourMembership = encryptedCollection.members?.find(
+            (m) => m.recipient_id === userKeys.userId,
+          );
+
+          if (ourMembership && ourMembership.encrypted_collection_key) {
+            workingCollectionKey = await this.decryptSharedCollectionKey(
+              ourMembership.encrypted_collection_key,
+              userKeys.privateKey,
+              userKeys.publicKey,
+            );
+          } else {
+            throw new Error("No collection key available for decryption");
+          }
+        }
+
+        // Cache the collection key
+        this.cacheCollectionKey(encryptedCollection.id, workingCollectionKey);
       }
 
       if (!workingCollectionKey) {
@@ -339,7 +579,7 @@ class CollectionCryptoService {
       }
 
       // Decrypt collection name
-      const name = await this.decryptCollectionName(
+      const name = this.decryptCollectionName(
         encryptedCollection.encrypted_name,
         workingCollectionKey,
       );
@@ -351,10 +591,12 @@ class CollectionCryptoService {
         _isDecrypted: true,
         _hasCollectionKey: true,
         _originalEncryptedName: encryptedCollection.encrypted_name,
+        collection_key: workingCollectionKey, // Store for future use (in memory only!)
       };
 
       console.log(
-        "[CollectionCryptoService] Collection data decrypted from API successfully",
+        "[CollectionCryptoService] Collection data decrypted from API successfully using PasswordStorageService:",
+        name,
       );
       return decryptedCollection;
     } catch (error) {
@@ -366,93 +608,37 @@ class CollectionCryptoService {
       // Return collection with error marker
       return {
         ...encryptedCollection,
-        name: "[Decryption Failed]",
+        name: "[Unable to decrypt]",
         _isDecrypted: false,
         _decryptionError: error.message,
+        decrypt_error: error.message,
       };
     }
   }
 
-  // === Collection Key Sharing (for future use) ===
+  // === Collection Key Cache Management (In-Memory Only) ===
 
-  // Encrypt collection key for sharing with another user (uses their public key)
-  async encryptCollectionKeyForRecipient(collectionKey, recipientPublicKey) {
-    try {
-      if (!this.isInitialized) {
-        throw new Error("CollectionCryptoService not initialized");
-      }
-
-      if (!collectionKey || !recipientPublicKey) {
-        throw new Error("Collection key and recipient public key are required");
-      }
-
-      console.log(
-        "[CollectionCryptoService] Encrypting collection key for recipient",
-      );
-
-      // Use sealed box (anonymous encryption) for sharing
-      const encrypted = this.cryptoService.sodium.crypto_box_seal(
-        collectionKey,
-        recipientPublicKey,
-      );
-
-      // Return base64 string as API expects
-      const encryptedBase64 = this.cryptoService.uint8ArrayToBase64(encrypted);
-
-      console.log(
-        "[CollectionCryptoService] Collection key encrypted for recipient successfully",
-      );
-      return encryptedBase64;
-    } catch (error) {
-      console.error(
-        "[CollectionCryptoService] Failed to encrypt collection key for recipient:",
-        error,
-      );
-      throw error;
-    }
+  // Store collection keys in memory (not localStorage!)
+  cacheCollectionKey(collectionId, collectionKey) {
+    this._collectionKeyCache.set(collectionId, collectionKey);
+    console.log(
+      `[CollectionCryptoService] Collection key cached in memory for: ${collectionId}`,
+    );
   }
 
-  // Decrypt collection key shared with us (uses our private key)
-  async decryptSharedCollectionKey(
-    encryptedKey,
-    userPrivateKey,
-    userPublicKey,
-  ) {
-    try {
-      if (!this.isInitialized) {
-        throw new Error("CollectionCryptoService not initialized");
-      }
-
-      if (!encryptedKey || !userPrivateKey || !userPublicKey) {
-        throw new Error("Encrypted key and user keypair are required");
-      }
-
-      console.log("[CollectionCryptoService] Decrypting shared collection key");
-
-      // Decode from base64
-      const encryptedData =
-        typeof encryptedKey === "string"
-          ? this.cryptoService.tryDecodeBase64(encryptedKey)
-          : new Uint8Array(encryptedKey);
-
-      // Decrypt with our private key
-      const decrypted = this.cryptoService.sodium.crypto_box_seal_open(
-        encryptedData,
-        userPublicKey,
-        userPrivateKey,
-      );
-
+  getCachedCollectionKey(collectionId) {
+    const cached = this._collectionKeyCache.get(collectionId);
+    if (cached) {
       console.log(
-        "[CollectionCryptoService] Shared collection key decrypted successfully",
+        `[CollectionCryptoService] Retrieved collection key from memory for: ${collectionId}`,
       );
-      return decrypted;
-    } catch (error) {
-      console.error(
-        "[CollectionCryptoService] Failed to decrypt shared collection key:",
-        error,
-      );
-      throw error;
     }
+    return cached;
+  }
+
+  clearCollectionKeyCache() {
+    this._collectionKeyCache.clear();
+    console.log("[CollectionCryptoService] Collection key cache cleared");
   }
 
   // === Utility Methods ===
@@ -467,7 +653,9 @@ class CollectionCryptoService {
     return {
       isInitialized: this.isInitialized,
       hasCryptoService: !!this.cryptoService,
+      hasSodium: !!this.sodium,
       cryptoServiceReady: this.cryptoService?.isInitialized || false,
+      collectionKeyCacheSize: this._collectionKeyCache.size,
     };
   }
 
@@ -480,8 +668,8 @@ class CollectionCryptoService {
         "generateCollectionKey",
         "encryptCollectionName",
         "decryptCollectionName",
-        "encryptCollectionKeyWithPassword",
-        "decryptCollectionKeyWithPassword",
+        "encryptCollectionKey",
+        "decryptCollectionKey",
         "encryptCollectionForAPI",
         "decryptCollectionFromAPI",
         "encryptCollectionKeyForRecipient",
