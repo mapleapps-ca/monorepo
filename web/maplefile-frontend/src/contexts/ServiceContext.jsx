@@ -1,11 +1,11 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// ServiceContext - Updated to include CollectionCrypto
+// ServiceContext - Updated to include CollectionCryptoService
 import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
 import TokenManager from "../services/Manager/TokenManager.js";
 import CryptoService from "../services/Crypto/CryptoService.js";
-import CollectionCrypto from "../services/Crypto/CollectionCrypto.js";
+import CollectionCryptoService from "../services/Crypto/CollectionCryptoService.js";
 import LocalStorageService from "../services/Storage/LocalStorageService.js";
 import ApiClient, {
   setApiClientAuthManager,
@@ -65,7 +65,7 @@ export function ServiceProvider({ children }) {
     authManager: authManager, // New: AuthManager for orchestration
     authService: authManager, // Backward compatibility alias
     cryptoService: CryptoService,
-    collectionCrypto: CollectionCrypto, // New: Collection-specific crypto operations
+    CollectionCryptoService: CollectionCryptoService, // New: Collection-specific crypto operations
     passwordStorageService: PasswordStorageService,
     localStorageService: LocalStorageService,
     apiClient: ApiClient,
@@ -101,8 +101,8 @@ export function ServiceProvider({ children }) {
         console.log("[ServiceProvider] CryptoService initialized");
 
         // Initialize collection crypto service
-        await CollectionCrypto.initialize();
-        console.log("[ServiceProvider] CollectionCrypto initialized");
+        await CollectionCryptoService.initialize();
+        console.log("[ServiceProvider] CollectionCryptoService initialized");
 
         // Initialize password storage service
         await PasswordStorageService.initialize();
@@ -234,8 +234,8 @@ export function ServiceProvider({ children }) {
         CryptoService.isInitialized,
       );
       console.log(
-        "[ServiceProvider] CollectionCrypto ready:",
-        CollectionCrypto.isReady(),
+        "[ServiceProvider] CollectionCryptoService ready:",
+        CollectionCryptoService.isReady(),
       );
       console.log(
         "[ServiceProvider] AuthManager authenticated:",

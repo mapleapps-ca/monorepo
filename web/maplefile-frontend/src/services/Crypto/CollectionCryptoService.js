@@ -1,10 +1,12 @@
-// File: monorepo/web/maplefile-frontend/src/services/Crypto/CollectionCrypto.js
+// File: monorepo/web/maplefile-frontend/src/services/Crypto/CollectionCryptoService.js
 // Collection-specific encryption operations following E2EE architecture
 
-class CollectionCrypto {
+class CollectionCryptoService {
   constructor() {
     this.isInitialized = false;
-    console.log("[CollectionCrypto] Collection crypto service initialized");
+    console.log(
+      "[CollectionCryptoService] Collection crypto service initialized",
+    );
   }
 
   // Initialize the crypto service
@@ -20,12 +22,12 @@ class CollectionCrypto {
       this.isInitialized = true;
 
       console.log(
-        "[CollectionCrypto] Collection crypto service initialized successfully",
+        "[CollectionCryptoService] Collection crypto service initialized successfully",
       );
     } catch (error) {
-      console.error("[CollectionCrypto] Failed to initialize:", error);
+      console.error("[CollectionCryptoService] Failed to initialize:", error);
       throw new Error(
-        `Failed to initialize CollectionCrypto: ${error.message}`,
+        `Failed to initialize CollectionCryptoService: ${error.message}`,
       );
     }
   }
@@ -35,7 +37,7 @@ class CollectionCrypto {
   // Generate a new 32-byte collection key
   generateCollectionKey() {
     if (!this.isInitialized) {
-      throw new Error("CollectionCrypto not initialized");
+      throw new Error("CollectionCryptoService not initialized");
     }
 
     return this.cryptoService.generateRandomKey();
@@ -47,14 +49,14 @@ class CollectionCrypto {
   async encryptCollectionName(name, collectionKey) {
     try {
       if (!this.isInitialized) {
-        throw new Error("CollectionCrypto not initialized");
+        throw new Error("CollectionCryptoService not initialized");
       }
 
       if (!name || !collectionKey) {
         throw new Error("Name and collection key are required");
       }
 
-      console.log("[CollectionCrypto] Encrypting collection name");
+      console.log("[CollectionCryptoService] Encrypting collection name");
 
       // Use the crypto service to encrypt the name with the collection key
       const encryptedName = await this.cryptoService.encryptWithKey(
@@ -62,11 +64,13 @@ class CollectionCrypto {
         collectionKey,
       );
 
-      console.log("[CollectionCrypto] Collection name encrypted successfully");
+      console.log(
+        "[CollectionCryptoService] Collection name encrypted successfully",
+      );
       return encryptedName;
     } catch (error) {
       console.error(
-        "[CollectionCrypto] Failed to encrypt collection name:",
+        "[CollectionCryptoService] Failed to encrypt collection name:",
         error,
       );
       throw new Error(`Name encryption failed: ${error.message}`);
@@ -77,17 +81,17 @@ class CollectionCrypto {
   async decryptCollectionName(encryptedName, collectionKey) {
     try {
       if (!this.isInitialized) {
-        throw new Error("CollectionCrypto not initialized");
+        throw new Error("CollectionCryptoService not initialized");
       }
 
       if (!encryptedName || !collectionKey) {
         console.warn(
-          "[CollectionCrypto] Missing encrypted name or collection key",
+          "[CollectionCryptoService] Missing encrypted name or collection key",
         );
         return "[Unable to decrypt]";
       }
 
-      console.log("[CollectionCrypto] Decrypting collection name");
+      console.log("[CollectionCryptoService] Decrypting collection name");
 
       // Decrypt the name with the collection key
       const decryptedNameBytes = await this.cryptoService.decryptWithKey(
@@ -97,11 +101,13 @@ class CollectionCrypto {
 
       const name = new TextDecoder().decode(decryptedNameBytes);
 
-      console.log("[CollectionCrypto] Collection name decrypted successfully");
+      console.log(
+        "[CollectionCryptoService] Collection name decrypted successfully",
+      );
       return name;
     } catch (error) {
       console.error(
-        "[CollectionCrypto] Failed to decrypt collection name:",
+        "[CollectionCryptoService] Failed to decrypt collection name:",
         error,
       );
       return "[Decryption Failed]";
@@ -114,7 +120,7 @@ class CollectionCrypto {
   async encryptCollectionKeyWithPassword(collectionKey, password) {
     try {
       if (!this.isInitialized) {
-        throw new Error("CollectionCrypto not initialized");
+        throw new Error("CollectionCryptoService not initialized");
       }
 
       if (!collectionKey || !password) {
@@ -122,7 +128,7 @@ class CollectionCrypto {
       }
 
       console.log(
-        "[CollectionCrypto] Encrypting collection key with user's master key",
+        "[CollectionCryptoService] Encrypting collection key with user's master key",
       );
 
       // Get user's master key
@@ -134,11 +140,13 @@ class CollectionCrypto {
         masterKey,
       );
 
-      console.log("[CollectionCrypto] Collection key encrypted successfully");
+      console.log(
+        "[CollectionCryptoService] Collection key encrypted successfully",
+      );
       return encryptedKey;
     } catch (error) {
       console.error(
-        "[CollectionCrypto] Failed to encrypt collection key:",
+        "[CollectionCryptoService] Failed to encrypt collection key:",
         error,
       );
       throw new Error(`Collection key encryption failed: ${error.message}`);
@@ -149,7 +157,7 @@ class CollectionCrypto {
   async decryptCollectionKeyWithPassword(encryptedCollectionKey, password) {
     try {
       if (!this.isInitialized) {
-        throw new Error("CollectionCrypto not initialized");
+        throw new Error("CollectionCryptoService not initialized");
       }
 
       if (!encryptedCollectionKey || !password) {
@@ -157,7 +165,7 @@ class CollectionCrypto {
       }
 
       console.log(
-        "[CollectionCrypto] Decrypting collection key with user's master key",
+        "[CollectionCryptoService] Decrypting collection key with user's master key",
       );
 
       // Get user's master key
@@ -169,11 +177,13 @@ class CollectionCrypto {
         masterKey,
       );
 
-      console.log("[CollectionCrypto] Collection key decrypted successfully");
+      console.log(
+        "[CollectionCryptoService] Collection key decrypted successfully",
+      );
       return collectionKey;
     } catch (error) {
       console.error(
-        "[CollectionCrypto] Failed to decrypt collection key:",
+        "[CollectionCryptoService] Failed to decrypt collection key:",
         error,
       );
       throw error;
@@ -196,7 +206,7 @@ class CollectionCrypto {
       }
 
       console.log(
-        "[CollectionCrypto] Deriving user's master key from password",
+        "[CollectionCryptoService] Deriving user's master key from password",
       );
 
       // Decode encrypted data
@@ -217,11 +227,13 @@ class CollectionCrypto {
         keyEncryptionKey,
       );
 
-      console.log("[CollectionCrypto] User's master key derived successfully");
+      console.log(
+        "[CollectionCryptoService] User's master key derived successfully",
+      );
       return masterKey;
     } catch (error) {
       console.error(
-        "[CollectionCrypto] Failed to derive user's master key:",
+        "[CollectionCryptoService] Failed to derive user's master key:",
         error,
       );
       throw new Error(`Master key derivation failed: ${error.message}`);
@@ -234,10 +246,12 @@ class CollectionCrypto {
   async encryptCollectionForAPI(collectionData, password) {
     try {
       if (!this.isInitialized) {
-        throw new Error("CollectionCrypto not initialized");
+        throw new Error("CollectionCryptoService not initialized");
       }
 
-      console.log("[CollectionCrypto] Encrypting collection data for API");
+      console.log(
+        "[CollectionCryptoService] Encrypting collection data for API",
+      );
 
       // Validate input
       if (!collectionData.name) {
@@ -278,7 +292,7 @@ class CollectionCrypto {
       }
 
       console.log(
-        "[CollectionCrypto] Collection data encrypted for API successfully",
+        "[CollectionCryptoService] Collection data encrypted for API successfully",
       );
 
       return {
@@ -288,7 +302,7 @@ class CollectionCrypto {
       };
     } catch (error) {
       console.error(
-        "[CollectionCrypto] Failed to encrypt collection for API:",
+        "[CollectionCryptoService] Failed to encrypt collection for API:",
         error,
       );
       throw error;
@@ -303,10 +317,12 @@ class CollectionCrypto {
   ) {
     try {
       if (!this.isInitialized) {
-        throw new Error("CollectionCrypto not initialized");
+        throw new Error("CollectionCryptoService not initialized");
       }
 
-      console.log("[CollectionCrypto] Decrypting collection data from API");
+      console.log(
+        "[CollectionCryptoService] Decrypting collection data from API",
+      );
 
       let workingCollectionKey = collectionKey;
 
@@ -338,12 +354,12 @@ class CollectionCrypto {
       };
 
       console.log(
-        "[CollectionCrypto] Collection data decrypted from API successfully",
+        "[CollectionCryptoService] Collection data decrypted from API successfully",
       );
       return decryptedCollection;
     } catch (error) {
       console.error(
-        "[CollectionCrypto] Failed to decrypt collection from API:",
+        "[CollectionCryptoService] Failed to decrypt collection from API:",
         error,
       );
 
@@ -363,14 +379,16 @@ class CollectionCrypto {
   async encryptCollectionKeyForRecipient(collectionKey, recipientPublicKey) {
     try {
       if (!this.isInitialized) {
-        throw new Error("CollectionCrypto not initialized");
+        throw new Error("CollectionCryptoService not initialized");
       }
 
       if (!collectionKey || !recipientPublicKey) {
         throw new Error("Collection key and recipient public key are required");
       }
 
-      console.log("[CollectionCrypto] Encrypting collection key for recipient");
+      console.log(
+        "[CollectionCryptoService] Encrypting collection key for recipient",
+      );
 
       // Use sealed box (anonymous encryption) for sharing
       const encrypted = this.cryptoService.sodium.crypto_box_seal(
@@ -382,12 +400,12 @@ class CollectionCrypto {
       const encryptedBase64 = this.cryptoService.uint8ArrayToBase64(encrypted);
 
       console.log(
-        "[CollectionCrypto] Collection key encrypted for recipient successfully",
+        "[CollectionCryptoService] Collection key encrypted for recipient successfully",
       );
       return encryptedBase64;
     } catch (error) {
       console.error(
-        "[CollectionCrypto] Failed to encrypt collection key for recipient:",
+        "[CollectionCryptoService] Failed to encrypt collection key for recipient:",
         error,
       );
       throw error;
@@ -402,14 +420,14 @@ class CollectionCrypto {
   ) {
     try {
       if (!this.isInitialized) {
-        throw new Error("CollectionCrypto not initialized");
+        throw new Error("CollectionCryptoService not initialized");
       }
 
       if (!encryptedKey || !userPrivateKey || !userPublicKey) {
         throw new Error("Encrypted key and user keypair are required");
       }
 
-      console.log("[CollectionCrypto] Decrypting shared collection key");
+      console.log("[CollectionCryptoService] Decrypting shared collection key");
 
       // Decode from base64
       const encryptedData =
@@ -425,12 +443,12 @@ class CollectionCrypto {
       );
 
       console.log(
-        "[CollectionCrypto] Shared collection key decrypted successfully",
+        "[CollectionCryptoService] Shared collection key decrypted successfully",
       );
       return decrypted;
     } catch (error) {
       console.error(
-        "[CollectionCrypto] Failed to decrypt shared collection key:",
+        "[CollectionCryptoService] Failed to decrypt shared collection key:",
         error,
       );
       throw error;
@@ -456,7 +474,7 @@ class CollectionCrypto {
   // Get debug information
   getDebugInfo() {
     return {
-      serviceName: "CollectionCrypto",
+      serviceName: "CollectionCryptoService",
       status: this.getStatus(),
       capabilities: [
         "generateCollectionKey",
@@ -474,4 +492,4 @@ class CollectionCrypto {
 }
 
 // Export singleton instance
-export default new CollectionCrypto();
+export default new CollectionCryptoService();

@@ -3,7 +3,7 @@
 
 import CreateCollectionAPIService from "../../API/Collection/CreateCollectionAPIService.js";
 import CreateCollectionStorageService from "../../Storage/Collection/CreateCollectionStorageService.js";
-import CollectionCrypto from "../../Crypto/CollectionCrypto.js";
+import CollectionCryptoService from "../../Crypto/CollectionCryptoService.js";
 
 class CreateCollectionManager {
   constructor(authManager) {
@@ -14,7 +14,7 @@ class CreateCollectionManager {
     // Initialize dependent services
     this.apiService = new CreateCollectionAPIService(authManager);
     this.storageService = new CreateCollectionStorageService();
-    this.cryptoService = CollectionCrypto; // Use singleton instance
+    this.cryptoService = CollectionCryptoService; // Use singleton instance
 
     // Event listeners for collection creation events
     this.collectionCreationListeners = new Set();
@@ -71,7 +71,7 @@ class CreateCollectionManager {
 
       console.log("[CreateCollectionManager] Encrypting collection data");
 
-      // Use CollectionCrypto to encrypt all collection data for API
+      // Use CollectionCryptoService to encrypt all collection data for API
       const { apiData, collectionKey, collectionId } =
         await this.cryptoService.encryptCollectionForAPI(
           collectionData,
@@ -152,7 +152,7 @@ class CreateCollectionManager {
       // Get password if needed
       const userPassword = password || (await this.getUserPassword());
 
-      // Use CollectionCrypto to decrypt the collection
+      // Use CollectionCryptoService to decrypt the collection
       const decryptedCollection =
         await this.cryptoService.decryptCollectionFromAPI(
           encryptedCollection,
