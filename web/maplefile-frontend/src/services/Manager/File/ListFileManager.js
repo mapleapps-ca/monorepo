@@ -5,9 +5,15 @@ import ListFileAPIService from "../../API/File/ListFileAPIService.js";
 import ListFileStorageService from "../../Storage/File/ListFileStorageService.js";
 
 class ListFileManager {
-  constructor(authManager) {
-    // ListFileManager depends on AuthManager and orchestrates API, Storage, and Crypto services
+  constructor(
+    authManager,
+    getCollectionManager = null,
+    listCollectionManager = null,
+  ) {
+    // ListFileManager depends on AuthManager and collection managers
     this.authManager = authManager;
+    this.getCollectionManager = getCollectionManager;
+    this.listCollectionManager = listCollectionManager;
     this.isLoading = false;
 
     // Initialize dependent services
@@ -18,7 +24,7 @@ class ListFileManager {
     this.fileListingListeners = new Set();
 
     console.log(
-      "[ListFileManager] File manager initialized with AuthManager dependency",
+      "[ListFileManager] File manager initialized with AuthManager and collection managers",
     );
   }
 
@@ -71,19 +77,23 @@ class ListFileManager {
   ) {
     try {
       this.isLoading = true;
-      console.log(
-        "[ListFileManager] Listing files for collection:",
-        collectionId,
-      );
+      console.log("[ListFileManager] === Starting File Listing Workflow ===");
+      console.log("[ListFileManager] Collection ID:", collectionId);
       console.log("[ListFileManager] Include states:", includeStates);
       console.log("[ListFileManager] Force refresh:", forceRefresh);
 
-      // Check cache first unless forcing refresh
+      // STEP 1: Load collection FIRST to ensure collection key is cached
+      console.log(
+        "[ListFileManager] Step 1: Loading collection to ensure key is cached",
+      );
+      await this.ensureCollectionLoaded(collectionId);
+
+      // STEP 2: Check cache first unless forcing refresh
       if (!forceRefresh) {
         const cachedFileList = this.storageService.getFileList(collectionId);
         if (cachedFileList) {
           console.log(
-            "[ListFileManager] Using cached file list:",
+            "[ListFileManager] Found cached file list:",
             cachedFileList.files.length,
             "files",
           );
@@ -94,18 +104,91 @@ class ListFileManager {
             files = files.filter((file) => includeStates.includes(file.state));
           }
 
+          console.log(
+            "[ListFileManager] Files after state filtering:",
+            files.length,
+          );
+
+          // CRITICAL: Check if cached files are already decrypted
+          const decryptedCount = files.filter(
+            (f) =>
+              f._isDecrypted &&
+              f.name &&
+              f.name !== "[Encrypted]" &&
+              f.name !== "[Unable to decrypt]",
+          ).length;
+          const encryptedCount = files.length - decryptedCount;
+
+          console.log("[ListFileManager] Cache analysis:");
+          console.log("[ListFileManager] - Total files:", files.length);
+          console.log("[ListFileManager] - Already decrypted:", decryptedCount);
+          console.log("[ListFileManager] - Still encrypted:", encryptedCount);
+
+          // If files are not properly decrypted, decrypt them now
+          if (encryptedCount > 0) {
+            console.log(
+              "[ListFileManager] Cached files need decryption, decrypting now...",
+            );
+
+            // Get collection key for decryption (should be cached now)
+            let collectionKey =
+              this.collectionCryptoService.getCachedCollectionKey(collectionId);
+
+            if (collectionKey) {
+              console.log(
+                "[ListFileManager] Decrypting cached files with collection key, length:",
+                collectionKey.length,
+              );
+
+              // Decrypt the cached files
+              files = await this.fileCryptoService.decryptFilesFromAPI(
+                files,
+                collectionKey,
+              );
+
+              const newDecryptedCount = files.filter(
+                (f) =>
+                  f._isDecrypted &&
+                  f.name &&
+                  f.name !== "[Encrypted]" &&
+                  f.name !== "[Unable to decrypt]",
+              ).length;
+              console.log(
+                "[ListFileManager] After decryption:",
+                newDecryptedCount,
+                "files decrypted",
+              );
+
+              // Update cache with decrypted files
+              this.storageService.storeFileList(collectionId, files, {
+                includeStates,
+                fetched_at: cachedFileList.metadata.cached_at,
+                decrypted_at: new Date().toISOString(),
+              });
+            } else {
+              console.error(
+                "[ListFileManager] No collection key available for decrypting cached files!",
+              );
+            }
+          }
+
           this.notifyFileListingListeners("files_loaded_from_cache", {
             collectionId,
             count: files.length,
             fromCache: true,
+            decryptedCount: files.filter((f) => f._isDecrypted).length,
           });
 
+          console.log(
+            "[ListFileManager] Returning cached files (possibly re-decrypted):",
+            files.length,
+          );
           return files;
         }
       }
 
-      // Fetch from API
-      console.log("[ListFileManager] Fetching files from API");
+      // STEP 3: Fetch from API
+      console.log("[ListFileManager] Step 2: Fetching files from API");
       const response = await this.apiService.listFilesByCollection(
         collectionId,
         includeStates,
@@ -113,48 +196,47 @@ class ListFileManager {
 
       let files = response.files || [];
 
-      // Normalize files
+      // STEP 4: Normalize files
       files = files.map((file) => this.fileCryptoService.normalizeFile(file));
 
       console.log(`[ListFileManager] Fetched ${files.length} files from API`);
 
-      // Get collection key for decryption
+      // STEP 5: Get collection key for decryption (should be cached now)
       let collectionKey =
         this.collectionCryptoService.getCachedCollectionKey(collectionId);
 
       if (!collectionKey) {
-        console.log(
-          "[ListFileManager] No cached collection key, trying to load collection...",
+        console.error(
+          "[ListFileManager] CRITICAL: No collection key available after loading collection!",
         );
-
-        // Try to load collection to get its key
-        try {
-          await this.ensureCollectionLoaded(collectionId);
-          collectionKey =
-            this.collectionCryptoService.getCachedCollectionKey(collectionId);
-        } catch (collectionError) {
-          console.warn(
-            "[ListFileManager] Could not load collection:",
-            collectionError.message,
-          );
-        }
-      }
-
-      // Decrypt files if we have collection key
-      if (collectionKey) {
-        console.log("[ListFileManager] Decrypting files with collection key");
-        files = await this.fileCryptoService.decryptFilesFromAPI(
-          files,
-          collectionKey,
-        );
-        console.log("[ListFileManager] File decryption completed");
-      } else {
-        console.warn(
-          "[ListFileManager] No collection key available - files will show as encrypted",
+        throw new Error(
+          "Collection key not available for file decryption. Please try refreshing the page.",
         );
       }
 
-      // Store in cache if no decryption errors
+      console.log(
+        "[ListFileManager] Collection key available for decryption, length:",
+        collectionKey.length,
+      );
+
+      // STEP 6: Decrypt files with collection key
+      console.log(
+        "[ListFileManager] Step 3: Decrypting files with collection key",
+      );
+      files = await this.fileCryptoService.decryptFilesFromAPI(
+        files,
+        collectionKey,
+      );
+      console.log("[ListFileManager] File decryption completed");
+
+      // Log decryption results
+      const decryptedCount = files.filter((f) => f._isDecrypted).length;
+      const errorCount = files.filter((f) => f._decryptionError).length;
+      console.log(
+        `[ListFileManager] Decryption results: ${decryptedCount} successful, ${errorCount} errors`,
+      );
+
+      // STEP 7: Store in cache if no decryption errors
       const hasDecryptErrors = files.some((f) => f._decryptionError);
       if (!hasDecryptErrors && files.length > 0) {
         this.storageService.storeFileList(collectionId, files, {
@@ -163,7 +245,7 @@ class ListFileManager {
         });
       }
 
-      // Store individual files in cache
+      // STEP 8: Store individual files in cache
       files.forEach((file) => {
         this.storageService.storeFile(file);
       });
@@ -173,10 +255,12 @@ class ListFileManager {
         count: files.length,
         fromCache: false,
         hasDecryptErrors,
+        decryptedCount,
+        errorCount,
       });
 
       console.log(
-        "[ListFileManager] Files retrieved and processed:",
+        "[ListFileManager] Files retrieved and processed successfully:",
         files.length,
       );
       return files;
@@ -543,32 +627,90 @@ class ListFileManager {
   // Ensure collection is loaded and key is cached
   async ensureCollectionLoaded(collectionId) {
     try {
-      // Try to get collection via collection managers
-      const password = await this.getUserPassword();
-
-      // Import collection service
-      const { default: CollectionService } = await import(
-        "../../API/Collection/GetCollectionAPIService.js"
+      console.log(
+        "[ListFileManager] === Loading Collection for File Decryption ===",
       );
 
-      const collection = await CollectionService.getCollection(
-        collectionId,
-        password,
-      );
-
-      if (collection && collection.collection_key) {
-        this.collectionCryptoService.cacheCollectionKey(
-          collectionId,
-          collection.collection_key,
-        );
+      // Check if we already have the collection key cached
+      let cachedKey =
+        this.collectionCryptoService.getCachedCollectionKey(collectionId);
+      if (cachedKey) {
         console.log(
-          "[ListFileManager] Collection loaded and key cached:",
+          "[ListFileManager] Collection key already cached:",
           collectionId,
+        );
+        return;
+      }
+
+      // Load collection using collection manager
+      if (!this.getCollectionManager) {
+        throw new Error(
+          "GetCollectionManager not available. Please pass it to the constructor.",
         );
       }
+
+      console.log(
+        "[ListFileManager] Loading collection to get key:",
+        collectionId,
+      );
+      const collection =
+        await this.getCollectionManager.getCollection(collectionId);
+
+      console.log("[ListFileManager] Collection loaded:", {
+        id: collection.id,
+        name: collection.name,
+        hasCollectionKey: !!collection.collection_key,
+        collectionKeyLength: collection.collection_key?.length,
+      });
+
+      // Verify collection key is available
+      if (!collection.collection_key) {
+        throw new Error(
+          "Collection key not available after loading collection",
+        );
+      }
+
+      // Cache the collection key
+      this.collectionCryptoService.cacheCollectionKey(
+        collectionId,
+        collection.collection_key,
+      );
+
+      // Verify the key was cached properly
+      cachedKey =
+        this.collectionCryptoService.getCachedCollectionKey(collectionId);
+      console.log(
+        "[ListFileManager] Collection key cached successfully:",
+        !!cachedKey,
+      );
+
+      // CRITICAL: Verify the cached key matches the collection's key
+      if (collection.collection_key && cachedKey) {
+        const keysMatch = collection.collection_key.every(
+          (byte, index) => byte === cachedKey[index],
+        );
+        console.log("[ListFileManager] Collection keys match:", keysMatch);
+
+        if (!keysMatch) {
+          console.error(
+            "[ListFileManager] Collection key mismatch! Re-caching...",
+          );
+          this.collectionCryptoService.cacheCollectionKey(
+            collectionId,
+            collection.collection_key,
+          );
+        }
+      }
+
+      console.log(
+        "[ListFileManager] Collection loaded and key cached successfully:",
+        collectionId,
+      );
     } catch (error) {
-      console.warn("[ListFileManager] Failed to load collection:", error);
-      throw error;
+      console.error("[ListFileManager] Failed to load collection:", error);
+      throw new Error(
+        `Failed to load collection ${collectionId}: ${error.message}`,
+      );
     }
   }
 

@@ -185,23 +185,41 @@ class FileCryptoService {
     }
 
     try {
+      console.log("[FileCryptoService] === Decrypting File Key ===");
+      console.log(
+        "[FileCryptoService] Encrypted file key structure:",
+        JSON.stringify(encryptedFileKey),
+      );
+      console.log(
+        "[FileCryptoService] Collection key length:",
+        collectionKey.length,
+      );
+
       let ciphertext, nonce;
 
       if (encryptedFileKey.ciphertext && encryptedFileKey.nonce) {
         // Check if it's base64 strings (from API) or Uint8Array
         if (typeof encryptedFileKey.ciphertext === "string") {
           // From API - base64 strings
+          console.log(
+            "[FileCryptoService] Decoding base64 ciphertext and nonce",
+          );
           ciphertext = this.cryptoService.tryDecodeBase64(
             encryptedFileKey.ciphertext,
           );
           nonce = this.cryptoService.tryDecodeBase64(encryptedFileKey.nonce);
         } else {
           // From encryption - Uint8Array
+          console.log(
+            "[FileCryptoService] Using Uint8Array ciphertext and nonce",
+          );
           ciphertext = new Uint8Array(encryptedFileKey.ciphertext);
           nonce = new Uint8Array(encryptedFileKey.nonce);
         }
       } else {
-        throw new Error("Invalid encrypted file key format");
+        throw new Error(
+          "Invalid encrypted file key format - missing ciphertext or nonce",
+        );
       }
 
       console.log(
@@ -216,11 +234,19 @@ class FileCryptoService {
       );
 
       console.log(
-        `[FileCryptoService] File key decrypted successfully, length: ${fileKey.length}`,
+        `[FileCryptoService] ✅ File key decrypted successfully, length: ${fileKey.length}`,
       );
       return fileKey;
     } catch (error) {
-      console.error("[FileCryptoService] File key decryption failed:", error);
+      console.error(
+        "[FileCryptoService] ❌ File key decryption failed:",
+        error,
+      );
+      console.error("[FileCryptoService] Error details:", {
+        message: error.message,
+        encryptedFileKeyStructure: JSON.stringify(encryptedFileKey),
+        collectionKeyLength: collectionKey?.length,
+      });
       throw new Error(`File key decryption failed: ${error.message}`);
     }
   }
@@ -266,9 +292,19 @@ class FileCryptoService {
     await this.initialize();
 
     try {
+      console.log("[FileCryptoService] === Decrypting file from API ===");
+      console.log("[FileCryptoService] File ID:", encryptedFile.id);
       console.log(
-        "[FileCryptoService] Decrypting file from API:",
-        encryptedFile.id,
+        "[FileCryptoService] Collection ID:",
+        encryptedFile.collection_id,
+      );
+      console.log(
+        "[FileCryptoService] Has encrypted_file_key:",
+        !!encryptedFile.encrypted_file_key,
+      );
+      console.log(
+        "[FileCryptoService] Has encrypted_metadata:",
+        !!encryptedFile.encrypted_metadata,
       );
 
       let workingCollectionKey = collectionKey;
@@ -294,10 +330,21 @@ class FileCryptoService {
         throw new Error("Collection key not available for file decryption");
       }
 
+      console.log(
+        "[FileCryptoService] Using collection key, length:",
+        workingCollectionKey.length,
+      );
+
       // Step 1: Decrypt file key
+      console.log("[FileCryptoService] Step 1: Decrypting file key");
       const fileKey = await this.decryptFileKey(
         encryptedFile.encrypted_file_key,
         workingCollectionKey,
+      );
+
+      console.log(
+        "[FileCryptoService] File key decrypted successfully, length:",
+        fileKey.length,
       );
 
       // Cache the file key
@@ -311,6 +358,7 @@ class FileCryptoService {
 
       if (encryptedFile.encrypted_metadata) {
         try {
+          console.log("[FileCryptoService] Step 2: Decrypting file metadata");
           metadata = await this.decryptFileMetadata(
             encryptedFile.encrypted_metadata,
             fileKey,
@@ -318,12 +366,19 @@ class FileCryptoService {
           name = metadata.name || "[Unknown]";
           mimeType = metadata.mime_type || "application/octet-stream";
           size = metadata.size || 0;
+
+          console.log("[FileCryptoService] Metadata decrypted successfully:");
+          console.log("[FileCryptoService] - Name:", name);
+          console.log("[FileCryptoService] - MIME type:", mimeType);
+          console.log("[FileCryptoService] - Size:", size);
         } catch (metadataError) {
           console.warn(
             "[FileCryptoService] Metadata decryption failed:",
             metadataError.message,
           );
         }
+      } else {
+        console.log("[FileCryptoService] No encrypted metadata available");
       }
 
       // Return decrypted file
@@ -339,11 +394,11 @@ class FileCryptoService {
         _decrypted_metadata: metadata,
       };
 
-      console.log("[FileCryptoService] File decrypted successfully:", name);
+      console.log("[FileCryptoService] ✅ File decrypted successfully:", name);
       return decryptedFile;
     } catch (error) {
       console.error(
-        "[FileCryptoService] Failed to decrypt file from API:",
+        "[FileCryptoService] ❌ Failed to decrypt file from API:",
         error,
       );
 
@@ -364,6 +419,13 @@ class FileCryptoService {
       return [];
     }
 
+    console.log("[FileCryptoService] === Decrypting multiple files ===");
+    console.log("[FileCryptoService] File count:", encryptedFiles.length);
+    console.log(
+      "[FileCryptoService] Collection key available:",
+      !!collectionKey,
+    );
+
     const decryptedFiles = [];
 
     for (let i = 0; i < encryptedFiles.length; i++) {
@@ -377,9 +439,19 @@ class FileCryptoService {
           collectionKey,
         );
         decryptedFiles.push(decryptedFile);
+
+        if (decryptedFile._isDecrypted) {
+          console.log(
+            `[FileCryptoService] ✅ File ${i + 1} decrypted: ${decryptedFile.name}`,
+          );
+        } else {
+          console.log(
+            `[FileCryptoService] ❌ File ${i + 1} decryption failed: ${decryptedFile._decryptionError}`,
+          );
+        }
       } catch (fileError) {
         console.error(
-          `[FileCryptoService] Failed to decrypt file ${file.id}:`,
+          `[FileCryptoService] ❌ Failed to decrypt file ${file.id}:`,
           fileError.message,
         );
         // Add the file with error info
@@ -391,6 +463,14 @@ class FileCryptoService {
         });
       }
     }
+
+    const successCount = decryptedFiles.filter((f) => f._isDecrypted).length;
+    const errorCount = decryptedFiles.filter((f) => f._decryptionError).length;
+
+    console.log(`[FileCryptoService] === Decryption Summary ===`);
+    console.log(`[FileCryptoService] Total files: ${decryptedFiles.length}`);
+    console.log(`[FileCryptoService] Successfully decrypted: ${successCount}`);
+    console.log(`[FileCryptoService] Decryption errors: ${errorCount}`);
 
     return decryptedFiles;
   }

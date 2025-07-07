@@ -38,7 +38,12 @@ const ListFileManagerExample = () => {
           "../../../../services/Manager/File/ListFileManager.js"
         );
 
-        const manager = new ListFileManager(authService);
+        // Pass collection managers to the ListFileManager
+        const manager = new ListFileManager(
+          authService,
+          getCollectionManager,
+          listCollectionManager,
+        );
         await manager.initialize();
 
         setFileManager(manager);
@@ -46,7 +51,9 @@ const ListFileManagerExample = () => {
         // Set up event listener
         manager.addFileListingListener(handleFileEvent);
 
-        console.log("[Example] ListFileManager initialized");
+        console.log(
+          "[Example] ListFileManager initialized with collection managers",
+        );
       } catch (err) {
         console.error("[Example] Failed to initialize ListFileManager:", err);
         setError(`Failed to initialize: ${err.message}`);
@@ -60,7 +67,7 @@ const ListFileManagerExample = () => {
         fileManager.removeFileListingListener(handleFileEvent);
       }
     };
-  }, [authService]);
+  }, [authService, getCollectionManager, listCollectionManager]);
 
   // Load collections when managers are ready
   useEffect(() => {
@@ -442,6 +449,14 @@ const ListFileManagerExample = () => {
           </div>
           <div>
             <strong>Listeners:</strong> {managerStatus.listenerCount || 0}
+          </div>
+          <div>
+            <strong>Collection Manager:</strong>{" "}
+            {getCollectionManager ? "✅ Available" : "❌ Missing"}
+          </div>
+          <div>
+            <strong>List Collection Manager:</strong>{" "}
+            {listCollectionManager ? "✅ Available" : "❌ Missing"}
           </div>
         </div>
       </div>
