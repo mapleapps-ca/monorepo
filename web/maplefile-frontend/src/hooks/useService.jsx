@@ -54,7 +54,8 @@ export const useCollections = () => {
     syncCollectionManager: services.syncCollectionManager,
     createCollectionManager: services.createCollectionManager,
     getCollectionManager: services.getCollectionManager,
-    updateCollectionManager: services.updateCollectionManager, // NEW
+    updateCollectionManager: services.updateCollectionManager,
+    deleteCollectionManager: services.deleteCollectionManager,
   };
 };
 

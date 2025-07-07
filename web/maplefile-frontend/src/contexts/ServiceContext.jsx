@@ -21,6 +21,7 @@ import SyncFileManager from "../services/Manager/SyncFileManager.js";
 import CreateCollectionManager from "../services/Manager/Collection/CreateCollectionManager.js";
 import GetCollectionManager from "../services/Manager/Collection/GetCollectionManager.js";
 import UpdateCollectionManager from "../services/Manager/Collection/UpdateCollectionManager.js"; // NEW
+import DeleteCollectionManager from "../services/Manager/Collection/DeleteCollectionManager.js";
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -51,8 +52,11 @@ export function ServiceProvider({ children }) {
   // Initialize GetCollectionManager with AuthManager dependency
   const getCollectionManager = new GetCollectionManager(authManager);
 
-  // Initialize UpdateCollectionManager with AuthManager dependency (NEW)
+  // Initialize UpdateCollectionManager with AuthManager dependency
   const updateCollectionManager = new UpdateCollectionManager(authManager);
+
+  // Initialize DeleteCollectionManager with AuthManager dependency
+  const deleteCollectionManager = new DeleteCollectionManager(authManager);
 
   // Initialize SyncFileAPIService with AuthManager dependency
   const syncFileAPIService = new SyncFileAPIService(authManager);
@@ -86,10 +90,11 @@ export function ServiceProvider({ children }) {
     // Collection services
     syncCollectionAPIService,
     syncCollectionStorageService,
-    syncCollectionManager, // New: SyncCollectionManager (replaces syncCollectionService)
-    createCollectionManager, // New: CreateCollectionManager for collection creation
-    getCollectionManager, // GetCollectionManager for collection retrieval
-    updateCollectionManager, // NEW: UpdateCollectionManager for collection updates
+    syncCollectionManager,
+    createCollectionManager,
+    getCollectionManager,
+    updateCollectionManager,
+    deleteCollectionManager,
 
     // File services
     syncFileAPIService,
@@ -194,6 +199,17 @@ export function ServiceProvider({ children }) {
           );
         }
 
+        // Initialize delete collection manager
+        try {
+          await deleteCollectionManager.initialize();
+          console.log("[ServiceProvider] DeleteCollectionManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] DeleteCollectionManager initialization failed:",
+            error,
+          );
+        }
+
         // Initialize sync file manager
         try {
           await syncFileManager.initialize();
@@ -224,7 +240,8 @@ export function ServiceProvider({ children }) {
     syncCollectionManager,
     createCollectionManager,
     getCollectionManager,
-    updateCollectionManager, // NEW
+    updateCollectionManager,
+    deleteCollectionManager,
     syncFileManager,
   ]);
 

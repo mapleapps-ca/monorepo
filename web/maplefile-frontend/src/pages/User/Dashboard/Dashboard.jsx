@@ -83,6 +83,13 @@ const Dashboard = () => {
       icon: "✏️",
     },
     {
+      path: "/delete-collection-manager-example",
+      title: "Delete Collection Manager Example",
+      description:
+        "Test the DeleteCollectionManager - soft delete and restore collections with E2EE.",
+      icon: "🗑️",
+    },
+    {
       path: "/profile",
       title: "My Profile",
       description: "Manage account settings and security keys.",
