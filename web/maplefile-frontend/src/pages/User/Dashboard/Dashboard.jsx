@@ -98,10 +98,17 @@ const Dashboard = () => {
     {
       path: "/create-file-manager-example",
       title: "Create File Manager Example",
-      description: "Test the CreateFileManagerExample.",
-      icon: "🗄️",
+      description:
+        "Test the CreateFileManager - create and upload encrypted files with E2EE.",
+      icon: "📤",
     },
-
+    {
+      path: "/list-file-manager-example",
+      title: "List File Manager Example",
+      description:
+        "Test the ListFileManager - list and download encrypted files with E2EE decryption.",
+      icon: "📋",
+    },
     {
       path: "/profile",
       title: "My Profile",

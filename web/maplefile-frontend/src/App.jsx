@@ -33,9 +33,10 @@ import CreateCollectionManagerExample from "./pages/User/Examples/Collection/Cre
 import GetCollectionManagerExample from "./pages/User/Examples/Collection/GetCollectionManagerExample.jsx";
 import UpdateCollectionManagerExample from "./pages/User/Examples/Collection/UpdateCollectionManagerExample.jsx";
 import DeleteCollectionManagerExample from "./pages/User/Examples/Collection/DeleteCollectionManagerExample.jsx";
-import ListCollectionManagerExample from "./pages/User/Examples/Collection/ListCollectionManagerExample.jsx"; // NEW
+import ListCollectionManagerExample from "./pages/User/Examples/Collection/ListCollectionManagerExample.jsx";
 
 import CreateFileManagerExample from "./pages/User/Examples/File/CreateFileManagerExample.jsx";
+import ListFileManagerExample from "./pages/User/Examples/File/ListFileManagerExample.jsx";
 
 // Styles
 const styles = {
@@ -106,10 +107,14 @@ function App() {
             <Route
               path="/list-collection-manager-example"
               element={<ListCollectionManagerExample />}
-            />{" "}
+            />
             <Route
               path="/create-file-manager-example"
               element={<CreateFileManagerExample />}
+            />
+            <Route
+              path="/list-file-manager-example"
+              element={<ListFileManagerExample />}
             />
             <Route
               path="/sync-File-api-example"
