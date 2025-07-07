@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/File/CreateFileManagerExample.jsx
-// Example component demonstrating how to use the CreateFileManager
+// Example component demonstrating how to use the CreateFileManager - FIXED
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router";
@@ -8,7 +8,8 @@ import { useServices } from "../../../../hooks/useService.jsx";
 const CreateFileManagerExample = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const { authService } = useServices();
+  const { authService, createCollectionManager, listCollectionManager } =
+    useServices();
 
   // State management
   const [fileManager, setFileManager] = useState(null);
@@ -24,11 +25,9 @@ const CreateFileManagerExample = () => {
   const [eventLog, setEventLog] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Test collections for demo
-  const testCollections = [
-    { id: "test-collection-1", name: "Test Collection 1" },
-    { id: "test-collection-2", name: "Test Collection 2" },
-  ];
+  // Real collections from the system
+  const [availableCollections, setAvailableCollections] = useState([]);
+  const [isLoadingCollections, setIsLoadingCollections] = useState(false);
 
   // Initialize file manager
   useEffect(() => {
@@ -64,6 +63,13 @@ const CreateFileManagerExample = () => {
     };
   }, [authService]);
 
+  // Load real collections when managers are ready
+  useEffect(() => {
+    if (createCollectionManager && listCollectionManager) {
+      loadOrCreateCollections();
+    }
+  }, [createCollectionManager, listCollectionManager]);
+
   // Load data when manager is ready
   useEffect(() => {
     if (fileManager) {
@@ -71,6 +77,87 @@ const CreateFileManagerExample = () => {
       loadManagerStatus();
     }
   }, [fileManager]);
+
+  // Load or create collections for the example
+  const loadOrCreateCollections = async () => {
+    setIsLoadingCollections(true);
+    try {
+      console.log("[Example] Loading existing collections...");
+
+      // Try to list existing collections first
+      const result = await listCollectionManager.listCollections(false);
+
+      if (result.collections && result.collections.length > 0) {
+        // Use existing collections
+        setAvailableCollections(result.collections.slice(0, 5)); // Limit to first 5
+        console.log(
+          "[Example] Using existing collections:",
+          result.collections.length,
+        );
+      } else {
+        // Create test collections if none exist
+        console.log(
+          "[Example] No collections found, creating test collections...",
+        );
+        await createTestCollections();
+      }
+    } catch (err) {
+      console.error("[Example] Failed to load collections:", err);
+      // Try to create test collections as fallback
+      try {
+        await createTestCollections();
+      } catch (createErr) {
+        console.error(
+          "[Example] Failed to create test collections:",
+          createErr,
+        );
+        setError(`Failed to load or create collections: ${createErr.message}`);
+      }
+    } finally {
+      setIsLoadingCollections(false);
+    }
+  };
+
+  // Create test collections for the example
+  const createTestCollections = async () => {
+    try {
+      console.log("[Example] Creating test collections...");
+
+      const testCollections = [
+        { name: "Test Collection 1", collection_type: "folder" },
+        { name: "Test Collection 2", collection_type: "album" },
+      ];
+
+      const createdCollections = [];
+
+      for (const collectionData of testCollections) {
+        try {
+          const result =
+            await createCollectionManager.createCollection(collectionData);
+          createdCollections.push(result.collection);
+          console.log(
+            "[Example] Created test collection:",
+            result.collection.id,
+          );
+        } catch (err) {
+          console.warn(
+            "[Example] Failed to create test collection:",
+            err.message,
+          );
+        }
+      }
+
+      if (createdCollections.length > 0) {
+        setAvailableCollections(createdCollections);
+        console.log("[Example] Test collections created successfully");
+      } else {
+        throw new Error("Failed to create any test collections");
+      }
+    } catch (err) {
+      console.error("[Example] Failed to create test collections:", err);
+      throw err;
+    }
+  };
 
   // Handle file events
   const handleFileEvent = useCallback((eventType, eventData) => {
@@ -83,6 +170,9 @@ const CreateFileManagerExample = () => {
         "pending_file_created",
         "pending_file_removed",
         "all_pending_files_cleared",
+        "file_upload_started",
+        "file_upload_completed",
+        "file_upload_failed",
       ].includes(eventType)
     ) {
       loadPendingFiles();
@@ -167,10 +257,20 @@ const CreateFileManagerExample = () => {
     [handleFileSelection],
   );
 
-  // Create pending file
-  const handleCreatePendingFile = async () => {
+  // Create and upload file (complete workflow)
+  const handleCreateAndUploadFile = async () => {
     if (!fileManager || !selectedFile || !selectedCollectionId) {
       setError("Please select a file and collection");
+      return;
+    }
+
+    // Check if the selected collection exists in our available collections
+    const selectedCollection = availableCollections.find(
+      (col) => col.id === selectedCollectionId,
+    );
+
+    if (!selectedCollection) {
+      setError("Selected collection not found. Please refresh collections.");
       return;
     }
 
@@ -179,16 +279,16 @@ const CreateFileManagerExample = () => {
     setSuccess("");
 
     try {
-      console.log("[Example] Creating pending file...");
+      console.log("[Example] Starting complete file upload...");
 
-      const result = await fileManager.createPendingFileFromFile(
+      const result = await fileManager.createAndUploadFileFromFile(
         selectedFile,
         selectedCollectionId,
         password || null,
       );
 
       setSuccess(
-        `Pending file created successfully! File ID: ${result.fileId}`,
+        `File uploaded successfully! File ID: ${result.fileId} (State: ${result.file.state})`,
       );
       setSelectedFile(null);
 
@@ -197,7 +297,56 @@ const CreateFileManagerExample = () => {
         fileInputRef.current.value = "";
       }
 
-      addToEventLog("manual_file_created", {
+      addToEventLog("complete_file_upload", {
+        fileId: result.fileId,
+        name: selectedFile.name,
+        state: result.file.state,
+        version: result.file.version,
+        uploadCompleted: result.uploadCompleted,
+      });
+    } catch (err) {
+      console.error("[Example] Failed to upload file:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Create pending file only (for testing the old workflow)
+  const handleCreatePendingFileOnly = async () => {
+    if (!fileManager || !selectedFile || !selectedCollectionId) {
+      setError("Please select a file and collection");
+      return;
+    }
+
+    // Check if the selected collection exists in our available collections
+    const selectedCollection = availableCollections.find(
+      (col) => col.id === selectedCollectionId,
+    );
+
+    if (!selectedCollection) {
+      setError("Selected collection not found. Please refresh collections.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      console.log("[Example] Creating pending file only...");
+
+      const result = await fileManager.createPendingFileFromFile(
+        selectedFile,
+        selectedCollectionId,
+        password || null,
+      );
+
+      setSuccess(
+        `Pending file created successfully! File ID: ${result.fileId} (Upload URL provided but not used)`,
+      );
+
+      addToEventLog("pending_file_created", {
         fileId: result.fileId,
         name: selectedFile.name,
         uploadUrl: result.uploadUrl,
@@ -236,6 +385,13 @@ const CreateFileManagerExample = () => {
     } catch (err) {
       setError(`Failed to clear pending files: ${err.message}`);
     }
+  };
+
+  // Refresh collections
+  const handleRefreshCollections = async () => {
+    setError("");
+    setSuccess("");
+    await loadOrCreateCollections();
   };
 
   // Get password from storage
@@ -314,7 +470,14 @@ const CreateFileManagerExample = () => {
 
       <h2>📄 Create File Manager Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
-        This example demonstrates creating pending files with E2EE encryption.
+        This example demonstrates the complete file upload workflow with E2EE
+        encryption using real collections.
+        <br />
+        <strong>Complete Upload:</strong> Creates pending file → Uploads to S3 →
+        Marks as complete
+        <br />
+        <strong>Pending Only:</strong> Creates pending file only (for testing
+        the intermediate step)
       </p>
 
       {/* Manager Status */}
@@ -347,12 +510,73 @@ const CreateFileManagerExample = () => {
             <strong>Loading:</strong> {isLoading ? "🔄 Yes" : "✅ No"}
           </div>
           <div>
+            <strong>Available Collections:</strong>{" "}
+            {availableCollections.length}
+          </div>
+          <div>
             <strong>Pending Files:</strong> {pendingFiles.length}
           </div>
           <div>
             <strong>Upload Queue:</strong> {Object.keys(uploadQueue).length}
           </div>
         </div>
+      </div>
+
+      {/* Collection Status */}
+      <div
+        style={{
+          marginBottom: "20px",
+          padding: "15px",
+          backgroundColor: "#e3f2fd",
+          borderRadius: "6px",
+          border: "1px solid #bbdefb",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "10px",
+          }}
+        >
+          <h4 style={{ margin: 0 }}>
+            📂 Available Collections ({availableCollections.length}):
+          </h4>
+          <button
+            onClick={handleRefreshCollections}
+            disabled={isLoadingCollections}
+            style={{
+              padding: "5px 15px",
+              backgroundColor: "#1976d2",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: isLoadingCollections ? "not-allowed" : "pointer",
+            }}
+          >
+            {isLoadingCollections ? "🔄 Loading..." : "🔄 Refresh"}
+          </button>
+        </div>
+
+        {isLoadingCollections ? (
+          <p style={{ color: "#666" }}>Loading collections...</p>
+        ) : availableCollections.length === 0 ? (
+          <p style={{ color: "#666" }}>
+            No collections available. Click refresh to create test collections.
+          </p>
+        ) : (
+          <div style={{ fontSize: "12px", color: "#666" }}>
+            {availableCollections.map((col, index) => (
+              <div key={col.id} style={{ marginBottom: "5px" }}>
+                <strong>{index + 1}.</strong> {col.name || "[Encrypted]"}
+                <span style={{ marginLeft: "10px", color: "#999" }}>
+                  ({col.collection_type}) - ID: {col.id.substring(0, 8)}...
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* File Upload Form */}
@@ -381,17 +605,25 @@ const CreateFileManagerExample = () => {
           <select
             value={selectedCollectionId}
             onChange={(e) => setSelectedCollectionId(e.target.value)}
+            disabled={availableCollections.length === 0}
             style={{
               width: "100%",
               padding: "8px",
               border: "1px solid #ddd",
               borderRadius: "4px",
+              backgroundColor:
+                availableCollections.length === 0 ? "#f5f5f5" : "white",
             }}
           >
-            <option value="">Select a collection...</option>
-            {testCollections.map((col) => (
+            <option value="">
+              {availableCollections.length === 0
+                ? "No collections available - click refresh"
+                : "Select a collection..."}
+            </option>
+            {availableCollections.map((col) => (
               <option key={col.id} value={col.id}>
-                {col.name} ({col.id})
+                {col.name || "[Encrypted]"} ({col.collection_type}) -{" "}
+                {col.id.substring(0, 8)}...
               </option>
             ))}
           </select>
@@ -517,30 +749,92 @@ const CreateFileManagerExample = () => {
           />
         </div>
 
-        {/* Create Button */}
-        <button
-          onClick={handleCreatePendingFile}
-          disabled={isLoading || !selectedFile || !selectedCollectionId}
-          style={{
-            width: "100%",
-            padding: "12px 20px",
-            backgroundColor:
-              isLoading || !selectedFile || !selectedCollectionId
-                ? "#6c757d"
-                : "#28a745",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            cursor:
-              isLoading || !selectedFile || !selectedCollectionId
-                ? "not-allowed"
-                : "pointer",
-            fontSize: "16px",
-            fontWeight: "bold",
-          }}
-        >
-          {isLoading ? "🔄 Creating..." : "📤 Create Pending File"}
-        </button>
+        {/* Create Buttons */}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+          <button
+            onClick={handleCreateAndUploadFile}
+            disabled={
+              isLoading ||
+              !selectedFile ||
+              !selectedCollectionId ||
+              availableCollections.length === 0
+            }
+            style={{
+              flex: 1,
+              padding: "12px 20px",
+              backgroundColor:
+                isLoading ||
+                !selectedFile ||
+                !selectedCollectionId ||
+                availableCollections.length === 0
+                  ? "#6c757d"
+                  : "#28a745",
+              color: "white",
+              border: "none",
+              borderRadius: "6px",
+              cursor:
+                isLoading ||
+                !selectedFile ||
+                !selectedCollectionId ||
+                availableCollections.length === 0
+                  ? "not-allowed"
+                  : "pointer",
+              fontSize: "16px",
+              fontWeight: "bold",
+            }}
+          >
+            {isLoading ? "🔄 Uploading..." : "📤 Complete Upload (Recommended)"}
+          </button>
+
+          <button
+            onClick={handleCreatePendingFileOnly}
+            disabled={
+              isLoading ||
+              !selectedFile ||
+              !selectedCollectionId ||
+              availableCollections.length === 0
+            }
+            style={{
+              flex: 1,
+              padding: "12px 20px",
+              backgroundColor:
+                isLoading ||
+                !selectedFile ||
+                !selectedCollectionId ||
+                availableCollections.length === 0
+                  ? "#6c757d"
+                  : "#ffc107",
+              color:
+                isLoading ||
+                !selectedFile ||
+                !selectedCollectionId ||
+                availableCollections.length === 0
+                  ? "white"
+                  : "#212529",
+              border: "none",
+              borderRadius: "6px",
+              cursor:
+                isLoading ||
+                !selectedFile ||
+                !selectedCollectionId ||
+                availableCollections.length === 0
+                  ? "not-allowed"
+                  : "pointer",
+              fontSize: "16px",
+              fontWeight: "bold",
+            }}
+          >
+            {isLoading ? "🔄 Creating..." : "📝 Pending Only (Testing)"}
+          </button>
+        </div>
+
+        <div style={{ fontSize: "12px", color: "#666", textAlign: "center" }}>
+          <strong>Complete Upload:</strong> Encrypts, creates pending file,
+          uploads to S3, and completes the process
+          <br />
+          <strong>Pending Only:</strong> Creates pending file only (for testing
+          - requires manual S3 upload)
+        </div>
       </div>
 
       {/* Success/Error Messages */}
@@ -659,12 +953,22 @@ const CreateFileManagerExample = () => {
                       <div
                         style={{
                           fontSize: "12px",
-                          color: "#17a2b8",
+                          color:
+                            uploadQueue[fileInfo.file.id].status === "error"
+                              ? "#dc3545"
+                              : uploadQueue[fileInfo.file.id].status ===
+                                  "completed"
+                                ? "#28a745"
+                                : "#17a2b8",
                           marginTop: "5px",
                         }}
                       >
-                        📤 In upload queue - Status:{" "}
-                        {uploadQueue[fileInfo.file.id].status}
+                        📤 Upload Status: {uploadQueue[fileInfo.file.id].status}
+                        {uploadQueue[fileInfo.file.id].error && (
+                          <div style={{ color: "#dc3545", marginTop: "2px" }}>
+                            Error: {uploadQueue[fileInfo.file.id].error}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
