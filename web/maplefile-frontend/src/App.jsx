@@ -37,7 +37,8 @@ import ListCollectionManagerExample from "./pages/User/Examples/Collection/ListC
 
 import CreateFileManagerExample from "./pages/User/Examples/File/CreateFileManagerExample.jsx";
 import GetFileManagerExample from "./pages/User/Examples/File/GetFileManagerExample.jsx";
-import DownloadFileManagerExample from "./pages/User/Examples/File/DownloadFileManagerExample.jsx"; // NEW
+import DownloadFileManagerExample from "./pages/User/Examples/File/DownloadFileManagerExample.jsx";
+import DeleteFileManagerExample from "./pages/User/Examples/File/DeleteFileManagerExample.jsx"; // NEW
 import ListFileManagerExample from "./pages/User/Examples/File/ListFileManagerExample.jsx";
 
 // Styles
@@ -119,8 +120,12 @@ function App() {
               element={<GetFileManagerExample />}
             />
             <Route
-              path="/download-file-manager-example" // NEW
+              path="/download-file-manager-example"
               element={<DownloadFileManagerExample />}
+            />
+            <Route
+              path="/delete-file-manager-example" // NEW
+              element={<DeleteFileManagerExample />}
             />
             <Route
               path="/list-file-manager-example"

@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useService.jsx
-// Updated to include DownloadFileManager
+// Updated to include DeleteFileManager
 import { useContext } from "react";
 import { ServiceContext } from "../contexts/ServiceContext.jsx";
 
@@ -69,7 +69,8 @@ export const useFiles = () => {
     syncFileManager: services.syncFileManager,
     createFileManager: services.createFileManager,
     getFileManager: services.getFileManager,
-    downloadFileManager: services.downloadFileManager, // NEW
+    downloadFileManager: services.downloadFileManager,
+    deleteFileManager: services.deleteFileManager, // NEW
   };
 };
 
@@ -91,13 +92,39 @@ export const useTokens = () => {
   };
 };
 
-// Hook specifically for download file operations (NEW)
+// Hook specifically for download file operations
 export const useFileDownloads = () => {
   const services = useServices();
   return {
     downloadFileManager: services.downloadFileManager,
     getFileManager: services.getFileManager, // Often needed for file metadata
     getCollectionManager: services.getCollectionManager, // For collection keys
+  };
+};
+
+// Hook specifically for delete file operations (NEW)
+export const useFileDeletions = () => {
+  const services = useServices();
+  return {
+    deleteFileManager: services.deleteFileManager,
+    getFileManager: services.getFileManager, // Often needed for file metadata
+    getCollectionManager: services.getCollectionManager, // For collection keys
+    listCollectionManager: services.listCollectionManager, // For collection listing
+  };
+};
+
+// Hook for comprehensive file operations (NEW)
+export const useFileOperations = () => {
+  const services = useServices();
+  return {
+    createFileManager: services.createFileManager,
+    getFileManager: services.getFileManager,
+    downloadFileManager: services.downloadFileManager,
+    deleteFileManager: services.deleteFileManager,
+    syncFileManager: services.syncFileManager,
+    // Collection managers often needed for file operations
+    getCollectionManager: services.getCollectionManager,
+    listCollectionManager: services.listCollectionManager,
   };
 };
 

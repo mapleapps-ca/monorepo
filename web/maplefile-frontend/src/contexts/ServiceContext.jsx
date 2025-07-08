@@ -1,4 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
+// Updated to include DeleteFileManager
 import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
@@ -26,7 +27,8 @@ import ListCollectionManager from "../services/Manager/Collection/ListCollection
 
 import CreateFileManager from "../services/Manager/File/CreateFileManager.js";
 import GetFileManager from "../services/Manager/File/GetFileManager.js";
-import DownloadFileManager from "../services/Manager/File/DownloadFileManager.js"; // NEW
+import DownloadFileManager from "../services/Manager/File/DownloadFileManager.js";
+import DeleteFileManager from "../services/Manager/File/DeleteFileManager.js"; // NEW
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -85,11 +87,18 @@ export function ServiceProvider({ children }) {
     listCollectionManager,
   );
 
-  // Initialize DownloadFileManager with AuthManager and other manager dependencies (NEW)
+  // Initialize DownloadFileManager with AuthManager and other manager dependencies
   const downloadFileManager = new DownloadFileManager(
     authManager,
     getFileManager,
     getCollectionManager,
+  );
+
+  // Initialize DeleteFileManager with AuthManager and collection manager dependencies (NEW)
+  const deleteFileManager = new DeleteFileManager(
+    authManager,
+    getCollectionManager,
+    listCollectionManager,
   );
 
   // Set AuthManager on ApiClient for event notifications
@@ -125,7 +134,8 @@ export function ServiceProvider({ children }) {
     // File services
     createFileManager,
     getFileManager,
-    downloadFileManager, // NEW: DownloadFileManager for file downloads
+    downloadFileManager, // DownloadFileManager for file downloads
+    deleteFileManager, // NEW: DeleteFileManager for file deletion operations
     syncFileAPIService,
     syncFileStorageService,
     syncFileManager, // New: SyncFileManager (replaces syncFileService)
@@ -272,13 +282,24 @@ export function ServiceProvider({ children }) {
           );
         }
 
-        // Initialize download file manager (NEW)
+        // Initialize download file manager
         try {
           await downloadFileManager.initialize();
           console.log("[ServiceProvider] DownloadFileManager initialized");
         } catch (error) {
           console.warn(
             "[ServiceProvider] DownloadFileManager initialization failed:",
+            error,
+          );
+        }
+
+        // Initialize delete file manager (NEW)
+        try {
+          await deleteFileManager.initialize();
+          console.log("[ServiceProvider] DeleteFileManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] DeleteFileManager initialization failed:",
             error,
           );
         }
@@ -318,7 +339,8 @@ export function ServiceProvider({ children }) {
     listCollectionManager,
     createFileManager,
     getFileManager,
-    downloadFileManager, // NEW
+    downloadFileManager,
+    deleteFileManager, // NEW
     syncFileManager,
   ]);
 
