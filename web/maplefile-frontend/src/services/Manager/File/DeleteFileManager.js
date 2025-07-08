@@ -333,7 +333,39 @@ class DeleteFileManager {
 
       // Call API to archive file
       const response = await this.apiService.archiveFile(fileId, reason);
-      const archivedFile = response.file;
+
+      // Handle the actual API response format: {success: true, message: "..."}
+      if (!response || !response.success) {
+        throw new Error(
+          "Archive failed: " + (response?.message || "Unknown error"),
+        );
+      }
+
+      console.log(
+        "[DeleteFileManager] File archive API call successful:",
+        fileId,
+      );
+
+      // Check if API returned the file object, otherwise create a mock response
+      let archivedFile;
+
+      if (response.file) {
+        // API returned the updated file object
+        archivedFile = response.file;
+        console.log("[DeleteFileManager] Using file object from API response");
+      } else {
+        // API didn't return file object, create a mock response
+        console.log(
+          "[DeleteFileManager] API didn't return file object, creating mock response",
+        );
+        archivedFile = {
+          id: fileId,
+          state: this.FILE_STATES.ARCHIVED,
+          version: 1, // We don't know the actual version from this response
+          modified_at: new Date().toISOString(),
+          name: "[Archived File]", // We don't have the name from the API response
+        };
+      }
 
       // Normalize and update caches
       const normalizedFile = this.fileCryptoService.normalizeFile(archivedFile);
@@ -370,7 +402,39 @@ class DeleteFileManager {
       );
 
       const response = await this.apiService.unarchiveFile(fileId, reason);
-      const unarchivedFile = response.file;
+
+      // Handle the actual API response format: {success: true, message: "..."}
+      if (!response || !response.success) {
+        throw new Error(
+          "Unarchive failed: " + (response?.message || "Unknown error"),
+        );
+      }
+
+      console.log(
+        "[DeleteFileManager] File unarchive API call successful:",
+        fileId,
+      );
+
+      // Check if API returned the file object, otherwise create a mock response
+      let unarchivedFile;
+
+      if (response.file) {
+        // API returned the updated file object
+        unarchivedFile = response.file;
+        console.log("[DeleteFileManager] Using file object from API response");
+      } else {
+        // API didn't return file object, create a mock response
+        console.log(
+          "[DeleteFileManager] API didn't return file object, creating mock response",
+        );
+        unarchivedFile = {
+          id: fileId,
+          state: this.FILE_STATES.ACTIVE,
+          version: 1, // We don't know the actual version from this response
+          modified_at: new Date().toISOString(),
+          name: "[Unarchived File]", // We don't have the name from the API response
+        };
+      }
 
       const normalizedFile =
         this.fileCryptoService.normalizeFile(unarchivedFile);
