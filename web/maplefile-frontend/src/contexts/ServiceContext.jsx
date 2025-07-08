@@ -25,6 +25,7 @@ import DeleteCollectionManager from "../services/Manager/Collection/DeleteCollec
 import ListCollectionManager from "../services/Manager/Collection/ListCollectionManager.js";
 
 import CreateFileManager from "../services/Manager/File/CreateFileManager.js";
+import GetFileManager from "../services/Manager/File/GetFileManager.js"; // NEW
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -62,7 +63,7 @@ export function ServiceProvider({ children }) {
   const deleteCollectionManager = new DeleteCollectionManager(authManager);
 
   // Initialize ListCollectionManager with AuthManager dependency
-  const listCollectionManager = new ListCollectionManager(authManager); // NEW
+  const listCollectionManager = new ListCollectionManager(authManager);
 
   // Initialize SyncFileAPIService with AuthManager dependency
   const syncFileAPIService = new SyncFileAPIService(authManager);
@@ -73,7 +74,15 @@ export function ServiceProvider({ children }) {
   // Initialize SyncFileManager with AuthManager dependency
   const syncFileManager = new SyncFileManager(authManager);
 
+  // Initialize CreateFileManager with AuthManager dependency
   const createFileManager = new CreateFileManager(authManager);
+
+  // Initialize GetFileManager with AuthManager and collection manager dependencies (NEW)
+  const getFileManager = new GetFileManager(
+    authManager,
+    getCollectionManager,
+    listCollectionManager,
+  );
 
   // Set AuthManager on ApiClient for event notifications
   setApiClientAuthManager(authManager);
@@ -105,9 +114,9 @@ export function ServiceProvider({ children }) {
     deleteCollectionManager,
     listCollectionManager,
 
-    createFileManager,
-
     // File services
+    createFileManager,
+    getFileManager, // NEW: GetFileManager for file retrieval
     syncFileAPIService,
     syncFileStorageService,
     syncFileManager, // New: SyncFileManager (replaces syncFileService)
@@ -221,7 +230,7 @@ export function ServiceProvider({ children }) {
           );
         }
 
-        // Initialize list collection manager (NEW)
+        // Initialize list collection manager
         try {
           await listCollectionManager.initialize();
           console.log("[ServiceProvider] ListCollectionManager initialized");
@@ -232,12 +241,24 @@ export function ServiceProvider({ children }) {
           );
         }
 
+        // Initialize create file manager
         try {
           await createFileManager.initialize();
           console.log("[ServiceProvider] CreateFileManager initialized");
         } catch (error) {
           console.warn(
             "[ServiceProvider] CreateFileManager initialization failed:",
+            error,
+          );
+        }
+
+        // Initialize get file manager (NEW)
+        try {
+          await getFileManager.initialize();
+          console.log("[ServiceProvider] GetFileManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] GetFileManager initialization failed:",
             error,
           );
         }
@@ -274,7 +295,9 @@ export function ServiceProvider({ children }) {
     getCollectionManager,
     updateCollectionManager,
     deleteCollectionManager,
-    listCollectionManager, // NEW
+    listCollectionManager,
+    createFileManager,
+    getFileManager, // NEW
     syncFileManager,
   ]);
 
