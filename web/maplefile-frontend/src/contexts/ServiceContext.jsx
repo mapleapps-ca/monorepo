@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// Updated to include DeleteFileManager
+// Updated to include DeleteFileManager and RecoveryManager
 import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
@@ -29,6 +29,7 @@ import CreateFileManager from "../services/Manager/File/CreateFileManager.js";
 import GetFileManager from "../services/Manager/File/GetFileManager.js";
 import DownloadFileManager from "../services/Manager/File/DownloadFileManager.js";
 import DeleteFileManager from "../services/Manager/File/DeleteFileManager.js"; // NEW
+import RecoveryManager from "../services/Manager/RecoveryManager.js";
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -43,6 +44,9 @@ export function ServiceProvider({ children }) {
 
   // Initialize TokenManager with AuthManager dependency (replaces TokenService)
   const tokenManager = new TokenManager(authManager);
+
+  // Initialize RecoveryManager (no dependencies needed)
+  const recoveryManager = new RecoveryManager();
 
   // Initialize SyncCollectionAPIService with AuthManager dependency
   const syncCollectionAPIService = new SyncCollectionAPIService(authManager);
@@ -120,6 +124,7 @@ export function ServiceProvider({ children }) {
     meService: meManager, // Backward compatibility alias
     tokenManager, // New: TokenManager (replaces tokenService)
     tokenService: tokenManager, // Backward compatibility alias
+    recoveryManager, // New: RecoveryManager for account recovery
 
     // Collection services
     syncCollectionAPIService,
@@ -190,6 +195,17 @@ export function ServiceProvider({ children }) {
         } catch (error) {
           console.warn(
             "[ServiceProvider] TokenManager initialization failed:",
+            error,
+          );
+        }
+
+        // Initialize recovery manager
+        try {
+          await recoveryManager.initialize();
+          console.log("[ServiceProvider] RecoveryManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] RecoveryManager initialization failed:",
             error,
           );
         }
@@ -331,6 +347,7 @@ export function ServiceProvider({ children }) {
     authManager,
     meManager,
     tokenManager,
+    recoveryManager,
     syncCollectionManager,
     createCollectionManager,
     getCollectionManager,

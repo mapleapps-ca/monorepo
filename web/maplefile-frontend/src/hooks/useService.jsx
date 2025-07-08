@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useService.jsx
-// Updated to include DeleteFileManager
+// Updated to include DeleteFileManager and RecoveryManager
 import { useContext } from "react";
 import { ServiceContext } from "../contexts/ServiceContext.jsx";
 
@@ -18,6 +18,14 @@ export const useAuth = () => {
   return {
     authManager: services.authManager,
     authService: services.authService, // Backward compatibility
+  };
+};
+
+// Hook to access recovery services
+export const useRecovery = () => {
+  const services = useServices();
+  return {
+    recoveryManager: services.recoveryManager,
   };
 };
 

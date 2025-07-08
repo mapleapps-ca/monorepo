@@ -15,6 +15,11 @@ import RequestOTT from "./pages/Anonymous/Login/RequestOTT";
 import VerifyOTT from "./pages/Anonymous/Login/VerifyOTT";
 import CompleteLogin from "./pages/Anonymous/Login/CompleteLogin";
 
+// Recovery pages
+import InitiateRecovery from "./pages/Anonymous/Recovery/InitiateRecovery";
+import VerifyRecovery from "./pages/Anonymous/Recovery/VerifyRecovery";
+import CompleteRecovery from "./pages/Anonymous/Recovery/CompleteRecovery";
+
 // User pages
 import Dashboard from "./pages/User/Dashboard/Dashboard";
 import MeDetail from "./pages/User/Me/Detail";
@@ -70,6 +75,11 @@ function App() {
             <Route path="/login/request-ott" element={<RequestOTT />} />
             <Route path="/login/verify-ott" element={<VerifyOTT />} />
             <Route path="/login/complete" element={<CompleteLogin />} />
+            {/* Recovery routes */}
+            <Route path="/recovery" element={<InitiateRecovery />} />
+            <Route path="/recovery/initiate" element={<InitiateRecovery />} />
+            <Route path="/recovery/verify" element={<VerifyRecovery />} />
+            <Route path="/recovery/complete" element={<CompleteRecovery />} />
             {/* User routes */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/me" element={<MeDetail />} />

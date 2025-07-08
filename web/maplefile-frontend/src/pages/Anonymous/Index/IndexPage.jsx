@@ -55,6 +55,10 @@ function IndexPage() {
             <Link to="/register">
               <button>Register</button>
             </Link>
+            <span> or </span>
+            <Link to="/recovery">
+              <button>Recover Account</button>
+            </Link>
           </div>
 
           <div>
