@@ -1,13 +1,14 @@
 // File: monorepo/web/maplefile-frontend/src/services/PasswordStorageService.js
-// Enhanced with development mode localStorage support
+// Enhanced with better activity detection and API integration
 
 class PasswordStorageService {
   constructor() {
     this.password = null;
     this.sessionKey = null;
     this.timeout = null;
-    this.inactivityTimeout = 30 * 60 * 1000; // 30 minutes
+    this.inactivityTimeout = 60 * 60 * 1000; // Increased to 60 minutes
     this.isInitialized = false;
+    this.activityDetected = false;
 
     // Determine storage mode from environment
     this.storageMode =
@@ -49,6 +50,7 @@ class PasswordStorageService {
     this.STORAGE_METADATA_KEY = "mapleapps_dev_pwd_meta";
 
     this.setupActivityListeners();
+    this.setupApiActivityTracking();
     console.log(
       `[PasswordStorageService] Initialized with ${this.storageMode} mode`,
     );
@@ -107,6 +109,7 @@ class PasswordStorageService {
 
   // Clear password from memory and storage
   clearPassword() {
+    const hadPassword = this.password !== null;
     this.password = null;
     this.sessionKey = null;
 
@@ -117,9 +120,50 @@ class PasswordStorageService {
 
     if (this.timeout) {
       clearTimeout(this.timeout);
+      this.timeout = null;
     }
 
-    console.log("[PasswordStorageService] Password cleared");
+    if (hadPassword) {
+      console.warn(
+        "[PasswordStorageService] Password cleared - user will need to re-authenticate",
+      );
+    } else {
+      console.log("[PasswordStorageService] Password cleared");
+    }
+  }
+
+  // ENHANCED: Record API activity to extend password timeout
+  recordApiActivity() {
+    if (this.hasPassword()) {
+      this.resetTimeout();
+      // Only log occasionally in dev mode to avoid spam
+      if (import.meta.env.DEV && Math.random() < 0.005) {
+        // 0.5% chance
+        console.log(
+          "[PasswordStorageService] API activity detected - extending password timeout",
+        );
+      }
+    }
+  }
+
+  // ENHANCED: Record successful token refresh
+  recordTokenRefresh() {
+    if (this.hasPassword()) {
+      console.log(
+        "[PasswordStorageService] Token refresh successful - extending password timeout",
+      );
+      this.resetTimeout();
+    }
+  }
+
+  // ENHANCED: Record successful authentication operations
+  recordAuthSuccess() {
+    if (this.hasPassword()) {
+      console.log(
+        "[PasswordStorageService] Authentication success - extending password timeout",
+      );
+      this.resetTimeout();
+    }
   }
 
   // Store encrypted password in storage
@@ -195,6 +239,9 @@ class PasswordStorageService {
 
       // Check if expired
       if (Date.now() - timestamp > this.inactivityTimeout) {
+        console.log(
+          "[PasswordStorageService] Stored password expired, clearing",
+        );
         this.clearPassword();
         return false;
       }
@@ -253,36 +300,123 @@ class PasswordStorageService {
     return this.restorePasswordFromStorage();
   }
 
-  // Reset inactivity timeout
+  // ENHANCED: Reset inactivity timeout
   resetTimeout() {
     if (this.timeout) {
       clearTimeout(this.timeout);
     }
 
+    const timeoutMinutes = Math.floor(this.inactivityTimeout / 60000);
+
     this.timeout = setTimeout(() => {
-      console.log(
-        "[PasswordStorageService] Password expired due to inactivity",
+      console.warn(
+        `[PasswordStorageService] Password expired after ${timeoutMinutes} minutes of inactivity`,
       );
       this.clearPassword();
+
+      // Dispatch a custom event to notify the app
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("passwordExpired", {
+            detail: { reason: "inactivity_timeout" },
+          }),
+        );
+      }
     }, this.inactivityTimeout);
+
+    // Only log timeout reset in development mode and occasionally
+    if (import.meta.env.DEV && Math.random() < 0.01) {
+      // 1% chance to log
+      console.log(
+        `[PasswordStorageService] Password timeout reset to ${timeoutMinutes} minutes`,
+      );
+    }
   }
 
-  // Setup activity listeners to reset timeout
+  // ENHANCED: Setup comprehensive activity listeners
   setupActivityListeners() {
     if (typeof document === "undefined") return;
 
-    const events = ["click", "keydown", "mousemove", "scroll"];
+    // Comprehensive list of user activity events
+    const events = [
+      "click",
+      "keydown",
+      "keyup",
+      "keypress",
+      "mousemove",
+      "mousedown",
+      "mouseup",
+      "scroll",
+      "wheel",
+      "touchstart",
+      "touchmove",
+      "touchend",
+      "focus",
+      "blur",
+      "visibilitychange",
+    ];
+
+    const activityHandler = () => {
+      if (this.hasPassword()) {
+        this.activityDetected = true;
+        this.resetTimeout();
+      }
+    };
+
     events.forEach((event) => {
-      document.addEventListener(
-        event,
-        () => {
-          if (this.hasPassword()) {
-            this.resetTimeout();
-          }
-        },
-        { passive: true },
-      );
+      document.addEventListener(event, activityHandler, { passive: true });
     });
+
+    // Special handling for visibility change
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (!document.hidden && this.hasPassword()) {
+          // Only log when page becomes visible, not on every activity
+          if (import.meta.env.DEV) {
+            console.log(
+              "[PasswordStorageService] Page became visible - extending password timeout",
+            );
+          }
+          this.resetTimeout();
+        }
+      },
+      { passive: true },
+    );
+
+    console.log(
+      "[PasswordStorageService] Enhanced activity listeners setup complete",
+    );
+  }
+
+  // ENHANCED: Setup API activity tracking
+  setupApiActivityTracking() {
+    if (typeof window === "undefined") return;
+
+    // Override fetch to track API activity
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      try {
+        const response = await originalFetch(...args);
+
+        // If the request was successful and we have a password, extend timeout
+        if (response.ok && this.hasPassword()) {
+          this.recordApiActivity();
+        }
+
+        return response;
+      } catch (error) {
+        // Even failed requests count as activity
+        if (this.hasPassword()) {
+          this.recordApiActivity();
+        }
+        throw error;
+      }
+    };
+
+    console.log(
+      "[PasswordStorageService] API activity tracking setup complete",
+    );
   }
 
   // Initialize the service
@@ -323,11 +457,25 @@ class PasswordStorageService {
       hasPassword: this.hasPassword(),
       isInitialized: this.isInitialized,
       storageAvailable: !!this.storage,
+      timeoutMinutes: Math.floor(this.inactivityTimeout / 60000),
+      activityDetected: this.activityDetected,
     };
   }
 
-  // Set custom inactivity timeout
+  // ENHANCED: Set custom inactivity timeout with validation
   setInactivityTimeout(minutes) {
+    if (minutes < 5) {
+      console.warn("[PasswordStorageService] Minimum timeout is 5 minutes");
+      minutes = 5;
+    }
+    if (minutes > 480) {
+      // 8 hours max
+      console.warn(
+        "[PasswordStorageService] Maximum timeout is 8 hours (480 minutes)",
+      );
+      minutes = 480;
+    }
+
     this.inactivityTimeout = minutes * 60 * 1000;
     this.resetTimeout();
     console.log(
@@ -345,6 +493,26 @@ class PasswordStorageService {
     }
 
     console.log("[PasswordStorageService] All data force cleared");
+  }
+
+  // ENHANCED: Get detailed status for debugging
+  getDetailedStatus() {
+    const hasPassword = this.hasPassword();
+    const timeRemaining = this.timeout
+      ? Math.floor(
+          (this.inactivityTimeout -
+            (Date.now() - (this.lastActivity || Date.now()))) /
+            60000,
+        )
+      : 0;
+
+    return {
+      hasPassword,
+      timeoutActive: !!this.timeout,
+      timeRemainingMinutes: Math.max(0, timeRemaining),
+      lastActivity: this.lastActivity,
+      storageInfo: this.getStorageInfo(),
+    };
   }
 }
 

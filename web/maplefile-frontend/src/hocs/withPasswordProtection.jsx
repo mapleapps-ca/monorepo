@@ -1,12 +1,12 @@
 // File: monorepo/web/maplefile-frontend/src/hocs/withPasswordProtection.jsx
-// HOC that protects components by checking if password is available - Updated without worker dependencies
+// Enhanced HOC with password expiry event handling
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import passwordStorageService from "../services/PasswordStorageService.js";
 
 /**
  * HOC that protects components by checking if password is available
- * Updated: Simplified without worker dependencies
+ * Enhanced with password expiry event handling
  */
 const withPasswordProtection = (WrappedComponent, options = {}) => {
   const {
@@ -14,6 +14,7 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
     showLoadingWhileChecking = true,
     checkInterval = null,
     customMessage = "Password required. Redirecting to login...",
+    onPasswordExpired = null, // Callback when password expires
   } = options;
 
   const PasswordProtectedComponent = (props) => {
@@ -21,10 +22,70 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
     const location = useLocation();
     const [isChecking, setIsChecking] = useState(true);
     const [hasPassword, setHasPassword] = useState(false);
+    const [expiryMessage, setExpiryMessage] = useState("");
 
     useEffect(() => {
       let mounted = true;
       let intervalId = null;
+
+      // ENHANCED: Listen for password expiry events
+      const handlePasswordExpired = (event) => {
+        console.log(
+          "[withPasswordProtection] Password expired event received:",
+          event.detail,
+        );
+
+        if (!mounted) return;
+
+        const reason = event.detail?.reason || "unknown";
+        let message = "Session expired - please log in again";
+
+        switch (reason) {
+          case "inactivity_timeout":
+            message = "Session expired due to inactivity - please log in again";
+            break;
+          case "manual_clear":
+            message = "Session cleared - please log in again";
+            break;
+          default:
+            message = "Session expired - please log in again";
+        }
+
+        setExpiryMessage(message);
+        setHasPassword(false);
+
+        // Call custom callback if provided
+        if (onPasswordExpired) {
+          try {
+            onPasswordExpired(reason, message);
+          } catch (error) {
+            console.error(
+              "[withPasswordProtection] Error in onPasswordExpired callback:",
+              error,
+            );
+          }
+        }
+
+        // Redirect to login after a brief delay to show the message
+        setTimeout(() => {
+          if (mounted) {
+            console.log(
+              `[withPasswordProtection] Redirecting due to password expiry: ${message}`,
+            );
+            navigate(redirectTo, {
+              state: {
+                from: location,
+                message: message,
+                reason: reason,
+              },
+              replace: true,
+            });
+          }
+        }, 2000); // 2 second delay to show the message
+      };
+
+      // Add password expiry event listener
+      window.addEventListener("passwordExpired", handlePasswordExpired);
 
       const checkPasswordAsync = async () => {
         console.log(
@@ -72,7 +133,7 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
 
         setHasPassword(passwordAvailable);
 
-        if (!passwordAvailable) {
+        if (!passwordAvailable && !expiryMessage) {
           console.log(
             `[withPasswordProtection] No password found, redirecting to ${redirectTo}`,
           );
@@ -99,9 +160,9 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
         if (checkInterval && hasPass) {
           intervalId = setInterval(() => {
             const stillHasPassword = passwordStorageService.hasPassword();
-            if (!stillHasPassword && mounted) {
+            if (!stillHasPassword && mounted && !expiryMessage) {
               console.log(
-                "[withPasswordProtection] Password lost, redirecting...",
+                "[withPasswordProtection] Password lost during periodic check, redirecting...",
               );
               navigate(redirectTo, {
                 state: { from: location, message: "Session expired" },
@@ -114,11 +175,46 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
 
       return () => {
         mounted = false;
+        window.removeEventListener("passwordExpired", handlePasswordExpired);
         if (intervalId) {
           clearInterval(intervalId);
         }
       };
-    }, [navigate, location, redirectTo, checkInterval, customMessage]);
+    }, [
+      navigate,
+      location,
+      redirectTo,
+      checkInterval,
+      customMessage,
+      onPasswordExpired,
+      expiryMessage,
+    ]);
+
+    // Show expiry message if password expired
+    if (expiryMessage) {
+      return (
+        <div
+          style={{
+            padding: "20px",
+            textAlign: "center",
+            backgroundColor: "#fff3cd",
+            border: "1px solid #ffeaa7",
+            borderRadius: "4px",
+            margin: "20px",
+          }}
+        >
+          <h3 style={{ color: "#856404", margin: "0 0 10px 0" }}>
+            ⚠️ Session Expired
+          </h3>
+          <p style={{ color: "#856404", margin: "0 0 15px 0" }}>
+            {expiryMessage}
+          </p>
+          <p style={{ fontSize: "14px", color: "#666" }}>
+            Redirecting to login...
+          </p>
+        </div>
+      );
+    }
 
     // Show loading while checking
     if (isChecking && showLoadingWhileChecking) {
@@ -126,11 +222,18 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
         <div style={{ padding: "20px", textAlign: "center" }}>
           <p>Checking authentication...</p>
           {import.meta.env.DEV && (
-            <p style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
-              Dev mode: Attempting to restore password from localStorage...
-              <br />
-              Token refresh: Automatic via ApiClient interceptors (no workers)
-            </p>
+            <div style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
+              <p>
+                Dev mode: Attempting to restore password from localStorage...
+              </p>
+              <p>
+                Token refresh: Automatic via ApiClient interceptors (no workers)
+              </p>
+              <p>
+                Password timeout: Extended on user activity and API calls
+                (logging reduced)
+              </p>
+            </div>
           )}
         </div>
       );
@@ -159,17 +262,20 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
 
 export default withPasswordProtection;
 
-// Additional debug helper - updated without worker references
+// ENHANCED: Additional debug helper with password service status
 export const debugPasswordProtection = () => {
   const service = passwordStorageService;
   const info = service.getStorageInfo();
 
-  console.log("Password Protection Debug Info:");
+  console.log("Enhanced Password Protection Debug Info:");
   console.log("Service initialized:", service.isInitialized);
   console.log("Storage mode:", info.mode);
   console.log("Is development:", info.isDevelopment);
   console.log("Has password in memory:", service.password !== null);
   console.log("Token refresh method: ApiClient interceptors (no workers)");
+  console.log("Password timeout minutes:", info.timeoutMinutes);
+  console.log("Activity detected:", info.activityDetected);
+  console.log("Logging: Reduced verbosity for activity tracking");
   console.log(
     "Storage type:",
     service.storage === localStorage
@@ -191,5 +297,34 @@ export const debugPasswordProtection = () => {
     localStorageKeys: keys,
     refreshMethod: "api_interceptor",
     hasWorkers: false,
+    timeoutMinutes: info.timeoutMinutes,
+    activityDetected: info.activityDetected,
+    loggingMode: "reduced_verbosity",
+  };
+};
+
+// ENHANCED: Utility to manually extend password timeout
+export const extendPasswordTimeout = () => {
+  if (passwordStorageService.hasPassword()) {
+    passwordStorageService.resetTimeout();
+    console.log("[withPasswordProtection] Password timeout manually extended");
+    return true;
+  } else {
+    console.warn(
+      "[withPasswordProtection] No password available to extend timeout",
+    );
+    return false;
+  }
+};
+
+// ENHANCED: Utility to get password service status
+export const getPasswordServiceStatus = () => {
+  return {
+    hasPassword: passwordStorageService.hasPassword(),
+    isInitialized: passwordStorageService.isInitialized,
+    storageInfo: passwordStorageService.getStorageInfo(),
+    detailedStatus: passwordStorageService.getDetailedStatus
+      ? passwordStorageService.getDetailedStatus()
+      : null,
   };
 };

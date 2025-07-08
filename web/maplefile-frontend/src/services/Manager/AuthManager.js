@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/services/Manager/AuthManager.js
-// Authentication Manager - Orchestrates API and Storage services for authentication flows
+// Enhanced Authentication Manager with password service integration
 import AuthAPIService from "../API/AuthAPIService.js";
 import AuthStorageService from "../Storage/AuthStorageService.js";
 import CryptoService from "../Crypto/CryptoService.js";
@@ -7,6 +7,7 @@ import CryptoService from "../Crypto/CryptoService.js";
 class AuthManager {
   constructor() {
     this.isInitialized = false;
+    this._passwordService = null;
 
     // Initialize dependent services
     this.apiService = new AuthAPIService();
@@ -24,11 +25,40 @@ class AuthManager {
 
     try {
       console.log("[AuthManager] Initializing auth manager (no workers)...");
+
+      // Initialize password service integration
+      await this.initializePasswordService();
+
       this.isInitialized = true;
       console.log("[AuthManager] Auth manager initialized successfully");
     } catch (error) {
       console.error("[AuthManager] Failed to initialize:", error);
       this.isInitialized = true; // Continue anyway
+    }
+  }
+
+  // ENHANCED: Initialize password service integration
+  async initializePasswordService() {
+    if (!this._passwordService) {
+      try {
+        const { default: passwordStorageService } = await import(
+          "../PasswordStorageService.js"
+        );
+        this._passwordService = passwordStorageService;
+        console.log("[AuthManager] Password service integration initialized");
+      } catch (error) {
+        console.warn(
+          "[AuthManager] Failed to initialize password service:",
+          error,
+        );
+      }
+    }
+  }
+
+  // ENHANCED: Notify password service of successful auth operations
+  notifyAuthSuccess() {
+    if (this._passwordService && this._passwordService.recordAuthSuccess) {
+      this._passwordService.recordAuthSuccess();
     }
   }
 
@@ -80,6 +110,9 @@ class AuthManager {
 
       // Store email for next steps
       this.storageService.setUserEmail(email);
+
+      // ENHANCED: Notify password service of auth activity
+      this.notifyAuthSuccess();
 
       console.log("[AuthManager] OTT request flow completed successfully");
       return response;
@@ -145,6 +178,9 @@ class AuthManager {
           );
         }
       }
+
+      // ENHANCED: Notify password service of auth activity
+      this.notifyAuthSuccess();
 
       console.log("[AuthManager] OTT verification flow completed successfully");
       return response;
@@ -283,6 +319,9 @@ class AuthManager {
       // Clean up any old encrypted token data
       this.storageService.cleanupEncryptedTokenData();
 
+      // ENHANCED: Notify password service of successful login
+      this.notifyAuthSuccess();
+
       console.log(
         "[AuthManager] Login flow completed successfully with unencrypted tokens",
       );
@@ -304,6 +343,17 @@ class AuthManager {
         "[AuthManager] Available verify data fields:",
         Object.keys(verifyData),
       );
+
+      // ENHANCED: Store password in password service for the session
+      await this.initializePasswordService();
+      if (this._passwordService) {
+        this._passwordService.setPassword(password);
+        if (import.meta.env.DEV) {
+          console.log(
+            "[AuthManager] Password stored in PasswordStorageService for session use",
+          );
+        }
+      }
 
       // Validate required data
       if (!verifyData) {
@@ -445,6 +495,9 @@ class AuthManager {
       // This is safe because the public key is not sensitive
       this.storageService.storeDerivedPublicKey(derivedPublicKey);
 
+      // ENHANCED: Notify password service of successful challenge decryption
+      this.notifyAuthSuccess();
+
       console.log(
         "[AuthManager] Challenge decryption orchestrated successfully and keys cached",
       );
@@ -466,7 +519,12 @@ class AuthManager {
       console.log("[AuthManager] Delegating token refresh to ApiClient");
       // Import ApiClient to use its refresh functionality
       const { default: ApiClient } = await import("../API/ApiClient.js");
-      return await ApiClient.refreshTokens();
+      const result = await ApiClient.refreshTokens();
+
+      // ENHANCED: Notify password service of successful token refresh
+      this.notifyAuthSuccess();
+
+      return result;
     } catch (error) {
       console.error("[AuthManager] Token refresh delegation failed:", error);
       throw error;
@@ -491,7 +549,12 @@ class AuthManager {
   async registerUser(userData) {
     try {
       console.log("[AuthManager] Orchestrating user registration");
-      return await this.apiService.registerUser(userData);
+      const result = await this.apiService.registerUser(userData);
+
+      // ENHANCED: Notify password service of auth activity
+      this.notifyAuthSuccess();
+
+      return result;
     } catch (error) {
       console.error("[AuthManager] Registration orchestration failed:", error);
       throw error;
@@ -501,7 +564,12 @@ class AuthManager {
   async verifyEmail(verificationCode) {
     try {
       console.log("[AuthManager] Orchestrating email verification");
-      return await this.apiService.verifyEmail(verificationCode);
+      const result = await this.apiService.verifyEmail(verificationCode);
+
+      // ENHANCED: Notify password service of auth activity
+      this.notifyAuthSuccess();
+
+      return result;
     } catch (error) {
       console.error(
         "[AuthManager] Email verification orchestration failed:",
@@ -542,6 +610,14 @@ class AuthManager {
   logout() {
     console.log("[AuthManager] Orchestrating user logout");
 
+    // ENHANCED: Clear password from password service
+    if (this._passwordService && this._passwordService.hasPassword()) {
+      console.log(
+        "[AuthManager] Clearing password from PasswordStorageService",
+      );
+      this._passwordService.clearPassword();
+    }
+
     // Clear all authentication data
     this.storageService.clearAuthData();
 
@@ -572,16 +648,26 @@ class AuthManager {
       isInitialized: this.isInitialized,
       method: "api_interceptor",
       hasWorker: false,
+      hasPasswordService: !!this._passwordService,
     };
   }
 
+  // ENHANCED: Get debug information including password service status
   getDebugInfo() {
+    const passwordServiceInfo = this._passwordService
+      ? {
+          hasPassword: this._passwordService.hasPassword(),
+          storageInfo: this._passwordService.getStorageInfo(),
+        }
+      : { available: false };
+
     return {
       serviceName: "AuthManager",
       role: "orchestrator",
       isInitialized: this.isInitialized,
       apiService: this.apiService.getDebugInfo(),
       storageService: this.storageService.getDebugInfo(),
+      passwordService: passwordServiceInfo,
       authenticationState: {
         isAuthenticated: this.isAuthenticated(),
         userEmail: this.getCurrentUserEmail(),

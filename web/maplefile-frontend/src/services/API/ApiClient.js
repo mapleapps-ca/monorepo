@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/services/API/ApiClient.js
-// Enhanced API Client with automatic token refresh interceptor
+// Enhanced API Client with password service integration
 import LocalStorageService from "../Storage/LocalStorageService.js";
 
 const API_BASE_URL = "/iam/api/v1"; // Using proxy from vite config
@@ -9,12 +9,52 @@ class ApiClient {
     this.isRefreshing = false;
     this.failedQueue = [];
     this._authManager = null; // Will be set by setAuthManager
+    this._passwordService = null; // Will be set during initialization
   }
 
   // Set AuthManager instance for event notifications
   setAuthManager(authManager) {
     this._authManager = authManager;
     console.log("[ApiClient] AuthManager set for event notifications");
+  }
+
+  // ENHANCED: Initialize password service integration
+  async initializePasswordService() {
+    if (!this._passwordService) {
+      try {
+        const { default: passwordStorageService } = await import(
+          "../PasswordStorageService.js"
+        );
+        this._passwordService = passwordStorageService;
+        console.log("[ApiClient] Password service integration initialized");
+      } catch (error) {
+        console.warn(
+          "[ApiClient] Failed to initialize password service:",
+          error,
+        );
+      }
+    }
+  }
+
+  // ENHANCED: Notify password service of successful API activity
+  notifyApiSuccess() {
+    if (this._passwordService && this._passwordService.recordApiActivity) {
+      this._passwordService.recordApiActivity();
+    }
+  }
+
+  // ENHANCED: Notify password service of successful token refresh
+  notifyTokenRefreshSuccess() {
+    if (this._passwordService && this._passwordService.recordTokenRefresh) {
+      this._passwordService.recordTokenRefresh();
+    }
+  }
+
+  // ENHANCED: Notify password service of successful auth operations
+  notifyAuthSuccess() {
+    if (this._passwordService && this._passwordService.recordAuthSuccess) {
+      this._passwordService.recordAuthSuccess();
+    }
   }
 
   // Notify auth state change via AuthManager
@@ -65,6 +105,9 @@ class ApiClient {
   ) {
     try {
       console.log("[ApiClient] Starting token decryption process");
+
+      // Initialize password service integration
+      await this.initializePasswordService();
 
       // Import and initialize CryptoService
       const { default: CryptoService } = await import(
@@ -372,6 +415,9 @@ class ApiClient {
 
       console.log("[ApiClient] Tokens refreshed and stored successfully");
 
+      // ENHANCED: Notify password service of successful token refresh
+      this.notifyTokenRefreshSuccess();
+
       // Notify listeners of successful refresh
       this.notifyAuthStateChange("token_refresh_success", {
         accessTokenExpiry: result.access_token_expiry_date,
@@ -410,6 +456,11 @@ class ApiClient {
         }
         const response = await fetch(url, originalRequestOptions);
 
+        // ENHANCED: Notify of successful API activity
+        if (response.ok) {
+          this.notifyApiSuccess();
+        }
+
         if (isMapleFileAPI && response.status === 204) {
           return null;
         }
@@ -437,6 +488,11 @@ class ApiClient {
 
       // Retry the original request
       const response = await fetch(url, originalRequestOptions);
+
+      // ENHANCED: Notify of successful API activity
+      if (response.ok) {
+        this.notifyApiSuccess();
+      }
 
       if (isMapleFileAPI && response.status === 204) {
         return null;
@@ -506,6 +562,11 @@ class ApiClient {
         return this.handleUnauthorizedResponse(url, requestOptions, false);
       }
 
+      // ENHANCED: Notify of successful API activity
+      if (response.ok) {
+        this.notifyApiSuccess();
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -566,6 +627,11 @@ class ApiClient {
       // Handle authentication errors with automatic refresh
       if (response.status === 401) {
         return this.handleUnauthorizedResponse(url, requestOptions, true);
+      }
+
+      // ENHANCED: Notify of successful API activity
+      if (response.ok) {
+        this.notifyApiSuccess();
       }
 
       // Handle 204 No Content responses
@@ -757,6 +823,11 @@ const apiClient = new ApiClient();
 // Helper function to set AuthManager after initialization
 export const setApiClientAuthManager = (authManager) => {
   apiClient.setAuthManager(authManager);
+
+  // Initialize password service integration
+  apiClient.initializePasswordService().catch((error) => {
+    console.warn("[ApiClient] Failed to initialize password service:", error);
+  });
 };
 
 export default apiClient;
