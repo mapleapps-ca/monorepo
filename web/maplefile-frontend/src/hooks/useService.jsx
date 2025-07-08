@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useService.jsx
-// Updated to include ListCollectionManager
+// Updated to include DownloadFileManager
 import { useContext } from "react";
 import { ServiceContext } from "../contexts/ServiceContext.jsx";
 
@@ -56,7 +56,7 @@ export const useCollections = () => {
     getCollectionManager: services.getCollectionManager,
     updateCollectionManager: services.updateCollectionManager,
     deleteCollectionManager: services.deleteCollectionManager,
-    listCollectionManager: services.listCollectionManager, // NEW
+    listCollectionManager: services.listCollectionManager,
   };
 };
 
@@ -67,6 +67,9 @@ export const useFiles = () => {
     syncFileAPIService: services.syncFileAPIService,
     syncFileStorageService: services.syncFileStorageService,
     syncFileManager: services.syncFileManager,
+    createFileManager: services.createFileManager,
+    getFileManager: services.getFileManager,
+    downloadFileManager: services.downloadFileManager, // NEW
   };
 };
 
@@ -85,6 +88,16 @@ export const useTokens = () => {
   return {
     tokenManager: services.tokenManager,
     tokenService: services.tokenService, // Backward compatibility
+  };
+};
+
+// Hook specifically for download file operations (NEW)
+export const useFileDownloads = () => {
+  const services = useServices();
+  return {
+    downloadFileManager: services.downloadFileManager,
+    getFileManager: services.getFileManager, // Often needed for file metadata
+    getCollectionManager: services.getCollectionManager, // For collection keys
   };
 };
 

@@ -103,11 +103,18 @@ const Dashboard = () => {
       icon: "📤",
     },
     {
-      path: "/get-file-manager-example", // NEW
+      path: "/get-file-manager-example",
       title: "Get File Manager Example",
       description:
         "Test the GetFileManager - retrieve file details, version history, permissions, and statistics with E2EE decryption.",
       icon: "📄",
+    },
+    {
+      path: "/download-file-manager-example", // NEW
+      title: "Download File Manager Example",
+      description:
+        "Test the DownloadFileManager - download files with E2EE decryption, progress tracking, and batch downloads.",
+      icon: "📥",
     },
     {
       path: "/list-file-manager-example",

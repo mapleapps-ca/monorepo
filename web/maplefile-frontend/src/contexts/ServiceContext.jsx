@@ -25,7 +25,8 @@ import DeleteCollectionManager from "../services/Manager/Collection/DeleteCollec
 import ListCollectionManager from "../services/Manager/Collection/ListCollectionManager.js";
 
 import CreateFileManager from "../services/Manager/File/CreateFileManager.js";
-import GetFileManager from "../services/Manager/File/GetFileManager.js"; // NEW
+import GetFileManager from "../services/Manager/File/GetFileManager.js";
+import DownloadFileManager from "../services/Manager/File/DownloadFileManager.js"; // NEW
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -77,11 +78,18 @@ export function ServiceProvider({ children }) {
   // Initialize CreateFileManager with AuthManager dependency
   const createFileManager = new CreateFileManager(authManager);
 
-  // Initialize GetFileManager with AuthManager and collection manager dependencies (NEW)
+  // Initialize GetFileManager with AuthManager and collection manager dependencies
   const getFileManager = new GetFileManager(
     authManager,
     getCollectionManager,
     listCollectionManager,
+  );
+
+  // Initialize DownloadFileManager with AuthManager and other manager dependencies (NEW)
+  const downloadFileManager = new DownloadFileManager(
+    authManager,
+    getFileManager,
+    getCollectionManager,
   );
 
   // Set AuthManager on ApiClient for event notifications
@@ -116,7 +124,8 @@ export function ServiceProvider({ children }) {
 
     // File services
     createFileManager,
-    getFileManager, // NEW: GetFileManager for file retrieval
+    getFileManager,
+    downloadFileManager, // NEW: DownloadFileManager for file downloads
     syncFileAPIService,
     syncFileStorageService,
     syncFileManager, // New: SyncFileManager (replaces syncFileService)
@@ -252,13 +261,24 @@ export function ServiceProvider({ children }) {
           );
         }
 
-        // Initialize get file manager (NEW)
+        // Initialize get file manager
         try {
           await getFileManager.initialize();
           console.log("[ServiceProvider] GetFileManager initialized");
         } catch (error) {
           console.warn(
             "[ServiceProvider] GetFileManager initialization failed:",
+            error,
+          );
+        }
+
+        // Initialize download file manager (NEW)
+        try {
+          await downloadFileManager.initialize();
+          console.log("[ServiceProvider] DownloadFileManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] DownloadFileManager initialization failed:",
             error,
           );
         }
@@ -297,7 +317,8 @@ export function ServiceProvider({ children }) {
     deleteCollectionManager,
     listCollectionManager,
     createFileManager,
-    getFileManager, // NEW
+    getFileManager,
+    downloadFileManager, // NEW
     syncFileManager,
   ]);
 
