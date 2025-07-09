@@ -2,11 +2,13 @@
 // Example component demonstrating how to use the useCollectionSharing hook
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import useCollectionSharing from "../../../../hooks/Collection/useCollectionSharing.jsx";
 import { useCollections } from "../../../../hooks/useService.jsx";
 import useAuth from "../../../../hooks/useAuth.js";
 
 const ShareCollectionManagerExample = () => {
+  const navigate = useNavigate();
   const {
     // State
     isLoading,
@@ -316,6 +318,12 @@ const ShareCollectionManagerExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
+
       <h2>🤝 Share Collection Manager Example (with Hooks)</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates the <strong>useCollectionSharing</strong> hook
