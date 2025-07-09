@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useService.jsx
-// Updated to include ShareCollectionManager (fixed naming conflict)
+// Updated to include UserLookupManager
 import { useContext } from "react";
 import { ServiceContext } from "../contexts/ServiceContext.jsx";
 
@@ -88,6 +88,14 @@ export const useFiles = () => {
     getFileManager: services.getFileManager,
     downloadFileManager: services.downloadFileManager,
     deleteFileManager: services.deleteFileManager,
+  };
+};
+
+// NEW: Hook for user services
+export const useUsers = () => {
+  const services = useService();
+  return {
+    userLookupManager: services.userLookupManager,
   };
 };
 

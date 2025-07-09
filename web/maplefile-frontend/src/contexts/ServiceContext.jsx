@@ -1,6 +1,4 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// Updated to include DeleteFileManager and RecoveryManager and ShareCollectionManager
-// FIXED: Ensure PasswordStorageService is properly available
 import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
@@ -32,6 +30,8 @@ import GetFileManager from "../services/Manager/File/GetFileManager.js";
 import DownloadFileManager from "../services/Manager/File/DownloadFileManager.js";
 import DeleteFileManager from "../services/Manager/File/DeleteFileManager.js";
 import RecoveryManager from "../services/Manager/RecoveryManager.js";
+
+import UserLookupManager from "../services/Manager/User/UserLookupManager.js";
 
 // Create a context for our services
 export const ServiceContext = createContext();
@@ -110,6 +110,9 @@ export function ServiceProvider({ children }) {
     listCollectionManager,
   );
 
+  // NEW: Initialize UserLookupManager (no dependencies - public service)
+  const userLookupManager = new UserLookupManager();
+
   // Set AuthManager on ApiClient for event notifications
   setApiClientAuthManager(authManager);
 
@@ -150,6 +153,9 @@ export function ServiceProvider({ children }) {
     syncFileAPIService,
     syncFileStorageService,
     syncFileManager, // New: SyncFileManager (replaces syncFileService)
+
+    // User services
+    userLookupManager, // New: UserLookupManager for public key lookups
   };
 
   // Initialize services that need async initialization
@@ -355,6 +361,17 @@ export function ServiceProvider({ children }) {
           );
         }
 
+        // Initialize user lookup manager
+        try {
+          await userLookupManager.initialize();
+          console.log("[ServiceProvider] UserLookupManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] UserLookupManager initialization failed:",
+            error,
+          );
+        }
+
         console.log(
           "[ServiceProvider] All services initialized successfully with AuthManager",
         );
@@ -384,6 +401,7 @@ export function ServiceProvider({ children }) {
     downloadFileManager,
     deleteFileManager,
     syncFileManager,
+    userLookupManager,
   ]);
 
   // Set up error handling for services
@@ -435,6 +453,10 @@ export function ServiceProvider({ children }) {
       console.log(
         "[ServiceProvider] AuthManager authenticated:",
         authManager.isAuthenticated(),
+      );
+      console.log(
+        "[ServiceProvider] UserLookupManager ready:",
+        userLookupManager ? "✅" : "❌",
       );
       console.log(
         "[ServiceProvider] Architecture: Manager/API/Storage/Crypto pattern with AuthManager orchestrator",

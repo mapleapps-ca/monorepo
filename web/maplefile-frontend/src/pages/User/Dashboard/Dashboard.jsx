@@ -130,7 +130,13 @@ const Dashboard = () => {
         "Test the ListFileManager - list and download encrypted files with E2EE decryption.",
       icon: "📋",
     },
-
+    {
+      path: "/user-lookup-manager-example",
+      title: "User Lookup Manager Example",
+      description:
+        "Test the UserLookupManager - lookup user public keys for E2EE encryption, with caching and batch operations.",
+      icon: "👥",
+    },
     {
       path: "/share-collection-manager-example",
       title: "Share Collection Manager Example",

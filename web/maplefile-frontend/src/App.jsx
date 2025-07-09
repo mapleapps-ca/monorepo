@@ -40,11 +40,12 @@ import UpdateCollectionManagerExample from "./pages/User/Examples/Collection/Upd
 import DeleteCollectionManagerExample from "./pages/User/Examples/Collection/DeleteCollectionManagerExample.jsx";
 import ListCollectionManagerExample from "./pages/User/Examples/Collection/ListCollectionManagerExample.jsx";
 import ShareCollectionManagerExample from "./pages/User/Examples/Collection/ShareCollectionManagerExample.jsx";
+import UserLookupExample from "./pages/User/Examples/User/UserLookupExample.jsx";
 
 import CreateFileManagerExample from "./pages/User/Examples/File/CreateFileManagerExample.jsx";
 import GetFileManagerExample from "./pages/User/Examples/File/GetFileManagerExample.jsx";
 import DownloadFileManagerExample from "./pages/User/Examples/File/DownloadFileManagerExample.jsx";
-import DeleteFileManagerExample from "./pages/User/Examples/File/DeleteFileManagerExample.jsx"; // NEW
+import DeleteFileManagerExample from "./pages/User/Examples/File/DeleteFileManagerExample.jsx";
 import ListFileManagerExample from "./pages/User/Examples/File/ListFileManagerExample.jsx";
 
 // Styles
@@ -135,7 +136,7 @@ function App() {
               element={<DownloadFileManagerExample />}
             />
             <Route
-              path="/delete-file-manager-example" // NEW
+              path="/delete-file-manager-example"
               element={<DeleteFileManagerExample />}
             />
             <Route
@@ -153,6 +154,10 @@ function App() {
             <Route
               path="/sync-file-manager-example"
               element={<SyncFileManagerExample />}
+            />
+            <Route
+              path="/user-lookup-manager-example"
+              element={<UserLookupExample />}
             />
             <Route
               path="/share-collection-manager-example"
