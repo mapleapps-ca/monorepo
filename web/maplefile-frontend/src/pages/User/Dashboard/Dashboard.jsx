@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Dashboard/Dashboard.jsx
-// A simple navigation page for the user dashboard.
+// Updated to include Share Collection Manager Example
 import { useNavigate } from "react-router";
 import useAuth from "../../../hooks/useAuth.js";
 
@@ -96,6 +96,13 @@ const Dashboard = () => {
       icon: "📂",
     },
     {
+      path: "/share-collection-manager-example", // NEW
+      title: "Share Collection Manager Example",
+      description:
+        "Test the ShareCollectionManager - share collections with other users using E2EE, manage permissions and member access.",
+      icon: "🤝",
+    },
+    {
       path: "/create-file-manager-example",
       title: "Create File Manager Example",
       description:
@@ -117,7 +124,7 @@ const Dashboard = () => {
       icon: "📥",
     },
     {
-      path: "/delete-file-manager-example", // NEW
+      path: "/delete-file-manager-example",
       title: "Delete File Manager Example",
       description:
         "Test the DeleteFileManager - delete, restore, archive files with tombstone management and batch operations.",

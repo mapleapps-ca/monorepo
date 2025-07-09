@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
-// Updated to include DeleteFileManager and RecoveryManager
+// Updated to include DeleteFileManager and RecoveryManager and ShareCollectionManager
 import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
@@ -24,11 +24,12 @@ import GetCollectionManager from "../services/Manager/Collection/GetCollectionMa
 import UpdateCollectionManager from "../services/Manager/Collection/UpdateCollectionManager.js";
 import DeleteCollectionManager from "../services/Manager/Collection/DeleteCollectionManager.js";
 import ListCollectionManager from "../services/Manager/Collection/ListCollectionManager.js";
+import ShareCollectionManager from "../services/Manager/Collection/ShareCollectionManager.js";
 
 import CreateFileManager from "../services/Manager/File/CreateFileManager.js";
 import GetFileManager from "../services/Manager/File/GetFileManager.js";
 import DownloadFileManager from "../services/Manager/File/DownloadFileManager.js";
-import DeleteFileManager from "../services/Manager/File/DeleteFileManager.js"; // NEW
+import DeleteFileManager from "../services/Manager/File/DeleteFileManager.js";
 import RecoveryManager from "../services/Manager/RecoveryManager.js";
 
 // Create a context for our services
@@ -72,6 +73,9 @@ export function ServiceProvider({ children }) {
   // Initialize ListCollectionManager with AuthManager dependency
   const listCollectionManager = new ListCollectionManager(authManager);
 
+  // Initialize ShareCollectionManager with AuthManager dependency
+  const shareCollectionManager = new ShareCollectionManager(authManager);
+
   // Initialize SyncFileAPIService with AuthManager dependency
   const syncFileAPIService = new SyncFileAPIService(authManager);
 
@@ -98,7 +102,7 @@ export function ServiceProvider({ children }) {
     getCollectionManager,
   );
 
-  // Initialize DeleteFileManager with AuthManager and collection manager dependencies (NEW)
+  // Initialize DeleteFileManager with AuthManager and collection manager dependencies
   const deleteFileManager = new DeleteFileManager(
     authManager,
     getCollectionManager,
@@ -135,12 +139,13 @@ export function ServiceProvider({ children }) {
     updateCollectionManager,
     deleteCollectionManager,
     listCollectionManager,
+    shareCollectionManager,
 
     // File services
     createFileManager,
     getFileManager,
     downloadFileManager, // DownloadFileManager for file downloads
-    deleteFileManager, // NEW: DeleteFileManager for file deletion operations
+    deleteFileManager, // DeleteFileManager for file deletion operations
     syncFileAPIService,
     syncFileStorageService,
     syncFileManager, // New: SyncFileManager (replaces syncFileService)
@@ -276,6 +281,17 @@ export function ServiceProvider({ children }) {
           );
         }
 
+        // Initialize share collection manager
+        try {
+          await shareCollectionManager.initialize();
+          console.log("[ServiceProvider] ShareCollectionManager initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] ShareCollectionManager initialization failed:",
+            error,
+          );
+        }
+
         // Initialize create file manager
         try {
           await createFileManager.initialize();
@@ -309,7 +325,7 @@ export function ServiceProvider({ children }) {
           );
         }
 
-        // Initialize delete file manager (NEW)
+        // Initialize delete file manager
         try {
           await deleteFileManager.initialize();
           console.log("[ServiceProvider] DeleteFileManager initialized");
@@ -354,10 +370,11 @@ export function ServiceProvider({ children }) {
     updateCollectionManager,
     deleteCollectionManager,
     listCollectionManager,
+    shareCollectionManager,
     createFileManager,
     getFileManager,
     downloadFileManager,
-    deleteFileManager, // NEW
+    deleteFileManager,
     syncFileManager,
   ]);
 

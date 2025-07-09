@@ -1,140 +1,95 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/useService.jsx
-// Updated to include DeleteFileManager and RecoveryManager
+// Updated to include ShareCollectionManager (fixed naming conflict)
 import { useContext } from "react";
 import { ServiceContext } from "../contexts/ServiceContext.jsx";
 
-// Hook to access all services
-export const useServices = () => {
-  const services = useContext(ServiceContext);
-  if (!services) {
-    throw new Error("useServices must be used within a ServiceProvider");
+// Main hook to get all services
+export const useService = () => {
+  const context = useContext(ServiceContext);
+  if (!context) {
+    throw new Error("useService must be used within a ServiceProvider");
   }
-  return services;
+  return context;
 };
 
-// Hook to access authentication services
-export const useAuth = () => {
-  const services = useServices();
+// Hook for authentication services (renamed to avoid conflict with existing useAuth)
+export const useAuthServices = () => {
+  const services = useService();
   return {
     authManager: services.authManager,
     authService: services.authService, // Backward compatibility
-  };
-};
-
-// Hook to access recovery services
-export const useRecovery = () => {
-  const services = useServices();
-  return {
+    meManager: services.meManager,
+    meService: services.meService, // Backward compatibility
+    tokenManager: services.tokenManager,
+    tokenService: services.tokenService, // Backward compatibility
     recoveryManager: services.recoveryManager,
   };
 };
 
-// Hook to access crypto services
+// Alternative export name for backward compatibility
+export const useServices = useAuthServices;
+
+// Hook for crypto services
 export const useCrypto = () => {
-  const services = useServices();
+  const services = useService();
   return {
     cryptoService: services.cryptoService,
     CollectionCryptoService: services.CollectionCryptoService,
   };
 };
 
-// Hook to access storage services
+// Hook for storage services
 export const useStorage = () => {
-  const services = useServices();
+  const services = useService();
   return {
     localStorageService: services.localStorageService,
     passwordStorageService: services.passwordStorageService,
   };
 };
 
-// Hook to access API client
-export const useApiClient = () => {
-  const services = useServices();
-  return services.apiClient;
+// Hook for API services
+export const useApi = () => {
+  const services = useService();
+  return {
+    apiClient: services.apiClient,
+  };
 };
 
-// Hook to access collection services
+// Hook for collection services
 export const useCollections = () => {
-  const services = useServices();
+  const services = useService();
   return {
+    // Sync services
     syncCollectionAPIService: services.syncCollectionAPIService,
     syncCollectionStorageService: services.syncCollectionStorageService,
     syncCollectionManager: services.syncCollectionManager,
+
+    // CRUD services
     createCollectionManager: services.createCollectionManager,
     getCollectionManager: services.getCollectionManager,
     updateCollectionManager: services.updateCollectionManager,
     deleteCollectionManager: services.deleteCollectionManager,
     listCollectionManager: services.listCollectionManager,
+    shareCollectionManager: services.shareCollectionManager,
   };
 };
 
-// Hook to access file services
+// Hook for file services
 export const useFiles = () => {
-  const services = useServices();
+  const services = useService();
   return {
+    // Sync services
     syncFileAPIService: services.syncFileAPIService,
     syncFileStorageService: services.syncFileStorageService,
     syncFileManager: services.syncFileManager,
-    createFileManager: services.createFileManager,
-    getFileManager: services.getFileManager,
-    downloadFileManager: services.downloadFileManager,
-    deleteFileManager: services.deleteFileManager, // NEW
-  };
-};
 
-// Hook to access user/profile services
-export const useProfile = () => {
-  const services = useServices();
-  return {
-    meManager: services.meManager,
-    meService: services.meService, // Backward compatibility
-  };
-};
-
-// Hook to access token services
-export const useTokens = () => {
-  const services = useServices();
-  return {
-    tokenManager: services.tokenManager,
-    tokenService: services.tokenService, // Backward compatibility
-  };
-};
-
-// Hook specifically for download file operations
-export const useFileDownloads = () => {
-  const services = useServices();
-  return {
-    downloadFileManager: services.downloadFileManager,
-    getFileManager: services.getFileManager, // Often needed for file metadata
-    getCollectionManager: services.getCollectionManager, // For collection keys
-  };
-};
-
-// Hook specifically for delete file operations (NEW)
-export const useFileDeletions = () => {
-  const services = useServices();
-  return {
-    deleteFileManager: services.deleteFileManager,
-    getFileManager: services.getFileManager, // Often needed for file metadata
-    getCollectionManager: services.getCollectionManager, // For collection keys
-    listCollectionManager: services.listCollectionManager, // For collection listing
-  };
-};
-
-// Hook for comprehensive file operations (NEW)
-export const useFileOperations = () => {
-  const services = useServices();
-  return {
+    // CRUD services
     createFileManager: services.createFileManager,
     getFileManager: services.getFileManager,
     downloadFileManager: services.downloadFileManager,
     deleteFileManager: services.deleteFileManager,
-    syncFileManager: services.syncFileManager,
-    // Collection managers often needed for file operations
-    getCollectionManager: services.getCollectionManager,
-    listCollectionManager: services.listCollectionManager,
   };
 };
 
-// Default export for backward compatibility
-export default useServices;
+// Default export
+export default useService;
