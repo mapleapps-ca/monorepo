@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Login/CompleteLogin.jsx
-// Complete Login Page - FIXED VERSION without infinite re-renders
+// Complete Login Page - FIXED VERSION with better token validation
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useServices } from "../../../hooks/useService.jsx";
@@ -209,6 +209,110 @@ const CompleteLogin = () => {
     }
   }, [navigate, authManager, localStorageService]); // Stable dependencies
 
+  // FIXED: Better token validation function
+  const validateTokensAfterLogin = async () => {
+    console.log("[CompleteLogin] Starting token validation...");
+
+    // Method 1: Use AuthManager authentication check (preferred)
+    if (authManager && typeof authManager.isAuthenticated === "function") {
+      try {
+        const isAuthenticated = authManager.isAuthenticated();
+        console.log(
+          "[CompleteLogin] AuthManager.isAuthenticated():",
+          isAuthenticated,
+        );
+
+        if (isAuthenticated) {
+          console.log(
+            "[CompleteLogin] ✅ Authentication confirmed via AuthManager",
+          );
+          return true;
+        }
+      } catch (err) {
+        console.warn(
+          "[CompleteLogin] AuthManager.isAuthenticated() failed:",
+          err,
+        );
+      }
+    }
+
+    // Method 2: Check if AuthManager can make requests
+    if (
+      authManager &&
+      typeof authManager.canMakeAuthenticatedRequests === "function"
+    ) {
+      try {
+        const canMakeRequests = authManager.canMakeAuthenticatedRequests();
+        console.log(
+          "[CompleteLogin] AuthManager.canMakeAuthenticatedRequests():",
+          canMakeRequests,
+        );
+
+        if (canMakeRequests) {
+          console.log(
+            "[CompleteLogin] ✅ Can make authenticated requests via AuthManager",
+          );
+          return true;
+        }
+      } catch (err) {
+        console.warn(
+          "[CompleteLogin] AuthManager.canMakeAuthenticatedRequests() failed:",
+          err,
+        );
+      }
+    }
+
+    // Method 3: Direct localStorage check via localStorageService
+    if (localStorageService) {
+      try {
+        const accessToken = localStorageService.getAccessToken?.();
+        const refreshToken = localStorageService.getRefreshToken?.();
+        console.log("[CompleteLogin] Direct token check:", {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          accessTokenLength: accessToken ? accessToken.length : 0,
+          refreshTokenLength: refreshToken ? refreshToken.length : 0,
+        });
+
+        if (accessToken && refreshToken) {
+          console.log(
+            "[CompleteLogin] ✅ Tokens found via localStorageService",
+          );
+          return true;
+        }
+      } catch (err) {
+        console.warn(
+          "[CompleteLogin] LocalStorageService token check failed:",
+          err,
+        );
+      }
+    }
+
+    // Method 4: Direct localStorage check (fallback)
+    try {
+      const accessToken = localStorage.getItem("mapleapps_access_token");
+      const refreshToken = localStorage.getItem("mapleapps_refresh_token");
+      console.log("[CompleteLogin] Direct localStorage check:", {
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        accessTokenLength: accessToken ? accessToken.length : 0,
+        refreshTokenLength: refreshToken ? refreshToken.length : 0,
+      });
+
+      if (accessToken && refreshToken) {
+        console.log(
+          "[CompleteLogin] ✅ Tokens found in direct localStorage check",
+        );
+        return true;
+      }
+    } catch (err) {
+      console.warn("[CompleteLogin] Direct localStorage check failed:", err);
+    }
+
+    console.error("[CompleteLogin] ❌ No valid tokens found via any method");
+    return false;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -265,37 +369,78 @@ const CompleteLogin = () => {
       setDecryptionProgress("Completing authentication...");
       setDecrypting(false);
 
+      console.log("[CompleteLogin] Calling authManager.completeLogin...");
       const response = await authManager.completeLogin(
         email,
         verifyData.challengeId,
         decryptedChallenge,
       );
-      console.log("[CompleteLogin] Login completed successfully!");
+      console.log("[CompleteLogin] Login completed successfully!", response);
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // FIXED: Better token validation with retry mechanism
+      setDecryptionProgress("Validating authentication tokens...");
 
-      // Check tokens
-      let accessToken = null;
-      let refreshToken = null;
+      let tokenValidationAttempts = 0;
+      const maxAttempts = 5;
+      let tokensValid = false;
 
-      if (localStorageService) {
-        try {
-          accessToken = localStorageService.getAccessToken?.();
-          refreshToken = localStorageService.getRefreshToken?.();
-        } catch (err) {
-          console.warn("[CompleteLogin] Could not get tokens:", err);
+      while (tokenValidationAttempts < maxAttempts && !tokensValid) {
+        tokenValidationAttempts++;
+        console.log(
+          `[CompleteLogin] Token validation attempt ${tokenValidationAttempts}/${maxAttempts}`,
+        );
+
+        // Wait a bit longer for tokens to be fully stored
+        if (tokenValidationAttempts > 1) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 200 * tokenValidationAttempts),
+          );
+        }
+
+        tokensValid = await validateTokensAfterLogin();
+
+        if (!tokensValid && tokenValidationAttempts < maxAttempts) {
+          console.log(
+            `[CompleteLogin] Tokens not ready, retrying in ${200 * tokenValidationAttempts}ms...`,
+          );
         }
       }
 
-      const hasTokens = !!(accessToken && refreshToken);
-
-      if (hasTokens) {
-        console.log("[CompleteLogin] Storing password...");
+      if (tokensValid) {
+        console.log(
+          "[CompleteLogin] ✅ Authentication successful - storing password and navigating",
+        );
         workingPasswordService.setPassword(password);
-        console.log("[CompleteLogin] Navigating to dashboard...");
+        console.log(
+          "[CompleteLogin] Password stored in PasswordStorageService",
+        );
         navigate("/dashboard", { replace: true });
       } else {
-        throw new Error("No authentication tokens found after login");
+        console.error(
+          "[CompleteLogin] ❌ Token validation failed after all attempts",
+        );
+
+        // Additional debugging - check what's actually in localStorage
+        const allKeys = Object.keys(localStorage).filter((key) =>
+          key.includes("mapleapps"),
+        );
+        console.log(
+          "[CompleteLogin] All MapleApps localStorage keys:",
+          allKeys,
+        );
+
+        allKeys.forEach((key) => {
+          const value = localStorage.getItem(key);
+          console.log(
+            `[CompleteLogin] ${key}:`,
+            value ? `${value.substring(0, 50)}...` : "null",
+          );
+        });
+
+        throw new Error(
+          "Authentication completed but tokens could not be validated. " +
+            "This may be a temporary issue - please try logging in again.",
+        );
       }
     } catch (error) {
       console.error("[CompleteLogin] Login failed:", error);
@@ -389,7 +534,7 @@ const CompleteLogin = () => {
           </div>
         </div>
 
-        {/* Service status display */}
+        {/* ENHANCED Service status display */}
         <div
           style={{
             fontSize: "12px",
@@ -405,6 +550,9 @@ const CompleteLogin = () => {
           Password Length: {password.length}
           <br />
           AuthManager: {authManager ? "✅ Available" : "❌ Missing"}
+          <br />
+          LocalStorageService:{" "}
+          {localStorageService ? "✅ Available" : "❌ Missing"}
           <br />
           PasswordStorageService (useServices):{" "}
           {passwordStorageService ? "✅ Available" : "❌ Missing"}
@@ -501,6 +649,9 @@ const CompleteLogin = () => {
           <br />
           AuthManager Exists: {debugInfo.authManagerExists ? "Yes" : "No"}
           <br />
+          LocalStorageService Exists:{" "}
+          {debugInfo.localStorageServiceExists ? "Yes" : "No"}
+          <br />
           PasswordStorageService Exists:{" "}
           {debugInfo.passwordStorageServiceExists ? "Yes" : "No"}
           <br />
@@ -512,6 +663,18 @@ const CompleteLogin = () => {
           <br />
           Last Check: {debugInfo.timestamp}
           <br />
+          {/* ENHANCED: Show current localStorage state */}
+          <br />
+          <strong>Current Token State:</strong>
+          <br />
+          Access Token in localStorage:{" "}
+          {localStorage.getItem("mapleapps_access_token") ? "Yes" : "No"}
+          <br />
+          Refresh Token in localStorage:{" "}
+          {localStorage.getItem("mapleapps_refresh_token") ? "Yes" : "No"}
+          <br />
+          User Email in localStorage:{" "}
+          {localStorage.getItem("mapleapps_user_email") ? "Yes" : "No"}
         </div>
       )}
     </div>

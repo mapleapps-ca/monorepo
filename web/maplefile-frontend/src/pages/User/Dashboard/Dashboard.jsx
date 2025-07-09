@@ -132,7 +132,7 @@ const Dashboard = () => {
     },
 
     {
-      path: "/share-collection-manager-example", // NEW
+      path: "/share-collection-manager-example",
       title: "Share Collection Manager Example",
       description:
         "Test the ShareCollectionManager - share collections with other users using E2EE, manage permissions and member access.",

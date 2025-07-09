@@ -39,6 +39,7 @@ import GetCollectionManagerExample from "./pages/User/Examples/Collection/GetCol
 import UpdateCollectionManagerExample from "./pages/User/Examples/Collection/UpdateCollectionManagerExample.jsx";
 import DeleteCollectionManagerExample from "./pages/User/Examples/Collection/DeleteCollectionManagerExample.jsx";
 import ListCollectionManagerExample from "./pages/User/Examples/Collection/ListCollectionManagerExample.jsx";
+import ShareCollectionManagerExample from "./pages/User/Examples/Collection/ShareCollectionManagerExample.jsx";
 
 import CreateFileManagerExample from "./pages/User/Examples/File/CreateFileManagerExample.jsx";
 import GetFileManagerExample from "./pages/User/Examples/File/GetFileManagerExample.jsx";
@@ -142,17 +143,22 @@ function App() {
               element={<ListFileManagerExample />}
             />
             <Route
-              path="/sync-File-api-example"
+              path="/sync-file-api-example"
               element={<SyncFileAPIExample />}
             />
             <Route
-              path="/sync-File-storage-example"
+              path="/sync-file-storage-example"
               element={<SyncFileStorageExample />}
             />
             <Route
-              path="/sync-File-manager-example"
+              path="/sync-file-manager-example"
               element={<SyncFileManagerExample />}
             />
+            <Route
+              path="/share-collection-manager-example"
+              element={<ShareCollectionManagerExample />}
+            />
+
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
