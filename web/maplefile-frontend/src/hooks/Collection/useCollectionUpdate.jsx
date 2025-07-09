@@ -1,7 +1,8 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/Collection/useCollectionUpdate.jsx
 // Custom hook for collection updates with convenient API
 import { useState, useEffect, useCallback } from "react";
-import { useCollections, useAuth } from "../useService.jsx";
+import { useCollections } from "../useService.jsx";
+import useAuth from "../useAuth.js";
 
 /**
  * Hook for collection updates with state management and convenience methods

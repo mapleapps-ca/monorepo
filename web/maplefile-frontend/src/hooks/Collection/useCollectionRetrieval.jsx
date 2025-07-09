@@ -1,7 +1,8 @@
 // File: monorepo/web/maplefile-frontend/src/hooks/Collection/useCollectionRetrieval.jsx
 // Custom hook for collection retrieval with convenient API (FIXED)
 import { useState, useEffect, useCallback } from "react";
-import { useCollections, useAuth } from "../useService.jsx";
+import { useCollections } from "../useService.jsx";
+import useAuth from "../useAuth.js";
 
 /**
  * Hook for collection retrieval with state management and convenience methods

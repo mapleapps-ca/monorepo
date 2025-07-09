@@ -96,13 +96,6 @@ const Dashboard = () => {
       icon: "📂",
     },
     {
-      path: "/share-collection-manager-example", // NEW
-      title: "Share Collection Manager Example",
-      description:
-        "Test the ShareCollectionManager - share collections with other users using E2EE, manage permissions and member access.",
-      icon: "🤝",
-    },
-    {
       path: "/create-file-manager-example",
       title: "Create File Manager Example",
       description:
@@ -136,6 +129,14 @@ const Dashboard = () => {
       description:
         "Test the ListFileManager - list and download encrypted files with E2EE decryption.",
       icon: "📋",
+    },
+
+    {
+      path: "/share-collection-manager-example", // NEW
+      title: "Share Collection Manager Example",
+      description:
+        "Test the ShareCollectionManager - share collections with other users using E2EE, manage permissions and member access.",
+      icon: "🤝",
     },
     {
       path: "/profile",

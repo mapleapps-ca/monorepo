@@ -2,7 +2,8 @@
 // Custom hook for collection deletion with convenient API
 
 import { useState, useEffect, useCallback } from "react";
-import { useCollections, useAuth } from "../useService.jsx";
+import { useCollections } from "../useService.jsx";
+import useAuth from "../useAuth.js";
 
 /**
  * Hook for collection deletion with state management and convenience methods

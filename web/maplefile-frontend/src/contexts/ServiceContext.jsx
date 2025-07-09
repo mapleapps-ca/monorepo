@@ -1,5 +1,6 @@
 // File: monorepo/web/maplefile-frontend/src/contexts/ServiceContext.jsx
 // Updated to include DeleteFileManager and RecoveryManager and ShareCollectionManager
+// FIXED: Ensure PasswordStorageService is properly available
 import React, { createContext, useEffect } from "react";
 import AuthManager from "../services/Manager/AuthManager.js";
 import MeManager from "../services/Manager/MeManager.js";
@@ -10,7 +11,7 @@ import LocalStorageService from "../services/Storage/LocalStorageService.js";
 import ApiClient, {
   setApiClientAuthManager,
 } from "../services/API/ApiClient.js";
-import PasswordStorageService from "../services/PasswordStorageService.js";
+import passwordStorageService from "../services/PasswordStorageService.js"; // FIXED: Import the singleton instance
 import SyncCollectionAPIService from "../services/API/SyncCollectionAPIService.js";
 import SyncCollectionStorageService from "../services/Storage/SyncCollectionStorageService.js";
 import SyncCollectionManager from "../services/Manager/SyncCollectionManager.js";
@@ -112,14 +113,14 @@ export function ServiceProvider({ children }) {
   // Set AuthManager on ApiClient for event notifications
   setApiClientAuthManager(authManager);
 
-  // Create services object with all services
+  // FIXED: Create services object with passwordStorageService properly included
   const services = {
     // Core services (singletons)
     authManager: authManager, // New: AuthManager for orchestration
     authService: authManager, // Backward compatibility alias
     cryptoService: CryptoService,
     CollectionCryptoService: CollectionCryptoService, // New: Collection-specific crypto operations
-    passwordStorageService: PasswordStorageService,
+    passwordStorageService: passwordStorageService, // FIXED: Use the singleton instance
     localStorageService: LocalStorageService,
     apiClient: ApiClient,
 
@@ -167,9 +168,16 @@ export function ServiceProvider({ children }) {
         await CollectionCryptoService.initialize();
         console.log("[ServiceProvider] CollectionCryptoService initialized");
 
-        // Initialize password storage service
-        await PasswordStorageService.initialize();
-        console.log("[ServiceProvider] PasswordStorageService initialized");
+        // FIXED: Initialize password storage service
+        try {
+          await passwordStorageService.initialize();
+          console.log("[ServiceProvider] PasswordStorageService initialized");
+        } catch (error) {
+          console.warn(
+            "[ServiceProvider] PasswordStorageService initialization failed:",
+            error,
+          );
+        }
 
         // Initialize auth manager
         try {
@@ -421,6 +429,10 @@ export function ServiceProvider({ children }) {
         CollectionCryptoService.isReady(),
       );
       console.log(
+        "[ServiceProvider] PasswordStorageService ready:",
+        passwordStorageService.isInitialized,
+      );
+      console.log(
         "[ServiceProvider] AuthManager authenticated:",
         authManager.isAuthenticated(),
       );
@@ -433,6 +445,14 @@ export function ServiceProvider({ children }) {
       console.log(
         "[ServiceProvider] Services added to window.mapleAppsServices for debugging",
       );
+
+      console.log("[ServiceProvider] PasswordStorageService debug:", {
+        instance: passwordStorageService,
+        type: typeof passwordStorageService,
+        isInitialized: passwordStorageService?.isInitialized,
+        hasPassword: passwordStorageService?.hasPassword?.(),
+        storageInfo: passwordStorageService?.getStorageInfo?.(),
+      });
     }
   }, [services, authManager]);
 
