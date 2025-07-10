@@ -27,7 +27,6 @@ const UpdateCollectionManagerExample = () => {
 
   // UI state
   const [selectedCollection, setSelectedCollection] = useState(null);
-  const [eventLog, setEventLog] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
 
   // Get user info
@@ -138,14 +137,6 @@ const UpdateCollectionManagerExample = () => {
       // Reload data
       loadUpdatedCollections();
       loadUpdateHistory();
-
-      // Log the event
-      addToEventLog("collection_updated", {
-        id: collectionId,
-        operation: updateOperation,
-        updateData,
-        newVersion: result.newVersion,
-      });
     } catch (err) {
       console.error("Collection update failed:", err);
       setError(err.message);
@@ -160,7 +151,6 @@ const UpdateCollectionManagerExample = () => {
       const storedPassword = await updateCollectionManager.getUserPassword();
       if (storedPassword) {
         setPassword(storedPassword);
-        addToEventLog("password_loaded", { source: "storage" });
       } else {
         setError("No password found in storage");
       }
@@ -196,11 +186,6 @@ const UpdateCollectionManagerExample = () => {
 
       loadUpdatedCollections();
       loadUpdateHistory();
-
-      addToEventLog("collection_name_updated", {
-        id: collectionId,
-        newName: newName.trim(),
-      });
     } catch (err) {
       console.error("Collection name update failed:", err);
       setError(err.message);
@@ -234,11 +219,6 @@ const UpdateCollectionManagerExample = () => {
 
       loadUpdatedCollections();
       loadUpdateHistory();
-
-      addToEventLog("collection_type_updated", {
-        id: collectionId,
-        newType,
-      });
     } catch (err) {
       console.error("Collection type update failed:", err);
       setError(err.message);
@@ -272,10 +252,6 @@ const UpdateCollectionManagerExample = () => {
 
       loadUpdatedCollections();
       loadUpdateHistory();
-
-      addToEventLog("collection_key_rotated", {
-        id: collectionId,
-      });
     } catch (err) {
       console.error("Collection key rotation failed:", err);
       setError(err.message);
@@ -293,10 +269,6 @@ const UpdateCollectionManagerExample = () => {
         password || null,
       );
       setSelectedCollection(decrypted);
-      addToEventLog("collection_decrypted", {
-        id: collection.id,
-        name: decrypted.name,
-      });
     } catch (err) {
       console.error("Decryption failed:", err);
       setError(err.message);
@@ -322,7 +294,6 @@ const UpdateCollectionManagerExample = () => {
       }
 
       loadUpdatedCollections();
-      addToEventLog("updated_collection_removed", { id: collectionId });
     } catch (err) {
       console.error("Failed to remove updated collection:", err);
       setError(err.message);
@@ -343,7 +314,6 @@ const UpdateCollectionManagerExample = () => {
       setSelectedCollection(null);
       loadUpdatedCollections();
       loadUpdateHistory();
-      addToEventLog("all_updated_collections_cleared", {});
     } catch (err) {
       console.error("Failed to clear updated collections:", err);
       setError(err.message);
@@ -367,11 +337,6 @@ const UpdateCollectionManagerExample = () => {
         );
         if (result.collection && result.collection.version !== undefined) {
           setVersion(result.collection.version);
-          addToEventLog("current_version_retrieved", {
-            id: collectionId,
-            version: result.collection.version,
-            source: "GetCollectionManager",
-          });
           return;
         }
       }
@@ -381,11 +346,6 @@ const UpdateCollectionManagerExample = () => {
         updateCollectionManager.getUpdatedCollectionById(collectionId.trim());
       if (updatedCollection && updatedCollection.version !== undefined) {
         setVersion(updatedCollection.version);
-        addToEventLog("current_version_retrieved", {
-          id: collectionId,
-          version: updatedCollection.version,
-          source: "LocalStorage",
-        });
         return;
       }
 
@@ -398,23 +358,6 @@ const UpdateCollectionManagerExample = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Add event to log
-  const addToEventLog = (eventType, eventData) => {
-    setEventLog((prev) => [
-      ...prev,
-      {
-        timestamp: new Date().toISOString(),
-        eventType,
-        eventData,
-      },
-    ]);
-  };
-
-  // Clear event log
-  const handleClearLog = () => {
-    setEventLog([]);
   };
 
   // Clear messages
@@ -1178,147 +1121,6 @@ const UpdateCollectionManagerExample = () => {
           </pre>
         </div>
       )}
-
-      {/* Event Log */}
-      <div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "10px",
-          }}
-        >
-          <h3>📋 Collection Update Event Log ({eventLog.length})</h3>
-          <button
-            onClick={handleClearLog}
-            disabled={eventLog.length === 0}
-            style={{
-              padding: "5px 15px",
-              backgroundColor: "#6c757d",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: eventLog.length === 0 ? "not-allowed" : "pointer",
-              fontSize: "14px",
-            }}
-          >
-            Clear Log
-          </button>
-        </div>
-
-        {eventLog.length === 0 ? (
-          <div
-            style={{
-              padding: "40px",
-              textAlign: "center",
-              backgroundColor: "#f8f9fa",
-              borderRadius: "6px",
-              border: "2px dashed #dee2e6",
-            }}
-          >
-            <p style={{ fontSize: "18px", color: "#6c757d" }}>
-              No collection update events logged yet.
-            </p>
-            <p style={{ color: "#6c757d" }}>
-              Events will appear here when collections are updated, decrypted,
-              or other actions occur.
-            </p>
-          </div>
-        ) : (
-          <div
-            style={{
-              maxHeight: "300px",
-              overflow: "auto",
-              border: "1px solid #dee2e6",
-              borderRadius: "6px",
-              backgroundColor: "#f8f9fa",
-            }}
-          >
-            {eventLog
-              .slice()
-              .reverse()
-              .map((event, index) => (
-                <div
-                  key={`${event.timestamp}-${index}`}
-                  style={{
-                    padding: "10px",
-                    borderBottom:
-                      index < eventLog.length - 1
-                        ? "1px solid #dee2e6"
-                        : "none",
-                    fontFamily: "monospace",
-                    fontSize: "12px",
-                  }}
-                >
-                  <div style={{ marginBottom: "5px" }}>
-                    <strong style={{ color: "#007bff" }}>
-                      {new Date(event.timestamp).toLocaleTimeString()}
-                    </strong>
-                    {" - "}
-                    <strong style={{ color: "#28a745" }}>
-                      {event.eventType}
-                    </strong>
-                  </div>
-                  <div style={{ color: "#666", marginLeft: "20px" }}>
-                    {JSON.stringify(event.eventData, null, 2)}
-                  </div>
-                </div>
-              ))}
-          </div>
-        )}
-      </div>
-
-      {/* Quick Test Section */}
-      <div
-        style={{
-          padding: "15px",
-          backgroundColor: "#e9ecef",
-          borderRadius: "8px",
-          marginTop: "20px",
-          border: "1px solid #dee2e6",
-        }}
-      >
-        <h5 style={{ margin: "0 0 10px 0" }}>🚀 Quick Test</h5>
-        <p style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#666" }}>
-          First create a collection in the Create Collection Manager, then use
-          its ID here. Use "Get Current Version" button to automatically fetch
-          the latest version.
-          <strong>Note:</strong> The backend requires the current
-          encrypted_collection_key for all updates.
-        </p>
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <button
-            onClick={() => {
-              setCollectionId("7f558adb-57b6-11f0-8b98-c60a0c48537c");
-              setVersion(1);
-            }}
-            style={{
-              padding: "5px 10px",
-              backgroundColor: "#6c757d",
-              color: "white",
-              border: "none",
-              borderRadius: "3px",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontFamily: "monospace",
-            }}
-          >
-            Use Sample ID
-          </button>
-          <span style={{ fontSize: "12px", color: "#666" }}>
-            Click "Get Current Version" after entering a collection ID to fetch
-            the latest version automatically!
-          </span>
-        </div>
-      </div>
     </div>
   );
 };
