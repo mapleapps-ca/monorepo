@@ -2,9 +2,8 @@
 // Enhanced example component demonstrating how to use the useCollectionListing hook
 
 import React, { useState, useEffect } from "react";
-import useCollectionListing from "../../../../hooks/Collection/useCollectionListing.jsx";
-import { useCollections } from "../../../../hooks/useService.jsx";
-import useAuth from "../../../../hooks/useAuth.js";
+import { useCollections } from "../../../../services/Services";
+import { useAuth } from "../../../../services/Services";
 
 const ListCollectionManagerExample = () => {
   const { listCollectionManager } = useCollections();
@@ -45,9 +44,9 @@ const ListCollectionManagerExample = () => {
     totalRootCollections,
     getFolders,
     getAlbums,
-  } = useCollectionListing();
+  } = useCollections();
 
-  const { user, logout } = useAuth();
+  const { authManager, authService } = useAuth();
 
   // Local component state
   const [error, setError] = useState(null);

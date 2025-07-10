@@ -2,8 +2,7 @@
 // Example component demonstrating how to use the useCollectionCreation hook
 
 import React, { useState, useEffect } from "react";
-import useCollectionCreation from "../../../../hooks/Collection/useCollectionCreation.jsx";
-import useAuth from "../../../../hooks/useAuth.js";
+import { useCollections } from "../../../../services/Services";
 
 const CreateCollectionManagerExample = () => {
   const {
@@ -33,9 +32,7 @@ const CreateCollectionManagerExample = () => {
     totalCollections,
     collectionsByType,
     COLLECTION_TYPES,
-  } = useCollectionCreation();
-
-  const { user, logout } = useAuth();
+  } = useCollections();
 
   // Form state
   const [collectionName, setCollectionName] = useState("");

@@ -3,9 +3,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import useCollectionSharing from "../../../../hooks/Collection/useCollectionSharing.jsx";
-import { useCollections } from "../../../../hooks/useService.jsx";
-import useAuth from "../../../../hooks/useAuth.js";
+import { useCollections } from "../../../../services/Services";
+import { useAuth } from "../../../../services/Services";
 
 const ShareCollectionManagerExample = () => {
   const navigate = useNavigate();
@@ -43,9 +42,9 @@ const ShareCollectionManagerExample = () => {
     PERMISSION_LEVELS,
     getRecentShares,
     getCollectionMembersById,
-  } = useCollectionSharing();
+  } = useCollections();
 
-  const { user, logout } = useAuth();
+  const { authManager, authService } = useAuth();
 
   // Form state
   const [collectionId, setCollectionId] = useState("");

@@ -2,9 +2,8 @@
 // Example component demonstrating how to use the useCollectionUpdate hook
 
 import React, { useState, useEffect } from "react";
-import useCollectionUpdate from "../../../../hooks/Collection/useCollectionUpdate.jsx";
-import { useCollections } from "../../../../hooks/useService.jsx";
-import useAuth from "../../../../hooks/useAuth.js";
+import { useCollections } from "../../../../services/Services";
+import { useAuth } from "../../../../services/Services";
 
 const UpdateCollectionManagerExample = () => {
   const { getCollectionManager } = useCollections();
@@ -41,9 +40,9 @@ const UpdateCollectionManagerExample = () => {
     COLLECTION_TYPES,
     getLatestUpdateForCollection,
     getRecentUpdates,
-  } = useCollectionUpdate();
+  } = useCollections();
 
-  const { user, logout } = useAuth();
+  const { authManager, authService } = useAuth();
 
   // Form state
   const [collectionId, setCollectionId] = useState("");

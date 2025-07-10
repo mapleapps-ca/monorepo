@@ -2,9 +2,8 @@
 // Enhanced example component demonstrating how to use the useCollectionRetrieval hook
 
 import React, { useState, useEffect } from "react";
-import useCollectionRetrieval from "../../../../hooks/Collection/useCollectionRetrieval.jsx";
-import { useCollections } from "../../../../hooks/useService.jsx";
-import useAuth from "../../../../hooks/useAuth.js";
+import { useCollections } from "../../../../services/Services";
+import { useAuth } from "../../../../services/Services";
 
 const GetCollectionManagerExample = () => {
   const { getCollectionManager } = useCollections();
@@ -40,9 +39,9 @@ const GetCollectionManagerExample = () => {
     totalCachedCollections,
     isCached,
     isExpired,
-  } = useCollectionRetrieval();
+  } = useCollections();
 
-  const { user, logout } = useAuth();
+  const { authManager, authService } = useAuth();
 
   // Local component state
   const [error, setError] = useState(null);

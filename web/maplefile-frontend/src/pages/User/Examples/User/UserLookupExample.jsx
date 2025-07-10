@@ -2,7 +2,7 @@
 // Simplified example component demonstrating user lookup functionality
 
 import React, { useState } from "react";
-import useUserLookup from "../../../../hooks/User/useUserLookup.jsx";
+import { useUsers } from "../../../../services/Services";
 
 const UserLookupExample = () => {
   const {
@@ -21,7 +21,7 @@ const UserLookupExample = () => {
     validateEmail,
     sanitizeEmail,
     isAvailable,
-  } = useUserLookup();
+  } = useUsers();
 
   // Form state
   const [email, setEmail] = useState("");
