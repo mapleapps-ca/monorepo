@@ -4,52 +4,116 @@ import { useServices } from "../../../services/Services";
 
 const SyncCollectionManagerExample = () => {
   const { syncCollectionManager } = useServices();
-  const {
-    syncCollections,
-    loading,
-    error,
-    getSyncCollections,
-    refreshSyncCollections,
-    clearSyncCollections,
-    statistics,
-    managerStatus,
-    debugInfo,
-  } = syncCollectionManager();
+
+  // Local state management
+  const [syncCollections, setSyncCollections] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [statistics, setStatistics] = useState({});
+  const [managerStatus, setManagerStatus] = useState({});
+  const [debugInfo, setDebugInfo] = useState({});
 
   const [directSyncCollections, setDirectSyncCollections] = useState([]);
   const [directLoading, setDirectLoading] = useState(false);
   const [directError, setDirectError] = useState(null);
 
+  // Helper functions to update state
+  const updateStatistics = () => {
+    if (
+      syncCollectionManager &&
+      typeof syncCollectionManager.getStatistics === "function"
+    ) {
+      setStatistics(syncCollectionManager.getStatistics());
+    }
+  };
+
+  const updateManagerStatus = () => {
+    if (
+      syncCollectionManager &&
+      typeof syncCollectionManager.getManagerStatus === "function"
+    ) {
+      setManagerStatus(syncCollectionManager.getManagerStatus());
+    }
+  };
+
+  const updateDebugInfo = () => {
+    if (
+      syncCollectionManager &&
+      typeof syncCollectionManager.getDebugInfo === "function"
+    ) {
+      setDebugInfo(syncCollectionManager.getDebugInfo());
+    }
+  };
+
+  // Hook-based approach methods
+  const getSyncCollections = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const collections = await syncCollectionManager.getSyncCollections();
+      setSyncCollections(collections || []);
+      updateStatistics();
+      updateManagerStatus();
+      updateDebugInfo();
+      console.log("Loaded sync collections via hook");
+    } catch (err) {
+      setError(err.message || "Failed to load sync collections");
+      console.error("Failed to load sync collections via hook:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshSyncCollections = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const collections =
+        await syncCollectionManager.forceRefreshSyncCollections();
+      setSyncCollections(collections || []);
+      updateStatistics();
+      updateManagerStatus();
+      updateDebugInfo();
+      console.log("Refreshed sync collections via hook");
+    } catch (err) {
+      setError(err.message || "Failed to refresh sync collections");
+      console.error("Failed to refresh sync collections via hook:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearSyncCollections = () => {
+    try {
+      syncCollectionManager.clearSyncCollections();
+      setSyncCollections([]);
+      updateStatistics();
+      updateManagerStatus();
+      updateDebugInfo();
+      console.log("Cleared sync collections via hook");
+    } catch (err) {
+      setError(err.message || "Failed to clear sync collections");
+      console.error("Failed to clear sync collections via hook:", err);
+    }
+  };
+
   useEffect(() => {
-    loadSyncCollectionsViaHook();
-  }, []);
+    if (syncCollectionManager) {
+      loadSyncCollectionsViaHook();
+    }
+  }, [syncCollectionManager]);
 
   // Using the hook (recommended approach)
   const loadSyncCollectionsViaHook = async () => {
-    try {
-      await getSyncCollections();
-      console.log("Loaded sync collections via hook");
-    } catch (error) {
-      console.error("Failed to load sync collections via hook:", error);
-    }
+    await getSyncCollections();
   };
 
   const refreshViaHook = async () => {
-    try {
-      await refreshSyncCollections();
-      console.log("Refreshed sync collections via hook");
-    } catch (error) {
-      console.error("Failed to refresh sync collections via hook:", error);
-    }
+    await refreshSyncCollections();
   };
 
   const clearViaHook = () => {
-    try {
-      clearSyncCollections();
-      console.log("Cleared sync collections via hook");
-    } catch (error) {
-      console.error("Failed to clear sync collections via hook:", error);
-    }
+    clearSyncCollections();
   };
 
   // Using direct service access (alternative approach)
@@ -58,7 +122,7 @@ const SyncCollectionManagerExample = () => {
       setDirectLoading(true);
       setDirectError(null);
       const collections = await syncCollectionManager.getSyncCollections();
-      setDirectSyncCollections(collections);
+      setDirectSyncCollections(collections || []);
       console.log("Loaded sync collections directly:", collections);
     } catch (error) {
       setDirectError(error.message || "Failed to load sync collections");
@@ -74,7 +138,7 @@ const SyncCollectionManagerExample = () => {
       setDirectError(null);
       const collections =
         await syncCollectionManager.forceRefreshSyncCollections();
-      setDirectSyncCollections(collections);
+      setDirectSyncCollections(collections || []);
       console.log("Refreshed sync collections directly:", collections);
     } catch (error) {
       setDirectError(error.message || "Failed to refresh sync collections");
@@ -87,7 +151,7 @@ const SyncCollectionManagerExample = () => {
   const clearDirectly = () => {
     try {
       const success = syncCollectionManager.clearSyncCollections();
-      if (success) {
+      if (success !== false) {
         setDirectSyncCollections([]);
         console.log("Cleared sync collections directly");
       }
@@ -97,7 +161,7 @@ const SyncCollectionManagerExample = () => {
     }
   };
 
-  if (loading) {
+  if (loading && syncCollections.length === 0) {
     return (
       <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
         <h2>🔄 Sync Collection Manager Example</h2>
@@ -111,7 +175,8 @@ const SyncCollectionManagerExample = () => {
       <h2>🔄 Sync Collection Manager Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates the new <strong>SyncCollectionManager</strong>{" "}
-        with both hook-based and direct service access patterns.
+        with both hook-based and direct service access patterns using the
+        unified service architecture.
       </p>
 
       {/* Manager Status */}
@@ -133,12 +198,15 @@ const SyncCollectionManagerExample = () => {
           }}
         >
           <div>
+            <strong>Service Available:</strong>{" "}
+            {syncCollectionManager ? "✅ Yes" : "❌ No"}
+          </div>
+          <div>
             <strong>Authenticated:</strong>{" "}
             {managerStatus?.isAuthenticated ? "✅ Yes" : "❌ No"}
           </div>
           <div>
-            <strong>Manager Loading:</strong>{" "}
-            {managerStatus?.isLoading ? "🔄 Yes" : "✅ No"}
+            <strong>Manager Loading:</strong> {loading ? "🔄 Yes" : "✅ No"}
           </div>
           <div>
             <strong>API Loading:</strong>{" "}
@@ -203,14 +271,16 @@ const SyncCollectionManagerExample = () => {
         >
           <button
             onClick={loadSyncCollectionsViaHook}
-            disabled={loading}
+            disabled={loading || !syncCollectionManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#28a745",
+              backgroundColor:
+                loading || !syncCollectionManager ? "#6c757d" : "#28a745",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor:
+                loading || !syncCollectionManager ? "not-allowed" : "pointer",
             }}
           >
             {loading ? "🔄 Loading..." : "📂 Load via Hook"}
@@ -218,14 +288,16 @@ const SyncCollectionManagerExample = () => {
 
           <button
             onClick={refreshViaHook}
-            disabled={loading}
+            disabled={loading || !syncCollectionManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#17a2b8",
+              backgroundColor:
+                loading || !syncCollectionManager ? "#6c757d" : "#17a2b8",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor:
+                loading || !syncCollectionManager ? "not-allowed" : "pointer",
             }}
           >
             {loading ? "🔄 Refreshing..." : "🔄 Refresh via Hook"}
@@ -233,14 +305,16 @@ const SyncCollectionManagerExample = () => {
 
           <button
             onClick={clearViaHook}
-            disabled={loading}
+            disabled={loading || !syncCollectionManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#dc3545",
+              backgroundColor:
+                loading || !syncCollectionManager ? "#6c757d" : "#dc3545",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor:
+                loading || !syncCollectionManager ? "not-allowed" : "pointer",
             }}
           >
             🗑️ Clear via Hook
@@ -277,6 +351,9 @@ const SyncCollectionManagerExample = () => {
             >
               <p style={{ fontSize: "18px", color: "#6c757d" }}>
                 No sync collections loaded via hook.
+              </p>
+              <p style={{ color: "#6c757d" }}>
+                Click "Load via Hook" to fetch collections.
               </p>
             </div>
           ) : (
@@ -352,14 +429,18 @@ const SyncCollectionManagerExample = () => {
         >
           <button
             onClick={loadSyncCollectionsDirectly}
-            disabled={directLoading}
+            disabled={directLoading || !syncCollectionManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#6f42c1",
+              backgroundColor:
+                directLoading || !syncCollectionManager ? "#6c757d" : "#6f42c1",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: directLoading ? "not-allowed" : "pointer",
+              cursor:
+                directLoading || !syncCollectionManager
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
             {directLoading ? "🔄 Loading..." : "📂 Load Directly"}
@@ -367,14 +448,18 @@ const SyncCollectionManagerExample = () => {
 
           <button
             onClick={refreshDirectly}
-            disabled={directLoading}
+            disabled={directLoading || !syncCollectionManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#fd7e14",
+              backgroundColor:
+                directLoading || !syncCollectionManager ? "#6c757d" : "#fd7e14",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: directLoading ? "not-allowed" : "pointer",
+              cursor:
+                directLoading || !syncCollectionManager
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
             {directLoading ? "🔄 Refreshing..." : "🔄 Refresh Directly"}
@@ -382,14 +467,18 @@ const SyncCollectionManagerExample = () => {
 
           <button
             onClick={clearDirectly}
-            disabled={directLoading}
+            disabled={directLoading || !syncCollectionManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#6c757d",
+              backgroundColor:
+                directLoading || !syncCollectionManager ? "#6c757d" : "#6c757d",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: directLoading ? "not-allowed" : "pointer",
+              cursor:
+                directLoading || !syncCollectionManager
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
             🗑️ Clear Directly
@@ -429,6 +518,9 @@ const SyncCollectionManagerExample = () => {
             >
               <p style={{ fontSize: "18px", color: "#6c757d" }}>
                 No sync collections loaded directly.
+              </p>
+              <p style={{ color: "#6c757d" }}>
+                Click "Load Directly" to fetch collections.
               </p>
             </div>
           ) : (
