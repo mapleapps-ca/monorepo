@@ -1,38 +1,12 @@
-// File: monorepo/web/maplefile-frontend/src/pages/User/Collection/Examples/CreateCollectionManagerExample.jsx
-// Example component demonstrating how to use the useCollectionCreation hook
+// File: monorepo/web/maplefile-frontend/src/pages/User/Examples/Collection/CreateCollectionManagerExample.jsx
+// Fixed example component demonstrating how to use the collection creation services
 
 import React, { useState, useEffect } from "react";
 import { useCollections, useAuth } from "../../../../services/Services";
 
 const CreateCollectionManagerExample = () => {
-  const {
-    // State
-    isLoading,
-    error,
-    success,
-    collections,
-    managerStatus,
-
-    // Operations
-    createCollection,
-    createFolder,
-    createAlbum,
-    decryptCollection,
-    removeCollection,
-    clearAllCollections,
-
-    // Utilities
-    searchCollections,
-    getUserPassword,
-    clearMessages,
-
-    // Status
-    isAuthenticated,
-    canCreateCollections,
-    totalCollections,
-    collectionsByType,
-  } = useCollections();
-
+  // Get service managers
+  const { createCollectionManager } = useCollections();
   const { authManager } = useAuth();
 
   // Create user object from authManager
@@ -40,6 +14,13 @@ const CreateCollectionManagerExample = () => {
     email: authManager?.getCurrentUserEmail?.() || null,
     isAuthenticated: authManager?.isAuthenticated?.() || false,
   };
+
+  // Component state
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [collections, setCollections] = useState([]);
+  const [managerStatus, setManagerStatus] = useState({});
 
   // Form state
   const [collectionName, setCollectionName] = useState("");
@@ -51,15 +32,51 @@ const CreateCollectionManagerExample = () => {
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [eventLog, setEventLog] = useState([]);
 
+  // Computed values
+  const isAuthenticated = user.isAuthenticated;
+  const canCreateCollections = isAuthenticated && !isLoading;
+  const totalCollections = collections.length;
+  const collectionsByType = collections.reduce((acc, col) => {
+    const type = col.collection_type || "unknown";
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Load collections and manager status
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        if (createCollectionManager) {
+          // Load created collections
+          const createdCollections =
+            createCollectionManager.getCreatedCollections();
+          setCollections(createdCollections);
+
+          // Get manager status
+          const status = createCollectionManager.getManagerStatus();
+          setManagerStatus(status);
+        }
+      } catch (err) {
+        console.error("Failed to load collection data:", err);
+      }
+    };
+
+    loadData();
+  }, [createCollectionManager, isAuthenticated]);
+
   // Handle collection creation
   const handleCreateCollection = async () => {
     if (!collectionName.trim()) {
-      alert("Collection name is required");
+      setError("Collection name is required");
       return;
     }
 
     try {
-      await createCollection(
+      setIsLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      const result = await createCollectionManager.createCollection(
         {
           name: collectionName.trim(),
           collection_type: collectionType,
@@ -67,25 +84,133 @@ const CreateCollectionManagerExample = () => {
         password || null,
       );
 
-      // Clear form
-      setCollectionName("");
-      setPassword("");
+      if (result.success) {
+        setSuccess(`Collection "${collectionName}" created successfully!`);
 
-      // Log the event
-      addToEventLog("collection_created", {
-        name: collectionName,
-        type: collectionType,
-      });
+        // Refresh collections list
+        const updatedCollections =
+          createCollectionManager.getCreatedCollections();
+        setCollections(updatedCollections);
+
+        // Clear form
+        setCollectionName("");
+        setPassword("");
+
+        // Log the event
+        addToEventLog("collection_created", {
+          name: collectionName,
+          type: collectionType,
+          id: result.collectionId,
+        });
+      }
     } catch (err) {
       console.error("Collection creation failed:", err);
-      // Error is handled by the hook
+      setError(err.message || "Failed to create collection");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle quick folder creation
+  const handleCreateFolder = async () => {
+    if (!collectionName.trim()) {
+      setError("Collection name is required");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      const result = await createCollectionManager.createCollection(
+        {
+          name: collectionName.trim(),
+          collection_type: "folder",
+        },
+        password || null,
+      );
+
+      if (result.success) {
+        setSuccess(`Folder "${collectionName}" created successfully!`);
+
+        // Refresh collections list
+        const updatedCollections =
+          createCollectionManager.getCreatedCollections();
+        setCollections(updatedCollections);
+
+        // Clear form
+        setCollectionName("");
+        setPassword("");
+
+        // Log the event
+        addToEventLog("folder_created", {
+          name: collectionName,
+          id: result.collectionId,
+        });
+      }
+    } catch (err) {
+      console.error("Folder creation failed:", err);
+      setError(err.message || "Failed to create folder");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle quick album creation
+  const handleCreateAlbum = async () => {
+    if (!collectionName.trim()) {
+      setError("Collection name is required");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      const result = await createCollectionManager.createCollection(
+        {
+          name: collectionName.trim(),
+          collection_type: "album",
+        },
+        password || null,
+      );
+
+      if (result.success) {
+        setSuccess(`Album "${collectionName}" created successfully!`);
+
+        // Refresh collections list
+        const updatedCollections =
+          createCollectionManager.getCreatedCollections();
+        setCollections(updatedCollections);
+
+        // Clear form
+        setCollectionName("");
+        setPassword("");
+
+        // Log the event
+        addToEventLog("album_created", {
+          name: collectionName,
+          id: result.collectionId,
+        });
+      }
+    } catch (err) {
+      console.error("Album creation failed:", err);
+      setError(err.message || "Failed to create album");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Handle collection decryption
   const handleDecryptCollection = async (collection) => {
     try {
-      const decrypted = await decryptCollection(collection, password || null);
+      setIsLoading(true);
+      const decrypted = await createCollectionManager.decryptCollection(
+        collection,
+        password || null,
+      );
       setSelectedCollection(decrypted);
       addToEventLog("collection_decrypted", {
         id: collection.id,
@@ -93,7 +218,9 @@ const CreateCollectionManagerExample = () => {
       });
     } catch (err) {
       console.error("Decryption failed:", err);
-      // Error is handled by the hook
+      setError(err.message || "Failed to decrypt collection");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -102,15 +229,22 @@ const CreateCollectionManagerExample = () => {
     if (!confirm("Are you sure you want to remove this collection?")) return;
 
     try {
-      await removeCollection(collectionId);
+      await createCollectionManager.removeCollection(collectionId);
+
+      // Refresh collections list
+      const updatedCollections =
+        createCollectionManager.getCreatedCollections();
+      setCollections(updatedCollections);
 
       if (selectedCollection && selectedCollection.id === collectionId) {
         setSelectedCollection(null);
       }
 
       addToEventLog("collection_removed", { id: collectionId });
+      setSuccess("Collection removed successfully");
     } catch (err) {
       console.error("Failed to remove collection:", err);
+      setError(err.message || "Failed to remove collection");
     }
   };
 
@@ -124,27 +258,35 @@ const CreateCollectionManagerExample = () => {
       return;
 
     try {
-      await clearAllCollections();
+      await createCollectionManager.clearAllCollections();
+      setCollections([]);
       setSelectedCollection(null);
       addToEventLog("all_collections_cleared", {});
+      setSuccess("All collections cleared successfully");
     } catch (err) {
       console.error("Failed to clear collections:", err);
+      setError(err.message || "Failed to clear collections");
     }
   };
 
   // Get password from storage
   const handleGetStoredPassword = async () => {
     try {
-      const storedPassword = await getUserPassword();
+      const storedPassword = await createCollectionManager.getUserPassword();
       if (storedPassword) {
         setPassword(storedPassword);
         addToEventLog("password_loaded", { source: "storage" });
       } else {
-        alert("No password found in storage");
+        setError("No password found in storage");
       }
     } catch (err) {
-      alert(`Failed to get stored password: ${err.message}`);
+      setError(`Failed to get stored password: ${err.message}`);
     }
+  };
+
+  // Search collections
+  const searchCollections = (searchTerm) => {
+    return createCollectionManager.searchCollections(searchTerm);
   };
 
   // Add event to log
@@ -164,10 +306,16 @@ const CreateCollectionManagerExample = () => {
     setEventLog([]);
   };
 
+  // Clear messages
+  const clearMessages = () => {
+    setError(null);
+    setSuccess(null);
+  };
+
   // Search collections
   const filteredCollections = searchTerm
     ? searchCollections(searchTerm)
-    : collections || [];
+    : collections;
 
   // Auto-clear messages after 5 seconds
   useEffect(() => {
@@ -178,14 +326,14 @@ const CreateCollectionManagerExample = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [success, error, clearMessages]);
+  }, [success, error]);
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
       <h2>📁 Create Collection Manager Example (with Hooks)</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
-        This page demonstrates the <strong>useCollectionCreation</strong> hook
-        with E2EE encryption for collection creation.
+        This page demonstrates the <strong>createCollectionManager</strong>{" "}
+        service with E2EE encryption for collection creation.
       </p>
 
       {/* Manager Status */}
@@ -225,11 +373,18 @@ const CreateCollectionManagerExample = () => {
           </div>
           <div>
             <strong>By Type:</strong>{" "}
-            {Object.entries(collectionsByType || {})
+            {Object.entries(collectionsByType)
               .map(([type, count]) => `${type}: ${count}`)
               .join(", ") || "None"}
           </div>
         </div>
+        {import.meta.env.DEV && (
+          <div style={{ marginTop: "10px", fontSize: "12px", color: "#666" }}>
+            <strong>Debug Info:</strong> AuthManager available:{" "}
+            {authManager ? "✅" : "❌"}, CreateCollectionManager available:{" "}
+            {createCollectionManager ? "✅" : "❌"}
+          </div>
+        )}
       </div>
 
       {/* Create Collection Form */}
@@ -361,9 +516,7 @@ const CreateCollectionManagerExample = () => {
             </button>
 
             <button
-              onClick={() =>
-                createFolder(collectionName.trim(), password || null)
-              }
+              onClick={handleCreateFolder}
               disabled={isLoading || !collectionName.trim() || !isAuthenticated}
               style={{
                 padding: "12px 20px",
@@ -385,9 +538,7 @@ const CreateCollectionManagerExample = () => {
             </button>
 
             <button
-              onClick={() =>
-                createAlbum(collectionName.trim(), password || null)
-              }
+              onClick={handleCreateAlbum}
               disabled={isLoading || !collectionName.trim() || !isAuthenticated}
               style={{
                 padding: "12px 20px",
@@ -506,7 +657,7 @@ const CreateCollectionManagerExample = () => {
                 fontSize: "14px",
               }}
             />
-            {(collections || []).length > 0 && (
+            {collections.length > 0 && (
               <button
                 onClick={handleClearAllCollections}
                 style={{
@@ -535,12 +686,12 @@ const CreateCollectionManagerExample = () => {
             }}
           >
             <p style={{ fontSize: "18px", color: "#6c757d" }}>
-              {(collections || []).length === 0
+              {collections.length === 0
                 ? "No collections created yet."
                 : "No collections match your search."}
             </p>
             <p style={{ color: "#6c757d" }}>
-              {(collections || []).length === 0
+              {collections.length === 0
                 ? "Create your first collection using the form above."
                 : "Try a different search term."}
             </p>
