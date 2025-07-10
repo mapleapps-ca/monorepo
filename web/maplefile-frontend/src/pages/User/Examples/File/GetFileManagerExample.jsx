@@ -3,12 +3,19 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useFiles } from "../../../../services/Services";
+import {
+  useFiles,
+  useAuth,
+  useCollections,
+} from "../../../../services/Services";
 
 const GetFileManagerExample = () => {
   const navigate = useNavigate();
-  const { authService, getCollectionManager, listCollectionManager } =
-    useFiles();
+
+  // Get services from correct hooks
+  const { getFileManager: fileManagerService } = useFiles();
+  const { authService } = useAuth();
+  const { getCollectionManager, listCollectionManager } = useCollections();
 
   // State management
   const [fileManager, setFileManager] = useState(null);
