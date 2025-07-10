@@ -1,14 +1,14 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/File/DeleteFileManagerExample.jsx
 // Example component demonstrating how to use the DeleteFileManager
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useServices } from "../../../../hooks/useService.jsx";
+import { useFiles } from "../../../../services/Services";
 
 const DeleteFileManagerExample = () => {
   const navigate = useNavigate();
   const { authService, getCollectionManager, listCollectionManager } =
-    useServices();
+    useFiles();
 
   // State management
   const [fileManager, setFileManager] = useState(null);
@@ -38,10 +38,161 @@ const DeleteFileManagerExample = () => {
     extendingTombstone: false,
   });
 
+  // Add event to log
+  const addToEventLog = useCallback((eventType, eventData) => {
+    setEventLog((prev) => [
+      ...prev,
+      {
+        timestamp: new Date().toISOString(),
+        eventType,
+        eventData,
+      },
+    ]);
+  }, []);
+
+  // Handle file events
+  const handleFileEvent = useCallback(
+    (eventType, eventData) => {
+      console.log("[Example] File event:", eventType, eventData);
+      addToEventLog(eventType, eventData);
+    },
+    [addToEventLog],
+  );
+
+  // Load available files from collections
+  const loadAvailableFiles = useCallback(
+    async (manager = fileManager) => {
+      setIsLoadingFiles(true);
+      try {
+        console.log("[Example] Loading available files for testing...");
+        console.log("[Example] Using manager:", !!manager);
+
+        // Get collections first
+        const result = await listCollectionManager.listCollections(false);
+
+        if (result.collections && result.collections.length > 0) {
+          // Load files from the first few collections
+          const filesToLoad = [];
+
+          for (let i = 0; i < Math.min(3, result.collections.length); i++) {
+            const collection = result.collections[i];
+            try {
+              // Use the ListFileManager to get files for this collection
+              const { default: ListFileManager } = await import(
+                "../../../../services/Manager/File/ListFileManager.js"
+              );
+
+              const listManager = new ListFileManager(
+                authService,
+                getCollectionManager,
+                listCollectionManager,
+              );
+              await listManager.initialize();
+
+              const files = await listManager.listFilesByCollection(
+                collection.id,
+                ["active", "archived", "deleted"], // Include all relevant states
+                false,
+              );
+
+              files.forEach((file) => {
+                // Normalize file to ensure computed properties exist
+                const normalizedFile = manager
+                  ? manager.fileCryptoService?.normalizeFile(file) || file
+                  : file;
+
+                // Simple, direct capability checking
+                const canDelete =
+                  normalizedFile.state === "active" ||
+                  normalizedFile.state === "archived";
+                const canRestore = normalizedFile.state === "deleted";
+                const canArchive = normalizedFile.state === "active";
+                const canUnarchive = normalizedFile.state === "archived";
+                const canPermanentlyDelete = false; // Only for expired tombstones
+
+                console.log(`[Example] File ${file.id} capabilities:`, {
+                  canDelete,
+                  canRestore,
+                  canArchive,
+                  canUnarchive,
+                  canPermanentlyDelete,
+                  state: normalizedFile.state,
+                });
+
+                filesToLoad.push({
+                  id: normalizedFile.id,
+                  name: normalizedFile.name || "[Encrypted]",
+                  collectionName: collection.name || "[Encrypted]",
+                  state: normalizedFile.state,
+                  version: normalizedFile.version,
+                  canDelete,
+                  canRestore,
+                  canArchive,
+                  canUnarchive,
+                  canPermanentlyDelete,
+                  hasTombstone:
+                    normalizedFile._has_tombstone ||
+                    normalizedFile.tombstone_version > 0,
+                  tombstoneExpiry: normalizedFile.tombstone_expiry,
+                  // Add computed properties for debugging
+                  _is_active:
+                    normalizedFile._is_active ||
+                    normalizedFile.state === "active",
+                  _is_archived:
+                    normalizedFile._is_archived ||
+                    normalizedFile.state === "archived",
+                  _is_deleted:
+                    normalizedFile._is_deleted ||
+                    normalizedFile.state === "deleted",
+                  _has_tombstone:
+                    normalizedFile._has_tombstone ||
+                    normalizedFile.tombstone_version > 0,
+                  _tombstone_expired:
+                    normalizedFile._tombstone_expired || false,
+                });
+              });
+            } catch (fileError) {
+              console.warn(
+                `[Example] Failed to load files from collection ${collection.id}:`,
+                fileError,
+              );
+            }
+          }
+
+          setAvailableFiles(filesToLoad.slice(0, 15)); // Limit to first 15 files
+          console.log("[Example] Available files loaded:", filesToLoad.length);
+          console.log("[Example] Sample file capabilities:", filesToLoad[0]);
+          console.log("[Example] DeleteFileManager ready:", !!manager);
+          console.log(
+            "[Example] DeleteFileManager has crypto service:",
+            !!manager?.fileCryptoService,
+          );
+        } else {
+          console.log("[Example] No collections found");
+          setError(
+            "No collections found. Please create collections and files first.",
+          );
+        }
+      } catch (err) {
+        console.error("[Example] Failed to load available files:", err);
+        setError(`Failed to load available files: ${err.message}`);
+      } finally {
+        setIsLoadingFiles(false);
+      }
+    },
+    [
+      authService,
+      fileManager,
+      getCollectionManager,
+      listCollectionManager,
+      setError,
+    ],
+  );
+
   // Initialize delete file manager
   useEffect(() => {
     const initializeManager = async () => {
-      if (!authService.isAuthenticated()) return;
+      if (!authService || !authService.isAuthenticated()) return;
 
       try {
         const { default: DeleteFileManager } = await import(
@@ -89,14 +240,30 @@ const DeleteFileManagerExample = () => {
         fileManager.removeFileDeletionListener(handleFileEvent);
       }
     };
-  }, [authService, getCollectionManager, listCollectionManager]);
+  }, [
+    authService,
+    getCollectionManager,
+    listCollectionManager,
+    handleFileEvent,
+    loadAvailableFiles,
+    fileManager,
+  ]);
+
+  // Load manager status
+  const loadManagerStatus = useCallback(() => {
+    if (!fileManager) return;
+
+    const status = fileManager.getManagerStatus();
+    setManagerStatus(status);
+    console.log("[Example] Manager status:", status);
+  }, [fileManager]);
 
   // Load manager status when manager is ready
   useEffect(() => {
     if (fileManager) {
       loadManagerStatus();
     }
-  }, [fileManager]);
+  }, [fileManager, loadManagerStatus]);
 
   // Load some available files for testing - this will be called from the initialization effect
   // We keep this effect as a fallback in case the manager becomes ready later
@@ -107,142 +274,12 @@ const DeleteFileManagerExample = () => {
       );
       loadAvailableFiles();
     }
-  }, [fileManager, listCollectionManager]);
-
-  // Load available files from collections
-  const loadAvailableFiles = async (manager = fileManager) => {
-    setIsLoadingFiles(true);
-    try {
-      console.log("[Example] Loading available files for testing...");
-      console.log("[Example] Using manager:", !!manager);
-
-      // Get collections first
-      const result = await listCollectionManager.listCollections(false);
-
-      if (result.collections && result.collections.length > 0) {
-        // Load files from the first few collections
-        const filesToLoad = [];
-
-        for (let i = 0; i < Math.min(3, result.collections.length); i++) {
-          const collection = result.collections[i];
-          try {
-            // Use the ListFileManager to get files for this collection
-            const { default: ListFileManager } = await import(
-              "../../../../services/Manager/File/ListFileManager.js"
-            );
-
-            const listManager = new ListFileManager(
-              authService,
-              getCollectionManager,
-              listCollectionManager,
-            );
-            await listManager.initialize();
-
-            const files = await listManager.listFilesByCollection(
-              collection.id,
-              ["active", "archived", "deleted"], // Include all relevant states
-              false,
-            );
-
-            files.forEach((file) => {
-              // Normalize file to ensure computed properties exist
-              const normalizedFile = manager
-                ? manager.fileCryptoService?.normalizeFile(file) || file
-                : file;
-
-              // Simple, direct capability checking
-              const canDelete =
-                normalizedFile.state === "active" ||
-                normalizedFile.state === "archived";
-              const canRestore = normalizedFile.state === "deleted";
-              const canArchive = normalizedFile.state === "active";
-              const canUnarchive = normalizedFile.state === "archived";
-              const canPermanentlyDelete = false; // Only for expired tombstones
-
-              console.log(`[Example] File ${file.id} capabilities:`, {
-                canDelete,
-                canRestore,
-                canArchive,
-                canUnarchive,
-                canPermanentlyDelete,
-                state: normalizedFile.state,
-              });
-
-              filesToLoad.push({
-                id: normalizedFile.id,
-                name: normalizedFile.name || "[Encrypted]",
-                collectionName: collection.name || "[Encrypted]",
-                state: normalizedFile.state,
-                version: normalizedFile.version,
-                canDelete,
-                canRestore,
-                canArchive,
-                canUnarchive,
-                canPermanentlyDelete,
-                hasTombstone:
-                  normalizedFile._has_tombstone ||
-                  normalizedFile.tombstone_version > 0,
-                tombstoneExpiry: normalizedFile.tombstone_expiry,
-                // Add computed properties for debugging
-                _is_active:
-                  normalizedFile._is_active ||
-                  normalizedFile.state === "active",
-                _is_archived:
-                  normalizedFile._is_archived ||
-                  normalizedFile.state === "archived",
-                _is_deleted:
-                  normalizedFile._is_deleted ||
-                  normalizedFile.state === "deleted",
-                _has_tombstone:
-                  normalizedFile._has_tombstone ||
-                  normalizedFile.tombstone_version > 0,
-                _tombstone_expired: normalizedFile._tombstone_expired || false,
-              });
-            });
-          } catch (fileError) {
-            console.warn(
-              `[Example] Failed to load files from collection ${collection.id}:`,
-              fileError,
-            );
-          }
-        }
-
-        setAvailableFiles(filesToLoad.slice(0, 15)); // Limit to first 15 files
-        console.log("[Example] Available files loaded:", filesToLoad.length);
-        console.log("[Example] Sample file capabilities:", filesToLoad[0]);
-        console.log("[Example] DeleteFileManager ready:", !!manager);
-        console.log(
-          "[Example] DeleteFileManager has crypto service:",
-          !!manager?.fileCryptoService,
-        );
-      } else {
-        console.log("[Example] No collections found");
-        setError(
-          "No collections found. Please create collections and files first.",
-        );
-      }
-    } catch (err) {
-      console.error("[Example] Failed to load available files:", err);
-      setError(`Failed to load available files: ${err.message}`);
-    } finally {
-      setIsLoadingFiles(false);
-    }
-  };
-
-  // Handle file events
-  const handleFileEvent = useCallback((eventType, eventData) => {
-    console.log("[Example] File event:", eventType, eventData);
-    addToEventLog(eventType, eventData);
-  }, []);
-
-  // Load manager status
-  const loadManagerStatus = useCallback(() => {
-    if (!fileManager) return;
-
-    const status = fileManager.getManagerStatus();
-    setManagerStatus(status);
-    console.log("[Example] Manager status:", status);
-  }, [fileManager]);
+  }, [
+    fileManager,
+    listCollectionManager,
+    availableFiles.length,
+    loadAvailableFiles,
+  ]);
 
   // Soft delete file
   const handleDeleteFile = async (forceRefresh = false) => {
@@ -450,10 +487,7 @@ const DeleteFileManagerExample = () => {
     try {
       console.log("[Example] Permanently deleting file:", selectedFileId);
 
-      const result = await fileManager.permanentlyDeleteFile(
-        selectedFileId,
-        reason || null,
-      );
+      await fileManager.permanentlyDeleteFile(selectedFileId, reason || null);
 
       setDeletionResult(null);
       setSuccess(`File permanently deleted: ${selectedFileId}`);
@@ -648,18 +682,6 @@ const DeleteFileManagerExample = () => {
     }
   };
 
-  // Add event to log
-  const addToEventLog = (eventType, eventData) => {
-    setEventLog((prev) => [
-      ...prev,
-      {
-        timestamp: new Date().toISOString(),
-        eventType,
-        eventData,
-      },
-    ]);
-  };
-
   // Clear event log
   const handleClearLog = () => {
     setEventLog([]);
@@ -679,7 +701,7 @@ const DeleteFileManagerExample = () => {
 
   const fileCapabilities = getFileCapabilities();
 
-  if (!authService.isAuthenticated()) {
+  if (!authService || !authService.isAuthenticated()) {
     return (
       <div style={{ padding: "20px", textAlign: "center" }}>
         <p>Please log in to access this example.</p>

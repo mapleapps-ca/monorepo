@@ -6,8 +6,8 @@ import { useCollections } from "../../../../services/Services";
 import { useAuth } from "../../../../services/Services";
 
 const ListCollectionManagerExample = () => {
-  const { listCollectionManager } = useCollections();
   const {
+    listCollectionManager,
     // State
     isLoading,
     error: hookError,
@@ -25,14 +25,11 @@ const ListCollectionManagerExample = () => {
     listCollectionsByParent,
 
     // Cache operations
-    getCachedCollections,
-    getCachedFilteredCollections,
     clearAllCache,
     clearSpecificCache,
 
     // Utilities
     searchCollections,
-    filterCollectionsByType,
     getUserPassword,
     clearMessages,
 
@@ -42,11 +39,9 @@ const ListCollectionManagerExample = () => {
     totalCollections,
     totalFilteredCollections,
     totalRootCollections,
-    getFolders,
-    getAlbums,
   } = useCollections();
 
-  const { authManager, authService } = useAuth();
+  const { user } = useAuth();
 
   // Local component state
   const [error, setError] = useState(null);
@@ -231,18 +226,36 @@ const ListCollectionManagerExample = () => {
     }));
   };
 
+  // This function seems to be missing from the useCollections hook, so we define it locally.
+  const filterCollectionsByType = (collectionsList, type) => {
+    if (!Array.isArray(collectionsList)) return [];
+    return collectionsList.filter(
+      (collection) => collection.collection_type === type,
+    );
+  };
+
+  // Ensure collections is an array for safe operations
+  const safeCollections = collections || [];
+
   // Search filtered collections
   const searchResults = searchTerm
-    ? searchCollections(searchTerm, collections)
-    : collections;
+    ? searchCollections(searchTerm, safeCollections)
+    : safeCollections;
 
   // Filter results by type
-  const folders = getFolders();
-  const albums = getAlbums();
+  const folders = filterCollectionsByType(safeCollections, "folder");
+  const albums = filterCollectionsByType(safeCollections, "album");
 
   // Get cached data
-  const cachedData = getCachedCollections();
-  const cachedFilteredData = getCachedFilteredCollections();
+  const cachedData = listCollectionManager?.getCachedCollections() || {
+    collections: [],
+    isExpired: true,
+  };
+  const cachedFilteredData =
+    listCollectionManager?.getCachedFilteredCollections() || {
+      total_count: 0,
+      isExpired: true,
+    };
 
   // Debug: Log when component loads
   useEffect(() => {
@@ -313,7 +326,7 @@ const ListCollectionManagerExample = () => {
           </div>
           <div>
             <strong>UseCollectionListing Hook:</strong>{" "}
-            {typeof useCollectionListing === "function"
+            {typeof useCollections === "function"
               ? "✅ Loaded"
               : "❌ Not loaded"}
           </div>
@@ -917,7 +930,7 @@ const ListCollectionManagerExample = () => {
         <div style={{ fontSize: "12px", color: "#666" }}>
           <div>
             <strong>Cached User Collections:</strong>{" "}
-            {cachedData.collections.length} (Expired:{" "}
+            {cachedData.collections?.length || 0} (Expired:{" "}
             {cachedData.isExpired ? "Yes" : "No"})
           </div>
           <div>
@@ -927,7 +940,7 @@ const ListCollectionManagerExample = () => {
           </div>
           <div>
             <strong>Cache Status:</strong>{" "}
-            {managerStatus.storage?.hasListedCollections
+            {managerStatus?.storage?.hasListedCollections
               ? "Has cached data"
               : "No cached data"}
           </div>

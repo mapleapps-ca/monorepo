@@ -1,108 +1,89 @@
-// File: monorepo/web/maplefile-frontend/src/pages/User/Examples/User/UserLookupExample.jsx
+// File: src/pages/User/Examples/User/UserLookupExample.jsx
 // Simplified example component demonstrating user lookup functionality
 
 import React, { useState } from "react";
 import { useUsers } from "../../../../services/Services";
 
 const UserLookupExample = () => {
-  const {
-    // State
-    isLoading,
-    error,
-    success,
+  const { userLookupManager } = useUsers();
 
-    // Operations
-    lookupUser,
-    userExists,
-    getUserPublicKey,
-
-    // Utilities
-    clearMessages,
-    validateEmail,
-    sanitizeEmail,
-    isAvailable,
-  } = useUsers();
-
-  // Form state
+  // State management
   const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [result, setResult] = useState(null);
 
   // Handle user lookup
   const handleLookupUser = async () => {
     if (!email.trim()) {
-      alert("Email address is required");
+      setError("Email address is required");
       return;
     }
 
-    const sanitizedEmail = sanitizeEmail(email.trim());
-
-    if (!validateEmail(sanitizedEmail)) {
-      alert("Please enter a valid email address");
-      return;
-    }
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
 
     try {
-      const lookupResult = await lookupUser(sanitizedEmail);
+      const lookupResult = await userLookupManager.lookupUser(email.trim());
       setResult(lookupResult);
+      setSuccess(`User found: ${lookupResult.user.email}`);
     } catch (err) {
       console.error("Lookup failed:", err);
-      // Error is already set by the hook
+      setError(err.message || "Failed to lookup user");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Handle check if user exists
   const handleCheckExists = async () => {
     if (!email.trim()) {
-      alert("Email address is required");
+      setError("Email address is required");
       return;
     }
 
-    const sanitizedEmail = sanitizeEmail(email.trim());
-
-    if (!validateEmail(sanitizedEmail)) {
-      alert("Please enter a valid email address");
-      return;
-    }
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
 
     try {
-      const exists = await userExists(sanitizedEmail);
-      alert(`User ${exists ? "exists" : "does not exist"} in the system`);
+      const exists = await userLookupManager.userExists(email.trim());
+      setSuccess(`User ${exists ? "exists" : "does not exist"} in the system`);
     } catch (err) {
       console.error("Existence check failed:", err);
-      // Error is already set by the hook
+      setError(err.message || "Failed to check user existence");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Handle get public key
   const handleGetPublicKey = async () => {
     if (!email.trim()) {
-      alert("Email address is required");
+      setError("Email address is required");
       return;
     }
 
-    const sanitizedEmail = sanitizeEmail(email.trim());
-
-    if (!validateEmail(sanitizedEmail)) {
-      alert("Please enter a valid email address");
-      return;
-    }
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
 
     try {
-      const publicKeyResult = await getUserPublicKey(sanitizedEmail);
+      const publicKeyResult = await userLookupManager.getUserPublicKey(
+        email.trim(),
+      );
       setResult({
-        user: {
-          ...publicKeyResult,
-          email: publicKeyResult.email,
-          user_id: publicKeyResult.userId,
-          name: publicKeyResult.name,
-          verification_id: publicKeyResult.verificationId,
-        },
-        source: publicKeyResult.source,
-        publicKeyLength: publicKeyResult.publicKey.length,
+        user: publicKeyResult,
+        publicKeyLength: publicKeyResult.publicKey?.length || 0,
       });
+      setSuccess(`Public key retrieved for: ${publicKeyResult.email}`);
     } catch (err) {
       console.error("Public key retrieval failed:", err);
-      // Error is already set by the hook
+      setError(err.message || "Failed to get public key");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -110,51 +91,19 @@ const UserLookupExample = () => {
   const handleClear = () => {
     setResult(null);
     setEmail("");
-    clearMessages();
+    setError("");
+    setSuccess("");
   };
 
   return (
     <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
-      <h2>👥 User Public Key Lookup Example (Simplified)</h2>
+      <h2>👥 User Public Key Lookup Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates user public key lookup for end-to-end encryption.
         <br />
         <strong>Note:</strong> This is a public API - no authentication
         required.
       </p>
-
-      {/* Service Status */}
-      <div
-        style={{
-          marginBottom: "20px",
-          padding: "15px",
-          backgroundColor: isAvailable ? "#d4edda" : "#f8d7da",
-          borderRadius: "6px",
-          border: `1px solid ${isAvailable ? "#c3e6cb" : "#f5c6cb"}`,
-        }}
-      >
-        <h4 style={{ margin: "0 0 10px 0" }}>🔧 Service Status:</h4>
-        <div style={{ fontSize: "14px" }}>
-          <div>
-            <strong>UserLookupManager Available:</strong>{" "}
-            {isAvailable ? "✅ Yes" : "❌ No"}
-          </div>
-          <div>
-            <strong>Is Loading:</strong> {isLoading ? "🔄 Yes" : "✅ No"}
-          </div>
-          <div>
-            <strong>Current Email:</strong> {email || "Empty"}
-          </div>
-          <div>
-            <strong>Valid Email:</strong>{" "}
-            {email
-              ? validateEmail(sanitizeEmail(email))
-                ? "✅"
-                : "❌"
-              : "N/A"}
-          </div>
-        </div>
-      </div>
 
       {/* User Lookup Form */}
       <div
@@ -197,20 +146,15 @@ const UserLookupExample = () => {
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <button
               onClick={handleLookupUser}
-              disabled={isLoading || !email.trim() || !isAvailable}
+              disabled={isLoading || !email.trim()}
               style={{
                 padding: "12px 20px",
                 backgroundColor:
-                  isLoading || !email.trim() || !isAvailable
-                    ? "#6c757d"
-                    : "#28a745",
+                  isLoading || !email.trim() ? "#6c757d" : "#28a745",
                 color: "white",
                 border: "none",
                 borderRadius: "6px",
-                cursor:
-                  isLoading || !email.trim() || !isAvailable
-                    ? "not-allowed"
-                    : "pointer",
+                cursor: isLoading || !email.trim() ? "not-allowed" : "pointer",
                 fontSize: "16px",
                 fontWeight: "bold",
               }}
@@ -220,20 +164,15 @@ const UserLookupExample = () => {
 
             <button
               onClick={handleCheckExists}
-              disabled={isLoading || !email.trim() || !isAvailable}
+              disabled={isLoading || !email.trim()}
               style={{
                 padding: "12px 20px",
                 backgroundColor:
-                  isLoading || !email.trim() || !isAvailable
-                    ? "#6c757d"
-                    : "#17a2b8",
+                  isLoading || !email.trim() ? "#6c757d" : "#17a2b8",
                 color: "white",
                 border: "none",
                 borderRadius: "6px",
-                cursor:
-                  isLoading || !email.trim() || !isAvailable
-                    ? "not-allowed"
-                    : "pointer",
+                cursor: isLoading || !email.trim() ? "not-allowed" : "pointer",
                 fontSize: "14px",
               }}
             >
@@ -242,20 +181,15 @@ const UserLookupExample = () => {
 
             <button
               onClick={handleGetPublicKey}
-              disabled={isLoading || !email.trim() || !isAvailable}
+              disabled={isLoading || !email.trim()}
               style={{
                 padding: "12px 20px",
                 backgroundColor:
-                  isLoading || !email.trim() || !isAvailable
-                    ? "#6c757d"
-                    : "#6f42c1",
+                  isLoading || !email.trim() ? "#6c757d" : "#6f42c1",
                 color: "white",
                 border: "none",
                 borderRadius: "6px",
-                cursor:
-                  isLoading || !email.trim() || !isAvailable
-                    ? "not-allowed"
-                    : "pointer",
+                cursor: isLoading || !email.trim() ? "not-allowed" : "pointer",
                 fontSize: "14px",
               }}
             >
@@ -267,7 +201,7 @@ const UserLookupExample = () => {
               disabled={isLoading}
               style={{
                 padding: "12px 20px",
-                backgroundColor: isLoading ? "#6c757d" : "#6c757d",
+                backgroundColor: "#6c757d",
                 color: "white",
                 border: "none",
                 borderRadius: "6px",
@@ -291,24 +225,9 @@ const UserLookupExample = () => {
             borderRadius: "6px",
             color: "#155724",
             border: "1px solid #c3e6cb",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
           }}
         >
-          <span>✅ {success}</span>
-          <button
-            onClick={clearMessages}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#155724",
-              cursor: "pointer",
-              fontSize: "16px",
-            }}
-          >
-            ✕
-          </button>
+          ✅ {success}
         </div>
       )}
 
@@ -322,24 +241,9 @@ const UserLookupExample = () => {
             borderRadius: "6px",
             color: "#721c24",
             border: "1px solid #f5c6cb",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
           }}
         >
-          <span>❌ {error}</span>
-          <button
-            onClick={clearMessages}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#721c24",
-              cursor: "pointer",
-              fontSize: "16px",
-            }}
-          >
-            ✕
-          </button>
+          ❌ {error}
         </div>
       )}
 
@@ -365,26 +269,16 @@ const UserLookupExample = () => {
                 <strong>📧 Email:</strong> {result.user.email || "N/A"}
               </div>
               <div>
-                <strong>🆔 User ID:</strong> {result.user.user_id || "N/A"}
+                <strong>🆔 User ID:</strong>{" "}
+                {result.user.userId || result.user.user_id || "N/A"}
               </div>
               <div>
                 <strong>🔑 Verification ID:</strong>{" "}
-                {result.user.verification_id || "N/A"}
+                {result.user.verificationId ||
+                  result.user.verification_id ||
+                  "N/A"}
               </div>
-              <div>
-                <strong>📡 Source:</strong>{" "}
-                <span
-                  style={{
-                    backgroundColor:
-                      result.source === "cache" ? "#fff3cd" : "#d1ecf1",
-                    padding: "2px 6px",
-                    borderRadius: "3px",
-                  }}
-                >
-                  {result.source || "unknown"}
-                </span>
-              </div>
-              {result.publicKeyLength && (
+              {result.publicKeyLength > 0 && (
                 <div>
                   <strong>🔐 Public Key Length:</strong>{" "}
                   {result.publicKeyLength} bytes

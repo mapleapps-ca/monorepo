@@ -35,7 +35,6 @@ const DeleteCollectionManagerExample = () => {
     isAuthenticated,
     canDeleteCollections,
     totalDeletedCollections,
-    COLLECTION_TYPES,
     getLatestDeletionForCollection,
     getRecentDeletions,
   } = useCollections();

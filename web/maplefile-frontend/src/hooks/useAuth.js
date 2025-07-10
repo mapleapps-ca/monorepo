@@ -1,13 +1,12 @@
 // File: src/hooks/useAuth.js
-// UPDATED to work with unified services architecture via window.mapleAppsServices
+import { useAuth as useAuthServices } from "../services/Services";
+
 /**
  * Legacy useAuth hook for backward compatibility
- * Uses direct access to unified services via window.mapleAppsServices
+ * Uses the new unified auth services
  */
 function useAuth() {
-  // Access services from the unified service system via window
-  const authManager = window.mapleAppsServices?.authManager;
-  const meManager = window.mapleAppsServices?.meManager;
+  const { authManager, meManager } = useAuthServices();
 
   // Create user object from authManager
   const user = {

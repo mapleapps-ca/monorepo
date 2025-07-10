@@ -37,7 +37,6 @@ const UpdateCollectionManagerExample = () => {
     isAuthenticated,
     canUpdateCollections,
     totalUpdatedCollections,
-    COLLECTION_TYPES,
     getLatestUpdateForCollection,
     getRecentUpdates,
   } = useCollections();
@@ -47,7 +46,7 @@ const UpdateCollectionManagerExample = () => {
   // Form state
   const [collectionId, setCollectionId] = useState("");
   const [newName, setNewName] = useState("");
-  const [newType, setNewType] = useState(COLLECTION_TYPES.FOLDER);
+  const [newType, setNewType] = useState("folder");
   const [version, setVersion] = useState(1);
   const [password, setPassword] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -562,8 +561,8 @@ const UpdateCollectionManagerExample = () => {
                   borderRadius: "4px",
                 }}
               >
-                <option value={COLLECTION_TYPES.FOLDER}>📁 Folder</option>
-                <option value={COLLECTION_TYPES.ALBUM}>📷 Album</option>
+                <option value={"folder"}>📁 Folder</option>
+                <option value={"album"}>📷 Album</option>
               </select>
             </div>
           )}

@@ -1,8 +1,8 @@
-// File: monorepo/web/maplefile-frontend/src/hocs/withPasswordProtection.jsx
+// File: src/hocs/withPasswordProtection.jsx
 // Enhanced HOC with password expiry event handling - UPDATED for unified services
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
-import passwordStorageService from "../services/PasswordStorageService.js";
+import { useStorage } from "../services/Services";
 
 /**
  * HOC that protects components by checking if password is available
@@ -20,6 +20,7 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
   const PasswordProtectedComponent = (props) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { passwordStorageService } = useStorage();
     const [isChecking, setIsChecking] = useState(true);
     const [hasPassword, setHasPassword] = useState(false);
     const [expiryMessage, setExpiryMessage] = useState("");
@@ -92,7 +93,7 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
           `[withPasswordProtection] Starting password check for ${location.pathname}`,
         );
 
-        // UPDATED: Check if unified services are available
+        // Check authentication first if authManager is available
         let authManager = null;
         if (window.mapleAppsServices?.authManager) {
           authManager = window.mapleAppsServices.authManager;
@@ -229,6 +230,7 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
       customMessage,
       onPasswordExpired,
       expiryMessage,
+      passwordStorageService,
     ]);
 
     // Show expiry message if password expired
@@ -309,14 +311,24 @@ export default withPasswordProtection;
 
 // ENHANCED: Additional debug helper with password service status
 export const debugPasswordProtection = () => {
-  const service = passwordStorageService;
-  const info = service.getStorageInfo();
+  // Import at runtime to avoid circular dependencies
+  const { passwordStorageService } = window.mapleAppsServices || {};
+
+  if (!passwordStorageService) {
+    console.error("[withPasswordProtection] Password service not available");
+    return null;
+  }
+
+  const info = passwordStorageService.getStorageInfo();
 
   console.log("Enhanced Password Protection Debug Info:");
-  console.log("Service initialized:", service.isInitialized);
+  console.log("Service initialized:", passwordStorageService.isInitialized);
   console.log("Storage mode:", info.mode);
   console.log("Is development:", info.isDevelopment);
-  console.log("Has password in memory:", service.password !== null);
+  console.log(
+    "Has password in memory:",
+    passwordStorageService.password !== null,
+  );
   console.log("Unified Services available:", !!window.mapleAppsServices);
   console.log(
     "AuthManager available:",
@@ -328,9 +340,9 @@ export const debugPasswordProtection = () => {
   console.log("Logging: Reduced verbosity for activity tracking");
   console.log(
     "Storage type:",
-    service.storage === localStorage
+    passwordStorageService.storage === localStorage
       ? "localStorage"
-      : service.storage === sessionStorage
+      : passwordStorageService.storage === sessionStorage
         ? "sessionStorage"
         : "unknown",
   );
@@ -343,7 +355,7 @@ export const debugPasswordProtection = () => {
 
   return {
     serviceInfo: info,
-    hasPasswordInMemory: service.password !== null,
+    hasPasswordInMemory: passwordStorageService.password !== null,
     localStorageKeys: keys,
     refreshMethod: "api_interceptor",
     hasWorkers: false,
@@ -357,6 +369,13 @@ export const debugPasswordProtection = () => {
 
 // ENHANCED: Utility to manually extend password timeout
 export const extendPasswordTimeout = () => {
+  const { passwordStorageService } = window.mapleAppsServices || {};
+
+  if (!passwordStorageService) {
+    console.error("[withPasswordProtection] Password service not available");
+    return false;
+  }
+
   if (passwordStorageService.hasPassword()) {
     passwordStorageService.resetTimeout();
     console.log("[withPasswordProtection] Password timeout manually extended");
@@ -371,6 +390,13 @@ export const extendPasswordTimeout = () => {
 
 // ENHANCED: Utility to get password service status
 export const getPasswordServiceStatus = () => {
+  const { passwordStorageService } = window.mapleAppsServices || {};
+
+  if (!passwordStorageService) {
+    console.error("[withPasswordProtection] Password service not available");
+    return null;
+  }
+
   return {
     hasPassword: passwordStorageService.hasPassword(),
     isInitialized: passwordStorageService.isInitialized,

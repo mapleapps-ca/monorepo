@@ -2,7 +2,7 @@
 // Example component demonstrating how to use the useCollectionCreation hook
 
 import React, { useState, useEffect } from "react";
-import { useCollections } from "../../../../services/Services";
+import { useCollections, useAuth } from "../../../../services/Services";
 
 const CreateCollectionManagerExample = () => {
   const {
@@ -31,12 +31,19 @@ const CreateCollectionManagerExample = () => {
     canCreateCollections,
     totalCollections,
     collectionsByType,
-    COLLECTION_TYPES,
   } = useCollections();
+
+  const { authManager } = useAuth();
+
+  // Create user object from authManager
+  const user = {
+    email: authManager?.getCurrentUserEmail?.() || null,
+    isAuthenticated: authManager?.isAuthenticated?.() || false,
+  };
 
   // Form state
   const [collectionName, setCollectionName] = useState("");
-  const [collectionType, setCollectionType] = useState(COLLECTION_TYPES.FOLDER);
+  const [collectionType, setCollectionType] = useState("folder");
   const [password, setPassword] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -160,7 +167,7 @@ const CreateCollectionManagerExample = () => {
   // Search collections
   const filteredCollections = searchTerm
     ? searchCollections(searchTerm)
-    : collections;
+    : collections || [];
 
   // Auto-clear messages after 5 seconds
   useEffect(() => {
@@ -218,7 +225,7 @@ const CreateCollectionManagerExample = () => {
           </div>
           <div>
             <strong>By Type:</strong>{" "}
-            {Object.entries(collectionsByType)
+            {Object.entries(collectionsByType || {})
               .map(([type, count]) => `${type}: ${count}`)
               .join(", ") || "None"}
           </div>
@@ -281,8 +288,8 @@ const CreateCollectionManagerExample = () => {
                 borderRadius: "4px",
               }}
             >
-              <option value={COLLECTION_TYPES.FOLDER}>📁 Folder</option>
-              <option value={COLLECTION_TYPES.ALBUM}>📷 Album</option>
+              <option value={"folder"}>📁 Folder</option>
+              <option value={"album"}>📷 Album</option>
             </select>
           </div>
 
@@ -499,7 +506,7 @@ const CreateCollectionManagerExample = () => {
                 fontSize: "14px",
               }}
             />
-            {collections.length > 0 && (
+            {(collections || []).length > 0 && (
               <button
                 onClick={handleClearAllCollections}
                 style={{
@@ -528,12 +535,12 @@ const CreateCollectionManagerExample = () => {
             }}
           >
             <p style={{ fontSize: "18px", color: "#6c757d" }}>
-              {collections.length === 0
+              {(collections || []).length === 0
                 ? "No collections created yet."
                 : "No collections match your search."}
             </p>
             <p style={{ color: "#6c757d" }}>
-              {collections.length === 0
+              {(collections || []).length === 0
                 ? "Create your first collection using the form above."
                 : "Try a different search term."}
             </p>

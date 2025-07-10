@@ -3,12 +3,12 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useServices } from "../../../../hooks/useService.jsx";
+import { useFiles } from "../../../../services/Services";
 
 const DownloadFileManagerExample = () => {
   const navigate = useNavigate();
   const { authService, getCollectionManager, listCollectionManager } =
-    useServices();
+    useFiles();
 
   // State management
   const [downloadManager, setDownloadManager] = useState(null);
