@@ -1,47 +1,20 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/Collection/UpdateCollectionManagerExample.jsx
-// Example component demonstrating how to use the useCollectionUpdate hook
+// Example component demonstrating how to use the UpdateCollectionManager
 
 import React, { useState, useEffect } from "react";
-import { useCollections } from "../../../../services/Services";
-import { useAuth } from "../../../../services/Services";
+import { useCollections, useAuth } from "../../../../services/Services";
+import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 
 const UpdateCollectionManagerExample = () => {
-  const { getCollectionManager } = useCollections();
+  const { updateCollectionManager, getCollectionManager } = useCollections();
+  const { authManager } = useAuth();
 
-  const {
-    // State
-    isLoading,
-    error,
-    success,
-    updatedCollections,
-    updateHistory,
-    managerStatus,
-
-    // Operations
-    updateCollection,
-    updateCollectionName,
-    updateCollectionType,
-    rotateCollectionKey,
-    decryptCollection,
-    removeUpdatedCollection,
-    clearAllUpdatedCollections,
-
-    // Utilities
-    searchUpdatedCollections,
-    getUpdatedCollectionById,
-    getCollectionUpdateHistory,
-    getUserPassword,
-    clearMessages,
-
-    // Status
-    isAuthenticated,
-    canUpdateCollections,
-    totalUpdatedCollections,
-    getLatestUpdateForCollection,
-    getRecentUpdates,
-  } = useCollections();
-
-  const { authManager, authService } = useAuth();
+  // React state for the component
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [updatedCollections, setUpdatedCollections] = useState([]);
+  const [updateHistory, setUpdateHistory] = useState([]);
 
   // Form state
   const [collectionId, setCollectionId] = useState("");
@@ -57,25 +30,70 @@ const UpdateCollectionManagerExample = () => {
   const [eventLog, setEventLog] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
 
+  // Get user info
+  const user = {
+    email: authManager?.getCurrentUserEmail?.() || "Unknown",
+    isAuthenticated: authManager?.isAuthenticated?.() || false,
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    loadUpdatedCollections();
+    loadUpdateHistory();
+  }, []);
+
+  // Load updated collections from manager
+  const loadUpdatedCollections = () => {
+    try {
+      const collections = updateCollectionManager.getUpdatedCollections();
+      setUpdatedCollections(collections);
+    } catch (err) {
+      console.error("Failed to load updated collections:", err);
+      setUpdatedCollections([]);
+    }
+  };
+
+  // Load update history from manager
+  const loadUpdateHistory = () => {
+    try {
+      const history = updateCollectionManager.getUpdateHistory();
+      setUpdateHistory(history);
+    } catch (err) {
+      console.error("Failed to load update history:", err);
+      setUpdateHistory([]);
+    }
+  };
+
+  // Get recent updates (custom implementation)
+  const getRecentUpdates = (hours = 24) => {
+    const cutoffTime = Date.now() - hours * 60 * 60 * 1000;
+    return updateHistory.filter((entry) => {
+      return new Date(entry.timestamp).getTime() > cutoffTime;
+    });
+  };
+
   // Handle collection update
   const handleUpdateCollection = async () => {
     if (!collectionId.trim()) {
-      alert("Collection ID is required");
+      setError("Collection ID is required");
       return;
     }
 
     if (version === null || version === undefined) {
-      alert("Version is required for optimistic locking");
+      setError("Version is required for optimistic locking");
       return;
     }
 
     try {
+      setIsLoading(true);
+      setError(null);
+
       let updateData = { version: parseInt(version) };
 
       switch (updateOperation) {
         case "name":
           if (!newName.trim()) {
-            alert("New name is required for name update");
+            setError("New name is required for name update");
             return;
           }
           updateData.name = newName.trim();
@@ -98,62 +116,86 @@ const UpdateCollectionManagerExample = () => {
           break;
 
         default:
-          alert("Please select an update operation");
+          setError("Please select an update operation");
           return;
       }
 
-      await updateCollection(collectionId.trim(), updateData, password || null);
+      const result = await updateCollectionManager.updateCollection(
+        collectionId.trim(),
+        updateData,
+        password || null,
+      );
+
+      setSuccess(
+        `Collection updated successfully! New version: ${result.newVersion}`,
+      );
 
       // Clear form on success
       setNewName("");
       setPassword("");
-      setVersion(version + 1); // Increment for next update
+      setVersion(result.newVersion);
+
+      // Reload data
+      loadUpdatedCollections();
+      loadUpdateHistory();
 
       // Log the event
       addToEventLog("collection_updated", {
         id: collectionId,
         operation: updateOperation,
         updateData,
+        newVersion: result.newVersion,
       });
     } catch (err) {
       console.error("Collection update failed:", err);
-      // Error is handled by the hook
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Get password from storage
   const handleGetStoredPassword = async () => {
     try {
-      const storedPassword = await getUserPassword();
+      const storedPassword = await updateCollectionManager.getUserPassword();
       if (storedPassword) {
         setPassword(storedPassword);
         addToEventLog("password_loaded", { source: "storage" });
       } else {
-        alert("No password found in storage");
+        setError("No password found in storage");
       }
     } catch (err) {
-      alert(`Failed to get stored password: ${err.message}`);
+      setError(`Failed to get stored password: ${err.message}`);
     }
   };
 
   // Handle quick update operations
   const handleQuickUpdateName = async () => {
     if (!collectionId.trim() || !newName.trim()) {
-      alert("Collection ID and new name are required");
+      setError("Collection ID and new name are required");
       return;
     }
 
     try {
-      await updateCollectionName(
+      setIsLoading(true);
+      setError(null);
+
+      const result = await updateCollectionManager.updateCollection(
         collectionId.trim(),
-        newName.trim(),
-        parseInt(version),
+        {
+          name: newName.trim(),
+          version: parseInt(version),
+        },
         password || null,
       );
 
+      setSuccess("Collection name updated successfully!");
       setNewName("");
       setPassword("");
-      setVersion(version + 1);
+      setVersion(result.newVersion);
+
+      loadUpdatedCollections();
+      loadUpdateHistory();
 
       addToEventLog("collection_name_updated", {
         id: collectionId,
@@ -161,25 +203,37 @@ const UpdateCollectionManagerExample = () => {
       });
     } catch (err) {
       console.error("Collection name update failed:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleQuickUpdateType = async () => {
     if (!collectionId.trim()) {
-      alert("Collection ID is required");
+      setError("Collection ID is required");
       return;
     }
 
     try {
-      await updateCollectionType(
+      setIsLoading(true);
+      setError(null);
+
+      const result = await updateCollectionManager.updateCollection(
         collectionId.trim(),
-        newType,
-        parseInt(version),
+        {
+          collection_type: newType,
+          version: parseInt(version),
+        },
         password || null,
       );
 
+      setSuccess("Collection type updated successfully!");
       setPassword("");
-      setVersion(version + 1);
+      setVersion(result.newVersion);
+
+      loadUpdatedCollections();
+      loadUpdateHistory();
 
       addToEventLog("collection_type_updated", {
         id: collectionId,
@@ -187,37 +241,57 @@ const UpdateCollectionManagerExample = () => {
       });
     } catch (err) {
       console.error("Collection type update failed:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleQuickRotateKey = async () => {
     if (!collectionId.trim()) {
-      alert("Collection ID is required");
+      setError("Collection ID is required");
       return;
     }
 
     try {
-      await rotateCollectionKey(
+      setIsLoading(true);
+      setError(null);
+
+      const result = await updateCollectionManager.updateCollection(
         collectionId.trim(),
-        parseInt(version),
+        {
+          rotateCollectionKey: true,
+          version: parseInt(version),
+        },
         password || null,
       );
 
+      setSuccess("Collection key rotated successfully!");
       setPassword("");
-      setVersion(version + 1);
+      setVersion(result.newVersion);
+
+      loadUpdatedCollections();
+      loadUpdateHistory();
 
       addToEventLog("collection_key_rotated", {
         id: collectionId,
       });
     } catch (err) {
       console.error("Collection key rotation failed:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Handle collection decryption
   const handleDecryptCollection = async (collection) => {
     try {
-      const decrypted = await decryptCollection(collection, password || null);
+      setIsLoading(true);
+      const decrypted = await updateCollectionManager.decryptCollection(
+        collection,
+        password || null,
+      );
       setSelectedCollection(decrypted);
       addToEventLog("collection_decrypted", {
         id: collection.id,
@@ -225,7 +299,9 @@ const UpdateCollectionManagerExample = () => {
       });
     } catch (err) {
       console.error("Decryption failed:", err);
-      // Error is handled by the hook
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -239,15 +315,17 @@ const UpdateCollectionManagerExample = () => {
       return;
 
     try {
-      await removeUpdatedCollection(collectionId);
+      await updateCollectionManager.removeUpdatedCollection(collectionId);
 
       if (selectedCollection && selectedCollection.id === collectionId) {
         setSelectedCollection(null);
       }
 
+      loadUpdatedCollections();
       addToEventLog("updated_collection_removed", { id: collectionId });
     } catch (err) {
       console.error("Failed to remove updated collection:", err);
+      setError(err.message);
     }
   };
 
@@ -261,22 +339,27 @@ const UpdateCollectionManagerExample = () => {
       return;
 
     try {
-      await clearAllUpdatedCollections();
+      await updateCollectionManager.clearAllUpdatedCollections();
       setSelectedCollection(null);
+      loadUpdatedCollections();
+      loadUpdateHistory();
       addToEventLog("all_updated_collections_cleared", {});
     } catch (err) {
       console.error("Failed to clear updated collections:", err);
+      setError(err.message);
     }
   };
 
   // Get current collection version automatically
   const handleGetCurrentVersion = async () => {
     if (!collectionId.trim()) {
-      alert("Collection ID is required");
+      setError("Collection ID is required");
       return;
     }
 
     try {
+      setIsLoading(true);
+
       // Try to get from GetCollectionManager if available
       if (getCollectionManager) {
         const result = await getCollectionManager.getCollection(
@@ -294,7 +377,8 @@ const UpdateCollectionManagerExample = () => {
       }
 
       // Fallback: try to get from updated collections
-      const updatedCollection = getUpdatedCollectionById(collectionId.trim());
+      const updatedCollection =
+        updateCollectionManager.getUpdatedCollectionById(collectionId.trim());
       if (updatedCollection && updatedCollection.version !== undefined) {
         setVersion(updatedCollection.version);
         addToEventLog("current_version_retrieved", {
@@ -305,12 +389,14 @@ const UpdateCollectionManagerExample = () => {
         return;
       }
 
-      alert(
+      setError(
         "Could not retrieve current version. Collection may not exist or you may not have access.",
       );
     } catch (err) {
       console.error("Failed to get current version:", err);
-      alert(`Failed to get current version: ${err.message}`);
+      setError(`Failed to get current version: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -331,13 +417,22 @@ const UpdateCollectionManagerExample = () => {
     setEventLog([]);
   };
 
+  // Clear messages
+  const clearMessages = () => {
+    setError(null);
+    setSuccess(null);
+  };
+
   // Search collections
   const filteredCollections = searchTerm
-    ? searchUpdatedCollections(searchTerm)
+    ? updateCollectionManager.searchUpdatedCollections(searchTerm)
     : updatedCollections;
 
   // Get recent updates
   const recentUpdates = getRecentUpdates(24);
+
+  // Manager status
+  const managerStatus = updateCollectionManager.getManagerStatus();
 
   // Auto-clear messages after 5 seconds
   useEffect(() => {
@@ -348,15 +443,15 @@ const UpdateCollectionManagerExample = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [success, error, clearMessages]);
+  }, [success, error]);
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <h2>✏️ Update Collection Manager Example (with Hooks)</h2>
+      <h2>✏️ Update Collection Manager Example (with Unified Services)</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
-        This page demonstrates the <strong>useCollectionUpdate</strong> hook
-        with E2EE encryption for collection updates, including version
-        management and optimistic locking. The backend requires the current
+        This page demonstrates the <strong>UpdateCollectionManager</strong> with
+        E2EE encryption for collection updates, including version management and
+        optimistic locking. The backend requires the current
         encrypted_collection_key to be included in all update requests.
       </p>
 
@@ -383,17 +478,17 @@ const UpdateCollectionManagerExample = () => {
           </div>
           <div>
             <strong>Authenticated:</strong>{" "}
-            {isAuthenticated ? "✅ Yes" : "❌ No"}
+            {user.isAuthenticated ? "✅ Yes" : "❌ No"}
           </div>
           <div>
             <strong>Can Update Collections:</strong>{" "}
-            {canUpdateCollections ? "✅ Yes" : "❌ No"}
+            {managerStatus.canUpdateCollections ? "✅ Yes" : "❌ No"}
           </div>
           <div>
             <strong>Loading:</strong> {isLoading ? "🔄 Yes" : "✅ No"}
           </div>
           <div>
-            <strong>Total Updated:</strong> {totalUpdatedCollections}
+            <strong>Total Updated:</strong> {updatedCollections.length}
           </div>
           <div>
             <strong>Recent Updates (24h):</strong> {recentUpdates.length}
@@ -464,14 +559,18 @@ const UpdateCollectionManagerExample = () => {
               />
               <button
                 onClick={handleGetCurrentVersion}
-                disabled={!collectionId.trim()}
+                disabled={!collectionId.trim() || isLoading}
                 style={{
                   padding: "8px 15px",
-                  backgroundColor: !collectionId.trim() ? "#6c757d" : "#17a2b8",
+                  backgroundColor:
+                    !collectionId.trim() || isLoading ? "#6c757d" : "#17a2b8",
                   color: "white",
                   border: "none",
                   borderRadius: "4px",
-                  cursor: !collectionId.trim() ? "not-allowed" : "pointer",
+                  cursor:
+                    !collectionId.trim() || isLoading
+                      ? "not-allowed"
+                      : "pointer",
                   fontSize: "14px",
                 }}
               >
@@ -612,18 +711,20 @@ const UpdateCollectionManagerExample = () => {
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <button
               onClick={handleUpdateCollection}
-              disabled={isLoading || !collectionId.trim() || !isAuthenticated}
+              disabled={
+                isLoading || !collectionId.trim() || !user.isAuthenticated
+              }
               style={{
                 padding: "12px 20px",
                 backgroundColor:
-                  isLoading || !collectionId.trim() || !isAuthenticated
+                  isLoading || !collectionId.trim() || !user.isAuthenticated
                     ? "#6c757d"
                     : "#28a745",
                 color: "white",
                 border: "none",
                 borderRadius: "6px",
                 cursor:
-                  isLoading || !collectionId.trim() || !isAuthenticated
+                  isLoading || !collectionId.trim() || !user.isAuthenticated
                     ? "not-allowed"
                     : "pointer",
                 fontSize: "16px",
@@ -639,7 +740,7 @@ const UpdateCollectionManagerExample = () => {
                 isLoading ||
                 !collectionId.trim() ||
                 !newName.trim() ||
-                !isAuthenticated
+                !user.isAuthenticated
               }
               style={{
                 padding: "12px 20px",
@@ -647,7 +748,7 @@ const UpdateCollectionManagerExample = () => {
                   isLoading ||
                   !collectionId.trim() ||
                   !newName.trim() ||
-                  !isAuthenticated
+                  !user.isAuthenticated
                     ? "#6c757d"
                     : "#007bff",
                 color: "white",
@@ -657,7 +758,7 @@ const UpdateCollectionManagerExample = () => {
                   isLoading ||
                   !collectionId.trim() ||
                   !newName.trim() ||
-                  !isAuthenticated
+                  !user.isAuthenticated
                     ? "not-allowed"
                     : "pointer",
                 fontSize: "14px",
@@ -668,18 +769,20 @@ const UpdateCollectionManagerExample = () => {
 
             <button
               onClick={handleQuickUpdateType}
-              disabled={isLoading || !collectionId.trim() || !isAuthenticated}
+              disabled={
+                isLoading || !collectionId.trim() || !user.isAuthenticated
+              }
               style={{
                 padding: "12px 20px",
                 backgroundColor:
-                  isLoading || !collectionId.trim() || !isAuthenticated
+                  isLoading || !collectionId.trim() || !user.isAuthenticated
                     ? "#6c757d"
                     : "#17a2b8",
                 color: "white",
                 border: "none",
                 borderRadius: "6px",
                 cursor:
-                  isLoading || !collectionId.trim() || !isAuthenticated
+                  isLoading || !collectionId.trim() || !user.isAuthenticated
                     ? "not-allowed"
                     : "pointer",
                 fontSize: "14px",
@@ -690,18 +793,20 @@ const UpdateCollectionManagerExample = () => {
 
             <button
               onClick={handleQuickRotateKey}
-              disabled={isLoading || !collectionId.trim() || !isAuthenticated}
+              disabled={
+                isLoading || !collectionId.trim() || !user.isAuthenticated
+              }
               style={{
                 padding: "12px 20px",
                 backgroundColor:
-                  isLoading || !collectionId.trim() || !isAuthenticated
+                  isLoading || !collectionId.trim() || !user.isAuthenticated
                     ? "#6c757d"
                     : "#ffc107",
                 color: "black",
                 border: "none",
                 borderRadius: "6px",
                 cursor:
-                  isLoading || !collectionId.trim() || !isAuthenticated
+                  isLoading || !collectionId.trim() || !user.isAuthenticated
                     ? "not-allowed"
                     : "pointer",
                 fontSize: "14px",
@@ -793,7 +898,7 @@ const UpdateCollectionManagerExample = () => {
           }}
         >
           <h4 style={{ margin: 0 }}>
-            📚 Updated Collections ({totalUpdatedCollections}):
+            📚 Updated Collections ({updatedCollections.length}):
           </h4>
           <div style={{ display: "flex", gap: "10px" }}>
             <input
@@ -863,7 +968,12 @@ const UpdateCollectionManagerExample = () => {
         ) : (
           <div style={{ display: "grid", gap: "10px" }}>
             {filteredCollections.map((collection) => {
-              const latestUpdate = getLatestUpdateForCollection(collection.id);
+              const latestUpdate = updateHistory
+                .filter((entry) => entry.collectionId === collection.id)
+                .sort(
+                  (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
+                )[0];
+
               return (
                 <div
                   key={collection.id}
@@ -1213,4 +1323,5 @@ const UpdateCollectionManagerExample = () => {
   );
 };
 
-export default UpdateCollectionManagerExample;
+// Wrap with password protection to ensure user is authenticated
+export default withPasswordProtection(UpdateCollectionManagerExample);
