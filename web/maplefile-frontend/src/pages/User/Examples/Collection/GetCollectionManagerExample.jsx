@@ -1,51 +1,25 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/Collection/GetCollectionManagerExample.jsx
-// Enhanced example component demonstrating how to use the useCollectionRetrieval hook
+// Enhanced example component rewritten for unified service architecture
 
 import React, { useState, useEffect } from "react";
-import { useCollections } from "../../../../services/Services";
-import { useAuth } from "../../../../services/Services";
+import { useCollections, useAuth } from "../../../../services/Services";
 
 const GetCollectionManagerExample = () => {
   const { getCollectionManager } = useCollections();
-  const {
-    // State
-    isLoading,
-    error: hookError,
-    success: hookSuccess,
-    cachedCollections,
-    managerStatus,
+  const { authManager } = useAuth();
 
-    // Core operations
-    getCollection,
-    getCachedCollection,
-    refreshCollection,
-    getCollections,
-    collectionExists,
+  // Create user object from authManager
+  const user = {
+    email: authManager?.getCurrentUserEmail?.() || null,
+    isAuthenticated: authManager?.isAuthenticated?.() || false,
+  };
 
-    // Cache operations
-    getCollectionCacheStatus,
-    removeFromCache,
-    clearAllCache,
-    clearExpiredCollections,
-
-    // Utilities
-    searchCachedCollections,
-    getUserPassword,
-    clearMessages,
-
-    // Status
-    isAuthenticated,
-    canGetCollections,
-    totalCachedCollections,
-    isCached,
-    isExpired,
-  } = useCollections();
-
-  const { authManager, authService } = useAuth();
-
-  // Local component state
+  // Local state management
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [cachedCollections, setCachedCollections] = useState([]);
+  const [managerStatus, setManagerStatus] = useState({});
 
   // Form state
   const [collectionId, setCollectionId] = useState("");
@@ -58,6 +32,96 @@ const GetCollectionManagerExample = () => {
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [eventLog, setEventLog] = useState([]);
   const [showCacheDetails, setShowCacheDetails] = useState(false);
+
+  // Helper functions
+  const updateCachedCollections = () => {
+    if (getCollectionManager) {
+      const cached = getCollectionManager.getCachedCollections();
+      setCachedCollections(cached || []);
+    }
+  };
+
+  const updateManagerStatus = () => {
+    if (getCollectionManager) {
+      const status = getCollectionManager.getManagerStatus();
+      setManagerStatus(status);
+    }
+  };
+
+  const clearMessages = () => {
+    setError(null);
+    setSuccess(null);
+  };
+
+  // Service wrapper methods
+  const getCollection = async (collectionId, forceRefresh = false) => {
+    return await getCollectionManager.getCollection(collectionId, forceRefresh);
+  };
+
+  const getCachedCollection = async (collectionId) => {
+    return await getCollectionManager.getCachedCollection(collectionId);
+  };
+
+  const refreshCollection = async (collectionId) => {
+    return await getCollectionManager.refreshCollection(collectionId);
+  };
+
+  const getCollections = async (collectionIds, forceRefresh = false) => {
+    return await getCollectionManager.getCollections(
+      collectionIds,
+      forceRefresh,
+    );
+  };
+
+  const collectionExists = async (collectionId) => {
+    return await getCollectionManager.collectionExists(collectionId);
+  };
+
+  const getCollectionCacheStatus = (collectionId) => {
+    return getCollectionManager.getCollectionCacheStatus(collectionId);
+  };
+
+  const removeFromCache = async (collectionId) => {
+    getCollectionManager.removeFromCache(collectionId);
+    updateCachedCollections();
+    updateManagerStatus();
+  };
+
+  const clearAllCache = async () => {
+    getCollectionManager.clearAllCache();
+    updateCachedCollections();
+    updateManagerStatus();
+  };
+
+  const clearExpiredCollections = async () => {
+    const count = getCollectionManager.clearExpiredCollections();
+    updateCachedCollections();
+    updateManagerStatus();
+    return count;
+  };
+
+  const getUserPassword = async () => {
+    return await getCollectionManager.getUserPassword();
+  };
+
+  const searchCachedCollections = (searchTerm) => {
+    return getCollectionManager.searchCachedCollections(searchTerm);
+  };
+
+  // Computed values
+  const isAuthenticated = user.isAuthenticated;
+  const canGetCollections =
+    authManager?.canMakeAuthenticatedRequests?.() || false;
+  const totalCachedCollections = cachedCollections.length;
+
+  const isCached = (collectionId) => {
+    return cachedCollections.some((c) => c.id === collectionId);
+  };
+
+  const isExpired = (collectionId) => {
+    const status = getCollectionCacheStatus(collectionId);
+    return status?.expired || false;
+  };
 
   // Handle collection retrieval with different options
   const handleGetCollection = async () => {
@@ -89,6 +153,7 @@ const GetCollectionManagerExample = () => {
 
     setError(null);
     setSuccess(null);
+    setIsLoading(true);
 
     try {
       let result;
@@ -151,6 +216,12 @@ const GetCollectionManagerExample = () => {
         ]);
 
         setSelectedCollection(result.collection);
+        setSuccess(`Collection retrieved successfully from ${result.source}`);
+
+        // Update cached collections and status
+        updateCachedCollections();
+        updateManagerStatus();
+
         console.log(
           "[GetCollectionExample] Collection retrieved successfully:",
           result,
@@ -160,7 +231,7 @@ const GetCollectionManagerExample = () => {
           "[GetCollectionExample] No collection data in result:",
           result,
         );
-        alert("No collection data returned. Check console for details.");
+        setError("No collection data returned. Check console for details.");
       }
     } catch (err) {
       console.error("[GetCollectionExample] Collection retrieval failed:", err);
@@ -169,7 +240,9 @@ const GetCollectionManagerExample = () => {
         operationType,
         error: err.message,
       });
-      alert(`Collection retrieval failed: ${err.message}`);
+      setError(`Collection retrieval failed: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -184,6 +257,10 @@ const GetCollectionManagerExample = () => {
       alert("Enter one or more collection IDs (comma-separated)");
       return;
     }
+
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
 
     try {
       console.log("[GetCollectionExample] Getting multiple collections:", ids);
@@ -211,6 +288,12 @@ const GetCollectionManagerExample = () => {
         ]);
       });
 
+      setSuccess(
+        `Retrieved ${result.successCount} collections successfully. ${result.errorCount} failed.`,
+      );
+      updateCachedCollections();
+      updateManagerStatus();
+
       console.log(
         "[GetCollectionExample] Multiple collections result:",
         result,
@@ -224,6 +307,9 @@ const GetCollectionManagerExample = () => {
         requestedIds: ids,
         error: err.message,
       });
+      setError(`Multiple collections retrieval failed: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -233,6 +319,8 @@ const GetCollectionManagerExample = () => {
       alert("Collection ID is required");
       return;
     }
+
+    setIsLoading(true);
 
     try {
       console.log(
@@ -255,6 +343,9 @@ const GetCollectionManagerExample = () => {
         id: collectionId,
         error: err.message,
       });
+      alert(`Existence check failed: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -282,8 +373,10 @@ const GetCollectionManagerExample = () => {
     try {
       await removeFromCache(id);
       addToEventLog("collection_removed_from_cache", { id });
+      setSuccess(`Collection ${id} removed from cache`);
     } catch (err) {
       console.error("Failed to remove from cache:", err);
+      setError(`Failed to remove from cache: ${err.message}`);
     }
   };
 
@@ -297,8 +390,10 @@ const GetCollectionManagerExample = () => {
       setRetrievalResults([]);
       setSelectedCollection(null);
       addToEventLog("all_cache_cleared", {});
+      setSuccess("All cached collections cleared");
     } catch (err) {
       console.error("Failed to clear all cache:", err);
+      setError(`Failed to clear all cache: ${err.message}`);
     }
   };
 
@@ -307,9 +402,10 @@ const GetCollectionManagerExample = () => {
     try {
       const count = await clearExpiredCollections();
       addToEventLog("expired_collections_cleared", { count });
-      alert(`Cleared ${count} expired collections from cache`);
+      setSuccess(`Cleared ${count} expired collections from cache`);
     } catch (err) {
       console.error("Failed to clear expired collections:", err);
+      setError(`Failed to clear expired collections: ${err.message}`);
     }
   };
 
@@ -320,6 +416,7 @@ const GetCollectionManagerExample = () => {
       if (storedPassword) {
         setPassword(storedPassword);
         addToEventLog("password_loaded", { source: "storage" });
+        setSuccess("Password loaded from storage");
       } else {
         alert("No password found in storage");
       }
@@ -350,36 +447,15 @@ const GetCollectionManagerExample = () => {
     ? searchCachedCollections(searchTerm)
     : cachedCollections;
 
-  // Debug: Log when component loads
+  // Initialize data on mount
   useEffect(() => {
-    console.log("[GetCollectionExample] Component mounted");
-    console.log(
-      "[GetCollectionExample] getCollectionManager from useCollections:",
-      getCollectionManager,
-    );
-    console.log("[GetCollectionExample] useCollectionRetrieval hook data:", {
-      isLoading,
-      error,
-      success,
-      isAuthenticated,
-      canGetCollections,
-      getCollectionFunction: typeof getCollection,
-    });
-  }, []);
-
-  // Debug: Log when getCollectionManager changes
-  useEffect(() => {
-    console.log(
-      "[GetCollectionExample] getCollectionManager changed:",
-      !!getCollectionManager,
-    );
     if (getCollectionManager) {
-      console.log(
-        "[GetCollectionExample] getCollectionManager methods:",
-        Object.getOwnPropertyNames(getCollectionManager),
-      );
+      updateCachedCollections();
+      updateManagerStatus();
     }
   }, [getCollectionManager]);
+
+  // Auto-clear messages after 5 seconds
   useEffect(() => {
     if (success || error) {
       const timer = setTimeout(() => {
@@ -388,14 +464,15 @@ const GetCollectionManagerExample = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [success, error, clearMessages]);
+  }, [success, error]);
 
   return (
     <div style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
       <h2>🔍 Enhanced Get Collection Manager Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
-        This page demonstrates the <strong>useCollectionRetrieval</strong> hook
-        with cache management, API calls, and E2EE decryption.
+        This page demonstrates the <strong>GetCollectionManager</strong> service
+        with cache management, API calls, and E2EE decryption using the unified
+        service architecture.
         <br />
         <strong>User:</strong> {user?.email || "Not logged in"}
       </p>
@@ -417,31 +494,13 @@ const GetCollectionManagerExample = () => {
             {getCollectionManager ? "✅ Yes" : "❌ No"}
           </div>
           <div>
-            <strong>UseCollectionRetrieval Hook:</strong>{" "}
-            {typeof useCollectionRetrieval === "function"
-              ? "✅ Loaded"
-              : "❌ Not loaded"}
-          </div>
-          <div>
-            <strong>Get Collection Function:</strong>{" "}
-            {typeof getCollection === "function"
-              ? "✅ Available"
-              : "❌ Not available"}
-          </div>
-          <div>
             <strong>Is Loading:</strong> {isLoading ? "🔄 Yes" : "✅ No"}
           </div>
           <div>
             <strong>Local Error:</strong> {error || "None"}
           </div>
           <div>
-            <strong>Hook Error:</strong> {hookError || "None"}
-          </div>
-          <div>
             <strong>Local Success:</strong> {success || "None"}
-          </div>
-          <div>
-            <strong>Hook Success:</strong> {hookSuccess || "None"}
           </div>
           <div>
             <strong>Collection ID:</strong> {collectionId || "Empty"}
@@ -449,30 +508,18 @@ const GetCollectionManagerExample = () => {
           <div>
             <strong>Operation Type:</strong> {operationType}
           </div>
+          <div>
+            <strong>Authenticated:</strong>{" "}
+            {isAuthenticated ? "✅ Yes" : "❌ No"}
+          </div>
         </div>
         <button
           onClick={() => {
             console.log("=== DEBUG INFO ===");
             console.log("getCollectionManager:", getCollectionManager);
-            console.log("useCollectionRetrieval functions:", {
-              getCollection: typeof getCollection,
-              getCachedCollection: typeof getCachedCollection,
-              refreshCollection: typeof refreshCollection,
-            });
-            console.log("Hook state:", {
-              isLoading,
-              hookError,
-              hookSuccess,
-              isAuthenticated,
-              canGetCollections,
-            });
-            console.log("Local state:", {
-              error,
-              success,
-              collectionId,
-              operationType,
-            });
             console.log("Manager status:", managerStatus);
+            console.log("Cached collections:", cachedCollections);
+            console.log("Auth status:", { isAuthenticated, canGetCollections });
             console.log("==================");
           }}
           style={{
@@ -531,6 +578,8 @@ const GetCollectionManagerExample = () => {
           Test Direct Service Call
         </button>
       </div>
+
+      {/* Manager Status */}
       <div
         style={{
           marginBottom: "20px",
@@ -563,12 +612,14 @@ const GetCollectionManagerExample = () => {
             <strong>Total Cached:</strong> {totalCachedCollections}
           </div>
           <div>
-            <strong>Cache Hit Rate:</strong>{" "}
-            {managerStatus.cache?.hitRate || "N/A"}
+            <strong>Cache Status:</strong>{" "}
+            {managerStatus?.storage?.hasRetrievedCollections
+              ? "Has Data"
+              : "Empty"}
           </div>
           <div>
-            <strong>Expired in Cache:</strong>{" "}
-            {managerStatus.cache?.expired || 0}
+            <strong>Service Ready:</strong>{" "}
+            {getCollectionManager ? "✅ Yes" : "❌ No"}
           </div>
         </div>
       </div>
@@ -773,7 +824,7 @@ const GetCollectionManagerExample = () => {
       </div>
 
       {/* Success/Error Messages */}
-      {(success || hookSuccess) && (
+      {success && (
         <div
           style={{
             marginBottom: "20px",
@@ -787,12 +838,9 @@ const GetCollectionManagerExample = () => {
             alignItems: "center",
           }}
         >
-          <span>✅ {success || hookSuccess}</span>
+          <span>✅ {success}</span>
           <button
-            onClick={() => {
-              setSuccess(null);
-              clearMessages();
-            }}
+            onClick={clearMessages}
             style={{
               background: "none",
               border: "none",
@@ -806,7 +854,7 @@ const GetCollectionManagerExample = () => {
         </div>
       )}
 
-      {(error || hookError) && (
+      {error && (
         <div
           style={{
             marginBottom: "20px",
@@ -820,12 +868,9 @@ const GetCollectionManagerExample = () => {
             alignItems: "center",
           }}
         >
-          <span>❌ {error || hookError}</span>
+          <span>❌ {error}</span>
           <button
-            onClick={() => {
-              setError(null);
-              clearMessages();
-            }}
+            onClick={clearMessages}
             style={{
               background: "none",
               border: "none",
@@ -1094,7 +1139,7 @@ const GetCollectionManagerExample = () => {
                         padding: "10px",
                         border: "1px solid #dee2e6",
                         borderRadius: "4px",
-                        backgroundColor: cacheStatus.expired
+                        backgroundColor: cacheStatus?.expired
                           ? "#f8d7da"
                           : "white",
                         fontSize: "12px",
@@ -1103,7 +1148,7 @@ const GetCollectionManagerExample = () => {
                       <div style={{ fontWeight: "bold" }}>
                         {collection.collection_type === "folder" ? "📁" : "📷"}{" "}
                         {collection.name || "[Encrypted]"}
-                        {cacheStatus.expired && (
+                        {cacheStatus?.expired && (
                           <span
                             style={{ color: "#dc3545", marginLeft: "10px" }}
                           >
@@ -1114,13 +1159,19 @@ const GetCollectionManagerExample = () => {
                       <div style={{ color: "#666" }}>
                         <strong>ID:</strong> {collection.id}
                       </div>
-                      <div style={{ color: "#666" }}>
-                        <strong>Cached:</strong>{" "}
-                        {new Date(cacheStatus.cachedAt).toLocaleString()}
-                        {" | "}
-                        <strong>Expires:</strong>{" "}
-                        {new Date(cacheStatus.expiresAt).toLocaleString()}
-                      </div>
+                      {cacheStatus && (
+                        <div style={{ color: "#666" }}>
+                          <strong>Cached:</strong>{" "}
+                          {new Date(cacheStatus.cachedAt).toLocaleString()}
+                          {cacheStatus.expiresAt && (
+                            <>
+                              {" | "}
+                              <strong>Expires:</strong>{" "}
+                              {new Date(cacheStatus.expiresAt).toLocaleString()}
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
