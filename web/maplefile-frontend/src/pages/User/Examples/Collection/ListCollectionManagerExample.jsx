@@ -1,51 +1,27 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/Collection/ListCollectionManagerExample.jsx
-// Enhanced example component demonstrating how to use the useCollectionListing hook
+// Fixed example component demonstrating how to use the ListCollectionManager with unified services
 
 import React, { useState, useEffect } from "react";
-import { useCollections } from "../../../../services/Services";
-import { useAuth } from "../../../../services/Services";
+import { useCollections, useAuth } from "../../../../services/Services";
+import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 
 const ListCollectionManagerExample = () => {
-  const {
-    listCollectionManager,
-    // State
-    isLoading,
-    error: hookError,
-    success: hookSuccess,
-    collections,
-    filteredCollections,
-    rootCollections,
-    collectionsByParent,
-    managerStatus,
+  // Get services from unified service architecture
+  const { listCollectionManager } = useCollections();
+  const { authManager, user } = useAuth();
 
-    // Core operations
-    listCollections,
-    listFilteredCollections,
-    listRootCollections,
-    listCollectionsByParent,
-
-    // Cache operations
-    clearAllCache,
-    clearSpecificCache,
-
-    // Utilities
-    searchCollections,
-    getUserPassword,
-    clearMessages,
-
-    // Status
-    isAuthenticated,
-    canListCollections,
-    totalCollections,
-    totalFilteredCollections,
-    totalRootCollections,
-  } = useCollections();
-
-  const { user } = useAuth();
-
-  // Local component state
+  // Local component state - managed by component, not hook
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [collections, setCollections] = useState([]);
+  const [filteredCollections, setFilteredCollections] = useState({
+    owned_collections: [],
+    shared_collections: [],
+    total_count: 0,
+  });
+  const [rootCollections, setRootCollections] = useState([]);
+  const [collectionsByParent, setCollectionsByParent] = useState([]);
 
   // UI state
   const [searchTerm, setSearchTerm] = useState("");
@@ -55,6 +31,16 @@ const ListCollectionManagerExample = () => {
   const [includeShared, setIncludeShared] = useState(false);
   const [eventLog, setEventLog] = useState([]);
   const [showDetails, setShowDetails] = useState({});
+
+  // Computed properties from authManager
+  const isAuthenticated = authManager?.isAuthenticated() || false;
+  const canListCollections =
+    authManager?.canMakeAuthenticatedRequests() || false;
+
+  // Total counts
+  const totalCollections = collections.length;
+  const totalFilteredCollections = filteredCollections.total_count;
+  const totalRootCollections = rootCollections.length;
 
   // Handle list collections
   const handleListCollections = async (forceRefresh = false) => {
@@ -68,17 +54,18 @@ const ListCollectionManagerExample = () => {
     console.log("[ListCollectionExample] Is authenticated:", isAuthenticated);
 
     if (!listCollectionManager) {
-      alert(
+      setError(
         "ListCollectionManager is not available. Please check the service initialization.",
       );
       return;
     }
 
     if (!isAuthenticated) {
-      alert("You must be authenticated to list collections.");
+      setError("You must be authenticated to list collections.");
       return;
     }
 
+    setIsLoading(true);
     setError(null);
     setSuccess(null);
 
@@ -88,12 +75,16 @@ const ListCollectionManagerExample = () => {
       switch (selectedListType) {
         case "user":
           console.log("[ListCollectionExample] Listing user collections");
-          result = await listCollections(forceRefresh);
+          result = await listCollectionManager.listCollections(forceRefresh);
+          setCollections(result.collections || []);
           addToEventLog("user_collections_listed", {
             totalCount: result.totalCount,
             source: result.source,
             forceRefresh,
           });
+          setSuccess(
+            `Successfully listed ${result.totalCount} user collections from ${result.source}`,
+          );
           break;
 
         case "filtered":
@@ -101,46 +92,66 @@ const ListCollectionManagerExample = () => {
             includeOwned,
             includeShared,
           });
-          result = await listFilteredCollections(
+          result = await listCollectionManager.listFilteredCollections(
             includeOwned,
             includeShared,
             forceRefresh,
           );
+          setFilteredCollections({
+            owned_collections: result.owned_collections || [],
+            shared_collections: result.shared_collections || [],
+            total_count: result.total_count || 0,
+          });
           addToEventLog("filtered_collections_listed", {
-            ownedCount: result.owned_collections.length,
-            sharedCount: result.shared_collections.length,
+            ownedCount: result.owned_collections?.length || 0,
+            sharedCount: result.shared_collections?.length || 0,
             totalCount: result.total_count,
             source: result.source,
             forceRefresh,
           });
+          setSuccess(
+            `Successfully listed filtered collections from ${result.source}`,
+          );
           break;
 
         case "root":
           console.log("[ListCollectionExample] Listing root collections");
-          result = await listRootCollections(forceRefresh);
+          result =
+            await listCollectionManager.listRootCollections(forceRefresh);
+          setRootCollections(result.collections || []);
           addToEventLog("root_collections_listed", {
             totalCount: result.totalCount,
             source: result.source,
             forceRefresh,
           });
+          setSuccess(
+            `Successfully listed ${result.totalCount} root collections from ${result.source}`,
+          );
           break;
 
         case "byParent":
           if (!parentId.trim()) {
-            alert("Parent ID is required for listing by parent");
+            setError("Parent ID is required for listing by parent");
             return;
           }
           console.log(
             "[ListCollectionExample] Listing collections by parent:",
             parentId,
           );
-          result = await listCollectionsByParent(parentId.trim(), forceRefresh);
+          result = await listCollectionManager.listCollectionsByParent(
+            parentId.trim(),
+            forceRefresh,
+          );
+          setCollectionsByParent(result.collections || []);
           addToEventLog("collections_by_parent_listed", {
             parentId: parentId.trim(),
             totalCount: result.totalCount,
             source: result.source,
             forceRefresh,
           });
+          setSuccess(
+            `Successfully listed ${result.totalCount} collections by parent from ${result.source}`,
+          );
           break;
 
         default:
@@ -153,12 +164,14 @@ const ListCollectionManagerExample = () => {
       );
     } catch (err) {
       console.error("[ListCollectionExample] Collection listing failed:", err);
+      setError(`Collection listing failed: ${err.message}`);
       addToEventLog("listing_failed", {
         listType: selectedListType,
         error: err.message,
         forceRefresh,
       });
-      alert(`Collection listing failed: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -168,10 +181,12 @@ const ListCollectionManagerExample = () => {
       return;
 
     try {
-      await clearAllCache();
+      await listCollectionManager.clearAllCache();
       addToEventLog("all_cache_cleared", {});
+      setSuccess("All cache cleared successfully");
     } catch (err) {
       console.error("Failed to clear all cache:", err);
+      setError(`Failed to clear all cache: ${err.message}`);
     }
   };
 
@@ -179,25 +194,27 @@ const ListCollectionManagerExample = () => {
     if (!confirm(`Clear ${cacheType} cache? This cannot be undone.`)) return;
 
     try {
-      await clearSpecificCache(cacheType);
+      await listCollectionManager.clearSpecificCache(cacheType);
       addToEventLog("specific_cache_cleared", { cacheType });
+      setSuccess(`${cacheType} cache cleared successfully`);
     } catch (err) {
       console.error(`Failed to clear ${cacheType} cache:`, err);
+      setError(`Failed to clear ${cacheType} cache: ${err.message}`);
     }
   };
 
   // Get password from storage
   const handleGetStoredPassword = async () => {
     try {
-      const storedPassword = await getUserPassword();
+      const storedPassword = await listCollectionManager.getUserPassword();
       if (storedPassword) {
         addToEventLog("password_loaded", { source: "storage" });
-        alert("Password loaded from storage successfully");
+        setSuccess("Password loaded from storage successfully");
       } else {
-        alert("No password found in storage");
+        setError("No password found in storage");
       }
     } catch (err) {
-      alert(`Failed to get stored password: ${err.message}`);
+      setError(`Failed to get stored password: ${err.message}`);
     }
   };
 
@@ -218,6 +235,12 @@ const ListCollectionManagerExample = () => {
     setEventLog([]);
   };
 
+  // Clear messages
+  const clearMessages = () => {
+    setError(null);
+    setSuccess(null);
+  };
+
   // Toggle collection details
   const toggleDetails = (collectionId) => {
     setShowDetails((prev) => ({
@@ -226,7 +249,7 @@ const ListCollectionManagerExample = () => {
     }));
   };
 
-  // This function seems to be missing from the useCollections hook, so we define it locally.
+  // Filter collections by type
   const filterCollectionsByType = (collectionsList, type) => {
     if (!Array.isArray(collectionsList)) return [];
     return collectionsList.filter(
@@ -234,17 +257,35 @@ const ListCollectionManagerExample = () => {
     );
   };
 
-  // Ensure collections is an array for safe operations
-  const safeCollections = collections || [];
+  // Get current collections based on selected list type
+  const getCurrentCollections = () => {
+    switch (selectedListType) {
+      case "user":
+        return collections;
+      case "filtered":
+        return [
+          ...filteredCollections.owned_collections,
+          ...filteredCollections.shared_collections,
+        ];
+      case "root":
+        return rootCollections;
+      case "byParent":
+        return collectionsByParent;
+      default:
+        return [];
+    }
+  };
+
+  const currentCollections = getCurrentCollections();
 
   // Search filtered collections
   const searchResults = searchTerm
-    ? searchCollections(searchTerm, safeCollections)
-    : safeCollections;
+    ? listCollectionManager.searchCollections(searchTerm, currentCollections)
+    : currentCollections;
 
   // Filter results by type
-  const folders = filterCollectionsByType(safeCollections, "folder");
-  const albums = filterCollectionsByType(safeCollections, "album");
+  const folders = filterCollectionsByType(currentCollections, "folder");
+  const albums = filterCollectionsByType(currentCollections, "album");
 
   // Get cached data
   const cachedData = listCollectionManager?.getCachedCollections() || {
@@ -257,6 +298,9 @@ const ListCollectionManagerExample = () => {
       isExpired: true,
     };
 
+  // Get manager status
+  const managerStatus = listCollectionManager?.getManagerStatus() || {};
+
   // Debug: Log when component loads
   useEffect(() => {
     console.log("[ListCollectionExample] Component mounted");
@@ -264,13 +308,13 @@ const ListCollectionManagerExample = () => {
       "[ListCollectionExample] listCollectionManager from useCollections:",
       listCollectionManager,
     );
-    console.log("[ListCollectionExample] useCollectionListing hook data:", {
+    console.log("[ListCollectionExample] authManager:", authManager);
+    console.log("[ListCollectionExample] component state:", {
       isLoading,
       error,
       success,
       isAuthenticated,
       canListCollections,
-      listCollectionsFunction: typeof listCollections,
     });
   }, []);
 
@@ -283,11 +327,14 @@ const ListCollectionManagerExample = () => {
     if (listCollectionManager) {
       console.log(
         "[ListCollectionExample] listCollectionManager methods:",
-        Object.getOwnPropertyNames(listCollectionManager),
+        Object.getOwnPropertyNames(
+          Object.getPrototypeOf(listCollectionManager),
+        ),
       );
     }
   }, [listCollectionManager]);
 
+  // Auto-clear messages after 5 seconds
   useEffect(() => {
     if (success || error) {
       const timer = setTimeout(() => {
@@ -296,14 +343,15 @@ const ListCollectionManagerExample = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [success, error, clearMessages]);
+  }, [success, error]);
 
   return (
     <div style={{ padding: "20px", maxWidth: "1600px", margin: "0 auto" }}>
       <h2>📂 Enhanced List Collection Manager Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
-        This page demonstrates the <strong>useCollectionListing</strong> hook
-        with multiple list types, caching, and E2EE decryption.
+        This page demonstrates the <strong>ListCollectionManager</strong> with
+        multiple list types, caching, and E2EE decryption using the unified
+        service architecture.
         <br />
         <strong>User:</strong> {user?.email || "Not logged in"}
       </p>
@@ -325,56 +373,44 @@ const ListCollectionManagerExample = () => {
             {listCollectionManager ? "✅ Yes" : "❌ No"}
           </div>
           <div>
-            <strong>UseCollectionListing Hook:</strong>{" "}
-            {typeof useCollections === "function"
-              ? "✅ Loaded"
-              : "❌ Not loaded"}
+            <strong>AuthManager Available:</strong>{" "}
+            {authManager ? "✅ Yes" : "❌ No"}
           </div>
           <div>
-            <strong>List Collections Function:</strong>{" "}
-            {typeof listCollections === "function"
-              ? "✅ Available"
-              : "❌ Not available"}
+            <strong>Is Authenticated:</strong>{" "}
+            {isAuthenticated ? "✅ Yes" : "❌ No"}
+          </div>
+          <div>
+            <strong>Can List Collections:</strong>{" "}
+            {canListCollections ? "✅ Yes" : "❌ No"}
           </div>
           <div>
             <strong>Is Loading:</strong> {isLoading ? "🔄 Yes" : "✅ No"}
           </div>
           <div>
-            <strong>Local Error:</strong> {error || "None"}
+            <strong>Error:</strong> {error || "None"}
           </div>
           <div>
-            <strong>Hook Error:</strong> {hookError || "None"}
-          </div>
-          <div>
-            <strong>Local Success:</strong> {success || "None"}
-          </div>
-          <div>
-            <strong>Hook Success:</strong> {hookSuccess || "None"}
+            <strong>Success:</strong> {success || "None"}
           </div>
           <div>
             <strong>Selected List Type:</strong> {selectedListType}
+          </div>
+          <div>
+            <strong>User Email:</strong> {user?.email || "Not available"}
           </div>
         </div>
         <button
           onClick={() => {
             console.log("=== DEBUG INFO ===");
             console.log("listCollectionManager:", listCollectionManager);
-            console.log("useCollectionListing functions:", {
-              listCollections: typeof listCollections,
-              listFilteredCollections: typeof listFilteredCollections,
-              listRootCollections: typeof listRootCollections,
-            });
-            console.log("Hook state:", {
+            console.log("authManager:", authManager);
+            console.log("Component state:", {
               isLoading,
-              hookError,
-              hookSuccess,
-              isAuthenticated,
-              canListCollections,
-            });
-            console.log("Local state:", {
               error,
               success,
-              selectedListType,
+              isAuthenticated,
+              canListCollections,
             });
             console.log("Manager status:", managerStatus);
             console.log("==================");
@@ -403,16 +439,16 @@ const ListCollectionManagerExample = () => {
                 const result =
                   await listCollectionManager.listCollections(true);
                 console.log("Direct call result:", result);
-                alert(
+                setSuccess(
                   `Direct call successful! Listed ${result.totalCount} collections from ${result.source}`,
                 );
               } else {
                 console.log("listCollectionManager is not available");
-                alert("ListCollectionManager service is not available");
+                setError("ListCollectionManager service is not available");
               }
             } catch (err) {
               console.error("Direct call error:", err);
-              alert(`Direct call failed: ${err.message}`);
+              setError(`Direct call failed: ${err.message}`);
             }
             console.log("========================");
           }}
@@ -632,7 +668,7 @@ const ListCollectionManagerExample = () => {
       </div>
 
       {/* Success/Error Messages */}
-      {(success || hookSuccess) && (
+      {success && (
         <div
           style={{
             marginBottom: "20px",
@@ -646,12 +682,9 @@ const ListCollectionManagerExample = () => {
             alignItems: "center",
           }}
         >
-          <span>✅ {success || hookSuccess}</span>
+          <span>✅ {success}</span>
           <button
-            onClick={() => {
-              setSuccess(null);
-              clearMessages();
-            }}
+            onClick={clearMessages}
             style={{
               background: "none",
               border: "none",
@@ -665,7 +698,7 @@ const ListCollectionManagerExample = () => {
         </div>
       )}
 
-      {(error || hookError) && (
+      {error && (
         <div
           style={{
             marginBottom: "20px",
@@ -679,12 +712,9 @@ const ListCollectionManagerExample = () => {
             alignItems: "center",
           }}
         >
-          <span>❌ {error || hookError}</span>
+          <span>❌ {error}</span>
           <button
-            onClick={() => {
-              setError(null);
-              clearMessages();
-            }}
+            onClick={clearMessages}
             style={{
               background: "none",
               border: "none",
@@ -717,7 +747,7 @@ const ListCollectionManagerExample = () => {
           }}
         >
           <h4 style={{ margin: 0 }}>
-            📋 Collections ({totalCollections} total):
+            📋 Collections ({currentCollections.length} total):
           </h4>
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
             <input
@@ -749,7 +779,7 @@ const ListCollectionManagerExample = () => {
             }}
           >
             <p style={{ fontSize: "18px", color: "#6c757d" }}>
-              {totalCollections === 0
+              {currentCollections.length === 0
                 ? "No collections found."
                 : "No collections match your search."}
             </p>
@@ -1061,13 +1091,14 @@ const ListCollectionManagerExample = () => {
               setSelectedListType("user");
               handleListCollections(false);
             }}
+            disabled={!isAuthenticated}
             style={{
               padding: "5px 10px",
-              backgroundColor: "#28a745",
+              backgroundColor: !isAuthenticated ? "#6c757d" : "#28a745",
               color: "white",
               border: "none",
               borderRadius: "3px",
-              cursor: "pointer",
+              cursor: !isAuthenticated ? "not-allowed" : "pointer",
               fontSize: "12px",
             }}
           >
@@ -1078,13 +1109,14 @@ const ListCollectionManagerExample = () => {
               setSelectedListType("root");
               handleListCollections(false);
             }}
+            disabled={!isAuthenticated}
             style={{
               padding: "5px 10px",
-              backgroundColor: "#007bff",
+              backgroundColor: !isAuthenticated ? "#6c757d" : "#007bff",
               color: "white",
               border: "none",
               borderRadius: "3px",
-              cursor: "pointer",
+              cursor: !isAuthenticated ? "not-allowed" : "pointer",
               fontSize: "12px",
             }}
           >
@@ -1099,4 +1131,9 @@ const ListCollectionManagerExample = () => {
   );
 };
 
-export default ListCollectionManagerExample;
+// Export the component wrapped with password protection
+export default withPasswordProtection(ListCollectionManagerExample, {
+  redirectTo: "/login",
+  showLoadingWhileChecking: true,
+  customMessage: "Please log in to access the List Collection Manager example",
+});
