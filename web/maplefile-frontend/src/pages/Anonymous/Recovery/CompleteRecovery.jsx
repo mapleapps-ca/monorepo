@@ -2,7 +2,7 @@
 // Step 3: Complete Recovery - Set new password
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { useServices } from "../../../hooks/useService.jsx";
+import { useServices } from "../../../services/Services";
 
 const CompleteRecovery = () => {
   const navigate = useNavigate();

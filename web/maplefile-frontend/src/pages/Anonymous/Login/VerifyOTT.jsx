@@ -1,8 +1,7 @@
 // File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Login/VerifyOTT.jsx
-// Verify OTT Page - FIXED with correct method name and error handling
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { useServices } from "../../../hooks/useService.jsx";
+import { useServices } from "../../../services/Services";
 
 const VerifyOTT = () => {
   const navigate = useNavigate();

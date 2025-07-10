@@ -1,11 +1,10 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Dashboard/Dashboard.jsx
-// Updated to include Share Collection Manager Example
 import { useNavigate } from "react-router";
-import useAuth from "../../../hooks/useAuth.js";
+import useAuth from "../../../hooks/useAuth.js"; // Using legacy hook
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuth(); // Use legacy hook
 
   const handleLogout = () => {
     logout();

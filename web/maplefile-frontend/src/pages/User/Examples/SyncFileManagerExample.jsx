@@ -1,11 +1,11 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/SyncFileManagerExample.jsx
 // Updated to use SyncFileManager instead of SyncFileService
 import React, { useState, useEffect } from "react";
-import { useServices } from "../../../hooks/useService.jsx";
-import useSyncFileManager from "../../../hooks/useSyncFileManager.js";
+import { useServices } from "../../../services/Services";
 
 const SyncFileManagerExample = () => {
-  // Option 1: Use the new hook (recommended)
+  const { syncFileManager } = useServices();
+
   const {
     syncFiles,
     loading,
@@ -19,10 +19,8 @@ const SyncFileManagerExample = () => {
     sizeStatistics,
     managerStatus,
     debugInfo,
-  } = useSyncFileManager();
+  } = syncFileManager();
 
-  // Option 2: Direct service access (for comparison)
-  const { syncFileManager } = useServices();
   const [directSyncFiles, setDirectSyncFiles] = useState([]);
   const [directLoading, setDirectLoading] = useState(false);
   const [directError, setDirectError] = useState(null);

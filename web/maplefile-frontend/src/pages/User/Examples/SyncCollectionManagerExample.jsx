@@ -1,11 +1,9 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/SyncCollectionManagerExample.jsx
-// Updated to use SyncCollectionManager instead of SyncCollectionService
 import React, { useState, useEffect } from "react";
-import { useServices } from "../../../hooks/useService.jsx";
-import useSyncCollectionManager from "../../../hooks/useSyncCollectionManager.js";
+import { useServices } from "../../../services/Services";
 
 const SyncCollectionManagerExample = () => {
-  // Option 1: Use the new hook (recommended)
+  const { syncCollectionManager } = useServices();
   const {
     syncCollections,
     loading,
@@ -16,10 +14,8 @@ const SyncCollectionManagerExample = () => {
     statistics,
     managerStatus,
     debugInfo,
-  } = useSyncCollectionManager();
+  } = syncCollectionManager();
 
-  // Option 2: Direct service access (for comparison)
-  const { syncCollectionManager } = useServices();
   const [directSyncCollections, setDirectSyncCollections] = useState([]);
   const [directLoading, setDirectLoading] = useState(false);
   const [directError, setDirectError] = useState(null);

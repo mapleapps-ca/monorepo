@@ -1,14 +1,24 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Me/Detail.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { useServices } from "../../../hooks/useService.jsx";
-import useAuth from "../../../hooks/useAuth.js";
+import { useServices } from "../../../services/Services";
 import withPasswordProtection from "../../../hocs/withPasswordProtection.jsx";
 
 const MeDetail = () => {
   const navigate = useNavigate();
-  const { meManager } = useServices();
-  const { logout } = useAuth();
+  const { meManager, authManager } = useServices();
+
+  // Create logout function from authManager
+  const logout = () => {
+    if (authManager?.logout) {
+      authManager.logout();
+    }
+    // Also clear any session storage
+    sessionStorage.clear();
+    localStorage.removeItem("mapleapps_access_token");
+    localStorage.removeItem("mapleapps_refresh_token");
+    localStorage.removeItem("mapleapps_user_email");
+  };
 
   // State for user data
   const [user, setUser] = useState(null);
@@ -76,6 +86,7 @@ const MeDetail = () => {
   useEffect(() => {
     loadUserData();
   }, []);
+
   const loadUserData = async () => {
     try {
       setLoading(true);

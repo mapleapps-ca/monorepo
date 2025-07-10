@@ -2,7 +2,7 @@
 // Example page to test SyncFileStorageService and SyncFileAPIService
 
 import React, { useState, useEffect } from "react";
-import { useServices } from "../../../hooks/useService.jsx";
+import { useServices } from "../../../services/Services";
 
 const SyncFileStorageExample = () => {
   const { syncFileStorageService, syncFileAPIService } = useServices();

@@ -2,7 +2,7 @@
 // Example component demonstrating how to use the SyncCollectionAPIService
 
 import React, { useState } from "react";
-import { useServices } from "../../../hooks/useService.jsx";
+import { useServices } from "../../../services/Services";
 
 const SyncCollectionAPIExample = () => {
   const { syncCollectionAPIService } = useServices();

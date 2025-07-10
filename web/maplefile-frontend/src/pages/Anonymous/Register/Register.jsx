@@ -1,8 +1,8 @@
 // File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Register/Register.jsx
-// Registration Page
+// Registration Page - UPDATED to use new unified Services
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
-import { useServices } from "../../../hooks/useService.jsx";
+import { useServices } from "../../../services/Services";
 
 const Register = () => {
   const navigate = useNavigate();

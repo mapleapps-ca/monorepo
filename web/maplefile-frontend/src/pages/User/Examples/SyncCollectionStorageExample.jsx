@@ -2,7 +2,7 @@
 // Example page to test SyncCollectionStorageService and SyncCollectionAPIService
 
 import React, { useState, useEffect } from "react";
-import { useServices } from "../../../hooks/useService.jsx";
+import { useServices } from "../../../services/Services";
 
 const SyncCollectionStorageExample = () => {
   const { syncCollectionStorageService, syncCollectionAPIService } =

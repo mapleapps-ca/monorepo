@@ -1,13 +1,12 @@
 // File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Login/CompleteLogin.jsx
-// Complete Login Page - FIXED VERSION with better token validation
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useServices } from "../../../hooks/useService.jsx";
+import { useServices } from "../../../services/Services";
 
 const CompleteLogin = () => {
   const navigate = useNavigate();
 
-  // Get services - but destructure what we need to avoid dependency issues
+  // Get services from the unified service system
   const services = useServices();
   const authManager = services?.authManager;
   const localStorageService = services?.localStorageService;

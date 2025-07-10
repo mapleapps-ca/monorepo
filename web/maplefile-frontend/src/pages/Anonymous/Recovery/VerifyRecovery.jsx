@@ -2,7 +2,7 @@
 // Step 2: Verify Recovery - Enter recovery phrase and decrypt challenge
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { useServices } from "../../../hooks/useService.jsx";
+import { useServices } from "../../../services/Services";
 
 const VerifyRecovery = () => {
   const navigate = useNavigate();

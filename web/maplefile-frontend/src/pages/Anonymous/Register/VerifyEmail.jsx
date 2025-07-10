@@ -1,11 +1,12 @@
 // File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Register/VerifyEmail.jsx
+// UPDATED to use new unified Services
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { useServices } from "../../../hooks/useService.jsx";
+import { useServices } from "../../../services/Services";
 
 const VerifyEmail = () => {
   const navigate = useNavigate();
-  const { authService } = useServices();
+  const { authManager } = useServices(); // Using authManager instead of authService
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,7 +46,7 @@ const VerifyEmail = () => {
 
     try {
       console.log("Verifying email with code:", verificationCode);
-      const result = await authService.verifyEmail(verificationCode);
+      const result = await authManager.verifyEmail(verificationCode);
 
       console.log("Email verification successful:", result);
 

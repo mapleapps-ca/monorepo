@@ -2,7 +2,7 @@
 // Step 1: Initiate Account Recovery - Enter email
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
-import { useServices } from "../../../hooks/useService.jsx";
+import { useServices } from "../../../services/Services";
 
 const InitiateRecovery = () => {
   const navigate = useNavigate();

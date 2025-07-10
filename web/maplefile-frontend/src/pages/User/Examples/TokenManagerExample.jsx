@@ -2,7 +2,7 @@
 // Example component demonstrating how to use the TokenManager
 
 import React, { useState, useEffect } from "react";
-import { useServices } from "../../../hooks/useService.jsx";
+import { useServices } from "../../../services/Services";
 
 const TokenManagerExample = () => {
   const { tokenManager } = useServices();
