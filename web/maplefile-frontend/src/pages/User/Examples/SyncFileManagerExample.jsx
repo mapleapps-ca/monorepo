@@ -1,25 +1,19 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/SyncFileManagerExample.jsx
-// Updated to use SyncFileManager instead of SyncFileService
+// Updated to use SyncFileManager with unified service architecture
 import React, { useState, useEffect } from "react";
 import { useServices } from "../../../services/Services";
 
 const SyncFileManagerExample = () => {
   const { syncFileManager } = useServices();
 
-  const {
-    syncFiles,
-    loading,
-    error,
-    getSyncFiles,
-    getSyncFilesByCollection,
-    getSyncFile,
-    refreshSyncFiles,
-    clearSyncFiles,
-    statistics,
-    sizeStatistics,
-    managerStatus,
-    debugInfo,
-  } = syncFileManager();
+  // Local state management - syncFileManager is a service instance, not a hook
+  const [syncFiles, setSyncFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [statistics, setStatistics] = useState({});
+  const [sizeStatistics, setSizeStatistics] = useState({});
+  const [managerStatus, setManagerStatus] = useState({});
+  const [debugInfo, setDebugInfo] = useState({});
 
   const [directSyncFiles, setDirectSyncFiles] = useState([]);
   const [directLoading, setDirectLoading] = useState(false);
@@ -27,36 +21,129 @@ const SyncFileManagerExample = () => {
   const [selectedCollectionId, setSelectedCollectionId] = useState("");
   const [selectedFileId, setSelectedFileId] = useState("");
 
+  // Helper functions to update state
+  const updateStatistics = () => {
+    if (syncFileManager) {
+      const files = syncFileManager.getSyncFilesFromStorage();
+      const stats = syncFileManager.getSyncFileStats(files);
+      const sizeStats = syncFileManager.getFileSizeStats(files);
+      setStatistics(stats);
+      setSizeStatistics(sizeStats);
+    }
+  };
+
+  const updateManagerStatus = () => {
+    if (syncFileManager) {
+      setManagerStatus(syncFileManager.getManagerStatus());
+    }
+  };
+
+  const updateDebugInfo = () => {
+    if (syncFileManager) {
+      setDebugInfo(syncFileManager.getDebugInfo());
+    }
+  };
+
+  // Service wrapper methods
+  const getSyncFiles = async (options = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const files = await syncFileManager.getSyncFiles(options);
+      setSyncFiles(files || []);
+      updateStatistics();
+      updateManagerStatus();
+      updateDebugInfo();
+      console.log("Loaded sync files via hook");
+    } catch (err) {
+      setError(err.message || "Failed to load sync files");
+      console.error("Failed to load sync files via hook:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getSyncFilesByCollection = async (collectionId, options = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const files = await syncFileManager.getSyncFilesByCollection(
+        collectionId,
+        options,
+      );
+      setSyncFiles(files || []);
+      updateStatistics();
+      updateManagerStatus();
+      updateDebugInfo();
+      console.log("Loaded collection files via hook");
+    } catch (err) {
+      setError(err.message || "Failed to load collection files");
+      console.error("Failed to load collection files via hook:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getSyncFile = async (fileId, options = {}) => {
+    try {
+      const file = await syncFileManager.getSyncFile(fileId, options);
+      console.log("Loaded sync file via hook:", file);
+      return file;
+    } catch (err) {
+      console.error("Failed to load sync file via hook:", err);
+      throw err;
+    }
+  };
+
+  const refreshSyncFiles = async (options = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const files = await syncFileManager.refreshSyncFiles(options);
+      setSyncFiles(files || []);
+      updateStatistics();
+      updateManagerStatus();
+      updateDebugInfo();
+      console.log("Refreshed sync files via hook");
+    } catch (err) {
+      setError(err.message || "Failed to refresh sync files");
+      console.error("Failed to refresh sync files via hook:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearSyncFiles = () => {
+    try {
+      syncFileManager.clearSyncFiles();
+      setSyncFiles([]);
+      updateStatistics();
+      updateManagerStatus();
+      updateDebugInfo();
+      console.log("Cleared sync files via hook");
+    } catch (err) {
+      setError(err.message || "Failed to clear sync files");
+      console.error("Failed to clear sync files via hook:", err);
+    }
+  };
+
   useEffect(() => {
-    loadSyncFilesViaHook();
-  }, []);
+    if (syncFileManager) {
+      loadSyncFilesViaHook();
+    }
+  }, [syncFileManager]);
 
   // Using the hook (recommended approach)
   const loadSyncFilesViaHook = async () => {
-    try {
-      await getSyncFiles();
-      console.log("Loaded sync files via hook");
-    } catch (error) {
-      console.error("Failed to load sync files via hook:", error);
-    }
+    await getSyncFiles();
   };
 
   const refreshViaHook = async () => {
-    try {
-      await refreshSyncFiles();
-      console.log("Refreshed sync files via hook");
-    } catch (error) {
-      console.error("Failed to refresh sync files via hook:", error);
-    }
+    await refreshSyncFiles();
   };
 
   const clearViaHook = () => {
-    try {
-      clearSyncFiles();
-      console.log("Cleared sync files via hook");
-    } catch (error) {
-      console.error("Failed to clear sync files via hook:", error);
-    }
+    clearSyncFiles();
   };
 
   const loadCollectionViaHook = async () => {
@@ -64,12 +151,7 @@ const SyncFileManagerExample = () => {
       alert("Please enter a collection ID");
       return;
     }
-    try {
-      await getSyncFilesByCollection(selectedCollectionId);
-      console.log("Loaded collection files via hook");
-    } catch (error) {
-      console.error("Failed to load collection files via hook:", error);
-    }
+    await getSyncFilesByCollection(selectedCollectionId);
   };
 
   const loadFileViaHook = async () => {
@@ -79,10 +161,9 @@ const SyncFileManagerExample = () => {
     }
     try {
       const file = await getSyncFile(selectedFileId);
-      console.log("Loaded sync file via hook:", file);
       alert(`Found file: ${file.file_name || file.id}`);
     } catch (error) {
-      console.error("Failed to load sync file via hook:", error);
+      alert(`Failed to load sync file: ${error.message}`);
     }
   };
 
@@ -92,7 +173,7 @@ const SyncFileManagerExample = () => {
       setDirectLoading(true);
       setDirectError(null);
       const files = await syncFileManager.getSyncFiles();
-      setDirectSyncFiles(files);
+      setDirectSyncFiles(files || []);
       console.log("Loaded sync files directly:", files);
     } catch (error) {
       setDirectError(error.message || "Failed to load sync files");
@@ -107,7 +188,7 @@ const SyncFileManagerExample = () => {
       setDirectLoading(true);
       setDirectError(null);
       const files = await syncFileManager.forceRefreshSyncFiles();
-      setDirectSyncFiles(files);
+      setDirectSyncFiles(files || []);
       console.log("Refreshed sync files directly:", files);
     } catch (error) {
       setDirectError(error.message || "Failed to refresh sync files");
@@ -120,7 +201,7 @@ const SyncFileManagerExample = () => {
   const clearDirectly = () => {
     try {
       const success = syncFileManager.clearSyncFiles();
-      if (success) {
+      if (success !== false) {
         setDirectSyncFiles([]);
         console.log("Cleared sync files directly");
       }
@@ -138,7 +219,7 @@ const SyncFileManagerExample = () => {
     return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
   };
 
-  if (loading) {
+  if (loading && syncFiles.length === 0) {
     return (
       <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
         <h2>🔄 Sync File Manager Example</h2>
@@ -152,7 +233,8 @@ const SyncFileManagerExample = () => {
       <h2>🔄 Sync File Manager Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates the new <strong>SyncFileManager</strong> with
-        both hook-based and direct service access patterns.
+        both hook-based and direct service access patterns using the unified
+        service architecture.
       </p>
 
       {/* Manager Status */}
@@ -174,12 +256,15 @@ const SyncFileManagerExample = () => {
           }}
         >
           <div>
+            <strong>Service Available:</strong>{" "}
+            {syncFileManager ? "✅ Yes" : "❌ No"}
+          </div>
+          <div>
             <strong>Authenticated:</strong>{" "}
             {managerStatus?.isAuthenticated ? "✅ Yes" : "❌ No"}
           </div>
           <div>
-            <strong>Manager Loading:</strong>{" "}
-            {managerStatus?.isLoading ? "🔄 Yes" : "✅ No"}
+            <strong>Manager Loading:</strong> {loading ? "🔄 Yes" : "✅ No"}
           </div>
           <div>
             <strong>API Loading:</strong>{" "}
@@ -273,14 +358,15 @@ const SyncFileManagerExample = () => {
         >
           <button
             onClick={loadSyncFilesViaHook}
-            disabled={loading}
+            disabled={loading || !syncFileManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#28a745",
+              backgroundColor:
+                loading || !syncFileManager ? "#6c757d" : "#28a745",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor: loading || !syncFileManager ? "not-allowed" : "pointer",
             }}
           >
             {loading ? "🔄 Loading..." : "📂 Load via Hook"}
@@ -288,14 +374,15 @@ const SyncFileManagerExample = () => {
 
           <button
             onClick={refreshViaHook}
-            disabled={loading}
+            disabled={loading || !syncFileManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#17a2b8",
+              backgroundColor:
+                loading || !syncFileManager ? "#6c757d" : "#17a2b8",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor: loading || !syncFileManager ? "not-allowed" : "pointer",
             }}
           >
             {loading ? "🔄 Refreshing..." : "🔄 Refresh via Hook"}
@@ -303,14 +390,15 @@ const SyncFileManagerExample = () => {
 
           <button
             onClick={clearViaHook}
-            disabled={loading}
+            disabled={loading || !syncFileManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#dc3545",
+              backgroundColor:
+                loading || !syncFileManager ? "#6c757d" : "#dc3545",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor: loading || !syncFileManager ? "not-allowed" : "pointer",
             }}
           >
             🗑️ Clear via Hook
@@ -330,14 +418,15 @@ const SyncFileManagerExample = () => {
             />
             <button
               onClick={loadCollectionViaHook}
-              disabled={loading}
+              disabled={loading || !syncFileManager}
               style={{
                 padding: "10px 15px",
-                backgroundColor: "#6f42c1",
+                backgroundColor:
+                  loading || !syncFileManager ? "#6c757d" : "#6f42c1",
                 color: "white",
                 border: "none",
                 borderRadius: "6px",
-                cursor: loading ? "not-allowed" : "pointer",
+                cursor: loading || !syncFileManager ? "not-allowed" : "pointer",
               }}
             >
               📁 Load
@@ -358,14 +447,15 @@ const SyncFileManagerExample = () => {
             />
             <button
               onClick={loadFileViaHook}
-              disabled={loading}
+              disabled={loading || !syncFileManager}
               style={{
                 padding: "10px 15px",
-                backgroundColor: "#fd7e14",
+                backgroundColor:
+                  loading || !syncFileManager ? "#6c757d" : "#fd7e14",
                 color: "white",
                 border: "none",
                 borderRadius: "6px",
-                cursor: loading ? "not-allowed" : "pointer",
+                cursor: loading || !syncFileManager ? "not-allowed" : "pointer",
               }}
             >
               📄 Get
@@ -403,6 +493,9 @@ const SyncFileManagerExample = () => {
             >
               <p style={{ fontSize: "18px", color: "#6c757d" }}>
                 No sync files loaded via hook.
+              </p>
+              <p style={{ color: "#6c757d" }}>
+                Click "Load via Hook" to fetch files.
               </p>
             </div>
           ) : (
@@ -499,14 +592,16 @@ const SyncFileManagerExample = () => {
         >
           <button
             onClick={loadSyncFilesDirectly}
-            disabled={directLoading}
+            disabled={directLoading || !syncFileManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#6f42c1",
+              backgroundColor:
+                directLoading || !syncFileManager ? "#6c757d" : "#6f42c1",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: directLoading ? "not-allowed" : "pointer",
+              cursor:
+                directLoading || !syncFileManager ? "not-allowed" : "pointer",
             }}
           >
             {directLoading ? "🔄 Loading..." : "📂 Load Directly"}
@@ -514,14 +609,16 @@ const SyncFileManagerExample = () => {
 
           <button
             onClick={refreshDirectly}
-            disabled={directLoading}
+            disabled={directLoading || !syncFileManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#fd7e14",
+              backgroundColor:
+                directLoading || !syncFileManager ? "#6c757d" : "#fd7e14",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: directLoading ? "not-allowed" : "pointer",
+              cursor:
+                directLoading || !syncFileManager ? "not-allowed" : "pointer",
             }}
           >
             {directLoading ? "🔄 Refreshing..." : "🔄 Refresh Directly"}
@@ -529,14 +626,16 @@ const SyncFileManagerExample = () => {
 
           <button
             onClick={clearDirectly}
-            disabled={directLoading}
+            disabled={directLoading || !syncFileManager}
             style={{
               padding: "10px 20px",
-              backgroundColor: "#6c757d",
+              backgroundColor:
+                directLoading || !syncFileManager ? "#6c757d" : "#6c757d",
               color: "white",
               border: "none",
               borderRadius: "6px",
-              cursor: directLoading ? "not-allowed" : "pointer",
+              cursor:
+                directLoading || !syncFileManager ? "not-allowed" : "pointer",
             }}
           >
             🗑️ Clear Directly
@@ -573,6 +672,9 @@ const SyncFileManagerExample = () => {
             >
               <p style={{ fontSize: "18px", color: "#6c757d" }}>
                 No sync files loaded directly.
+              </p>
+              <p style={{ color: "#6c757d" }}>
+                Click "Load Directly" to fetch files.
               </p>
             </div>
           ) : (
