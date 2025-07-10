@@ -1,7 +1,7 @@
-// File: monorepo/web/maplefile-frontend/src/App.jsx
+// File: src/App.jsx
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
-import { ServiceProvider } from "./contexts/ServiceContext";
+import { ServiceProvider } from "./services/Services"; // NEW: Single service import
 import IndexPage from "./pages/Anonymous/Index/IndexPage";
 
 // Registration pages

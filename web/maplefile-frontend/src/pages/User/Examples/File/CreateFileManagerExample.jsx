@@ -8,7 +8,7 @@ import { useServices } from "../../../../hooks/useService.jsx";
 const CreateFileManagerExample = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const { authService, createCollectionManager, listCollectionManager } =
+  const { createCollectionManager, listCollectionManager, authService } =
     useServices();
 
   // State management
