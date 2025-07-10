@@ -447,9 +447,11 @@ export function useCollections() {
 
 /**
  * File Management Services
+ * 🔧 FIXED: Now includes auth and collection dependencies that file managers need
  */
 export function useFiles() {
   const {
+    // File services
     syncFileAPIService,
     syncFileStorageService,
     syncFileManager,
@@ -457,9 +459,16 @@ export function useFiles() {
     getFileManager,
     downloadFileManager,
     deleteFileManager,
+
+    // 🔧 ADDED: Dependencies that file managers need
+    authManager,
+    authService, // alias for authManager
+    getCollectionManager,
+    listCollectionManager,
   } = useServices();
 
   return {
+    // File services
     syncFileAPIService,
     syncFileStorageService,
     syncFileManager,
@@ -467,6 +476,12 @@ export function useFiles() {
     getFileManager,
     downloadFileManager,
     deleteFileManager,
+
+    // 🔧 ADDED: Dependencies that file managers need
+    authService: authManager, // Use authManager as authService
+    authManager, // Also provide direct access
+    getCollectionManager,
+    listCollectionManager,
   };
 }
 

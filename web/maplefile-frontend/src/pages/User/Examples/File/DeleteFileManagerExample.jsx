@@ -1,7 +1,7 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/File/DeleteFileManagerExample.jsx
 // Example component demonstrating how to use the DeleteFileManager
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useFiles } from "../../../../services/Services";
 
@@ -9,6 +9,9 @@ const DeleteFileManagerExample = () => {
   const navigate = useNavigate();
   const { authService, getCollectionManager, listCollectionManager } =
     useFiles();
+
+  // Use ref to track if component is mounted
+  const isMountedRef = useRef(true);
 
   // State management
   const [fileManager, setFileManager] = useState(null);
@@ -27,6 +30,7 @@ const DeleteFileManagerExample = () => {
   // Available file IDs for testing
   const [availableFiles, setAvailableFiles] = useState([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [filesLoaded, setFilesLoaded] = useState(false); // 🔧 ADDED: Track if files are loaded
 
   // Operation flags
   const [operations, setOperations] = useState({
@@ -38,8 +42,17 @@ const DeleteFileManagerExample = () => {
     extendingTombstone: false,
   });
 
+  // 🔧 FIXED: Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Add event to log
   const addToEventLog = useCallback((eventType, eventData) => {
+    if (!isMountedRef.current) return;
     setEventLog((prev) => [
       ...prev,
       {
@@ -53,22 +66,29 @@ const DeleteFileManagerExample = () => {
   // Handle file events
   const handleFileEvent = useCallback(
     (eventType, eventData) => {
+      if (!isMountedRef.current) return;
       console.log("[Example] File event:", eventType, eventData);
       addToEventLog(eventType, eventData);
     },
     [addToEventLog],
   );
 
-  // Load available files from collections
+  // 🔧 FIXED: Simplified loadAvailableFiles with better dependency management
   const loadAvailableFiles = useCallback(
-    async (manager = fileManager) => {
+    async (managerInstance = null) => {
+      if (!isMountedRef.current || isLoadingFiles) return;
+
+      const currentManager = managerInstance || fileManager;
+      if (!currentManager || !listCollectionManager) return;
+
       setIsLoadingFiles(true);
       try {
         console.log("[Example] Loading available files for testing...");
-        console.log("[Example] Using manager:", !!manager);
 
         // Get collections first
         const result = await listCollectionManager.listCollections(false);
+
+        if (!isMountedRef.current) return;
 
         if (result.collections && result.collections.length > 0) {
           // Load files from the first few collections
@@ -89,17 +109,20 @@ const DeleteFileManagerExample = () => {
               );
               await listManager.initialize();
 
+              if (!isMountedRef.current) return;
+
               const files = await listManager.listFilesByCollection(
                 collection.id,
                 ["active", "archived", "deleted"], // Include all relevant states
                 false,
               );
 
+              if (!isMountedRef.current) return;
+
               files.forEach((file) => {
                 // Normalize file to ensure computed properties exist
-                const normalizedFile = manager
-                  ? manager.fileCryptoService?.normalizeFile(file) || file
-                  : file;
+                const normalizedFile =
+                  currentManager.fileCryptoService?.normalizeFile(file) || file;
 
                 // Simple, direct capability checking
                 const canDelete =
@@ -109,15 +132,6 @@ const DeleteFileManagerExample = () => {
                 const canArchive = normalizedFile.state === "active";
                 const canUnarchive = normalizedFile.state === "archived";
                 const canPermanentlyDelete = false; // Only for expired tombstones
-
-                console.log(`[Example] File ${file.id} capabilities:`, {
-                  canDelete,
-                  canRestore,
-                  canArchive,
-                  canUnarchive,
-                  canPermanentlyDelete,
-                  state: normalizedFile.state,
-                });
 
                 filesToLoad.push({
                   id: normalizedFile.id,
@@ -134,7 +148,6 @@ const DeleteFileManagerExample = () => {
                     normalizedFile._has_tombstone ||
                     normalizedFile.tombstone_version > 0,
                   tombstoneExpiry: normalizedFile.tombstone_expiry,
-                  // Add computed properties for debugging
                   _is_active:
                     normalizedFile._is_active ||
                     normalizedFile.state === "active",
@@ -159,38 +172,46 @@ const DeleteFileManagerExample = () => {
             }
           }
 
-          setAvailableFiles(filesToLoad.slice(0, 15)); // Limit to first 15 files
-          console.log("[Example] Available files loaded:", filesToLoad.length);
-          console.log("[Example] Sample file capabilities:", filesToLoad[0]);
-          console.log("[Example] DeleteFileManager ready:", !!manager);
-          console.log(
-            "[Example] DeleteFileManager has crypto service:",
-            !!manager?.fileCryptoService,
-          );
+          if (isMountedRef.current) {
+            setAvailableFiles(filesToLoad.slice(0, 15)); // Limit to first 15 files
+            setFilesLoaded(true); // 🔧 ADDED: Mark files as loaded
+            console.log(
+              "[Example] Available files loaded:",
+              filesToLoad.length,
+            );
+          }
         } else {
-          console.log("[Example] No collections found");
-          setError(
-            "No collections found. Please create collections and files first.",
-          );
+          if (isMountedRef.current) {
+            console.log("[Example] No collections found");
+            setError(
+              "No collections found. Please create collections and files first.",
+            );
+          }
         }
       } catch (err) {
         console.error("[Example] Failed to load available files:", err);
-        setError(`Failed to load available files: ${err.message}`);
+        if (isMountedRef.current) {
+          setError(`Failed to load available files: ${err.message}`);
+        }
       } finally {
-        setIsLoadingFiles(false);
+        if (isMountedRef.current) {
+          setIsLoadingFiles(false);
+        }
       }
     },
     [
       authService,
-      fileManager,
       getCollectionManager,
       listCollectionManager,
-      setError,
-    ],
+      fileManager,
+      isLoadingFiles,
+    ], // 🔧 FIXED: Stable dependencies
   );
 
-  // Initialize delete file manager
+  // 🔧 FIXED: Single initialization effect with proper cleanup
   useEffect(() => {
+    let mounted = true;
+
     const initializeManager = async () => {
       if (!authService || !authService.isAuthenticated()) return;
 
@@ -207,6 +228,8 @@ const DeleteFileManagerExample = () => {
         );
         await manager.initialize();
 
+        if (!mounted || !isMountedRef.current) return;
+
         setFileManager(manager);
 
         // Set up event listener
@@ -215,71 +238,45 @@ const DeleteFileManagerExample = () => {
         console.log(
           "[Example] DeleteFileManager initialized with collection managers",
         );
-        console.log(
-          "[Example] Manager has fileCryptoService:",
-          !!manager.fileCryptoService,
-        );
 
-        // Load files after manager is fully ready
-        if (listCollectionManager) {
-          console.log(
-            "[Example] Auto-loading files after manager initialization",
-          );
+        // Load files ONCE after manager is ready
+        if (!filesLoaded) {
           await loadAvailableFiles(manager);
         }
       } catch (err) {
         console.error("[Example] Failed to initialize DeleteFileManager:", err);
-        setError(`Failed to initialize: ${err.message}`);
+        if (mounted && isMountedRef.current) {
+          setError(`Failed to initialize: ${err.message}`);
+        }
       }
     };
 
     initializeManager();
 
     return () => {
+      mounted = false;
       if (fileManager) {
         fileManager.removeFileDeletionListener(handleFileEvent);
       }
     };
-  }, [
-    authService,
-    getCollectionManager,
-    listCollectionManager,
-    handleFileEvent,
-    loadAvailableFiles,
-    fileManager,
-  ]);
+  }, [authService, getCollectionManager, listCollectionManager]); // 🔧 FIXED: Stable dependencies only
 
-  // Load manager status
-  const loadManagerStatus = useCallback(() => {
-    if (!fileManager) return;
-
-    const status = fileManager.getManagerStatus();
-    setManagerStatus(status);
-    console.log("[Example] Manager status:", status);
-  }, [fileManager]);
-
-  // Load manager status when manager is ready
+  // 🔧 FIXED: Separate effect for manager status that doesn't trigger file loading
   useEffect(() => {
     if (fileManager) {
-      loadManagerStatus();
+      const status = fileManager.getManagerStatus();
+      setManagerStatus(status);
+      console.log("[Example] Manager status:", status);
     }
-  }, [fileManager, loadManagerStatus]);
+  }, [fileManager]);
 
-  // Load some available files for testing - this will be called from the initialization effect
-  // We keep this effect as a fallback in case the manager becomes ready later
-  useEffect(() => {
-    if (fileManager && listCollectionManager && availableFiles.length === 0) {
-      console.log(
-        "[Example] FileManager ready but no files loaded, loading files...",
-      );
-      loadAvailableFiles();
+  // 🔧 FIXED: Manual refresh function that doesn't cause loops
+  const handleRefreshFiles = useCallback(async () => {
+    if (fileManager) {
+      setFilesLoaded(false); // Reset loaded state
+      await loadAvailableFiles(fileManager);
     }
-  }, [
-    fileManager,
-    listCollectionManager,
-    availableFiles.length,
-    loadAvailableFiles,
-  ]);
+  }, [fileManager, loadAvailableFiles]);
 
   // Soft delete file
   const handleDeleteFile = async (forceRefresh = false) => {
@@ -319,7 +316,7 @@ const DeleteFileManagerExample = () => {
       setSelectedFileId("");
 
       // Refresh available files
-      await loadAvailableFiles();
+      await handleRefreshFiles();
     } catch (err) {
       console.error("[Example] Failed to delete file:", err);
       setError(err.message);
@@ -366,7 +363,7 @@ const DeleteFileManagerExample = () => {
       setSelectedFileId("");
 
       // Refresh available files
-      await loadAvailableFiles();
+      await handleRefreshFiles();
     } catch (err) {
       console.error("[Example] Failed to restore file:", err);
       setError(err.message);
@@ -411,7 +408,7 @@ const DeleteFileManagerExample = () => {
       setSelectedFileId("");
 
       // Refresh available files
-      await loadAvailableFiles();
+      await handleRefreshFiles();
     } catch (err) {
       console.error("[Example] Failed to archive file:", err);
       setError(err.message);
@@ -456,7 +453,7 @@ const DeleteFileManagerExample = () => {
       setSelectedFileId("");
 
       // Refresh available files
-      await loadAvailableFiles();
+      await handleRefreshFiles();
     } catch (err) {
       console.error("[Example] Failed to unarchive file:", err);
       setError(err.message);
@@ -499,7 +496,7 @@ const DeleteFileManagerExample = () => {
 
       // Clear selection and refresh available files
       setSelectedFileId("");
-      await loadAvailableFiles();
+      await handleRefreshFiles();
     } catch (err) {
       console.error("[Example] Failed to permanently delete file:", err);
       setError(err.message);
@@ -569,7 +566,7 @@ const DeleteFileManagerExample = () => {
       });
 
       // Refresh available files
-      await loadAvailableFiles();
+      await handleRefreshFiles();
     } catch (err) {
       console.error("[Example] Failed to extend tombstone expiry:", err);
       setError(err.message);
@@ -799,7 +796,7 @@ const DeleteFileManagerExample = () => {
             🗂️ Select File ({availableFiles.length} available):
           </h4>
           <button
-            onClick={() => loadAvailableFiles()}
+            onClick={handleRefreshFiles}
             disabled={isLoadingFiles}
             style={{
               padding: "5px 15px",
