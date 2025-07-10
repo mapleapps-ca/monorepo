@@ -3,12 +3,19 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useFiles } from "../../../../services/Services";
+import {
+  useAuth,
+  useCollections,
+  useFiles,
+} from "../../../../services/Services";
 
 const DownloadFileManagerExample = () => {
   const navigate = useNavigate();
-  const { authService, getCollectionManager, listCollectionManager } =
-    useFiles();
+
+  // FIXED: Use the correct hooks to get the required services
+  const { authManager } = useAuth(); // Get auth services from useAuth()
+  const { getCollectionManager, listCollectionManager } = useCollections(); // Get collection services from useCollections()
+  const { downloadFileManager } = useFiles(); // Get file services from useFiles()
 
   // State management
   const [downloadManager, setDownloadManager] = useState(null);
@@ -40,7 +47,8 @@ const DownloadFileManagerExample = () => {
   // Initialize download manager
   useEffect(() => {
     const initializeManager = async () => {
-      if (!authService.isAuthenticated()) return;
+      // FIXED: Use authManager instead of authService
+      if (!authManager.isAuthenticated()) return;
 
       try {
         const { default: DownloadFileManager } = await import(
@@ -49,7 +57,7 @@ const DownloadFileManagerExample = () => {
 
         // Pass collection managers to the DownloadFileManager
         const manager = new DownloadFileManager(
-          authService,
+          authManager, // FIXED: Use authManager instead of authService
           null, // getFileManager - we'll use API directly for this example
           getCollectionManager,
         );
@@ -79,7 +87,7 @@ const DownloadFileManagerExample = () => {
         downloadManager.removeDownloadListener(handleDownloadEvent);
       }
     };
-  }, [authService, getCollectionManager]);
+  }, [authManager, getCollectionManager]); // FIXED: Use authManager in dependencies
 
   // Load manager status when manager is ready
   useEffect(() => {
@@ -131,7 +139,7 @@ const DownloadFileManagerExample = () => {
             );
 
             const listManager = new ListFileManager(
-              authService,
+              authManager, // FIXED: Use authManager instead of authService
               getCollectionManager,
               listCollectionManager,
             );
@@ -480,7 +488,8 @@ const DownloadFileManagerExample = () => {
     }
   }, [success, error]);
 
-  if (!authService.isAuthenticated()) {
+  // FIXED: Use authManager instead of authService
+  if (!authManager.isAuthenticated()) {
     return (
       <div style={{ padding: "20px", textAlign: "center" }}>
         <p>Please log in to access this example.</p>
