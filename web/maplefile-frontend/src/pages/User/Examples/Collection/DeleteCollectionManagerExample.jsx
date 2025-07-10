@@ -1,45 +1,19 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/Collection/DeleteCollectionManagerExample.jsx
-// Example component demonstrating how to use the useCollectionDeletion hook
+// Example component demonstrating how to use the DeleteCollectionManager
 
 import React, { useState, useEffect } from "react";
-import { useCollections } from "../../../../services/Services";
-import { useAuth } from "../../../../services/Services";
+import { useCollections, useAuth } from "../../../../services/Services";
+import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 
 const DeleteCollectionManagerExample = () => {
-  const { getCollectionManager } = useCollections();
-  const {
-    // State
-    isLoading,
-    error,
-    success,
-    deletedCollections,
-    deletionHistory,
-    managerStatus,
+  const { deleteCollectionManager } = useCollections();
+  const { authManager } = useAuth();
 
-    // Operations
-    deleteCollection,
-    deleteCollections,
-    restoreCollection,
-    decryptCollection,
-    permanentlyRemoveCollection,
-    clearAllDeletedCollections,
-
-    // Utilities
-    searchDeletedCollections,
-    getDeletedCollectionById,
-    getCollectionDeletionHistory,
-    getUserPassword,
-    clearMessages,
-
-    // Status
-    isAuthenticated,
-    canDeleteCollections,
-    totalDeletedCollections,
-    getLatestDeletionForCollection,
-    getRecentDeletions,
-  } = useCollections();
-
-  const { authManager, authService } = useAuth();
+  // Component state
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [managerStatus, setManagerStatus] = useState(null);
 
   // Form state
   const [collectionId, setCollectionId] = useState("");
@@ -47,18 +21,64 @@ const DeleteCollectionManagerExample = () => {
   const [password, setPassword] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Data state
+  const [deletedCollections, setDeletedCollections] = useState([]);
+  const [deletionHistory, setDeletionHistory] = useState([]);
+
   // UI state
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [eventLog, setEventLog] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [availableCollections, setAvailableCollections] = useState([]);
 
-  // Load available collections for deletion
-  const loadAvailableCollections = async () => {
-    if (!getCollectionManager) return;
+  // Load data on mount and setup listeners
+  useEffect(() => {
+    loadData();
+    loadAvailableCollections();
+    loadManagerStatus();
 
+    // Setup deletion event listener
+    const handleDeletionEvent = (eventType, eventData) => {
+      addToEventLog(eventType, eventData);
+      loadData(); // Refresh data after any deletion event
+    };
+
+    deleteCollectionManager.addCollectionDeletionListener(handleDeletionEvent);
+
+    return () => {
+      deleteCollectionManager.removeCollectionDeletionListener(
+        handleDeletionEvent,
+      );
+    };
+  }, [deleteCollectionManager]);
+
+  // Load deleted collections and history
+  const loadData = () => {
     try {
-      // In a real app, you'd get collections from CreateCollectionManager or GetCollectionManager
+      const collections = deleteCollectionManager.getDeletedCollections();
+      const history = deleteCollectionManager.getDeletionHistory();
+
+      setDeletedCollections(collections);
+      setDeletionHistory(history);
+    } catch (err) {
+      console.error("Failed to load deletion data:", err);
+    }
+  };
+
+  // Load manager status
+  const loadManagerStatus = () => {
+    try {
+      const status = deleteCollectionManager.getManagerStatus();
+      setManagerStatus(status);
+    } catch (err) {
+      console.error("Failed to load manager status:", err);
+    }
+  };
+
+  // Load available collections for deletion (mock data for testing)
+  const loadAvailableCollections = async () => {
+    try {
+      // In a real app, you'd get collections from ListCollectionManager or GetCollectionManager
       // For this example, we'll simulate some collections
       const mockCollections = [
         {
@@ -80,27 +100,70 @@ const DeleteCollectionManagerExample = () => {
     }
   };
 
+  // Get recent deletions (helper function)
+  const getRecentDeletions = (hours = 24) => {
+    const cutoffTime = Date.now() - hours * 60 * 60 * 1000;
+    return deletionHistory.filter((entry) => {
+      const entryTime = new Date(entry.timestamp).getTime();
+      return entryTime > cutoffTime;
+    });
+  };
+
+  // Get latest deletion for a collection
+  const getLatestDeletionForCollection = (collectionId) => {
+    const collectionHistory = deletionHistory.filter(
+      (entry) => entry.collectionId === collectionId,
+    );
+    return collectionHistory.length > 0
+      ? collectionHistory[collectionHistory.length - 1]
+      : null;
+  };
+
+  // Clear success/error messages
+  const clearMessages = () => {
+    setError(null);
+    setSuccess(null);
+  };
+
   // Handle collection deletion
   const handleDeleteCollection = async () => {
     if (!collectionId.trim()) {
-      alert("Collection ID is required");
+      setError("Collection ID is required");
       return;
     }
 
     try {
-      await deleteCollection(collectionId.trim(), password || null);
+      setIsLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      const result = await deleteCollectionManager.deleteCollection(
+        collectionId.trim(),
+        password || null,
+      );
+
+      setSuccess(
+        `Collection deleted successfully: ${result.collection.name || result.collection.id}`,
+      );
 
       // Clear form
       setCollectionId("");
       setPassword("");
 
+      // Refresh data
+      loadData();
+      loadManagerStatus();
+
       // Log the event
       addToEventLog("collection_deleted", {
-        id: collectionId,
+        id: result.collection.id,
+        name: result.collection.name,
       });
     } catch (err) {
       console.error("Collection deletion failed:", err);
-      // Error is handled by the hook
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -112,24 +175,43 @@ const DeleteCollectionManagerExample = () => {
       .filter((id) => id);
 
     if (ids.length === 0) {
-      alert("Enter one or more collection IDs (comma-separated)");
+      setError("Enter one or more collection IDs (comma-separated)");
       return;
     }
 
     try {
-      await deleteCollections(ids, password || null);
+      setIsLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      const result = await deleteCollectionManager.deleteCollections(
+        ids,
+        password || null,
+      );
+
+      setSuccess(
+        `Batch deletion completed: ${result.successCount} successful, ${result.errorCount} failed`,
+      );
 
       // Clear form
       setCollectionIds("");
       setPassword("");
 
+      // Refresh data
+      loadData();
+      loadManagerStatus();
+
       // Log the event
       addToEventLog("multiple_collections_deleted", {
         ids,
-        count: ids.length,
+        successCount: result.successCount,
+        errorCount: result.errorCount,
       });
     } catch (err) {
       console.error("Batch collection deletion failed:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -143,7 +225,20 @@ const DeleteCollectionManagerExample = () => {
       return;
 
     try {
-      await restoreCollection(collectionToRestore.id);
+      setIsLoading(true);
+      setError(null);
+
+      const result = await deleteCollectionManager.restoreCollection(
+        collectionToRestore.id,
+      );
+
+      setSuccess(
+        `Collection restored successfully: ${collectionToRestore.name || collectionToRestore.id}`,
+      );
+
+      // Refresh data
+      loadData();
+      loadManagerStatus();
 
       addToEventLog("collection_restored", {
         id: collectionToRestore.id,
@@ -151,21 +246,35 @@ const DeleteCollectionManagerExample = () => {
       });
     } catch (err) {
       console.error("Failed to restore collection:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Handle collection decryption
   const handleDecryptCollection = async (collection) => {
     try {
-      const decrypted = await decryptCollection(collection, password || null);
+      setIsLoading(true);
+      setError(null);
+
+      const decrypted = await deleteCollectionManager.decryptCollection(
+        collection,
+        password || null,
+      );
+
       setSelectedCollection(decrypted);
+      setSuccess(`Collection decrypted successfully: ${decrypted.name}`);
+
       addToEventLog("collection_decrypted", {
         id: collection.id,
         name: decrypted.name,
       });
     } catch (err) {
       console.error("Decryption failed:", err);
-      // Error is handled by the hook
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -179,7 +288,11 @@ const DeleteCollectionManagerExample = () => {
       return;
 
     try {
-      await permanentlyRemoveCollection(collectionToRemove.id);
+      setIsLoading(true);
+
+      await deleteCollectionManager.permanentlyRemoveCollection(
+        collectionToRemove.id,
+      );
 
       if (
         selectedCollection &&
@@ -188,11 +301,19 @@ const DeleteCollectionManagerExample = () => {
         setSelectedCollection(null);
       }
 
+      setSuccess("Collection permanently removed from local storage");
+
+      // Refresh data
+      loadData();
+
       addToEventLog("collection_permanently_removed", {
         id: collectionToRemove.id,
       });
     } catch (err) {
       console.error("Failed to permanently remove collection:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -206,26 +327,38 @@ const DeleteCollectionManagerExample = () => {
       return;
 
     try {
-      await clearAllDeletedCollections();
+      setIsLoading(true);
+
+      await deleteCollectionManager.clearAllDeletedCollections();
+
       setSelectedCollection(null);
+      setSuccess("All deleted collections cleared");
+
+      // Refresh data
+      loadData();
+
       addToEventLog("all_deleted_collections_cleared", {});
     } catch (err) {
       console.error("Failed to clear deleted collections:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Get password from storage
   const handleGetStoredPassword = async () => {
     try {
-      const storedPassword = await getUserPassword();
+      const storedPassword = await deleteCollectionManager.getUserPassword();
       if (storedPassword) {
         setPassword(storedPassword);
+        setSuccess("Password loaded from storage");
         addToEventLog("password_loaded", { source: "storage" });
       } else {
-        alert("No password found in storage");
+        setError("No password found in storage");
       }
     } catch (err) {
-      alert(`Failed to get stored password: ${err.message}`);
+      setError(`Failed to get stored password: ${err.message}`);
     }
   };
 
@@ -248,7 +381,7 @@ const DeleteCollectionManagerExample = () => {
 
   // Search collections
   const filteredDeletedCollections = searchTerm
-    ? searchDeletedCollections(searchTerm)
+    ? deleteCollectionManager.searchDeletedCollections(searchTerm)
     : deletedCollections;
 
   // Get recent deletions
@@ -263,19 +396,19 @@ const DeleteCollectionManagerExample = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [success, error, clearMessages]);
+  }, [success, error]);
 
-  // Load available collections on mount
-  useEffect(() => {
-    loadAvailableCollections();
-  }, []);
+  // Check authentication status
+  const isAuthenticated = authManager.isAuthenticated();
+  const canDeleteCollections = authManager.canMakeAuthenticatedRequests();
+  const userEmail = authManager.getCurrentUserEmail();
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <h2>🗑️ Delete Collection Manager Example (with Hooks)</h2>
+      <h2>🗑️ Delete Collection Manager Example (with Manager)</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
-        This page demonstrates the <strong>useCollectionDeletion</strong> hook
-        for collection soft deletion and restoration functionality.
+        This page demonstrates the <strong>DeleteCollectionManager</strong> for
+        collection soft deletion and restoration functionality.
       </p>
 
       {/* Manager Status */}
@@ -297,7 +430,7 @@ const DeleteCollectionManagerExample = () => {
           }}
         >
           <div>
-            <strong>User:</strong> {user?.email || "Not logged in"}
+            <strong>User:</strong> {userEmail || "Not logged in"}
           </div>
           <div>
             <strong>Authenticated:</strong>{" "}
@@ -311,12 +444,20 @@ const DeleteCollectionManagerExample = () => {
             <strong>Loading:</strong> {isLoading ? "🔄 Yes" : "✅ No"}
           </div>
           <div>
-            <strong>Total Deleted:</strong> {totalDeletedCollections}
+            <strong>Total Deleted:</strong> {deletedCollections.length}
           </div>
           <div>
             <strong>Recent Deletions (24h):</strong> {recentDeletions.length}
           </div>
         </div>
+        {managerStatus && (
+          <div style={{ marginTop: "10px", fontSize: "12px", color: "#666" }}>
+            <strong>Manager Info:</strong> Listeners:{" "}
+            {managerStatus.listenerCount}, Storage:{" "}
+            {managerStatus.storage?.deletedCollectionsCount || 0} deleted
+            collections
+          </div>
+        )}
       </div>
 
       {/* Delete Collection Form */}
@@ -620,7 +761,7 @@ const DeleteCollectionManagerExample = () => {
           }}
         >
           <h4 style={{ margin: 0 }}>
-            🗑️ Deleted Collections ({totalDeletedCollections}):
+            🗑️ Deleted Collections ({deletedCollections.length}):
           </h4>
           <div style={{ display: "flex", gap: "10px" }}>
             <input
@@ -1047,4 +1188,4 @@ const DeleteCollectionManagerExample = () => {
   );
 };
 
-export default DeleteCollectionManagerExample;
+export default withPasswordProtection(DeleteCollectionManagerExample);
