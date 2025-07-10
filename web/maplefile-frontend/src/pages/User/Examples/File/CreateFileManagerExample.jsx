@@ -3,13 +3,19 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useFiles } from "../../../../services/Services";
+import { useServices } from "../../../../services/Services";
 
 const CreateFileManagerExample = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const { createCollectionManager, listCollectionManager, authService } =
-    useFiles();
+
+  // FIX: Use useServices() to get all required services
+  const {
+    createFileManager,
+    createCollectionManager,
+    listCollectionManager,
+    authManager,
+  } = useServices();
 
   // State management
   const [fileManager, setFileManager] = useState(null);
@@ -32,14 +38,14 @@ const CreateFileManagerExample = () => {
   // Initialize file manager
   useEffect(() => {
     const initializeManager = async () => {
-      if (!authService.isAuthenticated()) return;
+      if (!authManager.isAuthenticated()) return;
 
       try {
         const { default: CreateFileManager } = await import(
           "../../../../services/Manager/File/CreateFileManager.js"
         );
 
-        const manager = new CreateFileManager(authService);
+        const manager = new CreateFileManager(authManager);
         await manager.initialize();
 
         setFileManager(manager);
@@ -61,7 +67,7 @@ const CreateFileManagerExample = () => {
         fileManager.removeFileCreationListener(handleFileEvent);
       }
     };
-  }, [authService]);
+  }, [authManager]);
 
   // Load real collections when managers are ready
   useEffect(() => {
@@ -451,7 +457,8 @@ const CreateFileManagerExample = () => {
     }
   }, [success, error]);
 
-  if (!authService.isAuthenticated()) {
+  // FIX: Check authentication using authManager instead of authService
+  if (!authManager.isAuthenticated()) {
     return (
       <div style={{ padding: "20px", textAlign: "center" }}>
         <p>Please log in to access this example.</p>
