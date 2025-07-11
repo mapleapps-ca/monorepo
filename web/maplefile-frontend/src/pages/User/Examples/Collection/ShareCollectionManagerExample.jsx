@@ -58,9 +58,10 @@ const ShareCollectionManagerExample = () => {
   const loadSharedCollections = () => {
     try {
       const shared = shareCollectionManager.getSharedCollections();
-      setSharedCollections(shared);
+      setSharedCollections(Array.isArray(shared) ? shared : []);
     } catch (error) {
       console.error("Failed to load shared collections:", error);
+      setSharedCollections([]);
     }
   };
 
@@ -68,9 +69,10 @@ const ShareCollectionManagerExample = () => {
   const loadSharingHistory = () => {
     try {
       const history = shareCollectionManager.getSharingHistory();
-      setSharingHistory(history);
+      setSharingHistory(Array.isArray(history) ? history : []);
     } catch (error) {
       console.error("Failed to load sharing history:", error);
+      setSharingHistory([]);
     }
   };
 

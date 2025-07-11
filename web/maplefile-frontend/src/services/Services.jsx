@@ -73,7 +73,14 @@ function createServices() {
   console.log("[Services] ✓ Auth-dependent managers created");
 
   // ========================================
-  // 3. COLLECTION SERVICES
+  // 3. USER SERVICES
+  // ========================================
+
+  const userLookupManager = new UserLookupManager(authManager);
+  console.log("[Services] ✓ User services created");
+
+  // ========================================
+  // 4. COLLECTION SERVICES
   // ========================================
 
   const syncCollectionAPIService = new SyncCollectionAPIService(authManager);
@@ -84,11 +91,14 @@ function createServices() {
   const updateCollectionManager = new UpdateCollectionManager(authManager);
   const deleteCollectionManager = new DeleteCollectionManager(authManager);
   const listCollectionManager = new ListCollectionManager(authManager);
-  const shareCollectionManager = new ShareCollectionManager(authManager);
+  const shareCollectionManager = new ShareCollectionManager(
+    authManager,
+    userLookupManager,
+  );
   console.log("[Services] ✓ Collection services created");
 
   // ========================================
-  // 4. FILE SERVICES (Complex Dependencies)
+  // 5. FILE SERVICES (Complex Dependencies)
   // ========================================
 
   const syncFileAPIService = new SyncFileAPIService(authManager);
@@ -115,13 +125,6 @@ function createServices() {
     listCollectionManager,
   );
   console.log("[Services] ✓ File services created with dependencies");
-
-  // ========================================
-  // 5. USER SERVICES
-  // ========================================
-
-  const userLookupManager = new UserLookupManager();
-  console.log("[Services] ✓ User services created");
 
   // ========================================
   // 6. API CLIENT SETUP

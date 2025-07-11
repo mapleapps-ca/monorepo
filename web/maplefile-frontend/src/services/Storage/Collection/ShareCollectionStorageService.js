@@ -365,7 +365,7 @@ class ShareCollectionStorageService {
     const pending = this.getPendingShares();
 
     const stats = {
-      totalShared: shared.length,
+      totalShared: Array.isArray(shared) ? shared.length : 0,
       byPermission: {},
       byRecipient: {},
       recent: 0, // shared in last 24 hours
@@ -375,24 +375,26 @@ class ShareCollectionStorageService {
 
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
 
-    shared.forEach((share) => {
-      // Count by permission level
-      const permission = share.permission_level || "unknown";
-      stats.byPermission[permission] =
-        (stats.byPermission[permission] || 0) + 1;
+    if (Array.isArray(shared)) {
+      shared.forEach((share) => {
+        // Count by permission level
+        const permission = share.permission_level || "unknown";
+        stats.byPermission[permission] =
+          (stats.byPermission[permission] || 0) + 1;
 
-      // Count by recipient
-      const recipient = share.recipient_email || "unknown";
-      stats.byRecipient[recipient] = (stats.byRecipient[recipient] || 0) + 1;
+        // Count by recipient
+        const recipient = share.recipient_email || "unknown";
+        stats.byRecipient[recipient] = (stats.byRecipient[recipient] || 0) + 1;
 
-      // Count recent shares
-      const sharedAt = new Date(
-        share.shared_at || share.locally_stored_at,
-      ).getTime();
-      if (sharedAt > oneDayAgo) {
-        stats.recent++;
-      }
-    });
+        // Count recent shares
+        const sharedAt = new Date(
+          share.shared_at || share.locally_stored_at,
+        ).getTime();
+        if (sharedAt > oneDayAgo) {
+          stats.recent++;
+        }
+      });
+    }
 
     return stats;
   }
