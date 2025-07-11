@@ -174,17 +174,20 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 		zap.String("recipient_id", membership.RecipientID.String()),
 		zap.String("member_id", membership.ID.String()))
 
-	// DEBUGGING: Test if we can query the members table directly
-	impl.Logger.Info("DEBUGGING: Testing direct access to members table")
-	err = impl.testMembersTableAccess(ctx, collectionID)
-	if err != nil {
-		impl.Logger.Error("DEBUGGING: Failed to access members table",
-			zap.String("collection_id", collectionID.String()),
-			zap.Error(err))
-	} else {
-		impl.Logger.Info("DEBUGGING: Members table access test successful",
-			zap.String("collection_id", collectionID.String()))
-	}
+	// DEVELOPER NOTE:
+	// Remove the immediate verification after update since Cassandra needs time to propagate:
+
+	// // DEBUGGING: Test if we can query the members table directly
+	// impl.Logger.Info("DEBUGGING: Testing direct access to members table")
+	// err = impl.testMembersTableAccess(ctx, collectionID)
+	// if err != nil {
+	// 	impl.Logger.Error("DEBUGGING: Failed to access members table",
+	// 		zap.String("collection_id", collectionID.String()),
+	// 		zap.Error(err))
+	// } else {
+	// 	impl.Logger.Info("DEBUGGING: Members table access test successful",
+	// 		zap.String("collection_id", collectionID.String()))
+	// }
 
 	return nil
 }
