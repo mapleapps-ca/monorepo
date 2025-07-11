@@ -2,6 +2,7 @@
 // Fixed example component demonstrating how to use the collection creation services
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useCollections, useAuth } from "../../../../services/Services";
 
 const CreateCollectionManagerExample = () => {
@@ -330,6 +331,11 @@ const CreateCollectionManagerExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
       <h2>📁 Create Collection Manager Example (with Hooks)</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates the <strong>createCollectionManager</strong>{" "}

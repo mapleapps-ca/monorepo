@@ -2,9 +2,11 @@
 // Simplified example component demonstrating user lookup functionality
 
 import React, { useState } from "react";
+import { useNavigate } from "react-router";
 import { useUsers } from "../../../../services/Services";
 
 const UserLookupExample = () => {
+  const navigate = useNavigate();
   const { userLookupManager } = useUsers();
 
   // State management
@@ -97,6 +99,12 @@ const UserLookupExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
+
       <h2>👥 User Public Key Lookup Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates user public key lookup for end-to-end encryption.

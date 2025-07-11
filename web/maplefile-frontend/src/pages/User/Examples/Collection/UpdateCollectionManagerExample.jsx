@@ -2,10 +2,12 @@
 // Example component demonstrating how to use the UpdateCollectionManager
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useCollections, useAuth } from "../../../../services/Services";
 import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 
 const UpdateCollectionManagerExample = () => {
+  const navigate = useNavigate();
   const { updateCollectionManager, getCollectionManager } = useCollections();
   const { authManager } = useAuth();
 
@@ -390,6 +392,11 @@ const UpdateCollectionManagerExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
       <h2>✏️ Update Collection Manager Example (with Unified Services)</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates the <strong>UpdateCollectionManager</strong> with

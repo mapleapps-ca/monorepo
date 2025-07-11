@@ -2,9 +2,11 @@
 // Example page to test SyncCollectionStorageService and SyncCollectionAPIService
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useServices } from "../../../services/Services";
 
 const SyncCollectionStorageExample = () => {
+  const navigate = useNavigate();
   const { syncCollectionStorageService, syncCollectionAPIService } =
     useServices();
   const [syncCollections, setSyncCollections] = useState([]);
@@ -126,6 +128,12 @@ const SyncCollectionStorageExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
+
       <h2>💾 Sync Collection Storage Service Test</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates both the{" "}

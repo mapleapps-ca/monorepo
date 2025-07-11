@@ -2,9 +2,11 @@
 // Example component demonstrating how to use the SyncFileAPIService
 
 import React, { useState } from "react";
+import { useNavigate } from "react-router";
 import { useServices } from "../../../services/Services";
 
 const SyncFileAPIExample = () => {
+  const navigate = useNavigate();
   const { syncFileAPIService } = useServices();
   const [syncFiles, setSyncFiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -94,6 +96,12 @@ const SyncFileAPIExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
+
       <h2>🔄 Sync All Files from API (Simplified)</h2>
 
       <div style={{ marginBottom: "30px" }}>

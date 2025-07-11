@@ -2,9 +2,11 @@
 // Enhanced example component rewritten for unified service architecture
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useCollections, useAuth } from "../../../../services/Services";
 
 const GetCollectionManagerExample = () => {
+  const navigate = useNavigate();
   const { getCollectionManager } = useCollections();
   const { authManager } = useAuth();
 
@@ -468,6 +470,11 @@ const GetCollectionManagerExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
       <h2>🔍 Enhanced Get Collection Manager Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates the <strong>GetCollectionManager</strong> service

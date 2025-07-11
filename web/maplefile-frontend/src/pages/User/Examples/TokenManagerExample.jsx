@@ -2,9 +2,11 @@
 // Example component demonstrating how to use the TokenManager
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useServices } from "../../../services/Services";
 
 const TokenManagerExample = () => {
+  const navigate = useNavigate();
   const { tokenManager } = useServices();
   const [tokenInfo, setTokenInfo] = useState({});
   const [tokenHealth, setTokenHealth] = useState({});
@@ -183,6 +185,11 @@ const TokenManagerExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
       <h2>🔑 Token Manager Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates the <strong>TokenManager</strong> with

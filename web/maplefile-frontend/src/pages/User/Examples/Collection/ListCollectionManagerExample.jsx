@@ -2,10 +2,12 @@
 // Fixed example component demonstrating how to use the ListCollectionManager with unified services
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useCollections, useAuth } from "../../../../services/Services";
 import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 
 const ListCollectionManagerExample = () => {
+  const navigate = useNavigate();
   // Get services from unified service architecture
   const { listCollectionManager } = useCollections();
   const { authManager, user } = useAuth();
@@ -347,6 +349,11 @@ const ListCollectionManagerExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1600px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
       <h2>📂 Enhanced List Collection Manager Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates the <strong>ListCollectionManager</strong> with

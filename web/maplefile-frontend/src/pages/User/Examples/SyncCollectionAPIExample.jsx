@@ -2,9 +2,11 @@
 // Example component demonstrating how to use the SyncCollectionAPIService
 
 import React, { useState } from "react";
+import { useNavigate } from "react-router";
 import { useServices } from "../../../services/Services";
 
 const SyncCollectionAPIExample = () => {
+  const navigate = useNavigate();
   const { syncCollectionAPIService } = useServices();
   const [syncCollections, setSyncCollections] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,6 +41,12 @@ const SyncCollectionAPIExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
+
       <h2>🔄 Sync All Collections from API (Simplified)</h2>
 
       <div style={{ marginBottom: "30px" }}>

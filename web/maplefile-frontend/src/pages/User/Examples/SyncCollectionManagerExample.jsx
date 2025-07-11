@@ -1,8 +1,10 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/SyncCollectionManagerExample.jsx
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useServices } from "../../../services/Services";
 
 const SyncCollectionManagerExample = () => {
+  const navigate = useNavigate();
   const { syncCollectionManager } = useServices();
 
   // Local state management
@@ -172,6 +174,12 @@ const SyncCollectionManagerExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
+
       <h2>🔄 Sync Collection Manager Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates the new <strong>SyncCollectionManager</strong>{" "}

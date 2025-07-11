@@ -1,9 +1,11 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/SyncFileManagerExample.jsx
 // Updated to use SyncFileManager with unified service architecture
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useServices } from "../../../services/Services";
 
 const SyncFileManagerExample = () => {
+  const navigate = useNavigate();
   const { syncFileManager } = useServices();
 
   // Local state management - syncFileManager is a service instance, not a hook
@@ -230,6 +232,11 @@ const SyncFileManagerExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
       <h2>🔄 Sync File Manager Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates the new <strong>SyncFileManager</strong> with
