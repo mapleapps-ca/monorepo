@@ -198,10 +198,14 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 			collection.Members[i].PermissionLevel = dom_collection.CollectionPermissionAdmin
 			collection.Members[i].GrantedByID = userID
 			collection.Members[i].IsInherited = false
+			// NOTE: We intentionally do NOT set EncryptedCollectionKey here for the owner
+			// The owner accesses the collection key through their master key, not through
+			// the encrypted member key. This is validated in the repository layer.
+			collection.Members[i].EncryptedCollectionKey = nil
 			// Optionally update membership CreatedAt here if server should control it, otherwise keep DTO value.
 			// collection.Members[i].CreatedAt = now
 			ownerAlreadyMember = true
-			svc.logger.Debug("✅ Owner membership exists with Admin permissions")
+			svc.logger.Debug("✅ Owner membership updated with Admin permissions (no encrypted key needed)")
 			break
 		}
 	}
@@ -218,12 +222,16 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 			GrantedByID:     userID,                                   // Owner implicitly grants themselves permission
 			IsInherited:     false,                                    // Owner membership is never inherited
 			CreatedAt:       now,                                      // Server timestamp for membership creation
+			// NOTE: EncryptedCollectionKey is intentionally nil for owner memberships
+			// The owner has access to the collection key through their master key
+			// This is validated in the repository layer which allows nil encrypted keys for owners
+			EncryptedCollectionKey: nil,
 			// InheritedFromID is nil for direct membership.
 		}
 		// Append the mandatory owner membership. If req.Members was empty, this initializes the slice.
 		collection.Members = append(collection.Members, ownerMembership)
 
-		svc.logger.Debug("✅ Owner membership added with Admin permissions")
+		svc.logger.Debug("✅ Owner membership added with Admin permissions (no encrypted key needed)")
 	}
 
 	svc.logger.Debug("🔍 Collection debugging info",
@@ -234,6 +242,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 		zap.String("encryptedName", collection.EncryptedName))
 
 	for i, memberDTO := range collection.Members {
+		isOwner := memberDTO.RecipientID == collection.OwnerID
 		svc.logger.Debug("🔍 Cloud collection member DTO",
 			zap.Int("memberIndex", i),
 			zap.String("memberID", memberDTO.ID.String()),
@@ -241,6 +250,7 @@ func (svc *createCollectionServiceImpl) Execute(ctx context.Context, req *Create
 			zap.String("recipientEmail", memberDTO.RecipientEmail),
 			zap.String("permissionLevel", memberDTO.PermissionLevel),
 			zap.Bool("isInherited", memberDTO.IsInherited),
+			zap.Bool("isOwner", isOwner),
 			zap.Int("encryptedKeyLength", len(memberDTO.EncryptedCollectionKey)))
 	}
 

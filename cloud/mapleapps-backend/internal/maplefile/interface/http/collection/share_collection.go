@@ -65,11 +65,36 @@ func (h *ShareCollectionHTTPHandler) unmarshalRequest(
 	// Read the JSON string and convert it into our golang struct
 	err := json.NewDecoder(teeReader).Decode(&requestData)
 	if err != nil {
-		h.logger.Error("decoding error",
+		h.logger.Error("JSON decoding error",
 			zap.Any("err", err),
-			zap.String("json", rawJSON.String()),
+			zap.String("raw_json", rawJSON.String()),
 		)
 		return nil, httperror.NewForSingleField(http.StatusBadRequest, "non_field_error", "payload structure is wrong")
+	}
+
+	// Log the decoded request for debugging
+	h.logger.Info("decoded share collection request",
+		zap.String("collection_id_from_url", collectionID.String()),
+		zap.String("collection_id_from_body", requestData.CollectionID.String()),
+		zap.String("recipient_id", requestData.RecipientID.String()),
+		zap.String("recipient_email", requestData.RecipientEmail),
+		zap.String("permission_level", requestData.PermissionLevel),
+		zap.Int("encrypted_key_length", len(requestData.EncryptedCollectionKey)),
+		zap.Bool("share_with_descendants", requestData.ShareWithDescendants),
+		zap.String("raw_json", rawJSON.String()))
+
+	// CRITICAL: Check if encrypted collection key is present in the request
+	if len(requestData.EncryptedCollectionKey) == 0 {
+		h.logger.Error("FRONTEND BUG: encrypted_collection_key is missing from request",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("recipient_id", requestData.RecipientID.String()),
+			zap.String("recipient_email", requestData.RecipientEmail),
+			zap.String("raw_json", rawJSON.String()))
+	} else {
+		h.logger.Info("encrypted_collection_key found in request",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("recipient_id", requestData.RecipientID.String()),
+			zap.Int("encrypted_key_length", len(requestData.EncryptedCollectionKey)))
 	}
 
 	// Set the collection ID from the URL parameter
@@ -101,6 +126,11 @@ func (h *ShareCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	h.logger.Info("processing share collection request",
+		zap.String("collection_id", collectionID.String()),
+		zap.String("method", r.Method),
+		zap.String("content_type", r.Header.Get("Content-Type")))
+
 	req, err := h.unmarshalRequest(ctx, r, collectionID)
 	if err != nil {
 		httperror.ResponseError(w, err)
@@ -110,6 +140,10 @@ func (h *ShareCollectionHTTPHandler) Execute(w http.ResponseWriter, r *http.Requ
 	// Call service
 	resp, err := h.service.Execute(ctx, req)
 	if err != nil {
+		h.logger.Error("share collection service failed",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("recipient_id", req.RecipientID.String()),
+			zap.Error(err))
 		httperror.ResponseError(w, err)
 		return
 	}

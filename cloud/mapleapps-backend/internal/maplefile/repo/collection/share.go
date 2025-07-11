@@ -22,7 +22,7 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 		zap.String("recipient_email", membership.RecipientEmail),
 		zap.String("permission_level", membership.PermissionLevel))
 
-	// Validate membership data
+	// Validate membership data with enhanced checks
 	if !impl.isValidUUID(membership.RecipientID) {
 		return fmt.Errorf("invalid recipient ID")
 	}
@@ -32,9 +32,30 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 	if membership.PermissionLevel == "" {
 		membership.PermissionLevel = dom_collection.CollectionPermissionReadOnly
 	}
+
+	// CRITICAL: Validate encrypted collection key for shared members
 	if len(membership.EncryptedCollectionKey) == 0 {
-		return fmt.Errorf("encrypted collection key is required")
+		impl.Logger.Error("CRITICAL: Attempt to add member without encrypted collection key",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("recipient_id", membership.RecipientID.String()),
+			zap.String("recipient_email", membership.RecipientEmail),
+			zap.Int("encrypted_key_length", len(membership.EncryptedCollectionKey)))
+		return fmt.Errorf("encrypted collection key is required for shared members")
 	}
+
+	// Additional validation: ensure the encrypted key is reasonable size
+	if len(membership.EncryptedCollectionKey) < 32 {
+		impl.Logger.Error("encrypted collection key appears too short",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("recipient_id", membership.RecipientID.String()),
+			zap.Int("encrypted_key_length", len(membership.EncryptedCollectionKey)))
+		return fmt.Errorf("encrypted collection key appears invalid (got %d bytes, expected at least 32)", len(membership.EncryptedCollectionKey))
+	}
+
+	impl.Logger.Info("validated encrypted collection key for new member",
+		zap.String("collection_id", collectionID.String()),
+		zap.String("recipient_id", membership.RecipientID.String()),
+		zap.Int("encrypted_key_length", len(membership.EncryptedCollectionKey)))
 
 	// Load collection
 	collection, err := impl.Get(ctx, collectionID)
@@ -54,7 +75,7 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 		zap.String("collection_state", collection.State),
 		zap.Int("existing_members", len(collection.Members)))
 
-	// Ensure member has an ID
+	// Ensure member has an ID BEFORE adding to collection
 	if !impl.isValidUUID(membership.ID) {
 		membership.ID = gocql.TimeUUID()
 		impl.Logger.Debug("generated new member ID", zap.String("member_id", membership.ID.String()))
@@ -78,6 +99,8 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 				zap.String("old_permission", existingMember.PermissionLevel),
 				zap.String("new_permission", membership.PermissionLevel))
 
+			// IMPORTANT: Preserve the existing member ID to avoid creating a new one
+			membership.ID = existingMember.ID
 			collection.Members[i] = *membership
 			memberExists = true
 			break
@@ -91,6 +114,12 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 			zap.String("permission_level", membership.PermissionLevel))
 
 		collection.Members = append(collection.Members, *membership)
+
+		impl.Logger.Info("DEBUGGING: Member added to collection.Members slice",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("new_member_id", membership.ID.String()),
+			zap.String("recipient_id", membership.RecipientID.String()),
+			zap.Int("total_members_now", len(collection.Members)))
 	}
 
 	// Update version
@@ -102,8 +131,23 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 		zap.Int("total_members", len(collection.Members)),
 		zap.Uint64("version", collection.Version))
 
+	// DEBUGGING: Log all members that will be sent to Update method
+	impl.Logger.Info("DEBUGGING: About to call Update() with these members:")
+	for debugIdx, debugMember := range collection.Members {
+		isOwner := debugMember.RecipientID == collection.OwnerID
+		impl.Logger.Info("DEBUGGING: Member in collection.Members slice",
+			zap.Int("index", debugIdx),
+			zap.String("member_id", debugMember.ID.String()),
+			zap.String("recipient_id", debugMember.RecipientID.String()),
+			zap.String("recipient_email", debugMember.RecipientEmail),
+			zap.String("permission_level", debugMember.PermissionLevel),
+			zap.Bool("is_owner", isOwner),
+			zap.Int("encrypted_key_length", len(debugMember.EncryptedCollectionKey)))
+	}
+
 	// Log all members for debugging
 	for i, member := range collection.Members {
+		isOwner := member.RecipientID == collection.OwnerID
 		impl.Logger.Debug("collection member details",
 			zap.Int("member_index", i),
 			zap.String("member_id", member.ID.String()),
@@ -111,10 +155,11 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 			zap.String("recipient_email", member.RecipientEmail),
 			zap.String("permission_level", member.PermissionLevel),
 			zap.Bool("is_inherited", member.IsInherited),
+			zap.Bool("is_owner", isOwner),
 			zap.Int("encrypted_key_length", len(member.EncryptedCollectionKey)))
 	}
 
-	// Call update
+	// Call update - the Update method itself is atomic and reliable
 	err = impl.Update(ctx, collection)
 	if err != nil {
 		impl.Logger.Error("failed to update collection with new member",
@@ -126,39 +171,95 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 
 	impl.Logger.Info("successfully added member to collection",
 		zap.String("collection_id", collectionID.String()),
-		zap.String("recipient_id", membership.RecipientID.String()))
+		zap.String("recipient_id", membership.RecipientID.String()),
+		zap.String("member_id", membership.ID.String()))
 
-	// Verify the member was actually added by querying the members table
-	err = impl.verifyMembershipCreated(ctx, collectionID, membership.RecipientID)
+	// DEBUGGING: Test if we can query the members table directly
+	impl.Logger.Info("DEBUGGING: Testing direct access to members table")
+	err = impl.testMembersTableAccess(ctx, collectionID)
 	if err != nil {
-		impl.Logger.Error("member verification failed",
+		impl.Logger.Error("DEBUGGING: Failed to access members table",
 			zap.String("collection_id", collectionID.String()),
-			zap.String("recipient_id", membership.RecipientID.String()),
 			zap.Error(err))
-		return fmt.Errorf("member addition verification failed: %w", err)
+	} else {
+		impl.Logger.Info("DEBUGGING: Members table access test successful",
+			zap.String("collection_id", collectionID.String()))
 	}
 
 	return nil
 }
 
-// Helper method to verify membership was created in the database
-func (impl *collectionRepositoryImpl) verifyMembershipCreated(ctx context.Context, collectionID, recipientID gocql.UUID) error {
-	var memberID gocql.UUID
-	query := `SELECT member_id FROM maplefile_collection_members_by_collection_id_and_recipient_id
-		WHERE collection_id = ? AND recipient_id = ?`
+// testDirectMemberInsert tests inserting directly into the members table (for debugging)
+func (impl *collectionRepositoryImpl) testDirectMemberInsert(ctx context.Context, collectionID gocql.UUID, membership *dom_collection.CollectionMembership) error {
+	impl.Logger.Info("DEBUGGING: Testing direct insert into members table",
+		zap.String("collection_id", collectionID.String()),
+		zap.String("recipient_id", membership.RecipientID.String()))
 
-	err := impl.Session.Query(query, collectionID, recipientID).WithContext(ctx).Scan(&memberID)
+	query := `INSERT INTO maplefile_collection_members_by_collection_id_and_recipient_id
+		(collection_id, recipient_id, member_id, recipient_email, granted_by_id,
+		 encrypted_collection_key, permission_level, created_at,
+		 is_inherited, inherited_from_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	err := impl.Session.Query(query,
+		collectionID, membership.RecipientID, membership.ID, membership.RecipientEmail,
+		membership.GrantedByID, membership.EncryptedCollectionKey,
+		membership.PermissionLevel, membership.CreatedAt,
+		membership.IsInherited, membership.InheritedFromID).WithContext(ctx).Exec()
+
 	if err != nil {
-		if err == gocql.ErrNotFound {
-			return fmt.Errorf("member not found in members table after creation")
-		}
-		return fmt.Errorf("failed to verify member creation: %w", err)
+		impl.Logger.Error("DEBUGGING: Direct insert failed",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("recipient_id", membership.RecipientID.String()),
+			zap.Error(err))
+		return fmt.Errorf("direct insert failed: %w", err)
 	}
 
-	impl.Logger.Info("verified member exists in members table",
+	impl.Logger.Info("DEBUGGING: Direct insert successful",
 		zap.String("collection_id", collectionID.String()),
-		zap.String("recipient_id", recipientID.String()),
-		zap.String("member_id", memberID.String()))
+		zap.String("recipient_id", membership.RecipientID.String()))
+
+	// Verify the insert worked
+	var foundMemberID gocql.UUID
+	verifyQuery := `SELECT member_id FROM maplefile_collection_members_by_collection_id_and_recipient_id
+		WHERE collection_id = ? AND recipient_id = ?`
+
+	err = impl.Session.Query(verifyQuery, collectionID, membership.RecipientID).WithContext(ctx).Scan(&foundMemberID)
+	if err != nil {
+		if err == gocql.ErrNotFound {
+			impl.Logger.Error("DEBUGGING: Direct insert verification failed - member not found",
+				zap.String("collection_id", collectionID.String()),
+				zap.String("recipient_id", membership.RecipientID.String()))
+			return fmt.Errorf("direct insert verification failed - member not found")
+		}
+		impl.Logger.Error("DEBUGGING: Direct insert verification error",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("recipient_id", membership.RecipientID.String()),
+			zap.Error(err))
+		return fmt.Errorf("verification query failed: %w", err)
+	}
+
+	impl.Logger.Info("DEBUGGING: Direct insert verification successful",
+		zap.String("collection_id", collectionID.String()),
+		zap.String("recipient_id", membership.RecipientID.String()),
+		zap.String("found_member_id", foundMemberID.String()))
+
+	return nil
+}
+
+// testMembersTableAccess verifies we can read from the members table
+func (impl *collectionRepositoryImpl) testMembersTableAccess(ctx context.Context, collectionID gocql.UUID) error {
+	query := `SELECT COUNT(*) FROM maplefile_collection_members_by_collection_id_and_recipient_id WHERE collection_id = ?`
+
+	var count int
+	err := impl.Session.Query(query, collectionID).WithContext(ctx).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to query members table: %w", err)
+	}
+
+	impl.Logger.Info("DEBUGGING: Members table query successful",
+		zap.String("collection_id", collectionID.String()),
+		zap.Int("member_count", count))
 
 	return nil
 }

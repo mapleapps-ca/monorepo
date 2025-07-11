@@ -104,11 +104,70 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 			entry.AncestorID, entry.Depth, entry.CollectionID, collection.State)
 	}
 
-	// 6. Insert members into normalized table AND both user access tables
-	for _, member := range collection.Members {
-		// Ensure member has an ID
+	// 6. Insert members into normalized table AND both user access tables - WITH CONSISTENT VALIDATION
+	for i, member := range collection.Members {
+		impl.Logger.Info("processing member for creation",
+			zap.String("collection_id", collection.ID.String()),
+			zap.Int("member_index", i),
+			zap.String("recipient_id", member.RecipientID.String()),
+			zap.String("recipient_email", member.RecipientEmail),
+			zap.String("permission_level", member.PermissionLevel),
+			zap.Bool("is_inherited", member.IsInherited))
+
+		// Validate member data before insertion - CONSISTENT WITH UPDATE METHOD
+		if !impl.isValidUUID(member.RecipientID) {
+			return fmt.Errorf("invalid recipient ID for member %d", i)
+		}
+		if member.RecipientEmail == "" {
+			return fmt.Errorf("recipient email is required for member %d", i)
+		}
+		if member.PermissionLevel == "" {
+			return fmt.Errorf("permission level is required for member %d", i)
+		}
+
+		// FIXED: Only require encrypted collection key for non-owner members
+		// The owner has access to the collection key through their master key
+		isOwner := member.RecipientID == collection.OwnerID
+		if !isOwner && len(member.EncryptedCollectionKey) == 0 {
+			impl.Logger.Error("CRITICAL: encrypted collection key missing for shared member during creation",
+				zap.String("collection_id", collection.ID.String()),
+				zap.Int("member_index", i),
+				zap.String("recipient_id", member.RecipientID.String()),
+				zap.String("recipient_email", member.RecipientEmail),
+				zap.String("owner_id", collection.OwnerID.String()),
+				zap.Bool("is_owner", isOwner),
+				zap.Int("encrypted_key_length", len(member.EncryptedCollectionKey)))
+			return fmt.Errorf("VALIDATION ERROR: encrypted collection key is required for shared member %d (recipient: %s, email: %s). This indicates a frontend bug or API misuse.", i, member.RecipientID.String(), member.RecipientEmail)
+		}
+
+		// Additional validation for shared members
+		if !isOwner && len(member.EncryptedCollectionKey) > 0 && len(member.EncryptedCollectionKey) < 32 {
+			impl.Logger.Error("encrypted collection key appears invalid for shared member during creation",
+				zap.String("collection_id", collection.ID.String()),
+				zap.Int("member_index", i),
+				zap.String("recipient_id", member.RecipientID.String()),
+				zap.Int("encrypted_key_length", len(member.EncryptedCollectionKey)))
+			return fmt.Errorf("encrypted collection key appears invalid for member %d (too short: %d bytes)", i, len(member.EncryptedCollectionKey))
+		}
+
+		// Log key status for debugging
+		impl.Logger.Debug("member key validation passed during creation",
+			zap.String("collection_id", collection.ID.String()),
+			zap.Int("member_index", i),
+			zap.String("recipient_id", member.RecipientID.String()),
+			zap.Bool("is_owner", isOwner),
+			zap.Int("encrypted_key_length", len(member.EncryptedCollectionKey)))
+
+		// Ensure member has an ID - but don't regenerate if it already exists
 		if !impl.isValidUUID(member.ID) {
 			member.ID = gocql.TimeUUID()
+			impl.Logger.Debug("generated member ID during creation",
+				zap.String("member_id", member.ID.String()),
+				zap.String("recipient_id", member.RecipientID.String()))
+		} else {
+			impl.Logger.Debug("using existing member ID during creation",
+				zap.String("member_id", member.ID.String()),
+				zap.String("recipient_id", member.RecipientID.String()))
 		}
 
 		// Insert into normalized members table

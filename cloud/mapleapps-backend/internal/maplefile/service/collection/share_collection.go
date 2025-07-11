@@ -54,12 +54,21 @@ func NewShareCollectionService(
 
 func (svc *shareCollectionServiceImpl) Execute(ctx context.Context, req *ShareCollectionRequestDTO) (*ShareCollectionResponseDTO, error) {
 	//
-	// STEP 1: Validation
+	// STEP 1: Enhanced Validation with Detailed Logging
 	//
 	if req == nil {
 		svc.logger.Warn("Failed validation with nil request")
 		return nil, httperror.NewForBadRequestWithSingleField("non_field_error", "Share details are required")
 	}
+
+	// Log the incoming request for debugging
+	svc.logger.Info("received share collection request",
+		zap.String("collection_id", req.CollectionID.String()),
+		zap.String("recipient_id", req.RecipientID.String()),
+		zap.String("recipient_email", req.RecipientEmail),
+		zap.String("permission_level", req.PermissionLevel),
+		zap.Int("encrypted_key_length", len(req.EncryptedCollectionKey)),
+		zap.Bool("share_with_descendants", req.ShareWithDescendants))
 
 	e := make(map[string]string)
 	if req.CollectionID.String() == "" {
@@ -78,8 +87,23 @@ func (svc *shareCollectionServiceImpl) Execute(ctx context.Context, req *ShareCo
 		req.PermissionLevel != dom_collection.CollectionPermissionAdmin {
 		e["permission_level"] = "Invalid permission level"
 	}
+
+	// CRITICAL: Validate encrypted collection key is present and not empty
 	if len(req.EncryptedCollectionKey) == 0 {
-		e["encrypted_collection_key"] = "Encrypted collection key is required"
+		svc.logger.Error("encrypted collection key validation failed",
+			zap.String("collection_id", req.CollectionID.String()),
+			zap.String("recipient_id", req.RecipientID.String()),
+			zap.Int("encrypted_key_length", len(req.EncryptedCollectionKey)))
+		e["encrypted_collection_key"] = "Encrypted collection key is required and cannot be empty"
+	}
+
+	// Additional validation: ensure the encrypted key is reasonable size
+	if len(req.EncryptedCollectionKey) > 0 && len(req.EncryptedCollectionKey) < 32 {
+		svc.logger.Error("encrypted collection key appears too short",
+			zap.String("collection_id", req.CollectionID.String()),
+			zap.String("recipient_id", req.RecipientID.String()),
+			zap.Int("encrypted_key_length", len(req.EncryptedCollectionKey)))
+		e["encrypted_collection_key"] = "Encrypted collection key appears to be invalid (too short)"
 	}
 
 	if len(e) != 0 {
@@ -140,22 +164,54 @@ func (svc *shareCollectionServiceImpl) Execute(ctx context.Context, req *ShareCo
 	}
 
 	//
-	// STEP 5: Create membership
+	// STEP 5: Validate that we're not sharing with the owner (redundant)
 	//
+	if req.RecipientID == collection.OwnerID {
+		svc.logger.Warn("Attempt to share collection with its owner",
+			zap.String("collection_id", req.CollectionID.String()),
+			zap.String("owner_id", collection.OwnerID.String()),
+			zap.String("recipient_id", req.RecipientID.String()))
+		return nil, httperror.NewForBadRequestWithSingleField("recipient_id", "Cannot share collection with its owner")
+	}
+
+	//
+	// STEP 6: Create membership with EXPLICIT validation
+	//
+	svc.logger.Info("creating membership with validated encrypted key",
+		zap.String("collection_id", req.CollectionID.String()),
+		zap.String("recipient_id", req.RecipientID.String()),
+		zap.Int("encrypted_key_length", len(req.EncryptedCollectionKey)),
+		zap.String("permission_level", req.PermissionLevel))
+
 	membership := &dom_collection.CollectionMembership{
 		ID:                     gocql.TimeUUID(),
 		CollectionID:           req.CollectionID,
 		RecipientID:            req.RecipientID,
 		RecipientEmail:         req.RecipientEmail,
 		GrantedByID:            userID,
-		EncryptedCollectionKey: req.EncryptedCollectionKey,
+		EncryptedCollectionKey: req.EncryptedCollectionKey, // This should NEVER be nil for shared members
 		PermissionLevel:        req.PermissionLevel,
 		CreatedAt:              time.Now(),
 		IsInherited:            false,
 	}
 
+	// DOUBLE-CHECK: Verify the membership has the encrypted key before proceeding
+	if len(membership.EncryptedCollectionKey) == 0 {
+		svc.logger.Error("CRITICAL: Membership created without encrypted collection key",
+			zap.String("collection_id", req.CollectionID.String()),
+			zap.String("recipient_id", req.RecipientID.String()),
+			zap.String("membership_id", membership.ID.String()))
+		return nil, httperror.NewForInternalServerErrorWithSingleField("message", "Failed to create membership with encrypted key")
+	}
+
+	svc.logger.Info("membership created successfully with encrypted key",
+		zap.String("collection_id", req.CollectionID.String()),
+		zap.String("recipient_id", req.RecipientID.String()),
+		zap.String("membership_id", membership.ID.String()),
+		zap.Int("encrypted_key_length", len(membership.EncryptedCollectionKey)))
+
 	//
-	// STEP 6: Add membership to collection
+	// STEP 7: Add membership to collection
 	//
 	var membershipsCreated int = 1
 
