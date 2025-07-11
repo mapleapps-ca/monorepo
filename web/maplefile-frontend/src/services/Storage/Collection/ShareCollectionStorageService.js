@@ -10,7 +10,48 @@ class ShareCollectionStorageService {
       PENDING_SHARES: "mapleapps_pending_shares",
     };
 
+    // In-memory cache for collection keys (NEVER stored in localStorage)
+    this._collectionKeyCache = new Map();
+
     console.log("[ShareCollectionStorageService] Storage service initialized");
+  }
+
+  // === Collection Key Management (In-Memory Only) ===
+
+  // Store collection key in memory cache (NEVER persisted)
+  storeCollectionKey(collectionId, collectionKey) {
+    this._collectionKeyCache.set(collectionId, collectionKey);
+    console.log(
+      `[ShareCollectionStorageService] Collection key cached in memory for: ${collectionId}`,
+    );
+  }
+
+  // Get collection key from memory cache
+  getCollectionKey(collectionId) {
+    const cached = this._collectionKeyCache.get(collectionId);
+    if (cached) {
+      console.log(
+        `[ShareCollectionStorageService] Retrieved collection key from memory for: ${collectionId}`,
+      );
+    }
+    return cached;
+  }
+
+  // Clear collection key cache
+  clearCollectionKeyCache() {
+    this._collectionKeyCache.clear();
+    console.log("[ShareCollectionStorageService] Collection key cache cleared");
+  }
+
+  // Remove specific collection key from cache
+  removeCollectionKey(collectionId) {
+    const removed = this._collectionKeyCache.delete(collectionId);
+    if (removed) {
+      console.log(
+        `[ShareCollectionStorageService] Collection key removed from cache: ${collectionId}`,
+      );
+    }
+    return removed;
   }
 
   // === Shared Collection Storage ===
@@ -454,6 +495,9 @@ class ShareCollectionStorageService {
         JSON.stringify(allMembers),
       );
 
+      // Also remove collection key from cache
+      this.removeCollectionKey(collectionId);
+
       console.log(
         "[ShareCollectionStorageService] All shares removed for collection:",
         collectionId,
@@ -478,6 +522,8 @@ class ShareCollectionStorageService {
   clearAllSharedCollections() {
     try {
       localStorage.removeItem(this.STORAGE_KEYS.SHARED_COLLECTIONS);
+      // Also clear collection key cache
+      this.clearCollectionKeyCache();
       console.log(
         "[ShareCollectionStorageService] All shared collections cleared",
       );
@@ -543,6 +589,7 @@ class ShareCollectionStorageService {
       sharedCollectionsCount: shared.length,
       collectionMembersCount: Object.keys(allMembers).length,
       pendingSharesCount: pending.length,
+      collectionKeyCacheSize: this._collectionKeyCache.size,
       stats,
       storageKeys: Object.keys(this.STORAGE_KEYS),
       hasSharedCollections: shared.length > 0,
@@ -557,6 +604,7 @@ class ShareCollectionStorageService {
       storageInfo: this.getStorageInfo(),
       recentHistory: this.getSharingHistory().slice(-5), // Last 5 shares
       pendingShares: this.getPendingShares(),
+      collectionKeyCacheKeys: Array.from(this._collectionKeyCache.keys()),
     };
   }
 

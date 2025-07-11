@@ -138,15 +138,50 @@ class ShareCollectionManager {
           recipientPublicKey,
         );
 
-      // Prepare API share data
+      console.log(
+        "[ShareCollectionManager] Encrypted collection key type:",
+        typeof encryptedCollectionKeyForRecipient,
+      );
+      console.log(
+        "[ShareCollectionManager] Encrypted collection key length:",
+        encryptedCollectionKeyForRecipient.length,
+      );
+
+      // Convert base64 string to byte array for API
+      const { default: CryptoService } = await import(
+        "../../Crypto/CryptoService.js"
+      );
+      const encryptedKeyBytes = CryptoService.tryDecodeBase64(
+        encryptedCollectionKeyForRecipient,
+      );
+      const encryptedKeyArray = Array.from(encryptedKeyBytes);
+
+      console.log(
+        "[ShareCollectionManager] Encrypted key array length:",
+        encryptedKeyArray.length,
+      );
+
+      // Prepare API share data with correct format
       const apiShareData = {
         collection_id: collectionId,
         recipient_id: shareData.recipient_id,
         recipient_email: shareData.recipient_email,
         permission_level: shareData.permission_level,
-        encrypted_collection_key: encryptedCollectionKeyForRecipient, // Base64 string expected by API
+        encrypted_collection_key: encryptedKeyArray, // Send as byte array, not base64 string!
         share_with_descendants: shareData.share_with_descendants !== false, // Default to true
       };
+
+      console.log("[ShareCollectionManager] Final API payload:", {
+        collection_id: apiShareData.collection_id,
+        recipient_id: apiShareData.recipient_id,
+        recipient_email: apiShareData.recipient_email,
+        permission_level: apiShareData.permission_level,
+        encrypted_collection_key_length:
+          apiShareData.encrypted_collection_key.length,
+        encrypted_collection_key_type:
+          typeof apiShareData.encrypted_collection_key,
+        share_with_descendants: apiShareData.share_with_descendants,
+      });
 
       console.log("[ShareCollectionManager] Sending share request to API");
 
