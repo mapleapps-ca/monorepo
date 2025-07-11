@@ -20,8 +20,12 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		return fmt.Errorf("collection ID is required")
 	}
 
+	impl.Logger.Info("starting collection update",
+		zap.String("collection_id", collection.ID.String()),
+		zap.Uint64("version", collection.Version),
+		zap.Int("members_count", len(collection.Members)))
+
 	// Get existing collection to compare changes
-	// This is crucial for maintaining consistency across multiple table views
 	existing, err := impl.Get(ctx, collection.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get existing collection: %w", err)
@@ -30,6 +34,11 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 	if existing == nil {
 		return fmt.Errorf("collection not found")
 	}
+
+	impl.Logger.Debug("loaded existing collection for comparison",
+		zap.String("collection_id", existing.ID.String()),
+		zap.Uint64("existing_version", existing.Version),
+		zap.Int("existing_members_count", len(existing.Members)))
 
 	// Update modified timestamp
 	collection.ModifiedAt = time.Now()
@@ -63,7 +72,7 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		collection.TombstoneVersion, collection.TombstoneExpiry, collection.ID)
 
 	//
-	// 2. Update BOTH user access tables
+	// 2. Update BOTH user access tables for owner
 	//
 
 	// Delete old owner entry from BOTH tables
@@ -87,7 +96,7 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		collection.OwnerID, collection.ModifiedAt, collection.ID, nil, collection.State)
 
 	//
-	// 3. Update original parent index if parent changed
+	// 3. Update parent hierarchy if changed
 	//
 
 	oldParentID := existing.ParentID
@@ -158,15 +167,24 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 	}
 
 	//
-	// 5. Replace all members in ALL tables (delete old, insert new)
+	// 5. Handle members - CRITICAL SECTION
 	//
-	// This demonstrates the complexity of maintaining consistency across multiple table views
 
-	// Delete from normalized members table
+	impl.Logger.Info("processing member updates",
+		zap.String("collection_id", collection.ID.String()),
+		zap.Int("old_members", len(existing.Members)),
+		zap.Int("new_members", len(collection.Members)))
+
+	// Delete ALL existing members from the members table
 	batch.Query(`DELETE FROM maplefile_collection_members_by_collection_id_and_recipient_id WHERE collection_id = ?`, collection.ID)
 
 	// Delete old member access entries from BOTH user access tables
 	for _, oldMember := range existing.Members {
+		impl.Logger.Debug("deleting old member access",
+			zap.String("collection_id", collection.ID.String()),
+			zap.String("recipient_id", oldMember.RecipientID.String()),
+			zap.Time("old_modified_at", existing.ModifiedAt))
+
 		// Delete from original table
 		batch.Query(`DELETE FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 			WHERE user_id = ? AND modified_at = ? AND collection_id = ?`,
@@ -178,11 +196,36 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 			oldMember.RecipientID, existing.ModifiedAt, collection.ID)
 	}
 
-	// Insert new members into ALL tables
-	for _, member := range collection.Members {
+	// Insert ALL new members into ALL tables
+	for i, member := range collection.Members {
+		impl.Logger.Info("inserting new member",
+			zap.String("collection_id", collection.ID.String()),
+			zap.Int("member_index", i),
+			zap.String("recipient_id", member.RecipientID.String()),
+			zap.String("recipient_email", member.RecipientEmail),
+			zap.String("permission_level", member.PermissionLevel),
+			zap.Bool("is_inherited", member.IsInherited))
+
+		// Validate member data before insertion
+		if !impl.isValidUUID(member.RecipientID) {
+			return fmt.Errorf("invalid recipient ID for member %d", i)
+		}
+		if member.RecipientEmail == "" {
+			return fmt.Errorf("recipient email is required for member %d", i)
+		}
+		if member.PermissionLevel == "" {
+			return fmt.Errorf("permission level is required for member %d", i)
+		}
+		if len(member.EncryptedCollectionKey) == 0 {
+			return fmt.Errorf("encrypted collection key is required for member %d", i)
+		}
+
 		// Ensure member has an ID
 		if !impl.isValidUUID(member.ID) {
 			member.ID = gocql.TimeUUID()
+			impl.Logger.Debug("generated member ID",
+				zap.String("member_id", member.ID.String()),
+				zap.String("recipient_id", member.RecipientID.String()))
 		}
 
 		// Insert into normalized members table
@@ -210,9 +253,17 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 			member.RecipientID, collection.ModifiedAt, collection.ID, member.PermissionLevel, collection.State)
 	}
 
+	//
+	// 6. Execute the batch
+	//
+
+	impl.Logger.Info("executing batch update",
+		zap.String("collection_id", collection.ID.String()),
+		zap.Int("batch_size", batch.Size()))
+
 	// Execute batch - ensures atomicity across all table updates
 	if err := impl.Session.ExecuteBatch(batch.WithContext(ctx)); err != nil {
-		impl.Logger.Error("failed to update collection",
+		impl.Logger.Error("failed to execute batch update",
 			zap.String("collection_id", collection.ID.String()),
 			zap.Error(err))
 		return fmt.Errorf("failed to update collection: %w", err)

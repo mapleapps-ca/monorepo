@@ -155,8 +155,7 @@ func (impl *collectionRepositoryImpl) Get(ctx context.Context, id gocql.UUID) (*
 	return impl.loadCollectionWithMembers(ctx, id)
 }
 
-// OPTIMIZED: Now uses the access-type-specific table for maximum efficiency
-// This demonstrates how our dual-table approach makes previously expensive queries fast
+// FIXED: Removed state filtering from query, filter in memory instead
 func (impl *collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
@@ -178,14 +177,29 @@ func (impl *collectionRepositoryImpl) GetAllByUserID(ctx context.Context, ownerI
 		return nil, fmt.Errorf("failed to get collections by owner: %w", err)
 	}
 
+	// Load collections and filter by state in memory
+	allCollections, err := impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter to only active collections
+	var activeCollections []*dom_collection.Collection
+	for _, collection := range allCollections {
+		if collection.State == dom_collection.CollectionStateActive {
+			activeCollections = append(activeCollections, collection)
+		}
+	}
+
 	impl.Logger.Debug("retrieved owned collections efficiently",
 		zap.String("owner_id", ownerID.String()),
-		zap.Int("collection_count", len(collectionIDs)))
+		zap.Int("total_found", len(allCollections)),
+		zap.Int("active_count", len(activeCollections)))
 
-	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	return activeCollections, nil
 }
 
-// OPTIMIZED: Also benefits from the access-type-specific table
+// FIXED: Removed state filtering from query, filter in memory instead
 func (impl *collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
@@ -203,15 +217,29 @@ func (impl *collectionRepositoryImpl) GetCollectionsSharedWithUser(ctx context.C
 		return nil, fmt.Errorf("failed to get shared collections: %w", err)
 	}
 
+	// Load collections and filter by state in memory
+	allCollections, err := impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter to only active collections
+	var activeCollections []*dom_collection.Collection
+	for _, collection := range allCollections {
+		if collection.State == dom_collection.CollectionStateActive {
+			activeCollections = append(activeCollections, collection)
+		}
+	}
+
 	impl.Logger.Debug("retrieved shared collections efficiently",
 		zap.String("user_id", userID.String()),
-		zap.Int("collection_count", len(collectionIDs)))
+		zap.Int("total_found", len(allCollections)),
+		zap.Int("active_count", len(activeCollections)))
 
-	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	return activeCollections, nil
 }
 
 // NEW METHOD: Demonstrates querying across all access types when needed
-// This shows when you might use the original table instead of the access-type-specific one
 func (impl *collectionRepositoryImpl) GetAllUserCollections(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
@@ -229,18 +257,32 @@ func (impl *collectionRepositoryImpl) GetAllUserCollections(ctx context.Context,
 		return nil, fmt.Errorf("failed to get all user collections: %w", err)
 	}
 
+	// Load collections and filter by state in memory
+	allCollections, err := impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter to only active collections
+	var activeCollections []*dom_collection.Collection
+	for _, collection := range allCollections {
+		if collection.State == dom_collection.CollectionStateActive {
+			activeCollections = append(activeCollections, collection)
+		}
+	}
+
 	impl.Logger.Debug("retrieved all user collections efficiently",
 		zap.String("user_id", userID.String()),
-		zap.Int("collection_count", len(collectionIDs)))
+		zap.Int("total_found", len(allCollections)),
+		zap.Int("active_count", len(activeCollections)))
 
-	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	return activeCollections, nil
 }
 
-// Unchanged: Still uses composite partition key table for better performance
+// Uses composite partition key table for better performance
 func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
-	// Still use the original table for parent-child relationships since we need to query across all owners
 	query := `SELECT collection_id FROM maplefile_collections_by_parent_id_with_asc_created_at_and_asc_collection_id
 		WHERE parent_id = ?`
 
@@ -255,10 +297,24 @@ func (impl *collectionRepositoryImpl) FindByParent(ctx context.Context, parentID
 		return nil, fmt.Errorf("failed to find collections by parent: %w", err)
 	}
 
-	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	// Load collections and filter by state in memory
+	allCollections, err := impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter to only active collections
+	var activeCollections []*dom_collection.Collection
+	for _, collection := range allCollections {
+		if collection.State == dom_collection.CollectionStateActive {
+			activeCollections = append(activeCollections, collection)
+		}
+	}
+
+	return activeCollections, nil
 }
 
-// OPTIMIZED: Uses composite partition key for optimal performance - NO MORE ALLOW FILTERING!
+// Uses composite partition key for optimal performance
 func (impl *collectionRepositoryImpl) FindRootCollections(ctx context.Context, ownerID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 
@@ -279,10 +335,24 @@ func (impl *collectionRepositoryImpl) FindRootCollections(ctx context.Context, o
 		return nil, fmt.Errorf("failed to find root collections: %w", err)
 	}
 
-	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	// Load collections and filter by state in memory
+	allCollections, err := impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter to only active collections
+	var activeCollections []*dom_collection.Collection
+	for _, collection := range allCollections {
+		if collection.State == dom_collection.CollectionStateActive {
+			activeCollections = append(activeCollections, collection)
+		}
+	}
+
+	return activeCollections, nil
 }
 
-// OPTIMIZED: No more recursive queries - single efficient query
+// No more recursive queries - single efficient query
 func (impl *collectionRepositoryImpl) FindDescendants(ctx context.Context, collectionID gocql.UUID) ([]*dom_collection.Collection, error) {
 	var descendantIDs []gocql.UUID
 
@@ -300,5 +370,19 @@ func (impl *collectionRepositoryImpl) FindDescendants(ctx context.Context, colle
 		return nil, fmt.Errorf("failed to find descendants: %w", err)
 	}
 
-	return impl.loadMultipleCollectionsWithMembers(ctx, descendantIDs)
+	// Load collections and filter by state in memory
+	allCollections, err := impl.loadMultipleCollectionsWithMembers(ctx, descendantIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter to only active collections
+	var activeCollections []*dom_collection.Collection
+	for _, collection := range allCollections {
+		if collection.State == dom_collection.CollectionStateActive {
+			activeCollections = append(activeCollections, collection)
+		}
+	}
+
+	return activeCollections, nil
 }

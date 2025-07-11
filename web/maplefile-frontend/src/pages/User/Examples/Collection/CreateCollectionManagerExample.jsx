@@ -6,6 +6,8 @@ import { useNavigate } from "react-router";
 import { useCollections, useAuth } from "../../../../services/Services";
 
 const CreateCollectionManagerExample = () => {
+  const navigate = useNavigate();
+
   // Get service managers
   const { createCollectionManager } = useCollections();
   const { authManager } = useAuth();

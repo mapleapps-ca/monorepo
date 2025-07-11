@@ -52,21 +52,17 @@ func (impl *collectionRepositoryImpl) GetCollectionsWithFilter(ctx context.Conte
 	return result, nil
 }
 
-// OPTIMIZED: Uses the access-type-specific table for maximum efficiency
-// This method demonstrates how we can get owned collections without any filtering overhead
+// Uses the access-type-specific table for maximum efficiency
 func (impl *collectionRepositoryImpl) getOwnedCollectionsOptimized(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
-	// No memory filtering needed, no wasted I/O, just pure efficiency
 	return impl.GetAllByUserID(ctx, userID)
 }
 
-// OPTIMIZED: Also uses the access-type-specific table
+// Uses the access-type-specific table
 func (impl *collectionRepositoryImpl) getSharedCollectionsOptimized(ctx context.Context, userID gocql.UUID) ([]*dom_collection.Collection, error) {
-	// Direct partition access for member-type collections
 	return impl.GetCollectionsSharedWithUser(ctx, userID)
 }
 
-// NEW METHOD: Demonstrates the alternative approach when you need both types efficiently
-// This method shows when you might want to use the original table instead of making two separate queries
+// Alternative approach when you need both types efficiently
 func (impl *collectionRepositoryImpl) GetCollectionsWithFilterSingleQuery(ctx context.Context, options dom_collection.CollectionFilterOptions) (*dom_collection.CollectionFilterResult, error) {
 	if !options.IsValid() {
 		return nil, fmt.Errorf("invalid filter options: at least one filter must be enabled")
@@ -74,8 +70,6 @@ func (impl *collectionRepositoryImpl) GetCollectionsWithFilterSingleQuery(ctx co
 
 	// Strategy decision: If we need both owned AND shared collections,
 	// it might be more efficient to query the original table once and separate them in memory
-	// This demonstrates the trade-offs between different approaches
-
 	if options.ShouldIncludeAll() {
 		return impl.getAllCollectionsAndSeparate(ctx, options.UserID)
 	}
@@ -119,8 +113,7 @@ func (impl *collectionRepositoryImpl) getAllCollectionsAndSeparate(ctx context.C
 	return result, nil
 }
 
-// NEW METHOD: Advanced filtering with pagination support
-// This demonstrates how to implement efficient pagination across filtered results
+// Advanced filtering with pagination support
 func (impl *collectionRepositoryImpl) GetCollectionsWithFilterPaginated(ctx context.Context, options dom_collection.CollectionFilterOptions, limit int64, cursor *dom_collection.CollectionSyncCursor) (*dom_collection.CollectionFilterResult, error) {
 	if !options.IsValid() {
 		return nil, fmt.Errorf("invalid filter options: at least one filter must be enabled")
@@ -153,13 +146,13 @@ func (impl *collectionRepositoryImpl) GetCollectionsWithFilterPaginated(ctx cont
 	return result, nil
 }
 
-// Helper method for paginated owned collections
+// Helper method for paginated owned collections - removed state filtering from query
 func (impl *collectionRepositoryImpl) getOwnedCollectionsPaginated(ctx context.Context, userID gocql.UUID, limit int64, cursor *dom_collection.CollectionSyncCursor) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 	var query string
 	var args []any
 
-	// Build paginated query using the access-type-specific table
+	// Build paginated query using the access-type-specific table - NO STATE FILTERING
 	if cursor == nil {
 		query = `SELECT collection_id FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
 			WHERE user_id = ? AND access_type = 'owner' LIMIT ?`
@@ -181,16 +174,30 @@ func (impl *collectionRepositoryImpl) getOwnedCollectionsPaginated(ctx context.C
 		return nil, fmt.Errorf("failed to get paginated owned collections: %w", err)
 	}
 
-	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	// Load collections and filter by state in memory
+	allCollections, err := impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter to only active collections
+	var activeCollections []*dom_collection.Collection
+	for _, collection := range allCollections {
+		if collection.State == dom_collection.CollectionStateActive {
+			activeCollections = append(activeCollections, collection)
+		}
+	}
+
+	return activeCollections, nil
 }
 
-// Helper method for paginated shared collections
+// Helper method for paginated shared collections - removed state filtering from query
 func (impl *collectionRepositoryImpl) getSharedCollectionsPaginated(ctx context.Context, userID gocql.UUID, limit int64, cursor *dom_collection.CollectionSyncCursor) ([]*dom_collection.Collection, error) {
 	var collectionIDs []gocql.UUID
 	var query string
 	var args []any
 
-	// Build paginated query using the access-type-specific table
+	// Build paginated query using the access-type-specific table - NO STATE FILTERING
 	if cursor == nil {
 		query = `SELECT collection_id FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
 			WHERE user_id = ? AND access_type = 'member' LIMIT ?`
@@ -212,5 +219,19 @@ func (impl *collectionRepositoryImpl) getSharedCollectionsPaginated(ctx context.
 		return nil, fmt.Errorf("failed to get paginated shared collections: %w", err)
 	}
 
-	return impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	// Load collections and filter by state in memory
+	allCollections, err := impl.loadMultipleCollectionsWithMembers(ctx, collectionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter to only active collections
+	var activeCollections []*dom_collection.Collection
+	for _, collection := range allCollections {
+		if collection.State == dom_collection.CollectionStateActive {
+			activeCollections = append(activeCollections, collection)
+		}
+	}
+
+	return activeCollections, nil
 }

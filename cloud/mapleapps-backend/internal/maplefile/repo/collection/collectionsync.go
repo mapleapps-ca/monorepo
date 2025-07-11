@@ -41,7 +41,7 @@ func (impl *collectionRepositoryImpl) GetAllByUserIDAndAnyType(ctx context.Conte
 	// Critical Fix: We must scan all three selected columns
 	var collectionID gocql.UUID
 	var modifiedAt time.Time
-	var accessType string // This was missing in your original implementation
+	var accessType string
 
 	for iter.Scan(&collectionID, &modifiedAt, &accessType) {
 		// Get minimal sync data for this collection
@@ -49,7 +49,7 @@ func (impl *collectionRepositoryImpl) GetAllByUserIDAndAnyType(ctx context.Conte
 		if err != nil {
 			impl.Logger.Warn("failed to get sync item for collection",
 				zap.String("collection_id", collectionID.String()),
-				zap.String("access_type", accessType), // Useful for debugging
+				zap.String("access_type", accessType),
 				zap.Error(err))
 			continue
 		}

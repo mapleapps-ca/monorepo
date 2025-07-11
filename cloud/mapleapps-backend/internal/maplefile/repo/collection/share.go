@@ -16,9 +16,32 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 		return fmt.Errorf("membership cannot be nil")
 	}
 
-	// Load collection, update members, and save
+	impl.Logger.Info("starting add member process",
+		zap.String("collection_id", collectionID.String()),
+		zap.String("recipient_id", membership.RecipientID.String()),
+		zap.String("recipient_email", membership.RecipientEmail),
+		zap.String("permission_level", membership.PermissionLevel))
+
+	// Validate membership data
+	if !impl.isValidUUID(membership.RecipientID) {
+		return fmt.Errorf("invalid recipient ID")
+	}
+	if membership.RecipientEmail == "" {
+		return fmt.Errorf("recipient email is required")
+	}
+	if membership.PermissionLevel == "" {
+		membership.PermissionLevel = dom_collection.CollectionPermissionReadOnly
+	}
+	if len(membership.EncryptedCollectionKey) == 0 {
+		return fmt.Errorf("encrypted collection key is required")
+	}
+
+	// Load collection
 	collection, err := impl.Get(ctx, collectionID)
 	if err != nil {
+		impl.Logger.Error("failed to get collection for member addition",
+			zap.String("collection_id", collectionID.String()),
+			zap.Error(err))
 		return fmt.Errorf("failed to get collection: %w", err)
 	}
 
@@ -26,9 +49,15 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 		return fmt.Errorf("collection not found")
 	}
 
+	impl.Logger.Info("loaded collection for member addition",
+		zap.String("collection_id", collection.ID.String()),
+		zap.String("collection_state", collection.State),
+		zap.Int("existing_members", len(collection.Members)))
+
 	// Ensure member has an ID
 	if !impl.isValidUUID(membership.ID) {
 		membership.ID = gocql.TimeUUID()
+		impl.Logger.Debug("generated new member ID", zap.String("member_id", membership.ID.String()))
 	}
 
 	// Set creation time if not set
@@ -36,10 +65,13 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 		membership.CreatedAt = time.Now()
 	}
 
-	// Check if member already exists
+	// Set collection ID (ensure it matches)
+	membership.CollectionID = collectionID
+
+	// Check if member already exists and update or add
+	memberExists := false
 	for i, existingMember := range collection.Members {
 		if existingMember.RecipientID == membership.RecipientID {
-			// Update existing member
 			impl.Logger.Info("updating existing collection member",
 				zap.String("collection_id", collectionID.String()),
 				zap.String("recipient_id", membership.RecipientID.String()),
@@ -47,21 +79,88 @@ func (impl *collectionRepositoryImpl) AddMember(ctx context.Context, collectionI
 				zap.String("new_permission", membership.PermissionLevel))
 
 			collection.Members[i] = *membership
-			collection.Version++
-			return impl.Update(ctx, collection)
+			memberExists = true
+			break
 		}
 	}
 
-	// Add new member
-	impl.Logger.Info("adding new collection member",
-		zap.String("collection_id", collectionID.String()),
-		zap.String("recipient_id", membership.RecipientID.String()),
-		zap.String("permission_level", membership.PermissionLevel))
+	if !memberExists {
+		impl.Logger.Info("adding new collection member",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("recipient_id", membership.RecipientID.String()),
+			zap.String("permission_level", membership.PermissionLevel))
 
-	collection.Members = append(collection.Members, *membership)
+		collection.Members = append(collection.Members, *membership)
+	}
+
+	// Update version
 	collection.Version++
+	collection.ModifiedAt = time.Now()
 
-	return impl.Update(ctx, collection)
+	impl.Logger.Info("prepared collection for update with member",
+		zap.String("collection_id", collection.ID.String()),
+		zap.Int("total_members", len(collection.Members)),
+		zap.Uint64("version", collection.Version))
+
+	// Log all members for debugging
+	for i, member := range collection.Members {
+		impl.Logger.Debug("collection member details",
+			zap.Int("member_index", i),
+			zap.String("member_id", member.ID.String()),
+			zap.String("recipient_id", member.RecipientID.String()),
+			zap.String("recipient_email", member.RecipientEmail),
+			zap.String("permission_level", member.PermissionLevel),
+			zap.Bool("is_inherited", member.IsInherited),
+			zap.Int("encrypted_key_length", len(member.EncryptedCollectionKey)))
+	}
+
+	// Call update
+	err = impl.Update(ctx, collection)
+	if err != nil {
+		impl.Logger.Error("failed to update collection with new member",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("recipient_id", membership.RecipientID.String()),
+			zap.Error(err))
+		return fmt.Errorf("failed to update collection: %w", err)
+	}
+
+	impl.Logger.Info("successfully added member to collection",
+		zap.String("collection_id", collectionID.String()),
+		zap.String("recipient_id", membership.RecipientID.String()))
+
+	// Verify the member was actually added by querying the members table
+	err = impl.verifyMembershipCreated(ctx, collectionID, membership.RecipientID)
+	if err != nil {
+		impl.Logger.Error("member verification failed",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("recipient_id", membership.RecipientID.String()),
+			zap.Error(err))
+		return fmt.Errorf("member addition verification failed: %w", err)
+	}
+
+	return nil
+}
+
+// Helper method to verify membership was created in the database
+func (impl *collectionRepositoryImpl) verifyMembershipCreated(ctx context.Context, collectionID, recipientID gocql.UUID) error {
+	var memberID gocql.UUID
+	query := `SELECT member_id FROM maplefile_collection_members_by_collection_id_and_recipient_id
+		WHERE collection_id = ? AND recipient_id = ?`
+
+	err := impl.Session.Query(query, collectionID, recipientID).WithContext(ctx).Scan(&memberID)
+	if err != nil {
+		if err == gocql.ErrNotFound {
+			return fmt.Errorf("member not found in members table after creation")
+		}
+		return fmt.Errorf("failed to verify member creation: %w", err)
+	}
+
+	impl.Logger.Info("verified member exists in members table",
+		zap.String("collection_id", collectionID.String()),
+		zap.String("recipient_id", recipientID.String()),
+		zap.String("member_id", memberID.String()))
+
+	return nil
 }
 
 func (impl *collectionRepositoryImpl) RemoveMember(ctx context.Context, collectionID, recipientID gocql.UUID) error {
@@ -159,6 +258,11 @@ func (impl *collectionRepositoryImpl) AddMemberToHierarchy(ctx context.Context, 
 		return fmt.Errorf("failed to find descendants: %w", err)
 	}
 
+	impl.Logger.Info("adding member to collection hierarchy",
+		zap.String("root_collection_id", rootID.String()),
+		zap.String("recipient_id", membership.RecipientID.String()),
+		zap.Int("descendants_count", len(descendants)))
+
 	// Add to root collection
 	if err := impl.AddMember(ctx, rootID, membership); err != nil {
 		return fmt.Errorf("failed to add member to root collection: %w", err)
@@ -169,6 +273,7 @@ func (impl *collectionRepositoryImpl) AddMemberToHierarchy(ctx context.Context, 
 	inheritedMembership.IsInherited = true
 	inheritedMembership.InheritedFromID = rootID
 
+	successCount := 0
 	for _, descendant := range descendants {
 		// Generate new ID for each inherited membership
 		inheritedMembership.ID = gocql.TimeUUID()
@@ -178,8 +283,16 @@ func (impl *collectionRepositoryImpl) AddMemberToHierarchy(ctx context.Context, 
 				zap.String("descendant_id", descendant.ID.String()),
 				zap.String("recipient_id", membership.RecipientID.String()),
 				zap.Error(err))
+		} else {
+			successCount++
 		}
 	}
+
+	impl.Logger.Info("completed hierarchy member addition",
+		zap.String("root_collection_id", rootID.String()),
+		zap.String("recipient_id", membership.RecipientID.String()),
+		zap.Int("total_descendants", len(descendants)),
+		zap.Int("successful_additions", successCount))
 
 	return nil
 }
