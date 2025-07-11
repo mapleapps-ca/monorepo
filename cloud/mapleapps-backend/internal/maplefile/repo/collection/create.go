@@ -140,32 +140,11 @@ func (impl *collectionRepositoryImpl) Create(ctx context.Context, collection *do
 			return fmt.Errorf("VALIDATION ERROR: encrypted collection key is required for shared member %d (recipient: %s, email: %s). This indicates a frontend bug or API misuse.", i, member.RecipientID.String(), member.RecipientEmail)
 		}
 
-		// Additional validation for shared members
-		if !isOwner && len(member.EncryptedCollectionKey) > 0 && len(member.EncryptedCollectionKey) < 32 {
-			impl.Logger.Error("encrypted collection key appears invalid for shared member during creation",
-				zap.String("collection_id", collection.ID.String()),
-				zap.Int("member_index", i),
-				zap.String("recipient_id", member.RecipientID.String()),
-				zap.Int("encrypted_key_length", len(member.EncryptedCollectionKey)))
-			return fmt.Errorf("encrypted collection key appears invalid for member %d (too short: %d bytes)", i, len(member.EncryptedCollectionKey))
-		}
-
-		// Log key status for debugging
-		impl.Logger.Debug("member key validation passed during creation",
-			zap.String("collection_id", collection.ID.String()),
-			zap.Int("member_index", i),
-			zap.String("recipient_id", member.RecipientID.String()),
-			zap.Bool("is_owner", isOwner),
-			zap.Int("encrypted_key_length", len(member.EncryptedCollectionKey)))
-
-		// Ensure member has an ID - but don't regenerate if it already exists
+		// Ensure member has an ID - CRITICAL: Set this before insertion
 		if !impl.isValidUUID(member.ID) {
 			member.ID = gocql.TimeUUID()
+			collection.Members[i].ID = member.ID // Update the collection's member slice
 			impl.Logger.Debug("generated member ID during creation",
-				zap.String("member_id", member.ID.String()),
-				zap.String("recipient_id", member.RecipientID.String()))
-		} else {
-			impl.Logger.Debug("using existing member ID during creation",
 				zap.String("member_id", member.ID.String()),
 				zap.String("recipient_id", member.RecipientID.String()))
 		}

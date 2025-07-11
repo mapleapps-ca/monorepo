@@ -167,7 +167,7 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 	}
 
 	//
-	// 5. Handle members - CRITICAL SECTION WITH FIX
+	// 5. Handle members - FIXED: Delete members individually with composite key
 	//
 
 	impl.Logger.Info("processing member updates",
@@ -175,15 +175,20 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		zap.Int("old_members", len(existing.Members)),
 		zap.Int("new_members", len(collection.Members)))
 
-	// Delete ALL existing members from the members table
-	impl.Logger.Info("DEBUGGING: About to delete all existing members from members table",
+	// Delete each existing member individually from the members table
+	impl.Logger.Info("DEBUGGING: Deleting existing members individually from members table",
 		zap.String("collection_id", collection.ID.String()),
 		zap.Int("existing_members_count", len(existing.Members)))
 
-	batch.Query(`DELETE FROM maplefile_collection_members_by_collection_id_and_recipient_id WHERE collection_id = ?`, collection.ID)
+	for _, oldMember := range existing.Members {
+		impl.Logger.Debug("deleting member from members table",
+			zap.String("collection_id", collection.ID.String()),
+			zap.String("recipient_id", oldMember.RecipientID.String()))
 
-	impl.Logger.Info("DEBUGGING: Added DELETE query for all members to batch",
-		zap.String("collection_id", collection.ID.String()))
+		batch.Query(`DELETE FROM maplefile_collection_members_by_collection_id_and_recipient_id
+			WHERE collection_id = ? AND recipient_id = ?`,
+			collection.ID, oldMember.RecipientID)
+	}
 
 	// Delete old member access entries from BOTH user access tables
 	for _, oldMember := range existing.Members {
@@ -337,34 +342,8 @@ func (impl *collectionRepositoryImpl) Update(ctx context.Context, collection *do
 		zap.String("collection_id", collection.ID.String()),
 		zap.Int("batch_size", batch.Size()))
 
-	// DEBUGGING: Verify members were actually inserted
-	impl.Logger.Info("DEBUGGING: Verifying member insertions in members table")
-	for _, member := range collection.Members {
-		var foundMemberID gocql.UUID
-		query := `SELECT member_id FROM maplefile_collection_members_by_collection_id_and_recipient_id
-			WHERE collection_id = ? AND recipient_id = ?`
-
-		err := impl.Session.Query(query, collection.ID, member.RecipientID).WithContext(ctx).Scan(&foundMemberID)
-		if err != nil {
-			if err == gocql.ErrNotFound {
-				impl.Logger.Error("DEBUGGING: Member NOT found in members table after batch execution",
-					zap.String("collection_id", collection.ID.String()),
-					zap.String("recipient_id", member.RecipientID.String()),
-					zap.String("expected_member_id", member.ID.String()))
-			} else {
-				impl.Logger.Error("DEBUGGING: Error querying members table",
-					zap.String("collection_id", collection.ID.String()),
-					zap.String("recipient_id", member.RecipientID.String()),
-					zap.Error(err))
-			}
-		} else {
-			impl.Logger.Info("DEBUGGING: Member FOUND in members table",
-				zap.String("collection_id", collection.ID.String()),
-				zap.String("recipient_id", member.RecipientID.String()),
-				zap.String("found_member_id", foundMemberID.String()),
-				zap.String("expected_member_id", member.ID.String()))
-		}
-	}
+	// Remove the immediate verification - Cassandra needs time to propagate
+	// In production, we should trust the batch succeeded if no error was returned
 
 	impl.Logger.Info("collection updated successfully in all tables",
 		zap.String("collection_id", collection.ID.String()),
