@@ -5,6 +5,7 @@ class ListCollectionStorageService {
   constructor() {
     this.STORAGE_KEYS = {
       LISTED_COLLECTIONS: "mapleapps_listed_collections",
+      SHARED_COLLECTIONS: "mapleapps_shared_collections", // NEW KEY
       LIST_METADATA: "mapleapps_list_metadata",
       FILTERED_COLLECTIONS: "mapleapps_filtered_collections",
       ROOT_COLLECTIONS: "mapleapps_root_collections",
@@ -76,6 +77,71 @@ class ListCollectionStorageService {
     } catch (error) {
       console.error(
         "[ListCollectionStorageService] Failed to get collections list:",
+        error,
+      );
+      return { collections: [], isExpired: false };
+    }
+  }
+
+  // === Shared Collections Operations - NEW METHODS ===
+
+  // Store shared collections list
+  storeSharedCollections(collections) {
+    try {
+      const collectionData = {
+        collections: collections,
+        cached_at: new Date().toISOString(),
+        cache_expiry: new Date(Date.now() + this.CACHE_EXPIRY_MS).toISOString(),
+        total_count: collections.length,
+      };
+
+      localStorage.setItem(
+        this.STORAGE_KEYS.SHARED_COLLECTIONS,
+        JSON.stringify(collectionData),
+      );
+
+      console.log(
+        "[ListCollectionStorageService] Shared collections list cached:",
+        collections.length,
+      );
+
+      this.updateListMetadata("shared_collections", collections.length);
+      return true;
+    } catch (error) {
+      console.error(
+        "[ListCollectionStorageService] Failed to store shared collections list:",
+        error,
+      );
+      return false;
+    }
+  }
+
+  // Get shared collections list
+  getSharedCollections() {
+    try {
+      const stored = localStorage.getItem(this.STORAGE_KEYS.SHARED_COLLECTIONS);
+      if (!stored) return { collections: [], isExpired: false };
+
+      const data = JSON.parse(stored);
+      const now = new Date();
+      const isExpired = new Date(data.cache_expiry) <= now;
+
+      if (isExpired) {
+        console.log(
+          "[ListCollectionStorageService] Shared collections list cache expired",
+        );
+        return { collections: [], isExpired: true };
+      }
+
+      console.log(
+        "[ListCollectionStorageService] Retrieved shared collections list from cache:",
+        data.collections.length,
+      );
+
+      return { collections: data.collections, isExpired: false };
+    } catch (error) {
+      console.error(
+        "[ListCollectionStorageService] Failed to get shared collections list:",
         error,
       );
       return { collections: [], isExpired: false };
@@ -343,6 +409,12 @@ class ListCollectionStorageService {
     return !data.isExpired && data.collections.length > 0;
   }
 
+  // Check if shared collections are cached and valid - NEW METHOD
+  isSharedListCached() {
+    const data = this.getSharedCollections();
+    return !data.isExpired && data.collections.length > 0;
+  }
+
   // Clear all cached collection lists
   clearAllListCache() {
     try {
@@ -366,6 +438,7 @@ class ListCollectionStorageService {
     try {
       const keyMap = {
         listed: this.STORAGE_KEYS.LISTED_COLLECTIONS,
+        shared: this.STORAGE_KEYS.SHARED_COLLECTIONS, // NEW MAPPING
         filtered: this.STORAGE_KEYS.FILTERED_COLLECTIONS,
         root: this.STORAGE_KEYS.ROOT_COLLECTIONS,
         byParent: this.STORAGE_KEYS.COLLECTIONS_BY_PARENT,
@@ -481,6 +554,7 @@ class ListCollectionStorageService {
   // Get storage statistics
   getStorageStats() {
     const listedData = this.getListedCollections();
+    const sharedData = this.getSharedCollections(); // NEW
     const filteredData = this.getFilteredCollections();
     const rootData = this.getRootCollections();
     const metadata = this.getListMetadata();
@@ -489,6 +563,11 @@ class ListCollectionStorageService {
       listed: {
         count: listedData.collections.length,
         isExpired: listedData.isExpired,
+      },
+      shared: {
+        // NEW
+        count: sharedData.collections.length,
+        isExpired: sharedData.isExpired,
       },
       filtered: {
         ownedCount: filteredData.owned_collections.length,
@@ -515,6 +594,7 @@ class ListCollectionStorageService {
       stats,
       storageKeys: Object.keys(this.STORAGE_KEYS),
       hasListedCollections: stats.listed.count > 0 && !stats.listed.isExpired,
+      hasSharedCollections: stats.shared.count > 0 && !stats.shared.isExpired, // NEW
       hasFilteredCollections:
         stats.filtered.totalCount > 0 && !stats.filtered.isExpired,
       hasRootCollections: stats.root.count > 0 && !stats.root.isExpired,

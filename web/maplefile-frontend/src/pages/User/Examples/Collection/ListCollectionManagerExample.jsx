@@ -17,6 +17,7 @@ const ListCollectionManagerExample = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [collections, setCollections] = useState([]);
+  const [sharedCollections, setSharedCollections] = useState([]); // NEW STATE
   const [filteredCollections, setFilteredCollections] = useState({
     owned_collections: [],
     shared_collections: [],
@@ -41,6 +42,7 @@ const ListCollectionManagerExample = () => {
 
   // Total counts
   const totalCollections = collections.length;
+  const totalSharedCollections = sharedCollections.length; // NEW
   const totalFilteredCollections = filteredCollections.total_count;
   const totalRootCollections = rootCollections.length;
 
@@ -86,6 +88,21 @@ const ListCollectionManagerExample = () => {
           });
           setSuccess(
             `Successfully listed ${result.totalCount} user collections from ${result.source}`,
+          );
+          break;
+
+        case "shared": // NEW CASE
+          console.log("[ListCollectionExample] Listing shared collections");
+          result =
+            await listCollectionManager.listSharedCollections(forceRefresh);
+          setSharedCollections(result.collections || []);
+          addToEventLog("shared_collections_listed", {
+            totalCount: result.totalCount,
+            source: result.source,
+            forceRefresh,
+          });
+          setSuccess(
+            `Successfully listed ${result.totalCount} shared collections from ${result.source}`,
           );
           break;
 
@@ -264,6 +281,8 @@ const ListCollectionManagerExample = () => {
     switch (selectedListType) {
       case "user":
         return collections;
+      case "shared": // NEW CASE
+        return sharedCollections;
       case "filtered":
         return [
           ...filteredCollections.owned_collections,
@@ -294,6 +313,12 @@ const ListCollectionManagerExample = () => {
     collections: [],
     isExpired: true,
   };
+  const cachedSharedData =
+    listCollectionManager?.getCachedSharedCollections() || {
+      // NEW
+      collections: [],
+      isExpired: true,
+    };
   const cachedFilteredData =
     listCollectionManager?.getCachedFilteredCollections() || {
       total_count: 0,
@@ -357,8 +382,8 @@ const ListCollectionManagerExample = () => {
       <h2>📂 Enhanced List Collection Manager Example</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
         This page demonstrates the <strong>ListCollectionManager</strong> with
-        multiple list types, caching, and E2EE decryption using the unified
-        service architecture.
+        multiple list types including shared collections, caching, and E2EE
+        decryption using the unified service architecture.
         <br />
         <strong>User:</strong> {user?.email || "Not logged in"}
       </p>
@@ -506,6 +531,9 @@ const ListCollectionManagerExample = () => {
             <strong>Total User Collections:</strong> {totalCollections}
           </div>
           <div>
+            <strong>Total Shared Collections:</strong> {totalSharedCollections}
+          </div>
+          <div>
             <strong>Total Filtered Collections:</strong>{" "}
             {totalFilteredCollections}
           </div>
@@ -548,6 +576,9 @@ const ListCollectionManagerExample = () => {
               }}
             >
               <option value="user">👤 User Collections (All owned)</option>
+              <option value="shared">
+                🤝 Shared Collections (Shared with me)
+              </option>
               <option value="filtered">
                 🔍 Filtered Collections (Owned/Shared)
               </option>
@@ -847,6 +878,18 @@ const ListCollectionManagerExample = () => {
                         </span>
                       )}
                     </div>
+                    {collection.members && collection.members.length > 0 && (
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#17a2b8",
+                          marginTop: "5px",
+                        }}
+                      >
+                        <strong>🤝 Shared with:</strong>{" "}
+                        {collection.members.length} user(s)
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
                     <button
@@ -923,6 +966,19 @@ const ListCollectionManagerExample = () => {
               Clear User Cache
             </button>
             <button
+              onClick={() => handleClearSpecificCache("shared")}
+              style={{
+                padding: "5px 15px",
+                backgroundColor: "#ffc107",
+                color: "black",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+              }}
+            >
+              Clear Shared Cache
+            </button>
+            <button
               onClick={() => handleClearSpecificCache("filtered")}
               style={{
                 padding: "5px 15px",
@@ -971,13 +1027,19 @@ const ListCollectionManagerExample = () => {
             {cachedData.isExpired ? "Yes" : "No"})
           </div>
           <div>
+            <strong>Cached Shared Collections:</strong>{" "}
+            {cachedSharedData.collections?.length || 0} (Expired:{" "}
+            {cachedSharedData.isExpired ? "Yes" : "No"})
+          </div>
+          <div>
             <strong>Cached Filtered Collections:</strong>{" "}
             {cachedFilteredData.total_count} (Expired:{" "}
             {cachedFilteredData.isExpired ? "Yes" : "No"})
           </div>
           <div>
             <strong>Cache Status:</strong>{" "}
-            {managerStatus?.storage?.hasListedCollections
+            {managerStatus?.storage?.hasListedCollections ||
+            managerStatus?.storage?.hasSharedCollections
               ? "Has cached data"
               : "No cached data"}
           </div>
@@ -1081,9 +1143,9 @@ const ListCollectionManagerExample = () => {
       >
         <h5 style={{ margin: "0 0 10px 0" }}>🚀 Quick Test</h5>
         <p style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#666" }}>
-          Try different list types: User Collections (all owned), Filtered
-          Collections (owned/shared), Root Collections (no parent), Collections
-          by Parent.
+          Try different list types: User Collections (all owned), Shared
+          Collections (shared with you), Filtered Collections (owned/shared),
+          Root Collections (no parent), Collections by Parent.
         </p>
         <div
           style={{
@@ -1110,6 +1172,24 @@ const ListCollectionManagerExample = () => {
             }}
           >
             List User Collections
+          </button>
+          <button
+            onClick={() => {
+              setSelectedListType("shared");
+              handleListCollections(false);
+            }}
+            disabled={!isAuthenticated}
+            style={{
+              padding: "5px 10px",
+              backgroundColor: !isAuthenticated ? "#6c757d" : "#17a2b8",
+              color: "white",
+              border: "none",
+              borderRadius: "3px",
+              cursor: !isAuthenticated ? "not-allowed" : "pointer",
+              fontSize: "12px",
+            }}
+          >
+            List Shared Collections
           </button>
           <button
             onClick={() => {

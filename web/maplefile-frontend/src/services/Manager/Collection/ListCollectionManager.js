@@ -145,6 +145,112 @@ class ListCollectionManager {
     }
   }
 
+  // List shared collections (collections shared with the user) - NEW METHOD
+  async listSharedCollections(forceRefresh = false) {
+    try {
+      this.isLoading = true;
+      console.log("[ListCollectionManager] Listing shared collections");
+
+      // Check cache first (unless force refresh is requested)
+      if (!forceRefresh) {
+        const cachedData = this.storageService.getSharedCollections();
+        if (!cachedData.isExpired && cachedData.collections.length > 0) {
+          console.log(
+            "[ListCollectionManager] Shared collections found in cache, attempting decryption",
+          );
+
+          try {
+            const decryptedCollections = await this.decryptCollections(
+              cachedData.collections,
+            );
+
+            // Notify listeners
+            this.notifyCollectionListingListeners(
+              "shared_collections_listed_from_cache",
+              {
+                totalCount: decryptedCollections.length,
+                fromCache: true,
+              },
+            );
+
+            console.log(
+              "[ListCollectionManager] Shared collections listed from cache successfully",
+            );
+            return {
+              collections: decryptedCollections,
+              source: "cache",
+              success: true,
+              totalCount: decryptedCollections.length,
+            };
+          } catch (decryptError) {
+            console.warn(
+              "[ListCollectionManager] Failed to decrypt cached shared collections, fetching from API:",
+              decryptError.message,
+            );
+            // Fall through to API fetch
+          }
+        }
+      }
+
+      console.log(
+        "[ListCollectionManager] Fetching shared collections from API",
+      );
+
+      // Fetch from API
+      const response = await this.apiService.listSharedCollections();
+
+      // Validate response
+      this.apiService.validateCollectionsResponse(response);
+
+      // Cache the encrypted collections
+      this.storageService.storeSharedCollections(response.collections);
+
+      // Decrypt the collections
+      const decryptedCollections = await this.decryptCollections(
+        response.collections,
+      );
+
+      // Notify listeners
+      this.notifyCollectionListingListeners(
+        "shared_collections_listed_from_api",
+        {
+          totalCount: decryptedCollections.length,
+          fromCache: false,
+          forceRefresh,
+        },
+      );
+
+      console.log(
+        "[ListCollectionManager] Shared collections listed from API successfully",
+      );
+
+      return {
+        collections: decryptedCollections,
+        source: forceRefresh ? "api_refresh" : "api",
+        success: true,
+        totalCount: decryptedCollections.length,
+      };
+    } catch (error) {
+      console.error(
+        "[ListCollectionManager] Shared collection listing failed:",
+        error,
+      );
+
+      // Notify listeners of failure
+      this.notifyCollectionListingListeners(
+        "shared_collection_listing_failed",
+        {
+          error: error.message,
+          forceRefresh,
+        },
+      );
+
+      throw error;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
   // List filtered collections (owned/shared) - Uses PasswordStorageService automatically
   async listFilteredCollections(
     includeOwned = true,
@@ -572,6 +678,11 @@ class ListCollectionManager {
   // Get cached collections
   getCachedCollections() {
     return this.storageService.getListedCollections();
+  }
+
+  // Get cached shared collections - NEW METHOD
+  getCachedSharedCollections() {
+    return this.storageService.getSharedCollections();
   }
 
   // Get cached filtered collections
