@@ -113,7 +113,15 @@ class ShareCollectionStorageService {
   getSharedCollections() {
     try {
       const stored = localStorage.getItem(this.STORAGE_KEYS.SHARED_COLLECTIONS);
-      return stored ? JSON.parse(stored) : [];
+      const data = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(data)) {
+        console.warn(
+          "[ShareCollectionStorageService] Shared collections data was not an array. Returning empty array.",
+          data,
+        );
+        return [];
+      }
+      return data;
     } catch (error) {
       console.error(
         "[ShareCollectionStorageService] Failed to get shared collections:",

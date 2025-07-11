@@ -5,7 +5,7 @@ class ListCollectionStorageService {
   constructor() {
     this.STORAGE_KEYS = {
       LISTED_COLLECTIONS: "mapleapps_listed_collections",
-      SHARED_COLLECTIONS: "mapleapps_shared_collections", // NEW KEY
+      SHARED_COLLECTIONS: "mapleapps_shared_collections",
       LIST_METADATA: "mapleapps_list_metadata",
       FILTERED_COLLECTIONS: "mapleapps_filtered_collections",
       ROOT_COLLECTIONS: "mapleapps_root_collections",
@@ -133,12 +133,17 @@ class ListCollectionStorageService {
         return { collections: [], isExpired: true };
       }
 
+      // Ensure data.collections is an array. If not, default to an empty array.
+      const collections = Array.isArray(data.collections)
+        ? data.collections
+        : [];
+
       console.log(
         "[ListCollectionStorageService] Retrieved shared collections list from cache:",
-        data.collections.length,
+        collections.length,
       );
 
-      return { collections: data.collections, isExpired: false };
+      return { collections: collections, isExpired: false };
     } catch (error) {
       console.error(
         "[ListCollectionStorageService] Failed to get shared collections list:",
