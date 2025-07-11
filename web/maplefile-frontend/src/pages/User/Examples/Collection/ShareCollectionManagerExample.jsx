@@ -1,50 +1,29 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/Collection/ShareCollectionManagerExample.jsx
-// Example component demonstrating how to use the useCollectionSharing hook
+// Example component demonstrating how to use the ShareCollectionManager via unified services
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { useCollections } from "../../../../services/Services";
-import { useAuth } from "../../../../services/Services";
+import { useCollections, useAuth } from "../../../../services/Services";
+
+// Permission levels constant
+const PERMISSION_LEVELS = {
+  READ_ONLY: "read_only",
+  READ_WRITE: "read_write",
+  ADMIN: "admin",
+};
 
 const ShareCollectionManagerExample = () => {
   const navigate = useNavigate();
-  const {
-    // State
-    isLoading,
-    error,
-    success,
-    sharedCollections,
-    collectionMembers,
-    sharingHistory,
-    managerStatus,
+  const { shareCollectionManager } = useCollections();
+  const { authManager, user } = useAuth();
 
-    // Operations
-    shareCollection,
-    removeMember,
-    getCollectionMembers,
-    shareCollectionReadOnly,
-    shareCollectionReadWrite,
-    shareCollectionAdmin,
-    removeAllSharesForCollection,
-    clearAllSharedCollections,
-
-    // Utilities
-    getSharedCollectionsByCollectionId,
-    searchSharedCollections,
-    getCollectionSharingHistory,
-    getUserPassword,
-    clearMessages,
-
-    // Status
-    isAuthenticated,
-    canShareCollections,
-    totalSharedCollections,
-    PERMISSION_LEVELS,
-    getRecentShares,
-    getCollectionMembersById,
-  } = useCollections();
-
-  const { authManager, authService } = useAuth();
+  // State management for the example
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [sharedCollections, setSharedCollections] = useState([]);
+  const [collectionMembers, setCollectionMembers] = useState({});
+  const [sharingHistory, setSharingHistory] = useState([]);
 
   // Form state
   const [collectionId, setCollectionId] = useState("");
@@ -69,6 +48,38 @@ const ShareCollectionManagerExample = () => {
   const [showMembers, setShowMembers] = useState(false);
   const [activeCollectionMembers, setActiveCollectionMembers] = useState("");
 
+  // Load initial data
+  useEffect(() => {
+    loadSharedCollections();
+    loadSharingHistory();
+  }, []);
+
+  // Load shared collections from storage
+  const loadSharedCollections = () => {
+    try {
+      const shared = shareCollectionManager.getSharedCollections();
+      setSharedCollections(shared);
+    } catch (error) {
+      console.error("Failed to load shared collections:", error);
+    }
+  };
+
+  // Load sharing history
+  const loadSharingHistory = () => {
+    try {
+      const history = shareCollectionManager.getSharingHistory();
+      setSharingHistory(history);
+    } catch (error) {
+      console.error("Failed to load sharing history:", error);
+    }
+  };
+
+  // Clear messages
+  const clearMessages = () => {
+    setError(null);
+    setSuccess(null);
+  };
+
   // Handle collection sharing
   const handleShareCollection = async () => {
     if (!collectionId.trim()) {
@@ -86,6 +97,10 @@ const ShareCollectionManagerExample = () => {
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
     try {
       const shareData = {
         recipient_id: recipientId.trim(),
@@ -94,10 +109,20 @@ const ShareCollectionManagerExample = () => {
         share_with_descendants: shareWithDescendants,
       };
 
-      await shareCollection(collectionId.trim(), shareData, password || null);
+      await shareCollectionManager.shareCollection(
+        collectionId.trim(),
+        shareData,
+        password || null,
+      );
+
+      setSuccess(`Collection shared successfully with ${recipientEmail}`);
 
       // Clear form on success
       setPassword("");
+
+      // Reload data
+      loadSharedCollections();
+      loadSharingHistory();
 
       // Log the event
       addToEventLog("collection_shared", {
@@ -108,7 +133,9 @@ const ShareCollectionManagerExample = () => {
       });
     } catch (err) {
       console.error("Collection sharing failed:", err);
-      // Error is handled by the hook
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -124,16 +151,26 @@ const ShareCollectionManagerExample = () => {
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
     try {
-      await removeMember(
+      await shareCollectionManager.removeMember(
         removeCollectionId.trim(),
         removeRecipientId.trim(),
         removeFromDescendants,
       );
 
+      setSuccess("Member removed successfully from collection");
+
       // Clear form on success
       setRemoveCollectionId("");
       setRemoveRecipientId("");
+
+      // Reload data
+      loadSharedCollections();
+      loadSharingHistory();
 
       // Log the event
       addToEventLog("member_removed", {
@@ -143,7 +180,9 @@ const ShareCollectionManagerExample = () => {
       });
     } catch (err) {
       console.error("Member removal failed:", err);
-      // Error is handled by the hook
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -157,8 +196,21 @@ const ShareCollectionManagerExample = () => {
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+
     try {
-      await getCollectionMembers(collectionId.trim(), forceRefresh);
+      const members = await shareCollectionManager.getCollectionMembers(
+        collectionId.trim(),
+        forceRefresh,
+      );
+
+      // Update state
+      setCollectionMembers((prev) => ({
+        ...prev,
+        [collectionId]: members,
+      }));
+
       setActiveCollectionMembers(collectionId.trim());
       setShowMembers(true);
 
@@ -168,13 +220,16 @@ const ShareCollectionManagerExample = () => {
       });
     } catch (err) {
       console.error("Failed to get collection members:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Get password from storage
   const handleGetStoredPassword = async () => {
     try {
-      const storedPassword = await getUserPassword();
+      const storedPassword = await shareCollectionManager.getUserPassword();
       if (storedPassword) {
         setPassword(storedPassword);
         addToEventLog("password_loaded", { source: "storage" });
@@ -186,29 +241,41 @@ const ShareCollectionManagerExample = () => {
     }
   };
 
-  // Handle quick share operations
+  // Quick share methods
   const handleQuickShareReadOnly = async () => {
     if (!collectionId.trim() || !recipientId.trim() || !recipientEmail.trim()) {
       alert("Collection ID, recipient ID, and email are required");
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
     try {
-      await shareCollectionReadOnly(
+      const shareData = {
+        recipient_id: recipientId.trim(),
+        recipient_email: recipientEmail.trim(),
+        permission_level: PERMISSION_LEVELS.READ_ONLY,
+        share_with_descendants: shareWithDescendants,
+      };
+
+      await shareCollectionManager.shareCollection(
         collectionId.trim(),
-        recipientId.trim(),
-        recipientEmail.trim(),
-        shareWithDescendants,
+        shareData,
         password || null,
       );
 
+      setSuccess(`Collection shared as read-only with ${recipientEmail}`);
       setPassword("");
-      addToEventLog("quick_share_read_only", {
-        collectionId,
-        recipientEmail,
-      });
+      loadSharedCollections();
+      loadSharingHistory();
+      addToEventLog("quick_share_read_only", { collectionId, recipientEmail });
     } catch (err) {
       console.error("Quick share read-only failed:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -218,22 +285,34 @@ const ShareCollectionManagerExample = () => {
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
     try {
-      await shareCollectionReadWrite(
+      const shareData = {
+        recipient_id: recipientId.trim(),
+        recipient_email: recipientEmail.trim(),
+        permission_level: PERMISSION_LEVELS.READ_WRITE,
+        share_with_descendants: shareWithDescendants,
+      };
+
+      await shareCollectionManager.shareCollection(
         collectionId.trim(),
-        recipientId.trim(),
-        recipientEmail.trim(),
-        shareWithDescendants,
+        shareData,
         password || null,
       );
 
+      setSuccess(`Collection shared as read-write with ${recipientEmail}`);
       setPassword("");
-      addToEventLog("quick_share_read_write", {
-        collectionId,
-        recipientEmail,
-      });
+      loadSharedCollections();
+      loadSharingHistory();
+      addToEventLog("quick_share_read_write", { collectionId, recipientEmail });
     } catch (err) {
       console.error("Quick share read-write failed:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -243,22 +322,34 @@ const ShareCollectionManagerExample = () => {
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
     try {
-      await shareCollectionAdmin(
+      const shareData = {
+        recipient_id: recipientId.trim(),
+        recipient_email: recipientEmail.trim(),
+        permission_level: PERMISSION_LEVELS.ADMIN,
+        share_with_descendants: shareWithDescendants,
+      };
+
+      await shareCollectionManager.shareCollection(
         collectionId.trim(),
-        recipientId.trim(),
-        recipientEmail.trim(),
-        shareWithDescendants,
+        shareData,
         password || null,
       );
 
+      setSuccess(`Collection shared as admin with ${recipientEmail}`);
       setPassword("");
-      addToEventLog("quick_share_admin", {
-        collectionId,
-        recipientEmail,
-      });
+      loadSharedCollections();
+      loadSharingHistory();
+      addToEventLog("quick_share_admin", { collectionId, recipientEmail });
     } catch (err) {
       console.error("Quick share admin failed:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -268,14 +359,25 @@ const ShareCollectionManagerExample = () => {
       !confirm(
         "Are you sure you want to clear ALL shared collections? This cannot be undone.",
       )
-    )
+    ) {
       return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
 
     try {
-      await clearAllSharedCollections();
+      await shareCollectionManager.clearAllSharedCollections();
+      setSuccess("All shared collections cleared");
+      loadSharedCollections();
+      loadSharingHistory();
       addToEventLog("all_shared_collections_cleared", {});
     } catch (err) {
       console.error("Failed to clear shared collections:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -298,11 +400,32 @@ const ShareCollectionManagerExample = () => {
 
   // Search shared collections
   const filteredShares = searchTerm
-    ? searchSharedCollections(searchTerm)
+    ? shareCollectionManager.searchSharedCollections(searchTerm)
     : sharedCollections;
 
-  // Get recent shares
+  // Get recent shares (last 24 hours)
+  const getRecentShares = (hours = 24) => {
+    const cutoff = Date.now() - hours * 60 * 60 * 1000;
+    return sharedCollections.filter((share) => {
+      const sharedAt = new Date(
+        share.shared_at || share.locally_stored_at,
+      ).getTime();
+      return sharedAt > cutoff;
+    });
+  };
+
   const recentShares = getRecentShares(24);
+
+  // Get collection members by ID
+  const getCollectionMembersById = (collectionId) => {
+    return collectionMembers[collectionId] || [];
+  };
+
+  // Computed values
+  const isAuthenticated = authManager.isAuthenticated();
+  const canShareCollections = authManager.canMakeAuthenticatedRequests();
+  const totalSharedCollections = sharedCollections.length;
+  const managerStatus = shareCollectionManager.getManagerStatus();
 
   // Auto-clear messages after 5 seconds
   useEffect(() => {
@@ -313,7 +436,7 @@ const ShareCollectionManagerExample = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [success, error, clearMessages]);
+  }, [success, error]);
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
@@ -323,11 +446,11 @@ const ShareCollectionManagerExample = () => {
         </button>
       </div>
 
-      <h2>🤝 Share Collection Manager Example (with Hooks)</h2>
+      <h2>🤝 Share Collection Manager Example (via Unified Services)</h2>
       <p style={{ color: "#666", marginBottom: "20px" }}>
-        This page demonstrates the <strong>useCollectionSharing</strong> hook
-        with E2EE encryption for collection sharing. Collection keys are
-        encrypted with recipients' public keys for secure sharing.
+        This page demonstrates the <strong>ShareCollectionManager</strong> via
+        unified services with E2EE encryption for collection sharing. Collection
+        keys are encrypted with recipients' public keys for secure sharing.
       </p>
 
       {/* Manager Status */}
