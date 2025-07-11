@@ -728,6 +728,52 @@ const ShareCollectionManagerExample = () => {
               {isLoading ? "🔄 Sharing..." : "🤝 Share Collection"}
             </button>
 
+            <div style={{ marginTop: "10px" }}>
+              <button
+                onClick={async () => {
+                  if (!recipientEmail.trim()) {
+                    alert("Enter recipient email first");
+                    return;
+                  }
+                  try {
+                    setIsLoading(true);
+                    const userLookupManager =
+                      shareCollectionManager._userLookupManager ||
+                      (await shareCollectionManager.getUserLookupManager());
+                    const userInfo = await userLookupManager.getUserPublicKey(
+                      recipientEmail.trim(),
+                    );
+
+                    // Update recipient ID from lookup
+                    if (userInfo.userId) {
+                      setRecipientId(userInfo.userId);
+                      setSuccess(
+                        `✅ User found: ${userInfo.name || userInfo.email} (ID: ${userInfo.userId})`,
+                      );
+                    }
+                  } catch (err) {
+                    setError(`User lookup failed: ${err.message}`);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                style={{
+                  padding: "8px 15px",
+                  backgroundColor: "#007bff",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                🔍 Verify Recipient
+              </button>
+              <small style={{ marginLeft: "10px", color: "#666" }}>
+                Click to verify recipient exists and auto-fill their ID
+              </small>
+            </div>
+
             <button
               onClick={handleQuickShareReadOnly}
               disabled={

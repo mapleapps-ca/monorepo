@@ -16,6 +16,9 @@ class ShareCollectionManager {
     this.storageService = new ShareCollectionStorageService();
     this.cryptoService = CollectionCryptoService; // Use singleton instance
 
+    // Cache for user lookup manager (lazy loaded)
+    this._userLookupManager = null;
+
     // Event listeners for collection sharing events
     this.collectionSharingListeners = new Set();
 
@@ -43,6 +46,38 @@ class ShareCollectionManager {
         error,
       );
     }
+  }
+
+  // Get or create UserLookupManager instance
+  async getUserLookupManager() {
+    if (!this._userLookupManager) {
+      try {
+        // First try to get from unified services if available
+        if (window.mapleAppsServices?.userLookupManager) {
+          this._userLookupManager = window.mapleAppsServices.userLookupManager;
+          console.log(
+            "[ShareCollectionManager] Using UserLookupManager from unified services",
+          );
+        } else {
+          // Fallback: create our own instance
+          const { default: UserLookupManager } = await import(
+            "../User/UserLookupManager.js"
+          );
+          this._userLookupManager = new UserLookupManager();
+          await this._userLookupManager.initialize();
+          console.log(
+            "[ShareCollectionManager] Created new UserLookupManager instance",
+          );
+        }
+      } catch (error) {
+        console.error(
+          "[ShareCollectionManager] Failed to get UserLookupManager:",
+          error,
+        );
+        throw new Error("Failed to initialize user lookup service");
+      }
+    }
+    return this._userLookupManager;
   }
 
   // === Collection Sharing with Encryption ===
@@ -93,13 +128,13 @@ class ShareCollectionManager {
         );
       }
 
-      // Get recipient's public key (this would need to be fetched from user directory/API)
+      // Get recipient's public key using the REAL user lookup service
       const recipientPublicKey = await this.getRecipientPublicKey(
-        shareData.recipient_id,
+        shareData.recipient_email, // Use email for lookup
       );
       if (!recipientPublicKey) {
         throw new Error(
-          "Cannot get recipient's public key. User may not exist or may not have set up encryption.",
+          `Cannot get public key for recipient ${shareData.recipient_email}. User may not exist or may not have set up encryption.`,
         );
       }
 
@@ -451,47 +486,55 @@ class ShareCollectionManager {
     }
   }
 
-  // Get recipient's public key (placeholder - would need to be implemented based on user directory API)
-  async getRecipientPublicKey(recipientId) {
+  // Get recipient's public key using the REAL user lookup service
+  async getRecipientPublicKey(recipientEmail) {
     try {
       console.log(
-        "[ShareCollectionManager] Getting recipient public key:",
-        recipientId,
+        "[ShareCollectionManager] Getting recipient public key for:",
+        recipientEmail,
       );
 
-      // TODO: Implement actual user directory lookup
-      // For now, this is a placeholder that would need to call:
-      // - User directory API to find user by ID
-      // - Get user's public key from their profile
-      // - Return the public key as Uint8Array
+      // Get UserLookupManager
+      const userLookupManager = await this.getUserLookupManager();
 
-      // Placeholder implementation - in real app this would be an API call
-      console.warn(
-        "[ShareCollectionManager] PLACEHOLDER: getRecipientPublicKey needs implementation",
+      // Lookup user by email to get their public key
+      const userPublicKeyData =
+        await userLookupManager.getUserPublicKey(recipientEmail);
+
+      if (!userPublicKeyData || !userPublicKeyData.publicKey) {
+        throw new Error(`No public key found for user: ${recipientEmail}`);
+      }
+
+      console.log(
+        "[ShareCollectionManager] Retrieved public key for recipient:",
+        recipientEmail,
+      );
+      console.log(
+        "[ShareCollectionManager] Public key length:",
+        userPublicKeyData.publicKey.length,
+        "bytes",
       );
 
-      // For testing, generate a fake public key
-      // In real implementation, this would be: await userDirectoryAPI.getUserPublicKey(recipientId)
-      const { default: CryptoService } = await import(
-        "../../Crypto/CryptoService.js"
-      );
-      await CryptoService.initialize();
-
-      // Generate a fake public key for testing (32 bytes)
-      const fakePublicKey = CryptoService.sodium.randombytes_buf(32);
-
-      console.warn(
-        "[ShareCollectionManager] USING FAKE PUBLIC KEY FOR TESTING - recipient:",
-        recipientId,
-      );
-
-      return fakePublicKey;
+      return userPublicKeyData.publicKey; // Returns Uint8Array
     } catch (error) {
       console.error(
         "[ShareCollectionManager] Failed to get recipient public key:",
         error,
       );
-      throw new Error(`Failed to get recipient public key: ${error.message}`);
+
+      // Provide a more user-friendly error message
+      if (
+        error.message.includes("not found") ||
+        error.message.includes("does not exist")
+      ) {
+        throw new Error(
+          `User ${recipientEmail} not found. Please verify the email address.`,
+        );
+      }
+
+      throw new Error(
+        `Failed to get public key for ${recipientEmail}: ${error.message}`,
+      );
     }
   }
 
@@ -659,6 +702,7 @@ class ShareCollectionManager {
       crypto: cryptoStatus,
       listenerCount: this.collectionSharingListeners.size,
       hasPasswordService: !!this.getUserPassword,
+      hasUserLookupService: !!this._userLookupManager,
     };
   }
 
@@ -673,6 +717,7 @@ class ShareCollectionManager {
       apiService: this.apiService.getDebugInfo(),
       storageService: this.storageService.getDebugInfo(),
       cryptoService: this.cryptoService.getDebugInfo(),
+      hasUserLookupManager: !!this._userLookupManager,
       managerStatus: this.getManagerStatus(),
       authManagerStatus: {
         userEmail: this.authManager.getCurrentUserEmail(),
