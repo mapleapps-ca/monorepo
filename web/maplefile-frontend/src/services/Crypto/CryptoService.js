@@ -541,6 +541,17 @@ class CryptoService {
     return this.sodium.to_base64(uint8Array, variant);
   }
 
+  // Convert Uint8Array to standard base64 (for Go JSON compatibility)
+  uint8ArrayToStandardBase64(uint8Array) {
+    if (!this.sodium) {
+      throw new Error("CryptoService not initialized");
+    }
+    return this.sodium.to_base64(
+      uint8Array,
+      this.sodium.base64_variants.ORIGINAL,
+    );
+  }
+
   // Try different base64 variants for decoding
   tryDecodeBase64(base64String) {
     if (!this.sodium) {

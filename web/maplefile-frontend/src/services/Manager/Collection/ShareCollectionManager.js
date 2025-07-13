@@ -182,27 +182,15 @@ class ShareCollectionManager {
         encryptedCollectionKeyForRecipient.length,
       );
 
-      // Convert base64 string to byte array for API
-      const { default: CryptoService } = await import(
-        "../../Crypto/CryptoService.js"
-      );
-      const encryptedKeyBytes = CryptoService.tryDecodeBase64(
-        encryptedCollectionKeyForRecipient,
-      );
-      const encryptedKeyArray = Array.from(encryptedKeyBytes);
-
-      console.log(
-        "[ShareCollectionManager] Encrypted key array length:",
-        encryptedKeyArray.length,
-      );
-
+      // FIXED: Send the encrypted key as a base64 string, NOT as an array
+      // Go's JSON unmarshaling expects base64 strings for []byte fields
       // Prepare API share data with correct format
       const apiShareData = {
         collection_id: collectionId,
         recipient_id: shareData.recipient_id,
         recipient_email: shareData.recipient_email,
         permission_level: shareData.permission_level,
-        encrypted_collection_key: encryptedKeyArray, // Send as byte array, not base64 string!
+        encrypted_collection_key: encryptedCollectionKeyForRecipient, // Send as base64 string!
         share_with_descendants: shareData.share_with_descendants !== false, // Default to true
       };
 
@@ -215,6 +203,8 @@ class ShareCollectionManager {
           apiShareData.encrypted_collection_key.length,
         encrypted_collection_key_type:
           typeof apiShareData.encrypted_collection_key,
+        encrypted_collection_key_preview:
+          apiShareData.encrypted_collection_key.substring(0, 50) + "...",
         share_with_descendants: apiShareData.share_with_descendants,
       });
 

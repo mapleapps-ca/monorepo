@@ -31,6 +31,7 @@ class ShareCollectionAPIService {
         permission_level: shareData.permission_level,
         share_with_descendants: shareData.share_with_descendants,
         hasEncryptedKey: !!shareData.encrypted_collection_key,
+        encryptedKeyType: typeof shareData.encrypted_collection_key,
       });
 
       // Validate share data before sending to API
@@ -190,30 +191,27 @@ class ShareCollectionAPIService {
       errors.push("recipient_email must be a valid email address");
     }
 
-    // Validate encrypted_collection_key (should be base64 string or byte array)
+    // FIXED: Validate encrypted_collection_key
+    // Go expects a standard base64 string for []byte fields in JSON
     if (shareData.encrypted_collection_key) {
       if (typeof shareData.encrypted_collection_key === "string") {
-        // Should be base64 string
+        // Should be standard base64 string - this is what Go expects!
         try {
+          // Check if it's a valid standard base64 string
           atob(shareData.encrypted_collection_key);
         } catch (e) {
-          errors.push("encrypted_collection_key must be a valid base64 string");
-        }
-      } else if (Array.isArray(shareData.encrypted_collection_key)) {
-        // Should be array of numbers (bytes)
-        const isValidByteArray = shareData.encrypted_collection_key.every(
-          (byte) => typeof byte === "number" && byte >= 0 && byte <= 255,
-        );
-        if (!isValidByteArray) {
           errors.push(
-            "encrypted_collection_key array must contain only bytes (0-255)",
+            "encrypted_collection_key must be a valid standard base64 string (not URL-safe)",
           );
         }
       } else {
+        // Go doesn't accept arrays for []byte fields in JSON
         errors.push(
-          "encrypted_collection_key must be a base64 string or byte array",
+          "encrypted_collection_key must be a base64 string (not an array)",
         );
       }
+    } else {
+      errors.push("encrypted_collection_key is required and cannot be empty");
     }
 
     // Validate share_with_descendants is boolean

@@ -114,8 +114,11 @@ class CollectionCryptoService {
     combined.set(nonce, 0);
     combined.set(encrypted, nonce.length);
 
-    // Return base64 encoded
-    return this.cryptoService.uint8ArrayToBase64(combined);
+    // Return standard base64 encoded for Go compatibility
+    return this.sodium.to_base64(
+      combined,
+      this.sodium.base64_variants.ORIGINAL,
+    );
   }
 
   // Decrypt collection name with collection key
@@ -306,8 +309,11 @@ class CollectionCryptoService {
 
     // Return structure expected by API with base64 strings (matching deprecated format)
     return {
-      ciphertext: this.cryptoService.uint8ArrayToBase64(combined), // Base64 string, not array!
-      nonce: this.cryptoService.uint8ArrayToBase64(nonce), // Base64 string for separate storage
+      ciphertext: this.sodium.to_base64(
+        combined,
+        this.sodium.base64_variants.ORIGINAL,
+      ), // Standard base64 for Go!
+      nonce: this.sodium.to_base64(nonce, this.sodium.base64_variants.ORIGINAL), // Standard base64 for Go!
       key_version: 1,
       rotated_at: new Date().toISOString(),
       previous_keys: [],
@@ -409,8 +415,12 @@ class CollectionCryptoService {
     // Use sealed box (anonymous encryption) for sharing
     const encrypted = this.sodium.crypto_box_seal(collectionKey, publicKey);
 
-    // Return base64 string as API expects
-    return this.cryptoService.uint8ArrayToBase64(encrypted);
+    // FIXED: Return standard base64 string for Go JSON unmarshaling
+    // Go expects standard base64 (not URL-safe) for []byte fields
+    return this.sodium.to_base64(
+      encrypted,
+      this.sodium.base64_variants.ORIGINAL,
+    );
   }
 
   // Decrypt collection key shared with us (uses our private key)
