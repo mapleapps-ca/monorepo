@@ -556,28 +556,44 @@ class CollectionCryptoService {
         // Get user keys using PasswordStorageService automatically
         const userKeys = await this.getUserKeys();
 
-        // Check if this is our collection or shared with us
-        if (encryptedCollection.encrypted_collection_key) {
-          // Our collection - decrypt with master key
+        // Get current user ID from LocalStorageService
+        const { default: LocalStorageService } = await import(
+          "../Storage/LocalStorageService.js"
+        );
+        const userEmail = LocalStorageService.getUserEmail();
+
+        console.log("[CollectionCryptoService] Current user email:", userEmail);
+        console.log(
+          "[CollectionCryptoService] Collection owner:",
+          encryptedCollection.owner_id,
+        );
+
+        // Check if this is a shared collection by looking for our membership
+        const ourMembership = encryptedCollection.members?.find(
+          (m) => m.recipient_email === userEmail,
+        );
+
+        if (ourMembership && ourMembership.encrypted_collection_key) {
+          // This is a shared collection - decrypt the collection key with our private key
+          console.log(
+            "[CollectionCryptoService] Found our membership in shared collection, decrypting with private key",
+          );
+          workingCollectionKey = await this.decryptSharedCollectionKey(
+            ourMembership.encrypted_collection_key,
+            userKeys.privateKey,
+            userKeys.publicKey,
+          );
+        } else if (encryptedCollection.encrypted_collection_key) {
+          // This is our own collection - decrypt with master key
+          console.log(
+            "[CollectionCryptoService] This is our collection, decrypting with master key",
+          );
           workingCollectionKey = await this.decryptCollectionKey(
             encryptedCollection.encrypted_collection_key,
             userKeys.masterKey,
           );
         } else {
-          // Shared collection - find our encrypted key in members
-          const ourMembership = encryptedCollection.members?.find(
-            (m) => m.recipient_id === userKeys.userId,
-          );
-
-          if (ourMembership && ourMembership.encrypted_collection_key) {
-            workingCollectionKey = await this.decryptSharedCollectionKey(
-              ourMembership.encrypted_collection_key,
-              userKeys.privateKey,
-              userKeys.publicKey,
-            );
-          } else {
-            throw new Error("No collection key available for decryption");
-          }
+          throw new Error("No collection key available for decryption");
         }
 
         // Cache the collection key
