@@ -335,20 +335,30 @@ class FileCryptoService {
         workingCollectionKey.length,
       );
 
-      // Step 1: Decrypt file key
-      console.log("[FileCryptoService] Step 1: Decrypting file key");
-      const fileKey = await this.decryptFileKey(
-        encryptedFile.encrypted_file_key,
-        workingCollectionKey,
-      );
+      // ✅ ENHANCEMENT: Check if file key is already cached in memory
+      let fileKey = this.getCachedFileKey(encryptedFile.id);
 
-      console.log(
-        "[FileCryptoService] File key decrypted successfully, length:",
-        fileKey.length,
-      );
+      if (fileKey) {
+        console.log(
+          "[FileCryptoService] Using cached file key, length:",
+          fileKey.length,
+        );
+      } else {
+        // Step 1: Decrypt file key
+        console.log("[FileCryptoService] Step 1: Decrypting file key");
+        fileKey = await this.decryptFileKey(
+          encryptedFile.encrypted_file_key,
+          workingCollectionKey,
+        );
 
-      // Cache the file key
-      this.cacheFileKey(encryptedFile.id, fileKey);
+        console.log(
+          "[FileCryptoService] File key decrypted successfully, length:",
+          fileKey.length,
+        );
+
+        // Cache the file key in memory
+        this.cacheFileKey(encryptedFile.id, fileKey);
+      }
 
       // Step 2: Decrypt metadata if available
       let metadata = null;
@@ -390,8 +400,9 @@ class FileCryptoService {
         _isDecrypted: true,
         _hasFileKey: true,
         _originalEncryptedMetadata: encryptedFile.encrypted_metadata,
-        _file_key: fileKey, // Store for future use (in memory only!)
+        _file_key: fileKey, // ✅ Store for future use (in memory only!)
         _decrypted_metadata: metadata,
+        _fileKeyCached: true, // ✅ Flag to indicate file key is cached
       };
 
       console.log("[FileCryptoService] ✅ File decrypted successfully:", name);
@@ -411,6 +422,81 @@ class FileCryptoService {
         decrypt_error: error.message,
       };
     }
+  }
+
+  // ✅ ENHANCEMENT: Get file key with automatic re-decryption if needed
+  async getFileKeyForDownload(fileId, collectionId, encryptedFileKey) {
+    // First check in-memory cache
+    let fileKey = this.getCachedFileKey(fileId);
+
+    if (fileKey) {
+      console.log(
+        "[FileCryptoService] File key found in memory cache for:",
+        fileId,
+      );
+      return fileKey;
+    }
+
+    // If not in cache, need to decrypt it
+    console.log(
+      "[FileCryptoService] File key not in cache, decrypting for:",
+      fileId,
+    );
+
+    // Get collection key
+    const { default: CollectionCryptoService } = await import(
+      "./CollectionCryptoService.js"
+    );
+
+    const collectionKey =
+      CollectionCryptoService.getCachedCollectionKey(collectionId);
+
+    if (!collectionKey) {
+      throw new Error(
+        "Collection key not available. Please ensure the collection is loaded first.",
+      );
+    }
+
+    if (!encryptedFileKey) {
+      throw new Error("Encrypted file key not provided for decryption.");
+    }
+
+    // Decrypt the file key
+    fileKey = await this.decryptFileKey(encryptedFileKey, collectionKey);
+
+    // Cache it for future use
+    this.cacheFileKey(fileId, fileKey);
+
+    console.log(
+      "[FileCryptoService] File key decrypted and cached for:",
+      fileId,
+    );
+
+    return fileKey;
+  }
+
+  // ✅ ENHANCEMENT: Check if file has cached key
+  hasFileKey(fileId) {
+    return this._fileKeyCache.has(fileId);
+  }
+
+  // ✅ ENHANCEMENT: Get file key cache statistics
+  getFileKeyCacheStats() {
+    return {
+      totalKeys: this._fileKeyCache.size,
+      fileIds: Array.from(this._fileKeyCache.keys()).slice(0, 10), // Show first 10
+    };
+  }
+
+  // ✅ ENHANCEMENT: Cleanup expired file keys (if needed in the future)
+  cleanupFileKeyCache(maxAge = 60 * 60 * 1000) {
+    // 1 hour default
+    // For now, just clear all since we don't track timestamps
+    // In the future, we could add timestamps to track key age
+    console.log(
+      "[FileCryptoService] File key cache cleanup - clearing all keys for security",
+    );
+    this.clearFileKeyCache();
   }
 
   // Decrypt multiple files

@@ -88,6 +88,24 @@ class ListFileManager {
       );
       await this.ensureCollectionLoaded(collectionId);
 
+      // Get collection key for decryption (should be cached now)
+      let collectionKey =
+        this.collectionCryptoService.getCachedCollectionKey(collectionId);
+
+      if (!collectionKey) {
+        console.error(
+          "[ListFileManager] CRITICAL: No collection key available after loading collection!",
+        );
+        throw new Error(
+          "Collection key not available for file decryption. Please try refreshing the page.",
+        );
+      }
+
+      console.log(
+        "[ListFileManager] Collection key available for decryption, length:",
+        collectionKey.length,
+      );
+
       // STEP 2: Check cache first unless forcing refresh
       if (!forceRefresh) {
         const cachedFileList = this.storageService.getFileList(collectionId);
@@ -109,78 +127,39 @@ class ListFileManager {
             files.length,
           );
 
-          // CRITICAL: Check if cached files are already decrypted
-          const decryptedCount = files.filter(
-            (f) =>
-              f._isDecrypted &&
-              f.name &&
-              f.name !== "[Encrypted]" &&
-              f.name !== "[Unable to decrypt]",
-          ).length;
-          const encryptedCount = files.length - decryptedCount;
+          // ✅ FIX: ALWAYS re-decrypt cached files since _file_key is not stored in cache
+          console.log(
+            "[ListFileManager] Re-decrypting cached files (file keys not stored in cache for security)...",
+          );
 
-          console.log("[ListFileManager] Cache analysis:");
-          console.log("[ListFileManager] - Total files:", files.length);
-          console.log("[ListFileManager] - Already decrypted:", decryptedCount);
-          console.log("[ListFileManager] - Still encrypted:", encryptedCount);
+          // Re-decrypt the cached files with the collection key
+          files = await this.fileCryptoService.decryptFilesFromAPI(
+            files,
+            collectionKey,
+          );
 
-          // If files are not properly decrypted, decrypt them now
-          if (encryptedCount > 0) {
-            console.log(
-              "[ListFileManager] Cached files need decryption, decrypting now...",
-            );
+          const decryptedCount = files.filter((f) => f._isDecrypted).length;
+          const errorCount = files.filter((f) => f._decryptionError).length;
 
-            // Get collection key for decryption (should be cached now)
-            let collectionKey =
-              this.collectionCryptoService.getCachedCollectionKey(collectionId);
-
-            if (collectionKey) {
-              console.log(
-                "[ListFileManager] Decrypting cached files with collection key, length:",
-                collectionKey.length,
-              );
-
-              // Decrypt the cached files
-              files = await this.fileCryptoService.decryptFilesFromAPI(
-                files,
-                collectionKey,
-              );
-
-              const newDecryptedCount = files.filter(
-                (f) =>
-                  f._isDecrypted &&
-                  f.name &&
-                  f.name !== "[Encrypted]" &&
-                  f.name !== "[Unable to decrypt]",
-              ).length;
-              console.log(
-                "[ListFileManager] After decryption:",
-                newDecryptedCount,
-                "files decrypted",
-              );
-
-              // Update cache with decrypted files
-              this.storageService.storeFileList(collectionId, files, {
-                includeStates,
-                fetched_at: cachedFileList.metadata.cached_at,
-                decrypted_at: new Date().toISOString(),
-              });
-            } else {
-              console.error(
-                "[ListFileManager] No collection key available for decrypting cached files!",
-              );
-            }
-          }
+          console.log(
+            "[ListFileManager] Cache re-decryption results:",
+            decryptedCount,
+            "successful,",
+            errorCount,
+            "errors",
+          );
 
           this.notifyFileListingListeners("files_loaded_from_cache", {
             collectionId,
             count: files.length,
             fromCache: true,
-            decryptedCount: files.filter((f) => f._isDecrypted).length,
+            decryptedCount,
+            errorCount,
+            reDecrypted: true, // ✅ Flag to indicate files were re-decrypted
           });
 
           console.log(
-            "[ListFileManager] Returning cached files (possibly re-decrypted):",
+            "[ListFileManager] Returning cached files (re-decrypted):",
             files.length,
           );
           return files;
@@ -201,25 +180,7 @@ class ListFileManager {
 
       console.log(`[ListFileManager] Fetched ${files.length} files from API`);
 
-      // STEP 5: Get collection key for decryption (should be cached now)
-      let collectionKey =
-        this.collectionCryptoService.getCachedCollectionKey(collectionId);
-
-      if (!collectionKey) {
-        console.error(
-          "[ListFileManager] CRITICAL: No collection key available after loading collection!",
-        );
-        throw new Error(
-          "Collection key not available for file decryption. Please try refreshing the page.",
-        );
-      }
-
-      console.log(
-        "[ListFileManager] Collection key available for decryption, length:",
-        collectionKey.length,
-      );
-
-      // STEP 6: Decrypt files with collection key
+      // STEP 5: Decrypt files with collection key
       console.log(
         "[ListFileManager] Step 3: Decrypting files with collection key",
       );
@@ -236,16 +197,18 @@ class ListFileManager {
         `[ListFileManager] Decryption results: ${decryptedCount} successful, ${errorCount} errors`,
       );
 
-      // STEP 7: Store in cache if no decryption errors
+      // STEP 6: Store in cache if no decryption errors
+      // Note: _file_key will be removed by sanitizeFileForStorage for security
       const hasDecryptErrors = files.some((f) => f._decryptionError);
       if (!hasDecryptErrors && files.length > 0) {
         this.storageService.storeFileList(collectionId, files, {
           includeStates,
           fetched_at: new Date().toISOString(),
+          decrypted_at: new Date().toISOString(),
         });
       }
 
-      // STEP 8: Store individual files in cache
+      // STEP 7: Store individual files in cache (also removes _file_key for security)
       files.forEach((file) => {
         this.storageService.storeFile(file);
       });
@@ -379,16 +342,10 @@ class ListFileManager {
       );
 
       // Step 1: Get file metadata (should be cached and decrypted)
-      const fileMetadata = this.storageService.getFile(fileId);
+      let fileMetadata = this.storageService.getFile(fileId);
       if (!fileMetadata) {
         throw new Error(
           "File metadata not found. Please refresh the file list.",
-        );
-      }
-
-      if (!fileMetadata._file_key) {
-        throw new Error(
-          "File key not available. File may not be properly decrypted.",
         );
       }
 
@@ -405,6 +362,74 @@ class ListFileManager {
         "state:",
         fileMetadata.state,
       );
+
+      // ✅ FIX: Check if file key is available, if not, re-decrypt it
+      if (!fileMetadata._file_key) {
+        console.log(
+          "[ListFileManager] File key not available in cache, re-decrypting file key...",
+        );
+
+        // Get collection key
+        let collectionKey = this.collectionCryptoService.getCachedCollectionKey(
+          fileMetadata.collection_id,
+        );
+
+        if (!collectionKey) {
+          console.log(
+            "[ListFileManager] Collection key not cached, loading collection...",
+          );
+          await this.ensureCollectionLoaded(fileMetadata.collection_id);
+          collectionKey = this.collectionCryptoService.getCachedCollectionKey(
+            fileMetadata.collection_id,
+          );
+        }
+
+        if (!collectionKey) {
+          throw new Error(
+            "Collection key not available for file decryption. Please try refreshing the page.",
+          );
+        }
+
+        // Check if we have the encrypted file key
+        if (!fileMetadata.encrypted_file_key) {
+          throw new Error(
+            "Encrypted file key not available in file metadata. File may be corrupted.",
+          );
+        }
+
+        console.log(
+          "[ListFileManager] Re-decrypting file key with collection key, length:",
+          collectionKey.length,
+        );
+
+        // Decrypt the file key
+        const fileKey = await this.fileCryptoService.decryptFileKey(
+          fileMetadata.encrypted_file_key,
+          collectionKey,
+        );
+
+        // Cache the file key in memory and update the file metadata
+        this.fileCryptoService.cacheFileKey(fileId, fileKey);
+        fileMetadata._file_key = fileKey;
+        fileMetadata._hasFileKey = true;
+
+        console.log(
+          "[ListFileManager] File key re-decrypted successfully, length:",
+          fileKey.length,
+        );
+      } else {
+        console.log(
+          "[ListFileManager] File key available in cache, length:",
+          fileMetadata._file_key.length,
+        );
+      }
+
+      // Verify we have the file key now
+      if (!fileMetadata._file_key) {
+        throw new Error(
+          "File key still not available after re-decryption attempt.",
+        );
+      }
 
       // Step 2: Get presigned download URL and download encrypted content
       const downloadResponse = await this.getPresignedDownloadUrl(fileId);

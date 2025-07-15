@@ -215,7 +215,7 @@ const ListFileManagerExample = () => {
     setSelectedFiles(newSelected);
   };
 
-  // Handle file download
+  // Handle file download with better error handling and user feedback
   const handleDownloadFile = async (fileId, fileName) => {
     if (!fileManager) return;
 
@@ -231,19 +231,64 @@ const ListFileManagerExample = () => {
       // Track this file as downloading
       setDownloadingFiles((prev) => new Set(prev).add(fileId));
 
-      await fileManager.downloadAndSaveFile(fileId);
+      // ✅ ENHANCEMENT: Add progress feedback
+      setSuccess(`Preparing download for "${fileName}"...`);
 
-      setSuccess(`File "${fileName}" downloaded successfully`);
+      // Check if file key is available (for better error messaging)
+      const cachedFile = fileManager.storageService.getFile(fileId);
+      if (cachedFile && !cachedFile._file_key) {
+        console.log(
+          "[Example] File key not in cache, will be re-decrypted during download",
+        );
+        setSuccess(`Decrypting file key for "${fileName}"...`);
+      }
+
+      // ✅ ENHANCEMENT: Add timeout to prevent hanging downloads
+      const downloadPromise = fileManager.downloadAndSaveFile(fileId);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Download timeout after 2 minutes")),
+          120000,
+        ),
+      );
+
+      await Promise.race([downloadPromise, timeoutPromise]);
+
+      setSuccess(`File "${fileName}" downloaded successfully! 🎉`);
 
       addToEventLog("file_downloaded", {
         fileId,
         fileName,
+        timestamp: new Date().toISOString(),
       });
 
       console.log("[Example] File download completed successfully");
     } catch (err) {
       console.error("[Example] Failed to download file:", err);
-      setError(`Failed to download file: ${err.message}`);
+
+      // ✅ ENHANCEMENT: Better error messaging based on error type
+      let errorMessage = `Failed to download file: ${err.message}`;
+
+      if (err.message.includes("File key not available")) {
+        errorMessage = `Download failed: File key missing. This may happen with shared files. Try refreshing the page and re-listing files.`;
+      } else if (err.message.includes("Collection key not available")) {
+        errorMessage = `Download failed: Collection access issue. Try refreshing the page or check collection permissions.`;
+      } else if (err.message.includes("timeout")) {
+        errorMessage = `Download failed: Request timed out. Please try again.`;
+      } else if (err.message.includes("S3")) {
+        errorMessage = `Download failed: Storage service error. Please try again later.`;
+      } else if (err.message.includes("decrypt")) {
+        errorMessage = `Download failed: Decryption error. File may be corrupted or you may not have access.`;
+      }
+
+      setError(errorMessage);
+
+      addToEventLog("file_download_failed", {
+        fileId,
+        fileName,
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
     } finally {
       // Remove from downloading set
       setDownloadingFiles((prev) => {
@@ -252,6 +297,47 @@ const ListFileManagerExample = () => {
         return next;
       });
     }
+  };
+
+  // ✅ ENHANCEMENT: Add a debug function to check file key status
+  const debugFileKeyStatus = () => {
+    if (!fileManager) return;
+
+    console.log("=== File Key Debug Info ===");
+
+    // Check FileCryptoService status
+    const cryptoStatus = fileManager.fileCryptoService?.getStatus();
+    console.log("FileCryptoService status:", cryptoStatus);
+
+    // Check file key cache
+    const cacheStats = fileManager.fileCryptoService?.getFileKeyCacheStats();
+    console.log("File key cache stats:", cacheStats);
+
+    // Check selected collection's files
+    if (selectedCollectionId) {
+      const cachedFileList =
+        fileManager.storageService.getFileList(selectedCollectionId);
+      if (cachedFileList) {
+        console.log("Cached files analysis:");
+        cachedFileList.files.forEach((file) => {
+          const hasKey = fileManager.fileCryptoService?.hasFileKey(file.id);
+          console.log(
+            `- ${file.id}: has_key=${hasKey}, name=${file.name || "[encrypted]"}`,
+          );
+        });
+      }
+    }
+
+    // Check collection key availability
+    if (selectedCollectionId && fileManager.collectionCryptoService) {
+      const hasCollectionKey =
+        !!fileManager.collectionCryptoService.getCachedCollectionKey(
+          selectedCollectionId,
+        );
+      console.log("Collection key available:", hasCollectionKey);
+    }
+
+    console.log("=== End Debug Info ===");
   };
 
   // Handle view mode change
@@ -1054,6 +1140,24 @@ const ListFileManagerExample = () => {
           </div>
         )}
       </div>
+      {import.meta.env.DEV && (
+        <button
+          onClick={debugFileKeyStatus}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: "#17a2b8",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontSize: "12px",
+            marginLeft: "10px",
+          }}
+          title="Debug file key status (dev only)"
+        >
+          🔍 Debug Keys
+        </button>
+      )}
     </div>
   );
 };
