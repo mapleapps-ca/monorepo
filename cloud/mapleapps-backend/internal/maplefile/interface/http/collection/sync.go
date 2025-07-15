@@ -11,30 +11,30 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
-	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 	dom_sync "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/middleware"
+	svc_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
 type CollectionSyncHTTPHandler struct {
 	config     *config.Configuration
 	logger     *zap.Logger
-	repository dom_collection.CollectionRepository
+	service    svc_collection.GetCollectionSyncDataService
 	middleware middleware.Middleware
 }
 
 func NewCollectionSyncHTTPHandler(
 	config *config.Configuration,
 	logger *zap.Logger,
-	repository dom_collection.CollectionRepository,
+	service svc_collection.GetCollectionSyncDataService,
 	middleware middleware.Middleware,
 ) *CollectionSyncHTTPHandler {
 	logger = logger.Named("CollectionSyncHTTPHandler")
 	return &CollectionSyncHTTPHandler{
 		config:     config,
 		logger:     logger,
-		repository: repository,
+		service:    service,
 		middleware: middleware,
 	}
 }
@@ -102,8 +102,8 @@ func (h *CollectionSyncHTTPHandler) Execute(w http.ResponseWriter, r *http.Reque
 		zap.Int64("limit", limit),
 		zap.Any("cursor", cursor))
 
-	// Call repository to get sync data
-	response, err := h.repository.GetCollectionSyncData(ctx, userID, cursor, limit)
+	// Call service to get sync data
+	response, err := h.service.Execute(ctx, userID, cursor, limit, "all")
 	if err != nil {
 		h.logger.Error("Failed to get collection sync data",
 			zap.Any("user_id", userID),

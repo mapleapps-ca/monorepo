@@ -12,7 +12,7 @@ import (
 )
 
 type GetCollectionSyncDataUseCase interface {
-	Execute(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error)
+	Execute(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64, accessType string) (*dom_collection.CollectionSyncResponse, error)
 }
 
 type getCollectionSyncDataUseCaseImpl struct {
@@ -30,7 +30,7 @@ func NewGetCollectionSyncDataUseCase(
 	return &getCollectionSyncDataUseCaseImpl{config, logger, repo}
 }
 
-func (uc *getCollectionSyncDataUseCaseImpl) Execute(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error) {
+func (uc *getCollectionSyncDataUseCaseImpl) Execute(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64, accessType string) (*dom_collection.CollectionSyncResponse, error) {
 	//
 	// STEP 1: Validation.
 	//
@@ -41,15 +41,29 @@ func (uc *getCollectionSyncDataUseCaseImpl) Execute(ctx context.Context, userID 
 	// STEP 2: Get filtered collections from repository.
 	//
 
-	result, err := uc.repo.GetCollectionSyncData(ctx, userID, cursor, limit)
+	if accessType != dom_collection.CollectionAccessTypeMember && accessType != dom_collection.CollectionAccessTypeOwner {
+		result, err := uc.repo.GetCollectionSyncData(ctx, userID, cursor, limit)
+		if err != nil {
+			uc.logger.Error("Failed to get filtered collections from repository",
+				zap.Any("error", err),
+				zap.Any("userID", userID),
+				zap.Any("cursor", cursor),
+				zap.Int64("limit", limit))
+			return nil, err
+		}
+		return result, nil
+	}
+
+	result, err := uc.repo.GetCollectionSyncDataByAccessType(ctx, userID, cursor, limit, accessType)
 	if err != nil {
 		uc.logger.Error("Failed to get filtered collections from repository",
 			zap.Any("error", err),
 			zap.Any("userID", userID),
 			zap.Any("cursor", cursor),
-			zap.Int64("limit", limit))
+			zap.Int64("limit", limit),
+			zap.String("access_type", accessType))
 		return nil, err
 	}
-
 	return result, nil
+
 }

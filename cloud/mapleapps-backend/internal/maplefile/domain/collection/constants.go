@@ -17,3 +17,8 @@ const (
 	CollectionStateDeleted  = "deleted"
 	CollectionStateArchived = "archived"
 )
+
+const (
+	CollectionAccessTypeOwner  = "owner"
+	CollectionAccessTypeMember = "member"
+)

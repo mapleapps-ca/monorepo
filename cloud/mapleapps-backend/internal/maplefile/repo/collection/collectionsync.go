@@ -12,9 +12,8 @@ import (
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 )
 
-// GetAllByUserIDAndAnyType uses the general table when you need all collections regardless of access type
-// This method demonstrates querying without access_type filtering to avoid ALLOW FILTERING
-func (impl *collectionRepositoryImpl) GetAllByUserIDAndAnyType(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error) {
+// GetCollectionSyncData uses the general table when you need all collections regardless of access type
+func (impl *collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error) {
 	var query string
 	var args []any
 
@@ -84,7 +83,7 @@ func (impl *collectionRepositoryImpl) GetAllByUserIDAndAnyType(ctx context.Conte
 
 // GetCollectionSyncData uses the access-type-specific table for optimal performance
 // This method demonstrates the power of compound partition keys in Cassandra
-func (impl *collectionRepositoryImpl) GetCollectionSyncData(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error) {
+func (impl *collectionRepositoryImpl) GetCollectionSyncDataByAccessType(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64, accessType string) (*dom_collection.CollectionSyncResponse, error) {
 	var query string
 	var args []any
 

@@ -15,7 +15,7 @@ import (
 )
 
 type GetCollectionSyncDataService interface {
-	Execute(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error)
+	Execute(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64, accessType string) (*dom_collection.CollectionSyncResponse, error)
 }
 
 type getCollectionSyncDataServiceImpl struct {
@@ -37,14 +37,14 @@ func NewGetCollectionSyncDataService(
 	}
 }
 
-func (svc *getCollectionSyncDataServiceImpl) Execute(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64) (*dom_collection.CollectionSyncResponse, error) {
+func (svc *getCollectionSyncDataServiceImpl) Execute(ctx context.Context, userID gocql.UUID, cursor *dom_collection.CollectionSyncCursor, limit int64, accessType string) (*dom_collection.CollectionSyncResponse, error) {
 	//
 	// STEP 1: Validation
 	//
-	// if options.UserID.String()==""{
-	// 	svc.logger.Warn("Empty user ID provided")
-	// 	return nil, httperror.NewForBadRequestWithSingleField("user_id", "User ID is required")
-	// }
+	if userID.String() == "" {
+		svc.logger.Warn("Empty user ID provided")
+		return nil, httperror.NewForBadRequestWithSingleField("user_id", "User ID is required")
+	}
 
 	//
 	// STEP 2: Get user ID from context
@@ -56,9 +56,10 @@ func (svc *getCollectionSyncDataServiceImpl) Execute(ctx context.Context, userID
 	}
 
 	//
-	// STEP 3: Get related data.
+	// STEP 3: Get related data based on access type.
 	//
-	syncData, err := svc.getCollectionSyncDataUseCase.Execute(ctx, userID, cursor, limit)
+
+	syncData, err := svc.getCollectionSyncDataUseCase.Execute(ctx, userID, cursor, limit, accessType)
 	if err != nil {
 		svc.logger.Error("Failed to get collection sync data",
 			zap.Any("error", err),
