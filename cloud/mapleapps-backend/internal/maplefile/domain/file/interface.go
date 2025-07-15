@@ -47,6 +47,11 @@ type FileMetadataRepository interface {
 
 	// CountFilesByUser counts all active files accessible to the user
 	CountFilesByUser(ctx context.Context, userID gocql.UUID, accessibleCollectionIDs []gocql.UUID) (int, error)
+
+	// Storage size calculation methods
+	GetTotalStorageSizeByOwner(ctx context.Context, ownerID gocql.UUID) (int64, error)
+	GetTotalStorageSizeByUser(ctx context.Context, userID gocql.UUID, accessibleCollectionIDs []gocql.UUID) (int64, error)
+	GetTotalStorageSizeByCollection(ctx context.Context, collectionID gocql.UUID) (int64, error)
 }
 
 // FileObjectStorageRepository defines the interface for interacting with the actual encrypted file data storage.

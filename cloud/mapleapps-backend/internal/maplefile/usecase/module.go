@@ -63,6 +63,9 @@ func Module() fx.Option {
 			filemetadata.NewGetFileMetadataByOwnerIDUseCase,
 			filemetadata.NewListFileMetadataSyncDataUseCase,
 			filemetadata.NewCountUserFilesUseCase,
+			filemetadata.NewGetStorageSizeByOwnerUseCase,
+			filemetadata.NewGetStorageSizeByUserUseCase,
+			filemetadata.NewGetStorageSizeByCollectionUseCase,
 
 			// File Object Storage use cases
 			fileobjectstorage.NewStoreEncryptedDataUseCase,
