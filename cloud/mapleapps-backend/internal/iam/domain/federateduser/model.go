@@ -8,19 +8,6 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/keys"
 )
 
-const (
-	FederatedUserStatusActive   = 1   // User is active and can log in.
-	FederatedUserStatusLocked   = 50  // User account is locked, typically due to too many failed login attempts.
-	FederatedUserStatusArchived = 100 // User account is archived and cannot log in.
-
-	FederatedUserRoleRoot       = 1 // Root user, has all permissions
-	FederatedUserRoleCompany    = 2 // Company user, has permissions for company-related operations
-	FederatedUserRoleIndividual = 3 // Individual user, has permissions for individual-related operations
-
-	FederatedUserCodeTypeEmailVerification = "email_verification"
-	FederatedUserCodeTypePasswordReset     = "password_reset"
-)
-
 type FederatedUserProfileData struct {
 	Phone                                          string `bson:"phone" json:"phone,omitempty"`
 	Country                                        string `bson:"country" json:"country,omitempty"`
@@ -108,18 +95,21 @@ type FederatedUserMetadata struct {
 }
 
 type FederatedUser struct {
-	ID           gocql.UUID                 `bson:"_id" json:"id"`
-	Email        string                     `bson:"email" json:"email"`
-	FirstName    string                     `bson:"first_name" json:"first_name"`
-	LastName     string                     `bson:"last_name" json:"last_name"`
-	Name         string                     `bson:"name" json:"name"`
-	LexicalName  string                     `bson:"lexical_name" json:"lexical_name"`
-	Role         int8                       `bson:"role" json:"role"`
-	Status       int8                       `bson:"status" json:"status"`
-	Timezone     string                     `bson:"timezone" json:"timezone"`
-	ProfileData  *FederatedUserProfileData  `bson:"profile_data" json:"profile_data"`
-	SecurityData *FederatedUserSecurityData `bson:"security_data" json:"security_data"`
-	Metadata     *FederatedUserMetadata     `bson:"metadata" json:"metadata"`
-	CreatedAt    time.Time                  `bson:"created_at" json:"created_at"`
-	ModifiedAt   time.Time                  `bson:"modified_at" json:"modified_at"`
+	ID                gocql.UUID                 `bson:"_id" json:"id"`
+	Email             string                     `bson:"email" json:"email"`
+	FirstName         string                     `bson:"first_name" json:"first_name"`
+	LastName          string                     `bson:"last_name" json:"last_name"`
+	Name              string                     `bson:"name" json:"name"`
+	LexicalName       string                     `bson:"lexical_name" json:"lexical_name"`
+	Role              int8                       `bson:"role" json:"role"`
+	Status            int8                       `bson:"status" json:"status"`
+	Timezone          string                     `bson:"timezone" json:"timezone"`
+	ProfileData       *FederatedUserProfileData  `bson:"profile_data" json:"profile_data"`
+	SecurityData      *FederatedUserSecurityData `bson:"security_data" json:"security_data"`
+	Metadata          *FederatedUserMetadata     `bson:"metadata" json:"metadata"`
+	UserPlan          string                     `bson:"user_plan" json:"user_plan"`
+	StorageLimitBytes int64                      `bson:"storage_limit_bytes" json:"storage_limit_bytes"`
+	StorageUsedBytes  int64                      `bson:"storage_used_bytes" json:"storage_used_bytes"`
+	CreatedAt         time.Time                  `bson:"created_at" json:"created_at"`
+	ModifiedAt        time.Time                  `bson:"modified_at" json:"modified_at"`
 }
