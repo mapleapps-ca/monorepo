@@ -1,12 +1,14 @@
 // github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/federateduser/constants.go
 package federateduser
 
+// FederatedUserStatus defines the possible statuses for a federated user.
 const (
 	FederatedUserStatusActive   = 1   // User is active and can log in.
 	FederatedUserStatusLocked   = 50  // User account is locked, typically due to too many failed login attempts.
 	FederatedUserStatusArchived = 100 // User account is archived and cannot log in.
 )
 
+// FederatedUserRole defines the possible roles for a federated user.
 const (
 	FederatedUserRoleRoot       = 1 // Root user, has all permissions
 	FederatedUserRoleCompany    = 2 // Company user, has permissions for company-related operations
@@ -39,6 +41,7 @@ var FederatedUserPlanStorageLimits = map[string]int64{
 	FederatedUserPlanBusiness: 1024 * 1024 * 1024 * 1024, // 1 TB
 }
 
+// GetStorageLimitForFederatedUserPlan returns the storage limit for a given federated user plan.
 func GetStorageLimitForFederatedUserPlan(plan string) int64 {
 	limit, exists := FederatedUserPlanStorageLimits[plan]
 	if !exists {
