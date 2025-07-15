@@ -44,6 +44,9 @@ type FileMetadataRepository interface {
 
 	// ListSyncData retrieves file sync data with pagination for the specified user and accessible collections
 	ListSyncData(ctx context.Context, userID gocql.UUID, cursor *FileSyncCursor, limit int64, accessibleCollectionIDs []gocql.UUID) (*FileSyncResponse, error)
+
+	// CountFilesByUser counts all active files accessible to the user
+	CountFilesByUser(ctx context.Context, userID gocql.UUID, accessibleCollectionIDs []gocql.UUID) (int, error)
 }
 
 // FileObjectStorageRepository defines the interface for interacting with the actual encrypted file data storage.

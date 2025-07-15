@@ -46,6 +46,7 @@ func Module() fx.Option {
 			collection.NewUpdateCollectionUseCase,
 			collection.NewUpdateMemberPermissionUseCase,
 			collection.NewGetCollectionSyncDataUseCase,
+			collection.NewCountUserCollectionsUseCase,
 
 			// File Metadata use cases
 			filemetadata.NewCreateFileMetadataUseCase,
@@ -61,6 +62,7 @@ func Module() fx.Option {
 			filemetadata.NewGetFileMetadataByCreatedByUserIDUseCase,
 			filemetadata.NewGetFileMetadataByOwnerIDUseCase,
 			filemetadata.NewListFileMetadataSyncDataUseCase,
+			filemetadata.NewCountUserFilesUseCase,
 
 			// File Object Storage use cases
 			fileobjectstorage.NewStoreEncryptedDataUseCase,
