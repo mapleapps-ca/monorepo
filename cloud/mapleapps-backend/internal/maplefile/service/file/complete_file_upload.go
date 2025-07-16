@@ -54,7 +54,6 @@ type completeFileUploadServiceImpl struct {
 	verifyObjectExistsUseCase uc_fileobjectstorage.VerifyObjectExistsUseCase
 	getObjectSizeUseCase      uc_fileobjectstorage.GetObjectSizeUseCase
 	deleteDataUseCase         uc_fileobjectstorage.DeleteEncryptedDataUseCase
-	// Storage quota management
 	storageQuotaHelperUseCase uc_feduser.FederatedUserStorageQuotaHelperUseCase
 }
 
