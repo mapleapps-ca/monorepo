@@ -13,8 +13,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
-// StorageManagementUseCase handles storage quota operations
-type StorageManagementUseCase interface {
+// FederatedUserStorageManagementUseCase handles storage quota operations
+type FederatedUserStorageManagementUseCase interface {
 	// IncrementStorageUsage adds to the user's storage usage
 	IncrementStorageUsage(ctx context.Context, userID gocql.UUID, bytes int64) error
 
@@ -41,7 +41,7 @@ type StorageUsageDTO struct {
 	UsagePercentage   float64    `json:"usage_percentage"`
 }
 
-type storageManagementUseCaseImpl struct {
+type federatedUserStorageManagementUseCaseImpl struct {
 	config     *config.Configuration
 	logger     *zap.Logger
 	repo       dom_user.FederatedUserRepository
@@ -49,15 +49,15 @@ type storageManagementUseCaseImpl struct {
 	updateUser FederatedUserUpdateUseCase
 }
 
-func NewStorageManagementUseCase(
+func NewFederatedUserStorageManagementUseCase(
 	config *config.Configuration,
 	logger *zap.Logger,
 	repo dom_user.FederatedUserRepository,
 	getByID FederatedUserGetByIDUseCase,
 	updateUser FederatedUserUpdateUseCase,
-) StorageManagementUseCase {
-	logger = logger.Named("StorageManagementUseCase")
-	return &storageManagementUseCaseImpl{
+) FederatedUserStorageManagementUseCase {
+	logger = logger.Named("FederatedUserStorageManagementUseCase")
+	return &federatedUserStorageManagementUseCaseImpl{
 		config:     config,
 		logger:     logger,
 		repo:       repo,
@@ -66,7 +66,7 @@ func NewStorageManagementUseCase(
 	}
 }
 
-func (uc *storageManagementUseCaseImpl) IncrementStorageUsage(ctx context.Context, userID gocql.UUID, bytes int64) error {
+func (uc *federatedUserStorageManagementUseCaseImpl) IncrementStorageUsage(ctx context.Context, userID gocql.UUID, bytes int64) error {
 	// Validate input
 	if bytes < 0 {
 		return httperror.NewForBadRequestWithSingleField("bytes", "Cannot increment by negative value")
@@ -111,7 +111,7 @@ func (uc *storageManagementUseCaseImpl) IncrementStorageUsage(ctx context.Contex
 	return nil
 }
 
-func (uc *storageManagementUseCaseImpl) DecrementStorageUsage(ctx context.Context, userID gocql.UUID, bytes int64) error {
+func (uc *federatedUserStorageManagementUseCaseImpl) DecrementStorageUsage(ctx context.Context, userID gocql.UUID, bytes int64) error {
 	// Validate input
 	if bytes < 0 {
 		return httperror.NewForBadRequestWithSingleField("bytes", "Cannot decrement by negative value")
@@ -151,7 +151,7 @@ func (uc *storageManagementUseCaseImpl) DecrementStorageUsage(ctx context.Contex
 	return nil
 }
 
-func (uc *storageManagementUseCaseImpl) CheckStorageQuota(ctx context.Context, userID gocql.UUID, requiredBytes int64) (bool, error) {
+func (uc *federatedUserStorageManagementUseCaseImpl) CheckStorageQuota(ctx context.Context, userID gocql.UUID, requiredBytes int64) (bool, error) {
 	// Get user
 	user, err := uc.getByID.Execute(ctx, userID)
 	if err != nil {
@@ -175,7 +175,7 @@ func (uc *storageManagementUseCaseImpl) CheckStorageQuota(ctx context.Context, u
 	return hasQuota, nil
 }
 
-func (uc *storageManagementUseCaseImpl) GetStorageUsage(ctx context.Context, userID gocql.UUID) (*StorageUsageDTO, error) {
+func (uc *federatedUserStorageManagementUseCaseImpl) GetStorageUsage(ctx context.Context, userID gocql.UUID) (*StorageUsageDTO, error) {
 	// Get user
 	user, err := uc.getByID.Execute(ctx, userID)
 	if err != nil {
@@ -195,7 +195,7 @@ func (uc *storageManagementUseCaseImpl) GetStorageUsage(ctx context.Context, use
 	}, nil
 }
 
-func (uc *storageManagementUseCaseImpl) UpgradeUserPlan(ctx context.Context, userID gocql.UUID, newPlan string) error {
+func (uc *federatedUserStorageManagementUseCaseImpl) UpgradeUserPlan(ctx context.Context, userID gocql.UUID, newPlan string) error {
 	// Validate plan
 	if _, exists := dom_user.FederatedUserPlanStorageLimits[newPlan]; !exists {
 		return httperror.NewForBadRequestWithSingleField("plan", fmt.Sprintf("Invalid plan: %s", newPlan))

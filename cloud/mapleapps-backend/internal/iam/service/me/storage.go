@@ -56,20 +56,20 @@ type UpgradePlanService interface {
 type getStorageUsageServiceImpl struct {
 	config         *config.Configuration
 	logger         *zap.Logger
-	storageUseCase uc_user.StorageManagementUseCase
+	storageUseCase uc_user.FederatedUserStorageManagementUseCase
 }
 
 type upgradePlanServiceImpl struct {
 	config         *config.Configuration
 	logger         *zap.Logger
-	storageUseCase uc_user.StorageManagementUseCase
+	storageUseCase uc_user.FederatedUserStorageManagementUseCase
 	userGetByID    uc_user.FederatedUserGetByIDUseCase
 }
 
 func NewGetStorageUsageService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	storageUseCase uc_user.StorageManagementUseCase,
+	storageUseCase uc_user.FederatedUserStorageManagementUseCase,
 ) GetStorageUsageService {
 	logger = logger.Named("GetStorageUsageService")
 	return &getStorageUsageServiceImpl{
@@ -82,7 +82,7 @@ func NewGetStorageUsageService(
 func NewUpgradePlanService(
 	config *config.Configuration,
 	logger *zap.Logger,
-	storageUseCase uc_user.StorageManagementUseCase,
+	storageUseCase uc_user.FederatedUserStorageManagementUseCase,
 	userGetByID uc_user.FederatedUserGetByIDUseCase,
 ) UpgradePlanService {
 	logger = logger.Named("UpgradePlanService")
