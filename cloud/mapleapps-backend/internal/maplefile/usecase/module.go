@@ -27,7 +27,7 @@ func Module() fx.Option {
 			user.NewUserDeleteByIDUseCase,
 			user.NewUserDeleteUserByEmailUseCase,
 
-			// // Collection use cases
+			// Collection use cases
 			collection.NewAddCollectionMemberUseCase,
 			collection.NewAddMemberToHierarchyUseCase,
 			collection.NewCheckCollectionAccessUseCase,

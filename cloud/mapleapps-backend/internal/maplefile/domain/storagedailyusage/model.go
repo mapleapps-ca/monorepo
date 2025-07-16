@@ -1,4 +1,5 @@
-package models
+// cloud/mapleapps-backend/internal/maplefile/domain/storagedailyusage/model.go
+package storagedailyusage
 
 import (
 	"time"

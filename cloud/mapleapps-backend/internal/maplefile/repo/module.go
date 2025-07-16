@@ -7,6 +7,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/repo/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/repo/filemetadata"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/repo/fileobjectstorage"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/repo/storagedailyusage"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/repo/storageusageevent"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/repo/templatedemailer"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/repo/user"
 )
@@ -19,6 +21,8 @@ func Module() fx.Option {
 			user.NewRepository,
 			templatedemailer.NewTemplatedEmailer,
 			collection.NewRepository,
+			storagedailyusage.NewRepository,
+			storageusageevent.NewRepository,
 		),
 	)
 }
