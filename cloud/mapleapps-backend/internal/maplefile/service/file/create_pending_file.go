@@ -12,6 +12,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/domain/keys"
+	uc_feduser "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	uc_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/collection"
@@ -71,6 +72,7 @@ type createPendingFileServiceImpl struct {
 	checkFileExistsUseCase            uc_filemetadata.CheckFileExistsUseCase
 	createMetadataUseCase             uc_filemetadata.CreateFileMetadataUseCase
 	generatePresignedUploadURLUseCase uc_fileobjectstorage.GeneratePresignedUploadURLUseCase
+	storageQuotaHelperUseCase         uc_feduser.FederatedUserStorageQuotaHelperUseCase
 }
 
 func NewCreatePendingFileService(
@@ -80,6 +82,7 @@ func NewCreatePendingFileService(
 	checkFileExistsUseCase uc_filemetadata.CheckFileExistsUseCase,
 	createMetadataUseCase uc_filemetadata.CreateFileMetadataUseCase,
 	generatePresignedUploadURLUseCase uc_fileobjectstorage.GeneratePresignedUploadURLUseCase,
+	storageQuotaHelperUseCase uc_feduser.FederatedUserStorageQuotaHelperUseCase,
 ) CreatePendingFileService {
 	logger = logger.Named("CreatePendingFileService")
 	return &createPendingFileServiceImpl{
@@ -89,6 +92,7 @@ func NewCreatePendingFileService(
 		checkFileExistsUseCase:            checkFileExistsUseCase,
 		createMetadataUseCase:             createMetadataUseCase,
 		generatePresignedUploadURLUseCase: generatePresignedUploadURLUseCase,
+		storageQuotaHelperUseCase:         storageQuotaHelperUseCase,
 	}
 }
 
@@ -127,6 +131,9 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	if req.EncryptedHash == "" {
 		e["encrypted_hash"] = "Encrypted hash is required"
 	}
+	if req.ExpectedFileSizeInBytes <= 0 {
+		e["expected_file_size_in_bytes"] = "Expected file size must be greater than 0"
+	}
 
 	if len(e) != 0 {
 		svc.logger.Warn("⚠️ Failed validation",
@@ -144,10 +151,32 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	}
 
 	//
-	// STEP 3: Check if user has write access to the collection
+	// STEP 3: Check storage quota BEFORE creating file
+	//
+	totalExpectedSize := req.ExpectedFileSizeInBytes + req.ExpectedThumbnailSizeInBytes
+	err = svc.storageQuotaHelperUseCase.CheckAndReserveQuota(ctx, userID, totalExpectedSize)
+	if err != nil {
+		svc.logger.Warn("⚠️ Storage quota check failed",
+			zap.String("user_id", userID.String()),
+			zap.Int64("requested_size", totalExpectedSize),
+			zap.Error(err))
+		return nil, err // This will be a proper HTTP error from the quota helper
+	}
+
+	svc.logger.Info("✅ Storage quota reserved successfully",
+		zap.String("user_id", userID.String()),
+		zap.Int64("reserved_size", totalExpectedSize))
+
+	//
+	// STEP 4: Check if user has write access to the collection
 	//
 	hasAccess, err := svc.checkCollectionAccessUseCase.Execute(ctx, req.CollectionID, userID, dom_collection.CollectionPermissionReadWrite)
 	if err != nil {
+		// Release reserved quota on error
+		if releaseErr := svc.storageQuotaHelperUseCase.ReleaseQuota(ctx, userID, totalExpectedSize); releaseErr != nil {
+			svc.logger.Error("❌ Failed to release quota after collection access check error", zap.Error(releaseErr))
+		}
+
 		svc.logger.Error("❌ Failed to check collection access",
 			zap.Any("error", err),
 			zap.Any("collection_id", req.CollectionID),
@@ -156,6 +185,11 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	}
 
 	if !hasAccess {
+		// Release reserved quota on access denied
+		if releaseErr := svc.storageQuotaHelperUseCase.ReleaseQuota(ctx, userID, totalExpectedSize); releaseErr != nil {
+			svc.logger.Error("❌ Failed to release quota after access denied", zap.Error(releaseErr))
+		}
+
 		svc.logger.Warn("⚠️ Unauthorized file creation attempt",
 			zap.Any("user_id", userID),
 			zap.Any("collection_id", req.CollectionID))
@@ -163,19 +197,24 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	}
 
 	//
-	// STEP 4: Generate storage paths.
+	// STEP 5: Generate storage paths.
 	//
 	storagePath := generateStoragePath(userID.String(), req.ID.String())
 	thumbnailStoragePath := generateThumbnailStoragePath(userID.String(), req.ID.String())
 
 	//
-	// STEP 5: Generate presigned upload URLs
+	// STEP 6: Generate presigned upload URLs
 	//
 	uploadURLDuration := 1 * time.Hour // URLs valid for 1 hour
 	expirationTime := time.Now().Add(uploadURLDuration)
 
 	presignedUploadURL, err := svc.generatePresignedUploadURLUseCase.Execute(ctx, storagePath, uploadURLDuration)
 	if err != nil {
+		// Release reserved quota on error
+		if releaseErr := svc.storageQuotaHelperUseCase.ReleaseQuota(ctx, userID, totalExpectedSize); releaseErr != nil {
+			svc.logger.Error("❌ Failed to release quota after presigned URL generation error", zap.Error(releaseErr))
+		}
+
 		svc.logger.Error("❌ Failed to generate presigned upload URL",
 			zap.Any("error", err),
 			zap.Any("file_id", req.ID),
@@ -196,7 +235,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	}
 
 	//
-	// STEP 6: Create pending file metadata record
+	// STEP 7: Create pending file metadata record
 	//
 	now := time.Now()
 	file := &dom_file.File{
@@ -221,6 +260,11 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 
 	err = svc.createMetadataUseCase.Execute(file)
 	if err != nil {
+		// Release reserved quota on error
+		if releaseErr := svc.storageQuotaHelperUseCase.ReleaseQuota(ctx, userID, totalExpectedSize); releaseErr != nil {
+			svc.logger.Error("❌ Failed to release quota after metadata creation error", zap.Error(releaseErr))
+		}
+
 		svc.logger.Error("❌ Failed to create pending file metadata",
 			zap.Any("error", err),
 			zap.Any("file_id", req.ID))
@@ -228,7 +272,7 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 	}
 
 	//
-	// STEP 7: Prepare response
+	// STEP 8: Prepare response
 	//
 	response := &CreatePendingFileResponseDTO{
 		File:                    mapFileToDTO(file),
@@ -236,14 +280,15 @@ func (svc *createPendingFileServiceImpl) Execute(ctx context.Context, req *Creat
 		PresignedThumbnailURL:   presignedThumbnailURL,
 		UploadURLExpirationTime: expirationTime,
 		Success:                 true,
-		Message:                 "Pending file created successfully. Use the presigned URL to upload your file.",
+		Message:                 "Pending file created successfully. Storage quota reserved. Use the presigned URL to upload your file.",
 	}
 
-	svc.logger.Info("✅ Pending file created successfully",
+	svc.logger.Info("✅ Pending file created successfully with quota reservation",
 		zap.Any("file_id", req.ID),
 		zap.Any("collection_id", req.CollectionID),
 		zap.Any("owner_id", userID),
 		zap.String("storage_path", storagePath),
+		zap.Int64("reserved_size", totalExpectedSize),
 		zap.Time("url_expiration", expirationTime))
 
 	return response, nil

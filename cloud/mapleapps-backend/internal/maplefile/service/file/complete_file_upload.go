@@ -11,6 +11,7 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
+	uc_feduser "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	uc_filemetadata "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata"
@@ -37,6 +38,7 @@ type CompleteFileUploadResponseDTO struct {
 	ActualThumbnailSize int64            `json:"actual_thumbnail_size"`
 	UploadVerified      bool             `json:"upload_verified"`
 	ThumbnailVerified   bool             `json:"thumbnail_verified"`
+	StorageAdjustment   int64            `json:"storage_adjustment"` // Positive if more space used, negative if less
 }
 
 type CompleteFileUploadService interface {
@@ -52,6 +54,8 @@ type completeFileUploadServiceImpl struct {
 	verifyObjectExistsUseCase uc_fileobjectstorage.VerifyObjectExistsUseCase
 	getObjectSizeUseCase      uc_fileobjectstorage.GetObjectSizeUseCase
 	deleteDataUseCase         uc_fileobjectstorage.DeleteEncryptedDataUseCase
+	// Storage quota management
+	storageQuotaHelperUseCase uc_feduser.FederatedUserStorageQuotaHelperUseCase
 }
 
 func NewCompleteFileUploadService(
@@ -63,6 +67,7 @@ func NewCompleteFileUploadService(
 	verifyObjectExistsUseCase uc_fileobjectstorage.VerifyObjectExistsUseCase,
 	getObjectSizeUseCase uc_fileobjectstorage.GetObjectSizeUseCase,
 	deleteDataUseCase uc_fileobjectstorage.DeleteEncryptedDataUseCase,
+	storageQuotaHelperUseCase uc_feduser.FederatedUserStorageQuotaHelperUseCase,
 ) CompleteFileUploadService {
 	logger = logger.Named("CompleteFileUploadService")
 	return &completeFileUploadServiceImpl{
@@ -74,6 +79,7 @@ func NewCompleteFileUploadService(
 		verifyObjectExistsUseCase: verifyObjectExistsUseCase,
 		getObjectSizeUseCase:      getObjectSizeUseCase,
 		deleteDataUseCase:         deleteDataUseCase,
+		storageQuotaHelperUseCase: storageQuotaHelperUseCase,
 	}
 }
 
@@ -202,7 +208,59 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	}
 
 	//
-	// STEP 8: Validate file size if client provided it
+	// STEP 8: Calculate storage adjustment and update quota
+	//
+	expectedTotalSize := file.EncryptedFileSizeInBytes + file.EncryptedThumbnailSizeInBytes
+	actualTotalSize := actualFileSize + actualThumbnailSize
+	storageAdjustment := actualTotalSize - expectedTotalSize
+
+	svc.logger.Info("📊 Storage size comparison",
+		zap.Any("file_id", req.FileID),
+		zap.Int64("expected_file_size", file.EncryptedFileSizeInBytes),
+		zap.Int64("actual_file_size", actualFileSize),
+		zap.Int64("expected_thumbnail_size", file.EncryptedThumbnailSizeInBytes),
+		zap.Int64("actual_thumbnail_size", actualThumbnailSize),
+		zap.Int64("expected_total", expectedTotalSize),
+		zap.Int64("actual_total", actualTotalSize),
+		zap.Int64("adjustment", storageAdjustment))
+
+	// Handle storage quota adjustment
+	if storageAdjustment != 0 {
+		if storageAdjustment > 0 {
+			// Need more quota than originally reserved
+			err = svc.storageQuotaHelperUseCase.CheckAndReserveQuota(ctx, userID, storageAdjustment)
+			if err != nil {
+				svc.logger.Error("🔴 Failed to reserve additional storage quota",
+					zap.String("user_id", userID.String()),
+					zap.Int64("additional_size", storageAdjustment),
+					zap.Error(err))
+
+				// Clean up the uploaded file since we can't complete due to quota
+				if deleteErr := svc.deleteDataUseCase.Execute(file.EncryptedFileObjectKey); deleteErr != nil {
+					svc.logger.Error("🔴 Failed to clean up file after quota exceeded", zap.Error(deleteErr))
+				}
+				if file.EncryptedThumbnailObjectKey != "" {
+					if deleteErr := svc.deleteDataUseCase.Execute(file.EncryptedThumbnailObjectKey); deleteErr != nil {
+						svc.logger.Error("🔴 Failed to clean up thumbnail after quota exceeded", zap.Error(deleteErr))
+					}
+				}
+
+				return nil, err
+			}
+		} else {
+			// Used less quota than originally reserved, release the difference
+			err = svc.storageQuotaHelperUseCase.ReleaseQuota(ctx, userID, -storageAdjustment)
+			if err != nil {
+				svc.logger.Warn("⚠️ Failed to release excess quota, but continuing",
+					zap.String("user_id", userID.String()),
+					zap.Int64("excess_size", -storageAdjustment),
+					zap.Error(err))
+			}
+		}
+	}
+
+	//
+	// STEP 9: Validate file size if client provided it
 	//
 	if req.ActualFileSizeInBytes > 0 && req.ActualFileSizeInBytes != actualFileSize {
 		svc.logger.Warn("⚠️ File size mismatch between client and storage",
@@ -213,7 +271,7 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	}
 
 	//
-	// STEP 9: Update file metadata to active state
+	// STEP 10: Update file metadata to active state
 	//
 	file.EncryptedFileSizeInBytes = actualFileSize
 	file.EncryptedThumbnailSizeInBytes = actualThumbnailSize
@@ -231,24 +289,26 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	}
 
 	//
-	// STEP 10: Prepare response
+	// STEP 11: Prepare response
 	//
 	response := &CompleteFileUploadResponseDTO{
 		File:                mapFileToDTO(file),
 		Success:             true,
-		Message:             "File upload completed successfully",
+		Message:             "File upload completed successfully with storage quota updated",
 		ActualFileSize:      actualFileSize,
 		ActualThumbnailSize: actualThumbnailSize,
 		UploadVerified:      true,
 		ThumbnailVerified:   thumbnailVerified,
+		StorageAdjustment:   storageAdjustment,
 	}
 
-	svc.logger.Info("✅ File upload completed successfully",
+	svc.logger.Info("✅ File upload completed successfully with quota adjustment",
 		zap.Any("file_id", req.FileID),
 		zap.Any("collection_id", file.CollectionID),
 		zap.Any("owner_id", userID),
 		zap.Int64("actual_file_size", actualFileSize),
 		zap.Int64("actual_thumbnail_size", actualThumbnailSize),
+		zap.Int64("storage_adjustment", storageAdjustment),
 		zap.Bool("thumbnail_verified", thumbnailVerified))
 
 	return response, nil

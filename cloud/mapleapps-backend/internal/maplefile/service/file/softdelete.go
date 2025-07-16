@@ -10,6 +10,7 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
+	uc_feduser "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
 	dom_collection "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection"
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	uc_filemetadata "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata"
@@ -22,8 +23,9 @@ type SoftDeleteFileRequestDTO struct {
 }
 
 type SoftDeleteFileResponseDTO struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success       bool   `json:"success"`
+	Message       string `json:"message"`
+	ReleasedBytes int64  `json:"released_bytes"` // Amount of storage quota released
 }
 
 type SoftDeleteFileService interface {
@@ -39,6 +41,8 @@ type softDeleteFileServiceImpl struct {
 	softDeleteMetadataUseCase uc_filemetadata.SoftDeleteFileMetadataUseCase
 	deleteDataUseCase         uc_fileobjectstorage.DeleteEncryptedDataUseCase
 	listFilesByOwnerIDService ListFilesByOwnerIDService
+	// Storage quota management
+	storageQuotaHelperUseCase uc_feduser.FederatedUserStorageQuotaHelperUseCase
 }
 
 func NewSoftDeleteFileService(
@@ -50,6 +54,7 @@ func NewSoftDeleteFileService(
 	softDeleteMetadataUseCase uc_filemetadata.SoftDeleteFileMetadataUseCase,
 	deleteDataUseCase uc_fileobjectstorage.DeleteEncryptedDataUseCase,
 	listFilesByOwnerIDService ListFilesByOwnerIDService,
+	storageQuotaHelperUseCase uc_feduser.FederatedUserStorageQuotaHelperUseCase,
 ) SoftDeleteFileService {
 	logger = logger.Named("SoftDeleteFileService")
 	return &softDeleteFileServiceImpl{
@@ -61,6 +66,7 @@ func NewSoftDeleteFileService(
 		softDeleteMetadataUseCase: softDeleteMetadataUseCase,
 		deleteDataUseCase:         deleteDataUseCase,
 		listFilesByOwnerIDService: listFilesByOwnerIDService,
+		storageQuotaHelperUseCase: storageQuotaHelperUseCase,
 	}
 }
 
@@ -133,7 +139,7 @@ func (svc *softDeleteFileServiceImpl) Execute(ctx context.Context, req *SoftDele
 	}
 
 	// Check valid transitions.
-	if err := dom_collection.IsValidStateTransition(file.State, dom_file.FileStateDeleted); err != nil {
+	if err := dom_file.IsValidStateTransition(file.State, dom_file.FileStateDeleted); err != nil {
 		svc.logger.Warn("Invalid file state transition",
 			zap.Any("user_id", userID),
 			zap.Error(err))
@@ -141,7 +147,18 @@ func (svc *softDeleteFileServiceImpl) Execute(ctx context.Context, req *SoftDele
 	}
 
 	//
-	// STEP 5: Delete encrypted file data from object storage
+	// STEP 5: Calculate storage space to be released
+	//
+	totalFileSize := file.EncryptedFileSizeInBytes + file.EncryptedThumbnailSizeInBytes
+
+	svc.logger.Info("📊 Preparing to delete file and release storage quota",
+		zap.Any("file_id", req.FileID),
+		zap.Int64("file_size", file.EncryptedFileSizeInBytes),
+		zap.Int64("thumbnail_size", file.EncryptedThumbnailSizeInBytes),
+		zap.Int64("total_size_to_release", totalFileSize))
+
+	//
+	// STEP 6: Delete encrypted file data from object storage
 	//
 	err = svc.deleteDataUseCase.Execute(file.EncryptedFileObjectKey)
 	if err != nil {
@@ -163,6 +180,9 @@ func (svc *softDeleteFileServiceImpl) Execute(ctx context.Context, req *SoftDele
 		}
 	}
 
+	//
+	// STEP 7: Update file metadata for soft deletion
+	//
 	file.Version++ // Mutation means we increment version.
 	file.ModifiedAt = time.Now()
 	file.ModifiedByUserID = userID
@@ -175,7 +195,7 @@ func (svc *softDeleteFileServiceImpl) Execute(ctx context.Context, req *SoftDele
 	}
 
 	//
-	// STEP 6: Delete file metadata
+	// STEP 8: Delete file metadata
 	//
 	err = svc.softDeleteMetadataUseCase.Execute(req.FileID)
 	if err != nil {
@@ -185,13 +205,50 @@ func (svc *softDeleteFileServiceImpl) Execute(ctx context.Context, req *SoftDele
 		return nil, err
 	}
 
-	svc.logger.Info("File soft-deleted successfully",
+	//
+	// STEP 9: Release storage quota (only if the file was in active state)
+	//
+	var releasedBytes int64 = 0
+	if file.State == dom_file.FileStateActive && totalFileSize > 0 {
+		err = svc.storageQuotaHelperUseCase.OnFileDeleted(ctx, userID, totalFileSize)
+		if err != nil {
+			svc.logger.Error("🔴 Failed to release storage quota after file deletion",
+				zap.String("user_id", userID.String()),
+				zap.Int64("file_size", totalFileSize),
+				zap.Error(err))
+			// Don't fail the entire operation, but log the issue
+			svc.logger.Warn("⚠️ File was deleted but storage quota was not properly updated. Manual correction may be needed.")
+		} else {
+			releasedBytes = totalFileSize
+			svc.logger.Info("✅ Storage quota released successfully",
+				zap.String("user_id", userID.String()),
+				zap.Int64("released_bytes", releasedBytes))
+		}
+	} else if file.State == dom_file.FileStatePending {
+		// For pending files, we should release the reserved quota
+		err = svc.storageQuotaHelperUseCase.ReleaseQuota(ctx, userID, totalFileSize)
+		if err != nil {
+			svc.logger.Error("🔴 Failed to release reserved storage quota for pending file",
+				zap.String("user_id", userID.String()),
+				zap.Int64("file_size", totalFileSize),
+				zap.Error(err))
+		} else {
+			releasedBytes = totalFileSize
+			svc.logger.Info("✅ Reserved storage quota released for pending file",
+				zap.String("user_id", userID.String()),
+				zap.Int64("released_bytes", releasedBytes))
+		}
+	}
+
+	svc.logger.Info("File soft-deleted successfully with storage quota updated",
 		zap.Any("file_id", req.FileID),
 		zap.Any("collection_id", file.CollectionID),
-		zap.Any("user_id", userID))
+		zap.Any("user_id", userID),
+		zap.Int64("released_bytes", releasedBytes))
 
 	return &SoftDeleteFileResponseDTO{
-		Success: true,
-		Message: "File soft-deleted successfully",
+		Success:       true,
+		Message:       "File soft-deleted successfully and storage quota updated",
+		ReleasedBytes: releasedBytes,
 	}, nil
 }
