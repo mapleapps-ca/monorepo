@@ -19,12 +19,15 @@ func (r *federatedUserRepository) GetByID(ctx context.Context, id gocql.UUID) (*
 		timezone                                      string
 		createdAt, modifiedAt                         time.Time
 		profileData, securityData, metadata           string
+		userPlan                                      string
+		storageLimitBytes, storageUsedBytes           int64
 	)
 
 	query := `
         SELECT email, first_name, last_name, name, lexical_name,
                role, status, timezone, created_at, modified_at,
-               profile_data, security_data, metadata
+               profile_data, security_data, metadata,
+               user_plan, storage_limit_bytes, storage_used_bytes
         FROM iam_federated_users_by_id
         WHERE id = ?`
 
@@ -32,6 +35,7 @@ func (r *federatedUserRepository) GetByID(ctx context.Context, id gocql.UUID) (*
 		&email, &firstName, &lastName, &name, &lexicalName,
 		&role, &status, &timezone, &createdAt, &modifiedAt,
 		&profileData, &securityData, &metadata,
+		&userPlan, &storageLimitBytes, &storageUsedBytes,
 	)
 
 	if err == gocql.ErrNotFound {
@@ -46,17 +50,20 @@ func (r *federatedUserRepository) GetByID(ctx context.Context, id gocql.UUID) (*
 
 	// Construct the user object
 	user := &dom.FederatedUser{
-		ID:          id,
-		Email:       email,
-		FirstName:   firstName,
-		LastName:    lastName,
-		Name:        name,
-		LexicalName: lexicalName,
-		Role:        role,
-		Status:      status,
-		Timezone:    timezone,
-		CreatedAt:   createdAt,
-		ModifiedAt:  modifiedAt,
+		ID:                id,
+		Email:             email,
+		FirstName:         firstName,
+		LastName:          lastName,
+		Name:              name,
+		LexicalName:       lexicalName,
+		Role:              role,
+		Status:            status,
+		Timezone:          timezone,
+		UserPlan:          userPlan,
+		StorageLimitBytes: storageLimitBytes,
+		StorageUsedBytes:  storageUsedBytes,
+		CreatedAt:         createdAt,
+		ModifiedAt:        modifiedAt,
 	}
 
 	// Deserialize JSON fields
@@ -79,12 +86,15 @@ func (r *federatedUserRepository) GetByEmail(ctx context.Context, email string) 
 		timezone                               string
 		createdAt, modifiedAt                  time.Time
 		profileData, securityData, metadata    string
+		userPlan                               string
+		storageLimitBytes, storageUsedBytes    int64
 	)
 
 	query := `
         SELECT id, email, first_name, last_name, name, lexical_name,
                role, status, timezone, created_at, modified_at,
-               profile_data, security_data, metadata
+               profile_data, security_data, metadata,
+               user_plan, storage_limit_bytes, storage_used_bytes
         FROM iam_federated_users_by_email
         WHERE email = ?`
 
@@ -92,6 +102,7 @@ func (r *federatedUserRepository) GetByEmail(ctx context.Context, email string) 
 		&id, &emailResult, &firstName, &lastName, &name, &lexicalName, // 🔧 FIXED: Use emailResult variable
 		&role, &status, &timezone, &createdAt, &modifiedAt,
 		&profileData, &securityData, &metadata,
+		&userPlan, &storageLimitBytes, &storageUsedBytes,
 	)
 
 	if err == gocql.ErrNotFound {
@@ -106,17 +117,20 @@ func (r *federatedUserRepository) GetByEmail(ctx context.Context, email string) 
 
 	// Construct the user object
 	user := &dom.FederatedUser{
-		ID:          id,
-		Email:       emailResult,
-		FirstName:   firstName,
-		LastName:    lastName,
-		Name:        name,
-		LexicalName: lexicalName,
-		Role:        role,
-		Status:      status,
-		Timezone:    timezone,
-		CreatedAt:   createdAt,
-		ModifiedAt:  modifiedAt,
+		ID:                id,
+		Email:             emailResult,
+		FirstName:         firstName,
+		LastName:          lastName,
+		Name:              name,
+		LexicalName:       lexicalName,
+		Role:              role,
+		Status:            status,
+		Timezone:          timezone,
+		UserPlan:          userPlan,
+		StorageLimitBytes: storageLimitBytes,
+		StorageUsedBytes:  storageUsedBytes,
+		CreatedAt:         createdAt,
+		ModifiedAt:        modifiedAt,
 	}
 
 	// Deserialize JSON fields

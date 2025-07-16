@@ -1,5 +1,5 @@
-// cloud/mapleapps-backend/pkg/utils/storage/size_formatter.go
-package storage
+// cloud/mapleapps-backend/pkg/storage/utils/size_formatter.go
+package utils
 
 import (
 	"fmt"

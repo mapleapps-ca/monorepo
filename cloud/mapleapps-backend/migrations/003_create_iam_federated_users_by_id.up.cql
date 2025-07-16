@@ -12,5 +12,8 @@ CREATE TABLE IF NOT EXISTS mapleapps.iam_federated_users_by_id (
     modified_at TIMESTAMP,
     profile_data TEXT,
     security_data TEXT,
-    metadata TEXT
+    metadata TEXT,
+    user_plan TEXT,
+    storage_limit_bytes BIGINT,
+    storage_used_bytes BIGINT
 );

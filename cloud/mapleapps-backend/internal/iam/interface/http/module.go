@@ -6,6 +6,7 @@ import (
 
 	commonhttp "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/interface/http/common"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/interface/http/gateway"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/interface/http/me"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/interface/http/middleware"
 	unifiedhttp "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/manifold/interface/http"
 )
@@ -30,6 +31,10 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(gateway.NewInitiateRecoveryHTTPHandler),
 			unifiedhttp.AsRoute(gateway.NewVerifyRecoveryHTTPHandler),
 			unifiedhttp.AsRoute(gateway.NewCompleteRecoveryHTTPHandler),
+
+			// Me endpoints
+			unifiedhttp.AsRoute(me.NewGetStorageUsageHTTPHandler),
+			unifiedhttp.AsRoute(me.NewUpgradePlanHTTPHandler),
 		),
 	)
 }

@@ -1,4 +1,4 @@
-// github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/service/federateduser/service.go
+// github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/service/me/get.go
 package me
 
 import (
@@ -13,6 +13,7 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/config/constants"
 	uc_user "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/usecase/federateduser"
+	storage_utils "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/storage/utils"
 )
 
 type MeResponseDTO struct {
@@ -77,6 +78,16 @@ type MeResponseDTO struct {
 	WebsiteURL                string `bson:"website_url" json:"website_url"`
 	Description               string `bson:"description" json:"description"`
 	ComicBookStoreName        string `bson:"comic_book_store_name" json:"comic_book_store_name,omitempty"`
+
+	// Storage fields
+	UserPlan                  string                      `bson:"user_plan" json:"user_plan"`
+	StorageLimitBytes         int64                       `bson:"storage_limit_bytes" json:"storage_limit_bytes"`
+	StorageLimitFormatted     storage_utils.FormattedSize `bson:"storage_limit_formatted" json:"storage_limit_formatted"`
+	StorageUsedBytes          int64                       `bson:"storage_used_bytes" json:"storage_used_bytes"`
+	StorageUsedFormatted      storage_utils.FormattedSize `bson:"storage_used_formatted" json:"storage_used_formatted"`
+	StorageRemainingBytes     int64                       `bson:"storage_remaining_bytes" json:"storage_remaining_bytes"`
+	StorageRemainingFormatted storage_utils.FormattedSize `bson:"storage_remaining_formatted" json:"storage_remaining_formatted"`
+	StorageUsagePercentage    float64                     `bson:"storage_usage_percentage" json:"storage_usage_percentage"`
 }
 
 type GetMeService interface {
@@ -152,5 +163,14 @@ func (svc *getMeServiceImpl) Execute(sessCtx context.Context) (*MeResponseDTO, e
 		AgreeToTrackingAcrossThirdPartyAppsAndServices: federateduser.ProfileData.AgreeToTrackingAcrossThirdPartyAppsAndServices,
 		CreatedAt: federateduser.CreatedAt,
 		Status:    federateduser.Status,
+		// Storage fields
+		UserPlan:                  federateduser.UserPlan,
+		StorageLimitBytes:         federateduser.StorageLimitBytes,
+		StorageLimitFormatted:     storage_utils.FormatBytes(federateduser.StorageLimitBytes),
+		StorageUsedBytes:          federateduser.StorageUsedBytes,
+		StorageUsedFormatted:      storage_utils.FormatBytes(federateduser.StorageUsedBytes),
+		StorageRemainingBytes:     federateduser.GetRemainingStorage(),
+		StorageRemainingFormatted: storage_utils.FormatBytes(federateduser.GetRemainingStorage()),
+		StorageUsagePercentage:    federateduser.GetStorageUsagePercentage(),
 	}, nil
 }

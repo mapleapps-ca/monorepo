@@ -48,11 +48,13 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
         UPDATE iam_federated_users_by_id
         SET email = ?, first_name = ?, last_name = ?, name = ?, lexical_name = ?,
             role = ?, status = ?, modified_at = ?,
-            profile_data = ?, security_data = ?, metadata = ?
+            profile_data = ?, security_data = ?, metadata = ?,
+            user_plan = ?, storage_limit_bytes = ?, storage_used_bytes = ?
         WHERE id = ?`,
 		user.Email, user.FirstName, user.LastName, user.Name, user.LexicalName,
 		user.Role, user.Status, user.ModifiedAt,
 		profileDataJSON, securityDataJSON, metadataJSON,
+		user.UserPlan, user.StorageLimitBytes, user.StorageUsedBytes,
 		user.ID,
 	)
 
@@ -64,25 +66,37 @@ func (r *federatedUserRepository) UpdateByID(ctx context.Context, user *dom.Fede
 		// Insert new email entry
 		batch.Query(`
             INSERT INTO iam_federated_users_by_email (
-                email, id, first_name, last_name, status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?)`,
-			user.Email, user.ID, user.FirstName, user.LastName,
-			user.Status, user.CreatedAt,
+                email, id, first_name, last_name, name, lexical_name,
+                role, status, timezone, created_at, modified_at,
+                profile_data, security_data, metadata,
+                user_plan, storage_limit_bytes, storage_used_bytes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			user.Email, user.ID, user.FirstName, user.LastName, user.Name, user.LexicalName,
+			user.Role, user.Status, user.Timezone, user.CreatedAt, user.ModifiedAt,
+			profileDataJSON, securityDataJSON, metadataJSON,
+			user.UserPlan, user.StorageLimitBytes, user.StorageUsedBytes,
 		)
 	} else {
 		// Just update the existing email entry
 		batch.Query(`
             UPDATE iam_federated_users_by_email
-            SET first_name = ?, last_name = ?, status = ?
+            SET first_name = ?, last_name = ?, name = ?, lexical_name = ?,
+                role = ?, status = ?, modified_at = ?,
+                profile_data = ?, security_data = ?, metadata = ?,
+                user_plan = ?, storage_limit_bytes = ?, storage_used_bytes = ?
             WHERE email = ?`,
-			user.FirstName, user.LastName, user.Status, user.Email,
+			user.FirstName, user.LastName, user.Name, user.LexicalName,
+			user.Role, user.Status, user.ModifiedAt,
+			profileDataJSON, securityDataJSON, metadataJSON,
+			user.UserPlan, user.StorageLimitBytes, user.StorageUsedBytes,
+			user.Email,
 		)
 	}
 
 	// 3. Handle status change
 	if existingUser.Status != user.Status {
 		// Remove from old status table
-		// kip
+		// Skip
 
 		// Add to new status table
 		// Skip

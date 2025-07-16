@@ -35,6 +35,10 @@ func init() {
 		// "/iam/api/v1/recovery/initiate": true,
 		// "/iam/api/v1/recovery/verify":   true,
 		// "/iam/api/v1/recovery/complete": true,
+
+		// Storage endpoints
+		"/iam/api/v1/me/storage":      true,
+		"/iam/api/v1/me/upgrade-plan": true,
 	}
 
 	// Pattern matches

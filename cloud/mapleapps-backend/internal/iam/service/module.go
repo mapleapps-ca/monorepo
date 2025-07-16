@@ -5,6 +5,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/service/gateway"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/service/me"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/iam/service/token"
 )
 
@@ -34,6 +35,16 @@ func Module() fx.Option {
 			gateway.NewInitiateRecoveryService,
 			gateway.NewVerifyRecoveryService,
 			gateway.NewCompleteRecoveryService,
+
+			// Me services
+			me.NewGetMeService,
+			me.NewUpdateMeService,
+			me.NewDeleteMeService,
+			me.NewVerifyProfileService,
+
+			// Storage services
+			me.NewGetStorageUsageService,
+			me.NewUpgradePlanService,
 		),
 	)
 }

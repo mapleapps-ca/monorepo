@@ -27,6 +27,12 @@ func (r *federatedUserRepository) Create(ctx context.Context, user *dom.Federate
 		user.ModifiedAt = now
 	}
 
+	// Set default plan if not set
+	if user.UserPlan == "" {
+		user.UserPlan = dom.FederatedUserPlanFree
+		user.StorageLimitBytes = dom.GetStorageLimitForFederatedUserPlan(dom.FederatedUserPlanFree)
+	}
+
 	// Serialize complex data to JSON
 	profileDataJSON, err := r.serializeProfileData(user.ProfileData)
 	if err != nil {
@@ -51,11 +57,13 @@ func (r *federatedUserRepository) Create(ctx context.Context, user *dom.Federate
         INSERT INTO iam_federated_users_by_id (
             id, email, first_name, last_name, name, lexical_name,
             role, status, timezone, created_at, modified_at,
-            profile_data, security_data, metadata
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            profile_data, security_data, metadata,
+            user_plan, storage_limit_bytes, storage_used_bytes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		user.ID, user.Email, user.FirstName, user.LastName, user.Name, user.LexicalName,
 		user.Role, user.Status, user.Timezone, user.CreatedAt, user.ModifiedAt,
 		profileDataJSON, securityDataJSON, metadataJSON,
+		user.UserPlan, user.StorageLimitBytes, user.StorageUsedBytes,
 	)
 
 	// 2. Insert into users_by_email
@@ -63,11 +71,13 @@ func (r *federatedUserRepository) Create(ctx context.Context, user *dom.Federate
     INSERT INTO iam_federated_users_by_email (
         email, id,  first_name, last_name, name, lexical_name,
         role, status, timezone, created_at, modified_at,
-        profile_data, security_data, metadata
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        profile_data, security_data, metadata,
+        user_plan, storage_limit_bytes, storage_used_bytes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		user.Email, user.ID, user.FirstName, user.LastName, user.Name, user.LexicalName,
 		user.Role, user.Status, user.Timezone, user.CreatedAt, user.ModifiedAt,
 		profileDataJSON, securityDataJSON, metadataJSON,
+		user.UserPlan, user.StorageLimitBytes, user.StorageUsedBytes,
 	)
 
 	// 3. Insert into users_by_status_and_date for listing

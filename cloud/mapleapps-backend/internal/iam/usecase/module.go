@@ -23,6 +23,7 @@ func Module() fx.Option {
 			federateduser.NewFederatedUserGetByIDUseCase,
 			federateduser.NewFederatedUserGetByVerificationCodeUseCase,
 			federateduser.NewFederatedUserUpdateUseCase,
+			federateduser.NewStorageManagementUseCase,
 			recovery.NewInitiateRecoveryUseCase,
 			recovery.NewVerifyRecoveryUseCase,
 			recovery.NewCompleteRecoveryUseCase,

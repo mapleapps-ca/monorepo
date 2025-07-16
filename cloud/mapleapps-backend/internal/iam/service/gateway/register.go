@@ -317,6 +317,10 @@ func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserFor
 
 	userID := gocql.TimeUUID()
 
+	// Set default plan for new users
+	userPlan := dom_user.FederatedUserPlanFree
+	storageLimitBytes := dom_user.GetStorageLimitForFederatedUserPlan(userPlan)
+
 	profiledata := &dom_user.FederatedUserProfileData{
 		Phone:                req.Phone,
 		Country:              req.Country,
@@ -373,20 +377,23 @@ func (s *gatewayFederatedUserRegisterServiceImpl) createCustomerFederatedUserFor
 	}
 
 	u := &dom_user.FederatedUser{
-		ID:           userID,
-		Email:        req.Email,
-		FirstName:    req.FirstName,
-		LastName:     req.LastName,
-		Name:         fmt.Sprintf("%s %s", req.FirstName, req.LastName),
-		LexicalName:  fmt.Sprintf("%s, %s", req.LastName, req.FirstName),
-		Role:         dom_user.FederatedUserRoleIndividual,
-		Status:       dom_user.FederatedUserStatusActive,
-		Timezone:     req.Timezone,
-		ProfileData:  profiledata,
-		SecurityData: securitydata,
-		Metadata:     metadata,
-		CreatedAt:    metadata.CreatedAt,
-		ModifiedAt:   metadata.ModifiedAt,
+		ID:                userID,
+		Email:             req.Email,
+		FirstName:         req.FirstName,
+		LastName:          req.LastName,
+		Name:              fmt.Sprintf("%s %s", req.FirstName, req.LastName),
+		LexicalName:       fmt.Sprintf("%s, %s", req.LastName, req.FirstName),
+		Role:              dom_user.FederatedUserRoleIndividual,
+		Status:            dom_user.FederatedUserStatusActive,
+		Timezone:          req.Timezone,
+		ProfileData:       profiledata,
+		SecurityData:      securitydata,
+		Metadata:          metadata,
+		UserPlan:          userPlan,          // NEW: Set default plan
+		StorageLimitBytes: storageLimitBytes, // NEW: Set storage limit based on plan
+		StorageUsedBytes:  0,                 // NEW: Initialize to 0
+		CreatedAt:         metadata.CreatedAt,
+		ModifiedAt:        metadata.ModifiedAt,
 	}
 	err = s.userCreateUseCase.Execute(ctx, u)
 	if err != nil {
