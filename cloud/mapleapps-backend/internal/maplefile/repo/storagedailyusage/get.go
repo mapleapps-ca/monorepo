@@ -89,3 +89,133 @@ func (impl *storageDailyUsageRepositoryImpl) GetByUserDateRange(ctx context.Cont
 
 	return usages, nil
 }
+
+// GetLast7DaysTrend retrieves the last 7 days of storage usage and calculates trends
+func (impl *storageDailyUsageRepositoryImpl) GetLast7DaysTrend(ctx context.Context, userID gocql.UUID) (*storagedailyusage.StorageUsageTrend, error) {
+	endDay := time.Now().Truncate(24 * time.Hour)
+	startDay := endDay.Add(-6 * 24 * time.Hour) // 7 days including today
+
+	usages, err := impl.GetByUserDateRange(ctx, userID, startDay, endDay)
+	if err != nil {
+		return nil, err
+	}
+
+	return impl.calculateTrend(userID, startDay, endDay, usages), nil
+}
+
+// GetMonthlyTrend retrieves usage trend for a specific month
+func (impl *storageDailyUsageRepositoryImpl) GetMonthlyTrend(ctx context.Context, userID gocql.UUID, year int, month time.Month) (*storagedailyusage.StorageUsageTrend, error) {
+	startDay := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	endDay := startDay.AddDate(0, 1, -1) // Last day of the month
+
+	usages, err := impl.GetByUserDateRange(ctx, userID, startDay, endDay)
+	if err != nil {
+		return nil, err
+	}
+
+	return impl.calculateTrend(userID, startDay, endDay, usages), nil
+}
+
+// GetYearlyTrend retrieves usage trend for a specific year
+func (impl *storageDailyUsageRepositoryImpl) GetYearlyTrend(ctx context.Context, userID gocql.UUID, year int) (*storagedailyusage.StorageUsageTrend, error) {
+	startDay := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
+	endDay := time.Date(year, 12, 31, 0, 0, 0, 0, time.UTC)
+
+	usages, err := impl.GetByUserDateRange(ctx, userID, startDay, endDay)
+	if err != nil {
+		return nil, err
+	}
+
+	return impl.calculateTrend(userID, startDay, endDay, usages), nil
+}
+
+// GetCurrentMonthUsage gets the current month's usage summary
+func (impl *storageDailyUsageRepositoryImpl) GetCurrentMonthUsage(ctx context.Context, userID gocql.UUID) (*storagedailyusage.StorageUsageSummary, error) {
+	now := time.Now()
+	startDay := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	endDay := now.Truncate(24 * time.Hour)
+
+	usages, err := impl.GetByUserDateRange(ctx, userID, startDay, endDay)
+	if err != nil {
+		return nil, err
+	}
+
+	return impl.calculateSummary(userID, "month", startDay, endDay, usages), nil
+}
+
+// GetCurrentYearUsage gets the current year's usage summary
+func (impl *storageDailyUsageRepositoryImpl) GetCurrentYearUsage(ctx context.Context, userID gocql.UUID) (*storagedailyusage.StorageUsageSummary, error) {
+	now := time.Now()
+	startDay := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
+	endDay := now.Truncate(24 * time.Hour)
+
+	usages, err := impl.GetByUserDateRange(ctx, userID, startDay, endDay)
+	if err != nil {
+		return nil, err
+	}
+
+	return impl.calculateSummary(userID, "year", startDay, endDay, usages), nil
+}
+
+// Helper methods
+
+func (impl *storageDailyUsageRepositoryImpl) calculateTrend(userID gocql.UUID, startDay, endDay time.Time, usages []*storagedailyusage.StorageDailyUsage) *storagedailyusage.StorageUsageTrend {
+	trend := &storagedailyusage.StorageUsageTrend{
+		UserID:      userID,
+		StartDate:   startDay,
+		EndDate:     endDay,
+		DailyUsages: usages,
+	}
+
+	if len(usages) == 0 {
+		return trend
+	}
+
+	var peakDay time.Time
+	var peakBytes int64
+
+	for _, usage := range usages {
+		trend.TotalAdded += usage.TotalAddBytes
+		trend.TotalRemoved += usage.TotalRemoveBytes
+
+		if usage.TotalBytes > peakBytes {
+			peakBytes = usage.TotalBytes
+			peakDay = usage.UsageDay
+		}
+	}
+
+	trend.NetChange = trend.TotalAdded - trend.TotalRemoved
+	if len(usages) > 0 {
+		trend.AverageDailyAdd = trend.TotalAdded / int64(len(usages))
+		trend.PeakUsageDay = &peakDay
+		trend.PeakUsageBytes = peakBytes
+	}
+
+	return trend
+}
+
+func (impl *storageDailyUsageRepositoryImpl) calculateSummary(userID gocql.UUID, period string, startDay, endDay time.Time, usages []*storagedailyusage.StorageDailyUsage) *storagedailyusage.StorageUsageSummary {
+	summary := &storagedailyusage.StorageUsageSummary{
+		UserID:       userID,
+		Period:       period,
+		StartDate:    startDay,
+		EndDate:      endDay,
+		DaysWithData: len(usages),
+	}
+
+	if len(usages) == 0 {
+		return summary
+	}
+
+	// Get the most recent usage as current
+	summary.CurrentUsage = usages[len(usages)-1].TotalBytes
+
+	for _, usage := range usages {
+		summary.TotalAdded += usage.TotalAddBytes
+		summary.TotalRemoved += usage.TotalRemoveBytes
+	}
+
+	summary.NetChange = summary.TotalAdded - summary.TotalRemoved
+
+	return summary
+}
