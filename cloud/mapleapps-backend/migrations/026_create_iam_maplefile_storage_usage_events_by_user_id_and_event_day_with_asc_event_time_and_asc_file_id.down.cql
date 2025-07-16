@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS mapleapps.maplefile_storage_usage_events_by_user_id_and_event_day_with_asc_event_time_and_asc_file_id;

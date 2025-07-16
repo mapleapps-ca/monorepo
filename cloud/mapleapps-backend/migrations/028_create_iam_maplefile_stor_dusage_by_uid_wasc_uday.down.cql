@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS mapleapps.maplefile_storage_daily_usage_by_user_id_with_asc_usage_day;
