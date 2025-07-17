@@ -95,3 +95,33 @@ type FileSyncResponse struct {
 	NextCursor *FileSyncCursor `json:"next_cursor,omitempty"`
 	HasMore    bool            `json:"has_more"`
 }
+
+// RecentFilesCursor represents cursor-based pagination for recent files
+type RecentFilesCursor struct {
+	LastModified time.Time  `json:"last_modified" bson:"last_modified"`
+	LastID       gocql.UUID `json:"last_id" bson:"last_id"`
+}
+
+// RecentFilesItem represents a file item for recent files listing
+type RecentFilesItem struct {
+	ID                            gocql.UUID `json:"id" bson:"_id"`
+	CollectionID                  gocql.UUID `json:"collection_id" bson:"collection_id"`
+	OwnerID                       gocql.UUID `json:"owner_id" bson:"owner_id"`
+	EncryptedMetadata             string     `json:"encrypted_metadata" bson:"encrypted_metadata"`
+	EncryptedFileKey              string     `json:"encrypted_file_key" bson:"encrypted_file_key"`
+	EncryptionVersion             string     `json:"encryption_version" bson:"encryption_version"`
+	EncryptedHash                 string     `json:"encrypted_hash" bson:"encrypted_hash"`
+	EncryptedFileSizeInBytes      int64      `json:"encrypted_file_size_in_bytes" bson:"encrypted_file_size_in_bytes"`
+	EncryptedThumbnailSizeInBytes int64      `json:"encrypted_thumbnail_size_in_bytes" bson:"encrypted_thumbnail_size_in_bytes"`
+	CreatedAt                     time.Time  `json:"created_at" bson:"created_at"`
+	ModifiedAt                    time.Time  `json:"modified_at" bson:"modified_at"`
+	Version                       uint64     `json:"version" bson:"version"`
+	State                         string     `json:"state" bson:"state"`
+}
+
+// RecentFilesResponse represents the response for recent files listing
+type RecentFilesResponse struct {
+	Files      []RecentFilesItem  `json:"files"`
+	NextCursor *RecentFilesCursor `json:"next_cursor,omitempty"`
+	HasMore    bool               `json:"has_more"`
+}

@@ -29,6 +29,7 @@ func init() {
 		"/maplefile/api/v1/collections/shared":   true,
 		"/maplefile/api/v1/files":                true,
 		"/maplefile/api/v1/files/pending":        true, // Three-step workflow file-create endpoint: Start
+		"/maplefile/api/v1/files/recent":         true,
 		"/maplefile/api/v1/sync/collections":     true,
 		"/maplefile/api/v1/sync/files":           true,
 	}

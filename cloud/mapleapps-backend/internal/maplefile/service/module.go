@@ -60,6 +60,7 @@ func Module() fx.Option {
 			file.NewArchiveFileService,
 			file.NewRestoreFileService,
 			file.NewListFileSyncDataService,
+			file.NewListRecentFilesService,
 
 			// Storage Usage Event services
 			storageusageevent.NewGetStorageUsageEventsService,

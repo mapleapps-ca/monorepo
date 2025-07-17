@@ -63,6 +63,7 @@ func Module() fx.Option {
 			unifiedhttp.AsRoute(file.NewGetPresignedDownloadURLHTTPHandler),
 			unifiedhttp.AsRoute(file.NewArchiveFileHTTPHandler),
 			unifiedhttp.AsRoute(file.NewRestoreFileHTTPHandler),
+			unifiedhttp.AsRoute(file.NewListRecentFilesHTTPHandler),
 
 			// Sync handlers
 			unifiedhttp.AsRoute(file.NewFileSyncHTTPHandler),
