@@ -5,6 +5,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/collection"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/dashboard"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/me"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/storagedailyusage"
@@ -14,6 +15,9 @@ import (
 func Module() fx.Option {
 	return fx.Options(
 		fx.Provide(
+			// Dashboard services
+			dashboard.NewGetDashboardService,
+
 			// Me services
 			me.NewDeleteMeService,
 			me.NewGetMeService,

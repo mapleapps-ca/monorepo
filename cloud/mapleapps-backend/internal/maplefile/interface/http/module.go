@@ -7,6 +7,7 @@ import (
 	unifiedhttp "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/manifold/interface/http"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/collection"
 	commonhttp "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/common"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/dashboard"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/me"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/interface/http/middleware"
@@ -20,6 +21,9 @@ func Module() fx.Option {
 		fx.Provide(
 			// Common handlers
 			unifiedhttp.AsRoute(commonhttp.NewMapleFileVersionHTTPHandler),
+
+			// Dashboard handlers
+			unifiedhttp.AsRoute(dashboard.NewGetDashboardHTTPHandler),
 
 			// Me handlers
 			unifiedhttp.AsRoute(me.NewGetMeHTTPHandler),
