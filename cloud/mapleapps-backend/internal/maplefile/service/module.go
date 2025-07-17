@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/service/module.go
+// monorepo/cloud/mapleapps-backend/internal/maplefile/service/module.go
 package service
 
 import (
@@ -7,6 +7,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/collection"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/file"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/me"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/storagedailyusage"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/service/storageusageevent"
 )
 
 func Module() fx.Option {
@@ -58,6 +60,17 @@ func Module() fx.Option {
 			file.NewArchiveFileService,
 			file.NewRestoreFileService,
 			file.NewListFileSyncDataService,
+
+			// Storage Usage Event services
+			storageusageevent.NewGetStorageUsageEventsService,
+			storageusageevent.NewGetStorageUsageEventsTrendAnalysisService,
+			storageusageevent.NewCreateStorageUsageEventService,
+
+			// Storage Daily Usage services
+			storagedailyusage.NewGetStorageDailyUsageTrendService,
+			storagedailyusage.NewGetStorageUsageSummaryService,
+			storagedailyusage.NewUpdateStorageUsageService,
+			storagedailyusage.NewGetStorageUsageByDateRangeService,
 		),
 	)
 }
