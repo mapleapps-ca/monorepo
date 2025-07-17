@@ -1,3 +1,4 @@
+// cloud/mapleapps-backend/internal/maplefile/usecase/module.go
 package usecase
 
 import (
@@ -7,6 +8,8 @@ import (
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/emailer"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/fileobjectstorage"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/storagedailyusage"
+	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/storageusageevent"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/user"
 )
 
@@ -77,6 +80,17 @@ func Module() fx.Option {
 			fileobjectstorage.NewGeneratePresignedDownloadURLUseCase,
 			fileobjectstorage.NewVerifyObjectExistsUseCase,
 			fileobjectstorage.NewGetObjectSizeUseCase,
+
+			// Storage Usage Event use cases
+			storageusageevent.NewGetStorageUsageEventsUseCase,
+			storageusageevent.NewGetStorageUsageEventsTrendAnalysisUseCase,
+			storageusageevent.NewCreateStorageUsageEventUseCase,
+
+			// Storage Daily Usage use cases
+			storagedailyusage.NewGetStorageDailyUsageTrendUseCase,
+			storagedailyusage.NewGetStorageUsageSummaryUseCase,
+			storagedailyusage.NewUpdateStorageUsageUseCase,
+			storagedailyusage.NewGetStorageUsageByDateRangeUseCase,
 		),
 	)
 }
