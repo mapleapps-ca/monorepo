@@ -13,6 +13,13 @@ const Dashboard = () => {
 
   const navItems = [
     {
+      path: "/dashboard-example",
+      title: "Dashboard Manager Example",
+      description:
+        "Test the DashboardManager - fetch dashboard data with caching.",
+      icon: "📊",
+    },
+    {
       path: "/token-manager-example",
       title: "Token Manager Example",
       description: "Test the TokenManager - orchestrated token management.",
