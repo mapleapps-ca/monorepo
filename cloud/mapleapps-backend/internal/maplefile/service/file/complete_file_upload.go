@@ -16,6 +16,8 @@ import (
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	uc_filemetadata "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata"
 	uc_fileobjectstorage "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/fileobjectstorage"
+	uc_storagedailyusage "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/storagedailyusage"
+	uc_storageusageevent "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/storageusageevent"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
@@ -55,6 +57,9 @@ type completeFileUploadServiceImpl struct {
 	getObjectSizeUseCase      uc_fileobjectstorage.GetObjectSizeUseCase
 	deleteDataUseCase         uc_fileobjectstorage.DeleteEncryptedDataUseCase
 	storageQuotaHelperUseCase uc_feduser.FederatedUserStorageQuotaHelperUseCase
+	// Add storage usage tracking use cases
+	createStorageUsageEventUseCase uc_storageusageevent.CreateStorageUsageEventUseCase
+	updateStorageUsageUseCase      uc_storagedailyusage.UpdateStorageUsageUseCase
 }
 
 func NewCompleteFileUploadService(
@@ -67,18 +72,22 @@ func NewCompleteFileUploadService(
 	getObjectSizeUseCase uc_fileobjectstorage.GetObjectSizeUseCase,
 	deleteDataUseCase uc_fileobjectstorage.DeleteEncryptedDataUseCase,
 	storageQuotaHelperUseCase uc_feduser.FederatedUserStorageQuotaHelperUseCase,
+	createStorageUsageEventUseCase uc_storageusageevent.CreateStorageUsageEventUseCase,
+	updateStorageUsageUseCase uc_storagedailyusage.UpdateStorageUsageUseCase,
 ) CompleteFileUploadService {
 	logger = logger.Named("CompleteFileUploadService")
 	return &completeFileUploadServiceImpl{
-		config:                    config,
-		logger:                    logger,
-		collectionRepo:            collectionRepo,
-		getMetadataUseCase:        getMetadataUseCase,
-		updateMetadataUseCase:     updateMetadataUseCase,
-		verifyObjectExistsUseCase: verifyObjectExistsUseCase,
-		getObjectSizeUseCase:      getObjectSizeUseCase,
-		deleteDataUseCase:         deleteDataUseCase,
-		storageQuotaHelperUseCase: storageQuotaHelperUseCase,
+		config:                         config,
+		logger:                         logger,
+		collectionRepo:                 collectionRepo,
+		getMetadataUseCase:             getMetadataUseCase,
+		updateMetadataUseCase:          updateMetadataUseCase,
+		verifyObjectExistsUseCase:      verifyObjectExistsUseCase,
+		getObjectSizeUseCase:           getObjectSizeUseCase,
+		deleteDataUseCase:              deleteDataUseCase,
+		storageQuotaHelperUseCase:      storageQuotaHelperUseCase,
+		createStorageUsageEventUseCase: createStorageUsageEventUseCase,
+		updateStorageUsageUseCase:      updateStorageUsageUseCase,
 	}
 }
 
@@ -288,7 +297,39 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 	}
 
 	//
-	// STEP 11: Prepare response
+	// STEP 11: Create storage usage event and update daily usage
+	//
+	// Create storage usage event for the file upload
+	err = svc.createStorageUsageEventUseCase.Execute(ctx, file.OwnerID, actualTotalSize, "add")
+	if err != nil {
+		svc.logger.Error("🔴 Failed to create storage usage event",
+			zap.String("owner_id", file.OwnerID.String()),
+			zap.Int64("file_size", actualTotalSize),
+			zap.Error(err))
+		// Don't fail the operation, just log the error
+	}
+
+	// Update daily storage usage
+	today := time.Now().Truncate(24 * time.Hour)
+	updateReq := &uc_storagedailyusage.UpdateStorageUsageRequest{
+		UserID:      file.OwnerID,
+		UsageDay:    &today,
+		TotalBytes:  actualTotalSize,
+		AddBytes:    actualTotalSize,
+		RemoveBytes: 0,
+		IsIncrement: true, // Increment the existing values
+	}
+	err = svc.updateStorageUsageUseCase.Execute(ctx, updateReq)
+	if err != nil {
+		svc.logger.Error("🔴 Failed to update daily storage usage",
+			zap.String("owner_id", file.OwnerID.String()),
+			zap.Int64("file_size", actualTotalSize),
+			zap.Error(err))
+		// Don't fail the operation, just log the error
+	}
+
+	//
+	// STEP 12: Prepare response
 	//
 	response := &CompleteFileUploadResponseDTO{
 		File:                mapFileToDTO(file),
@@ -301,14 +342,13 @@ func (svc *completeFileUploadServiceImpl) Execute(ctx context.Context, req *Comp
 		StorageAdjustment:   storageAdjustment,
 	}
 
-	svc.logger.Info("✅ File upload completed successfully with quota adjustment",
+	svc.logger.Info("✅ File upload completed successfully with quota adjustment and usage tracking",
 		zap.Any("file_id", req.FileID),
 		zap.Any("collection_id", file.CollectionID),
-		zap.Any("owner_id", userID),
+		zap.Any("owner_id", file.OwnerID),
 		zap.Int64("actual_file_size", actualFileSize),
 		zap.Int64("actual_thumbnail_size", actualThumbnailSize),
-		zap.Int64("storage_adjustment", storageAdjustment),
-		zap.Bool("thumbnail_verified", thumbnailVerified))
+		zap.Int64("storage_adjustment", storageAdjustment))
 
 	return response, nil
 }

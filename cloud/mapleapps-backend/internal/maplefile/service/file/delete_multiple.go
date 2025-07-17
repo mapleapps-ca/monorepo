@@ -4,6 +4,7 @@ package file
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -14,6 +15,8 @@ import (
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	uc_filemetadata "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata"
 	uc_fileobjectstorage "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/fileobjectstorage"
+	uc_storagedailyusage "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/storagedailyusage"
+	uc_storageusageevent "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/storageusageevent"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
@@ -40,6 +43,9 @@ type deleteMultipleFilesServiceImpl struct {
 	getMetadataByIDsUseCase   uc_filemetadata.GetFileMetadataByIDsUseCase
 	deleteMetadataManyUseCase uc_filemetadata.DeleteManyFileMetadataUseCase
 	deleteMultipleDataUseCase uc_fileobjectstorage.DeleteMultipleEncryptedDataUseCase
+	// Add storage usage tracking use cases
+	createStorageUsageEventUseCase uc_storageusageevent.CreateStorageUsageEventUseCase
+	updateStorageUsageUseCase      uc_storagedailyusage.UpdateStorageUsageUseCase
 }
 
 func NewDeleteMultipleFilesService(
@@ -49,15 +55,19 @@ func NewDeleteMultipleFilesService(
 	getMetadataByIDsUseCase uc_filemetadata.GetFileMetadataByIDsUseCase,
 	deleteMetadataManyUseCase uc_filemetadata.DeleteManyFileMetadataUseCase,
 	deleteMultipleDataUseCase uc_fileobjectstorage.DeleteMultipleEncryptedDataUseCase,
+	createStorageUsageEventUseCase uc_storageusageevent.CreateStorageUsageEventUseCase,
+	updateStorageUsageUseCase uc_storagedailyusage.UpdateStorageUsageUseCase,
 ) DeleteMultipleFilesService {
 	logger = logger.Named("DeleteMultipleFilesService")
 	return &deleteMultipleFilesServiceImpl{
-		config:                    config,
-		logger:                    logger,
-		collectionRepo:            collectionRepo,
-		getMetadataByIDsUseCase:   getMetadataByIDsUseCase,
-		deleteMetadataManyUseCase: deleteMetadataManyUseCase,
-		deleteMultipleDataUseCase: deleteMultipleDataUseCase,
+		config:                         config,
+		logger:                         logger,
+		collectionRepo:                 collectionRepo,
+		getMetadataByIDsUseCase:        getMetadataByIDsUseCase,
+		deleteMetadataManyUseCase:      deleteMetadataManyUseCase,
+		deleteMultipleDataUseCase:      deleteMultipleDataUseCase,
+		createStorageUsageEventUseCase: createStorageUsageEventUseCase,
+		updateStorageUsageUseCase:      updateStorageUsageUseCase,
 	}
 }
 
@@ -109,11 +119,12 @@ func (svc *deleteMultipleFilesServiceImpl) Execute(ctx context.Context, req *Del
 	}
 
 	//
-	// STEP 4: Filter files that the user has permission to delete
+	// STEP 4: Filter files that the user has permission to delete and track storage by owner
 	//
 	var deletableFiles []*dom_file.File
 	var storagePaths []string
 	skippedCount := 0
+	storageByOwner := make(map[gocql.UUID]int64) // Track total storage to release per owner
 
 	for _, file := range files {
 		hasAccess, err := svc.collectionRepo.CheckAccess(ctx, file.CollectionID, userID, dom_collection.CollectionPermissionReadWrite)
@@ -150,6 +161,12 @@ func (svc *deleteMultipleFilesServiceImpl) Execute(ctx context.Context, req *Del
 		// Add thumbnail paths if they exist
 		if file.EncryptedThumbnailObjectKey != "" {
 			storagePaths = append(storagePaths, file.EncryptedThumbnailObjectKey)
+		}
+
+		// Track storage by owner for active files
+		if file.State == dom_file.FileStateActive {
+			totalFileSize := file.EncryptedFileSizeInBytes + file.EncryptedThumbnailSizeInBytes
+			storageByOwner[file.OwnerID] += totalFileSize
 		}
 	}
 
@@ -196,11 +213,46 @@ func (svc *deleteMultipleFilesServiceImpl) Execute(ctx context.Context, req *Del
 		return nil, err
 	}
 
-	svc.logger.Info("Multiple files deleted successfully",
+	//
+	// STEP 7: Create storage usage events and update daily usage for each owner
+	//
+	today := time.Now().Truncate(24 * time.Hour)
+	for ownerID, totalSize := range storageByOwner {
+		if totalSize > 0 {
+			// Create storage usage event
+			err = svc.createStorageUsageEventUseCase.Execute(ctx, ownerID, totalSize, "remove")
+			if err != nil {
+				svc.logger.Error("Failed to create storage usage event for bulk deletion",
+					zap.String("owner_id", ownerID.String()),
+					zap.Int64("total_size", totalSize),
+					zap.Error(err))
+			}
+
+			// Update daily storage usage
+			updateReq := &uc_storagedailyusage.UpdateStorageUsageRequest{
+				UserID:      ownerID,
+				UsageDay:    &today,
+				TotalBytes:  -totalSize, // Negative because we're removing
+				AddBytes:    0,
+				RemoveBytes: totalSize,
+				IsIncrement: true, // Increment the existing values
+			}
+			err = svc.updateStorageUsageUseCase.Execute(ctx, updateReq)
+			if err != nil {
+				svc.logger.Error("Failed to update daily storage usage for bulk deletion",
+					zap.String("owner_id", ownerID.String()),
+					zap.Int64("total_size", totalSize),
+					zap.Error(err))
+			}
+		}
+	}
+
+	svc.logger.Info("Multiple files deleted successfully with storage tracking",
 		zap.Int("deleted_count", len(deletableFiles)),
 		zap.Int("skipped_count", skippedCount),
 		zap.Int("total_requested", len(req.FileIDs)),
-		zap.Any("user_id", userID))
+		zap.Any("user_id", userID),
+		zap.Int("affected_owners", len(storageByOwner)))
 
 	return &DeleteMultipleFilesResponseDTO{
 		Success:        true,

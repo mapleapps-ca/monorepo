@@ -15,6 +15,8 @@ import (
 	dom_file "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/domain/file"
 	uc_filemetadata "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata"
 	uc_fileobjectstorage "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/fileobjectstorage"
+	uc_storagedailyusage "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/storagedailyusage"
+	uc_storageusageevent "github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/storageusageevent"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/pkg/httperror"
 )
 
@@ -43,6 +45,9 @@ type softDeleteFileServiceImpl struct {
 	listFilesByOwnerIDService ListFilesByOwnerIDService
 	// Storage quota management
 	storageQuotaHelperUseCase uc_feduser.FederatedUserStorageQuotaHelperUseCase
+	// Add storage usage tracking use cases
+	createStorageUsageEventUseCase uc_storageusageevent.CreateStorageUsageEventUseCase
+	updateStorageUsageUseCase      uc_storagedailyusage.UpdateStorageUsageUseCase
 }
 
 func NewSoftDeleteFileService(
@@ -55,18 +60,22 @@ func NewSoftDeleteFileService(
 	deleteDataUseCase uc_fileobjectstorage.DeleteEncryptedDataUseCase,
 	listFilesByOwnerIDService ListFilesByOwnerIDService,
 	storageQuotaHelperUseCase uc_feduser.FederatedUserStorageQuotaHelperUseCase,
+	createStorageUsageEventUseCase uc_storageusageevent.CreateStorageUsageEventUseCase,
+	updateStorageUsageUseCase uc_storagedailyusage.UpdateStorageUsageUseCase,
 ) SoftDeleteFileService {
 	logger = logger.Named("SoftDeleteFileService")
 	return &softDeleteFileServiceImpl{
-		config:                    config,
-		logger:                    logger,
-		collectionRepo:            collectionRepo,
-		getMetadataUseCase:        getMetadataUseCase,
-		updateFileMetadataUseCase: updateFileMetadataUseCase,
-		softDeleteMetadataUseCase: softDeleteMetadataUseCase,
-		deleteDataUseCase:         deleteDataUseCase,
-		listFilesByOwnerIDService: listFilesByOwnerIDService,
-		storageQuotaHelperUseCase: storageQuotaHelperUseCase,
+		config:                         config,
+		logger:                         logger,
+		collectionRepo:                 collectionRepo,
+		getMetadataUseCase:             getMetadataUseCase,
+		updateFileMetadataUseCase:      updateFileMetadataUseCase,
+		softDeleteMetadataUseCase:      softDeleteMetadataUseCase,
+		deleteDataUseCase:              deleteDataUseCase,
+		listFilesByOwnerIDService:      listFilesByOwnerIDService,
+		storageQuotaHelperUseCase:      storageQuotaHelperUseCase,
+		createStorageUsageEventUseCase: createStorageUsageEventUseCase,
+		updateStorageUsageUseCase:      updateStorageUsageUseCase,
 	}
 }
 
@@ -224,6 +233,35 @@ func (svc *softDeleteFileServiceImpl) Execute(ctx context.Context, req *SoftDele
 				zap.String("user_id", userID.String()),
 				zap.Int64("released_bytes", releasedBytes))
 		}
+
+		// Create storage usage event for file deletion
+		err = svc.createStorageUsageEventUseCase.Execute(ctx, file.OwnerID, totalFileSize, "remove")
+		if err != nil {
+			svc.logger.Error("🔴 Failed to create storage usage event for deletion",
+				zap.String("owner_id", file.OwnerID.String()),
+				zap.Int64("file_size", totalFileSize),
+				zap.Error(err))
+			// Don't fail the operation, just log the error
+		}
+
+		// Update daily storage usage
+		today := time.Now().Truncate(24 * time.Hour)
+		updateReq := &uc_storagedailyusage.UpdateStorageUsageRequest{
+			UserID:      file.OwnerID,
+			UsageDay:    &today,
+			TotalBytes:  -totalFileSize, // Negative because we're removing
+			AddBytes:    0,
+			RemoveBytes: totalFileSize,
+			IsIncrement: true, // Increment the existing values
+		}
+		err = svc.updateStorageUsageUseCase.Execute(ctx, updateReq)
+		if err != nil {
+			svc.logger.Error("🔴 Failed to update daily storage usage for deletion",
+				zap.String("owner_id", file.OwnerID.String()),
+				zap.Int64("file_size", totalFileSize),
+				zap.Error(err))
+			// Don't fail the operation, just log the error
+		}
 	} else if file.State == dom_file.FileStatePending {
 		// For pending files, we should release the reserved quota
 		err = svc.storageQuotaHelperUseCase.ReleaseQuota(ctx, userID, totalFileSize)
@@ -240,7 +278,7 @@ func (svc *softDeleteFileServiceImpl) Execute(ctx context.Context, req *SoftDele
 		}
 	}
 
-	svc.logger.Info("File soft-deleted successfully with storage quota updated",
+	svc.logger.Info("File soft-deleted successfully with storage quota and usage tracking updated",
 		zap.Any("file_id", req.FileID),
 		zap.Any("collection_id", file.CollectionID),
 		zap.Any("user_id", userID),
