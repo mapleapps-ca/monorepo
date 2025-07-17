@@ -144,6 +144,13 @@ const Dashboard = () => {
       icon: "🤝",
     },
     {
+      path: "/recent-file-manager-example",
+      title: "Recent File Manager Example",
+      description:
+        "Test the RecentFileManager - list recent files across all collections with E2EE decryption and pagination.",
+      icon: "🕒",
+    },
+    {
       path: "/profile",
       title: "My Profile",
       description: "Manage account settings and security keys.",

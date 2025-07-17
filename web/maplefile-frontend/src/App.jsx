@@ -47,6 +47,7 @@ import GetFileManagerExample from "./pages/User/Examples/File/GetFileManagerExam
 import DownloadFileManagerExample from "./pages/User/Examples/File/DownloadFileManagerExample.jsx";
 import DeleteFileManagerExample from "./pages/User/Examples/File/DeleteFileManagerExample.jsx";
 import ListFileManagerExample from "./pages/User/Examples/File/ListFileManagerExample.jsx";
+import RecentFileManagerExample from "./pages/User/Examples/File/RecentFileManagerExample.jsx";
 
 // Styles
 const styles = {
@@ -142,6 +143,10 @@ function App() {
             <Route
               path="/list-file-manager-example"
               element={<ListFileManagerExample />}
+            />
+            <Route
+              path="/recent-file-manager-example"
+              element={<RecentFileManagerExample />}
             />
             <Route
               path="/sync-file-api-example"
