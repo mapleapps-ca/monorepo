@@ -137,36 +137,6 @@ GET /maplefile/api/v1/sync/files?limit=1000&cursor=eyJsYXN0X21vZGlmaWVkIjoiMjAyM
       "tombstone_version": 0,
       "tombstone_expiry": "0001-01-01T00:00:00Z",
       "encrypted_file_size_in_bytes": 1048576
-    },
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440002",
-      "collection_id": "550e8400-e29b-41d4-a716-446655440001",
-      "version": 5,
-      "modified_at": "2023-12-01T16:00:00Z",
-      "state": "deleted",
-      "tombstone_version": 5,
-      "tombstone_expiry": "2024-01-01T16:00:00Z",
-      "encrypted_file_size_in_bytes": 2097152
-    },
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440003",
-      "collection_id": "550e8400-e29b-41d4-a716-446655440004",
-      "version": 2,
-      "modified_at": "2023-12-01T14:20:00Z",
-      "state": "archived",
-      "tombstone_version": 0,
-      "tombstone_expiry": "0001-01-01T00:00:00Z",
-      "encrypted_file_size_in_bytes": 524288
-    },
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440005",
-      "collection_id": "550e8400-e29b-41d4-a716-446655440006",
-      "version": 1,
-      "modified_at": "2023-12-01T13:10:00Z",
-      "state": "pending",
-      "tombstone_version": 0,
-      "tombstone_expiry": "0001-01-01T00:00:00Z",
-      "encrypted_file_size_in_bytes": 0
     }
   ],
   "next_cursor": "eyJsYXN0X21vZGlmaWVkIjoiMjAyMy0xMi0wMVQxMzoxMDowMFoiLCJsYXN0X2lkIjoiNTUwZTg0MDAtZTI5Yi00MWQ0LWE3MTYtNDQ2NjU1NDQwMDA1In0=",
@@ -174,44 +144,120 @@ GET /maplefile/api/v1/sync/files?limit=1000&cursor=eyJsYXN0X21vZGlmaWVkIjoiMjAyM
 }
 ```
 
+---
+
+## 13. List Recent Files
+
+Returns the most recently modified files with cursor-based pagination. This endpoint is optimized for displaying recent file activity and only returns active files from collections the user has access to.
+
+### Request
+- **Method**: `GET`
+- **Path**: `/maplefile/api/v1/files/recent`
+
+### Query Parameters
+| Parameter | Type | Required | Default | Max | Description |
+|-----------|------|----------|---------|-----|-------------|
+| `limit` | integer | No | 30 | 100 | Maximum number of files to return per page |
+| `cursor` | string | No | - | - | Base64-encoded cursor for pagination |
+
+### Example Request
+```
+GET /maplefile/api/v1/files/recent?limit=30&cursor=eyJsYXN0X21vZGlmaWVkIjoiMjAyMy0xMi0wMVQxNjo0NTowMFoiLCJsYXN0X2lkIjoiNTUwZTg0MDAtZTI5Yi00MWQ0LWE3MTYtNDQ2NjU1NDQwMDAwIn0=
+```
+
+### Response
+```json
+{
+  "files": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "collection_id": "550e8400-e29b-41d4-a716-446655440001",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440002",
+      "encrypted_metadata": "base64-encoded-encrypted-metadata",
+      "encrypted_file_key": {
+        "ciphertext": "base64-encoded-encrypted-key",
+        "nonce": "base64-encoded-nonce",
+        "key_version": 1
+      },
+      "encryption_version": "v1.0",
+      "encrypted_hash": "base64-encoded-encrypted-hash",
+      "encrypted_file_size_in_bytes": 1048576,
+      "encrypted_thumbnail_size_in_bytes": 8192,
+      "created_at": "2023-12-01T15:30:00Z",
+      "modified_at": "2023-12-01T16:45:00Z",
+      "version": 3,
+      "state": "active"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440003",
+      "collection_id": "550e8400-e29b-41d4-a716-446655440004",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440002",
+      "encrypted_metadata": "base64-encoded-encrypted-metadata-2",
+      "encrypted_file_key": {
+        "ciphertext": "base64-encoded-encrypted-key-2",
+        "nonce": "base64-encoded-nonce-2",
+        "key_version": 1
+      },
+      "encryption_version": "v1.0",
+      "encrypted_hash": "base64-encoded-encrypted-hash-2",
+      "encrypted_file_size_in_bytes": 2097152,
+      "encrypted_thumbnail_size_in_bytes": 16384,
+      "created_at": "2023-12-01T14:20:00Z",
+      "modified_at": "2023-12-01T16:30:00Z",
+      "version": 2,
+      "state": "active"
+    }
+  ],
+  "next_cursor": "eyJsYXN0X21vZGlmaWVkIjoiMjAyMy0xMi0wMVQxNjozMDowMFoiLCJsYXN0X2lkIjoiNTUwZTg0MDAtZTI5Yi00MWQ0LWE3MTYtNDQ2NjU1NDQwMDAzIn0=",
+  "has_more": true,
+  "total_count": 30
+}
+```
+
 ### Response Fields
 
-#### FileSyncResponse
+#### ListRecentFilesResponse
 | Field | Type | Description |
 |-------|------|-------------|
-| `files` | array[FileSyncItem] | Array of file sync items |
+| `files` | array[RecentFileItem] | Array of recent file objects |
 | `next_cursor` | string | Cursor for next page (null if no more) |
 | `has_more` | boolean | Whether more results available |
+| `total_count` | integer | Number of files in current response |
 
-#### FileSyncItem
+#### RecentFileItem
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | UUID | File ID |
 | `collection_id` | UUID | Collection ID |
-| `version` | number | Current version number for optimistic locking |
+| `owner_id` | UUID | File owner's user ID |
+| `encrypted_metadata` | string | Base64-encoded encrypted file metadata |
+| `encrypted_file_key` | object | Encrypted file encryption key |
+| `encryption_version` | string | Version of encryption scheme used |
+| `encrypted_hash` | string | Hash of encrypted file content |
+| `encrypted_file_size_in_bytes` | integer | Size of encrypted file in bytes |
+| `encrypted_thumbnail_size_in_bytes` | integer | Size of encrypted thumbnail in bytes |
+| `created_at` | timestamp | File creation time (ISO 8601 format) |
 | `modified_at` | timestamp | Last modification time (ISO 8601 format) |
-| `state` | string | Current file state (`pending`, `active`, `deleted`, `archived`) |
-| `tombstone_version` | number | Version when file was deleted (0 if not deleted) |
-| `tombstone_expiry` | timestamp | When tombstone expires (zero time if not deleted) |
-| `encrypted_file_size_in_bytes` | number | Size of encrypted file content in bytes (0 for pending files) |
+| `version` | integer | Current version number for optimistic locking |
+| `state` | string | File state (always "active" for this endpoint) |
 
-### File States and Size Information
+### Filtering and Ordering
 
-| State | Description | Size Behavior |
-|-------|-------------|---------------|
-| `pending` | File metadata created but upload not completed | `encrypted_file_size_in_bytes` is 0 |
-| `active` | File fully uploaded and available | `encrypted_file_size_in_bytes` shows actual encrypted file size |
-| `deleted` | File soft-deleted (tombstoned) | `encrypted_file_size_in_bytes` retains last known size |
-| `archived` | File archived but still accessible | `encrypted_file_size_in_bytes` shows actual encrypted file size |
+| Aspect | Behavior |
+|--------|----------|
+| **Ordering** | Files ordered by `modified_at` DESC, then by `id` ASC |
+| **State Filter** | Only `active` files are returned |
+| **Access Control** | Only files from collections user has access to |
+| **Collection Types** | Includes both owned and shared collections |
 
 ### Usage Examples
 
 #### JavaScript/TypeScript
 ```javascript
-async function syncFiles(cursor = null, limit = 1000) {
-  const url = new URL('/maplefile/api/v1/sync/files', baseURL);
-  if (cursor) url.searchParams.set('cursor', cursor);
+async function getRecentFiles(limit = 30, cursor = null) {
+  const url = new URL('/maplefile/api/v1/files/recent', baseURL);
   if (limit) url.searchParams.set('limit', limit.toString());
+  if (cursor) url.searchParams.set('cursor', cursor);
 
   const response = await fetch(url, {
     headers: {
@@ -221,88 +267,74 @@ async function syncFiles(cursor = null, limit = 1000) {
   });
 
   if (!response.ok) {
-    throw new Error(`Sync failed: ${response.statusText}`);
+    throw new Error(`Failed to get recent files: ${response.statusText}`);
   }
 
   return await response.json();
 }
 
-// Process files with size tracking
-function processFileSyncData(syncResponse) {
-  let totalActiveSize = 0;
-  let totalDeletedSize = 0;
+// Usage - Get first page
+let recentFiles = await getRecentFiles(30);
+console.log(`Found ${recentFiles.files.length} recent files`);
 
-  syncResponse.files.forEach(file => {
-    console.log(`File ${file.id}: version ${file.version}, state ${file.state}, size ${file.encrypted_file_size_in_bytes} bytes`);
+// Process each file
+recentFiles.files.forEach(file => {
+  console.log(`File: ${file.id}, Modified: ${file.modified_at}, Size: ${file.encrypted_file_size_in_bytes} bytes`);
+});
 
-    switch (file.state) {
-      case 'active':
-      case 'archived':
-        totalActiveSize += file.encrypted_file_size_in_bytes;
-        break;
-      case 'deleted':
-        totalDeletedSize += file.encrypted_file_size_in_bytes;
-        // Remove from local storage but track size for cleanup
-        localStorage.removeItem(`file_${file.id}`);
-        break;
-      case 'pending':
-        console.log(`File ${file.id} is still pending upload`);
-        break;
-    }
-
-    // Update local file metadata
-    if (file.state !== 'deleted') {
-      localStorage.setItem(`file_${file.id}`, JSON.stringify({
-        version: file.version,
-        state: file.state,
-        modified_at: file.modified_at,
-        size: file.encrypted_file_size_in_bytes
-      }));
-    }
-  });
-
-  console.log(`Total active storage: ${totalActiveSize} bytes`);
-  console.log(`Total deleted storage: ${totalDeletedSize} bytes`);
+// Get next page if available
+if (recentFiles.has_more) {
+  const nextPage = await getRecentFiles(30, recentFiles.next_cursor);
+  console.log(`Next page has ${nextPage.files.length} files`);
 }
 
-// Usage
-let syncResponse = await syncFiles();
-processFileSyncData(syncResponse);
+// Get all recent files (paginate through all)
+async function getAllRecentFiles() {
+  let allFiles = [];
+  let cursor = null;
 
-// Continue syncing
-while (syncResponse.has_more) {
-  syncResponse = await syncFiles(syncResponse.next_cursor);
-  processFileSyncData(syncResponse);
+  do {
+    const response = await getRecentFiles(50, cursor);
+    allFiles.push(...response.files);
+    cursor = response.next_cursor;
+  } while (cursor);
+
+  return allFiles;
 }
 ```
 
 #### Go Example
 ```go
-type FileSyncClient struct {
+type RecentFilesClient struct {
     baseURL string
     token   string
     client  *http.Client
 }
 
-type FileSyncResponse struct {
-    Files      []FileSyncItem  `json:"files"`
-    NextCursor *string         `json:"next_cursor"`
-    HasMore    bool            `json:"has_more"`
+type RecentFilesResponse struct {
+    Files      []RecentFileItem `json:"files"`
+    NextCursor *string          `json:"next_cursor"`
+    HasMore    bool             `json:"has_more"`
+    TotalCount int              `json:"total_count"`
 }
 
-type FileSyncItem struct {
+type RecentFileItem struct {
     ID                       string    `json:"id"`
     CollectionID             string    `json:"collection_id"`
-    Version                  uint64    `json:"version"`
-    ModifiedAt               time.Time `json:"modified_at"`
-    State                    string    `json:"state"`
-    TombstoneVersion         uint64    `json:"tombstone_version"`
-    TombstoneExpiry          time.Time `json:"tombstone_expiry"`
+    OwnerID                  string    `json:"owner_id"`
+    EncryptedMetadata        string    `json:"encrypted_metadata"`
+    EncryptedFileKey         FileKey   `json:"encrypted_file_key"`
+    EncryptionVersion        string    `json:"encryption_version"`
+    EncryptedHash            string    `json:"encrypted_hash"`
     EncryptedFileSizeInBytes int64     `json:"encrypted_file_size_in_bytes"`
+    CreatedAt                time.Time `json:"created_at"`
+    ModifiedAt               time.Time `json:"modified_at"`
+    Version                  uint64    `json:"version"`
+    State                    string    `json:"state"`
 }
 
-func (c *FileSyncClient) SyncFiles(cursor *string, limit int) (*FileSyncResponse, error) {
-    url := fmt.Sprintf("%s/maplefile/api/v1/sync/files", c.baseURL)
+func (c *RecentFilesClient) GetRecentFiles(limit int, cursor *string) (*RecentFilesResponse, error) {
+    url := fmt.Sprintf("%s/maplefile/api/v1/files/recent", c.baseURL)
 
     req, err := http.NewRequest("GET", url, nil)
     if err != nil {
@@ -310,11 +342,11 @@ func (c *FileSyncClient) SyncFiles(cursor *string, limit int) (*FileSyncResponse
     }
 
     q := req.URL.Query()
-    if cursor != nil {
-        q.Add("cursor", *cursor)
-    }
     if limit > 0 {
         q.Add("limit", strconv.Itoa(limit))
+    }
+    if cursor != nil {
+        q.Add("cursor", *cursor)
     }
     req.URL.RawQuery = q.Encode()
 
@@ -328,46 +360,29 @@ func (c *FileSyncClient) SyncFiles(cursor *string, limit int) (*FileSyncResponse
     defer resp.Body.Close()
 
     if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("sync failed with status %d", resp.StatusCode)
+        return nil, fmt.Errorf("request failed with status %d", resp.StatusCode)
     }
 
-    var syncResp FileSyncResponse
-    if err := json.NewDecoder(resp.Body).Decode(&syncResp); err != nil {
+    var result RecentFilesResponse
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
         return nil, err
     }
 
-    return &syncResp, nil
+    return &result, nil
 }
 
-// Usage with size tracking
-func (c *FileSyncClient) PerformFullSyncWithSizeTracking() error {
+// Usage example
+func (c *RecentFilesClient) ListAllRecentFiles() ([]RecentFileItem, error) {
+    var allFiles []RecentFileItem
     var cursor *string
-    var totalActiveSize int64
-    var totalDeletedSize int64
 
     for {
-        resp, err := c.SyncFiles(cursor, 1000)
+        resp, err := c.GetRecentFiles(50, cursor)
         if err != nil {
-            return err
+            return nil, err
         }
 
-        // Process files with size tracking
-        for _, file := range resp.Files {
-            fmt.Printf("File %s: version %d, state %s, size %d bytes\n",
-                file.ID, file.Version, file.State, file.EncryptedFileSizeInBytes)
-
-            switch file.State {
-            case "active", "archived":
-                totalActiveSize += file.EncryptedFileSizeInBytes
-                c.updateLocalFile(file)
-            case "deleted":
-                totalDeletedSize += file.EncryptedFileSizeInBytes
-                c.handleFileDeleted(file.ID)
-            case "pending":
-                fmt.Printf("File %s is still pending upload (size will be 0)\n", file.ID)
-                c.updateLocalFile(file)
-            }
-        }
+        allFiles = append(allFiles, resp.Files...)
 
         if !resp.HasMore {
             break
@@ -375,49 +390,117 @@ func (c *FileSyncClient) PerformFullSyncWithSizeTracking() error {
         cursor = resp.NextCursor
     }
 
-    fmt.Printf("Sync complete - Active storage: %d bytes, Deleted storage: %d bytes\n",
-               totalActiveSize, totalDeletedSize)
-    return nil
-}
-
-func (c *FileSyncClient) updateLocalFile(file FileSyncItem) {
-    // Update local file state with size information
-    localFile := LocalFileMetadata{
-        Version:   file.Version,
-        State:     file.State,
-        ModifiedAt: file.ModifiedAt,
-        Size:      file.EncryptedFileSizeInBytes,
-    }
-    // Store in local database...
-}
-
-func (c *FileSyncClient) handleFileDeleted(fileID string) {
-    // Remove from local storage but potentially track for billing
-    fmt.Printf("Removing deleted file %s from local storage\n", fileID)
-    // Remove from local database...
+    return allFiles, nil
 }
 ```
 
-### Storage and Billing Considerations
+#### Python Example
+```python
+import requests
+import json
+from typing import Optional, List, Dict, Any
 
-The `encrypted_file_size_in_bytes` field provides important information for:
+class RecentFilesClient:
+    def __init__(self, base_url: str, token: str):
+        self.base_url = base_url
+        self.token = token
+        self.session = requests.Session()
+        self.session.headers.update({
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json'
+        })
 
-1. **Storage Accounting**: Track total storage usage across all user files
-2. **Billing Calculations**: Accurate billing based on actual encrypted storage consumption
-3. **Quota Management**: Enforce storage limits per user or organization
-4. **Bandwidth Estimation**: Estimate transfer costs for sync operations
-5. **Cleanup Planning**: Identify large files for deletion or archiving
+    def get_recent_files(self, limit: int = 30, cursor: Optional[str] = None) -> Dict[str, Any]:
+        url = f"{self.base_url}/maplefile/api/v1/files/recent"
+        params = {'limit': limit}
+        if cursor:
+            params['cursor'] = cursor
+
+        response = self.session.get(url, params=params)
+        response.raise_for_status()
+        return response.json()
+
+    def get_all_recent_files(self) -> List[Dict[str, Any]]:
+        all_files = []
+        cursor = None
+
+        while True:
+            response = self.get_recent_files(limit=50, cursor=cursor)
+            all_files.extend(response['files'])
+
+            if not response['has_more']:
+                break
+            cursor = response['next_cursor']
+
+        return all_files
+
+# Usage
+client = RecentFilesClient('https://api.example.com', 'your-token')
+recent_files = client.get_recent_files(30)
+print(f"Found {len(recent_files['files'])} recent files")
+
+for file in recent_files['files']:
+    print(f"File: {file['id']}, Modified: {file['modified_at']}")
+```
 
 ### Performance Notes
 
-1. **Size-Based Sync**: Use file sizes to prioritize sync order (smaller files first)
-2. **Bandwidth Management**: Throttle sync based on cumulative file sizes
-3. **Storage Optimization**: Identify files that may benefit from re-encryption with better compression
-4. **Cache Management**: Use file sizes for local cache eviction policies
+1. **Optimized Querying**: Uses Cassandra table optimized for user-based file access
+2. **Efficient Pagination**: Cursor-based pagination ensures consistent results
+3. **Access Control**: Pre-filters accessible collections to minimize database queries
+4. **Reasonable Limits**: Default limit of 30, maximum of 100 to prevent large result sets
+5. **Index Usage**: Leverages existing database indices for optimal performance
 
 ### Security Notes
 
-- `encrypted_file_size_in_bytes` represents the size of the encrypted content, not the original file size
-- This field is not sensitive information and can be used for storage management
-- The actual file content remains encrypted and inaccessible without proper decryption keys
-- Size information helps with storage quotas without revealing file content details
+- Only returns files from collections the authenticated user has access to
+- Filters out non-active files (deleted, archived, pending) for security
+- All file content remains encrypted; only metadata is accessible
+- Respects collection-level permissions (owned and shared collections)
+- No sensitive file content is exposed through this endpoint
+
+### Error Handling
+
+#### 400 Bad Request
+```json
+{
+  "error": {
+    "limit": "Limit cannot exceed 100"
+  }
+}
+```
+
+#### 401 Unauthorized
+```json
+{
+  "error": {
+    "message": "Authentication required"
+  }
+}
+```
+
+#### 404 Not Found
+```json
+{
+  "error": {
+    "message": "Recent files not found"
+  }
+}
+```
+
+#### 500 Internal Server Error
+```json
+{
+  "error": {
+    "message": "Internal server error"
+  }
+}
+```
+
+### Use Cases
+
+1. **File Activity Dashboard**: Display recently modified files in a user interface
+2. **Quick File Access**: Allow users to quickly access files they've been working on
+3. **Sync Optimization**: Help clients identify recently changed files for synchronization
+4. **Activity Monitoring**: Track file modification patterns for analytics
+5. **Mobile Apps**: Efficiently load recent files on mobile devices with limited bandwidth
