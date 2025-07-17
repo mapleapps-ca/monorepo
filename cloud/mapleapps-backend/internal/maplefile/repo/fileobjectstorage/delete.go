@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/repo/fileobjectstorage/delete.go
+// monorepo/cloud/backend/internal/maplefile/repo/fileobjectstorage/delete.go
 package fileobjectstorage
 
 import (

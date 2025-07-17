@@ -1,4 +1,4 @@
-// cloud/mapleapps-backend/internal/manifold/interface/http/readiness.go
+// monorepo/cloud/mapleapps-backend/internal/manifold/interface/http/readiness.go
 package http
 
 import (

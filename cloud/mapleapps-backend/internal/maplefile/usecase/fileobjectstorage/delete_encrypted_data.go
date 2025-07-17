@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/fileobjectstorage/delete_encrypted_data.go
+// monorepo/cloud/backend/internal/maplefile/usecase/fileobjectstorage/delete_encrypted_data.go
 package fileobjectstorage
 
 import (

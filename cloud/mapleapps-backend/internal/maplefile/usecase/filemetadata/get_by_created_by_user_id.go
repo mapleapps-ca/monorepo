@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/filemetadata/get_by_created_by_user_id.go
+// monorepo/cloud/backend/internal/maplefile/usecase/filemetadata/get_by_created_by_user_id.go
 package filemetadata
 
 import (

@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/filemetadata/get_by_collection.go
+// monorepo/cloud/backend/internal/maplefile/usecase/filemetadata/get_by_collection.go
 package filemetadata
 
 import (

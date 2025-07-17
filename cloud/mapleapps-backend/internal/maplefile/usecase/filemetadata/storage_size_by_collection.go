@@ -1,4 +1,4 @@
-// cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata/storage_size.go
+// monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata/storage_size.go
 package filemetadata
 
 import (

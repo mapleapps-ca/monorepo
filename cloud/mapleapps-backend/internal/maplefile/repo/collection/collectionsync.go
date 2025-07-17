@@ -1,4 +1,4 @@
-// cloud/mapleapps-backend/internal/maplefile/repo/collection/collectionsync.go
+// monorepo/cloud/mapleapps-backend/internal/maplefile/repo/collection/collectionsync.go
 package collection
 
 import (

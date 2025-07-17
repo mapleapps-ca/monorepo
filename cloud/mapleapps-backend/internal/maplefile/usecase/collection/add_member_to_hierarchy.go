@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/add_member_to_hierarchy.go
+// monorepo/cloud/backend/internal/maplefile/usecase/collection/add_member_to_hierarchy.go
 package collection
 
 import (

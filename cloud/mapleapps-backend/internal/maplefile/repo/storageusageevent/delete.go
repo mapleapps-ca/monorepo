@@ -1,4 +1,4 @@
-// cloud/mapleapps-backend/internal/maplefile/repo/storageusageevent/delete.go
+// monorepo/cloud/mapleapps-backend/internal/maplefile/repo/storageusageevent/delete.go
 package storageusageevent
 
 import (

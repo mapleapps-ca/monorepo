@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/domain/collection/state_validator.go
+// monorepo/cloud/backend/internal/maplefile/domain/collection/state_validator.go
 package collection
 
 import "errors"

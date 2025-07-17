@@ -1,4 +1,4 @@
-// cloud/mapleapps-backend/internal/maplefile/domain/storageusageevent/interface.go
+// monorepo/cloud/mapleapps-backend/internal/maplefile/domain/storageusageevent/interface.go
 package storageusageevent
 
 import (

@@ -1,4 +1,4 @@
-// cloud/mapleapps-backend/internal/maplefile/repo/filemetadata/delete.go
+// monorepo/cloud/mapleapps-backend/internal/maplefile/repo/filemetadata/delete.go
 package filemetadata
 
 import (

@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/fileobjectstorage/get_object_size.go
+// monorepo/cloud/backend/internal/maplefile/usecase/fileobjectstorage/get_object_size.go
 package fileobjectstorage
 
 import (

@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/add_member.go
+// monorepo/cloud/backend/internal/maplefile/usecase/collection/add_member.go
 package collection
 
 import (

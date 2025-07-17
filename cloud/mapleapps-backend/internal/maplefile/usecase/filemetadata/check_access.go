@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/filemetadata/check_access.go
+// monorepo/cloud/backend/internal/maplefile/usecase/filemetadata/check_access.go
 package filemetadata
 
 import (

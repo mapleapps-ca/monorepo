@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/find_descendants.go
+// monorepo/cloud/backend/internal/maplefile/usecase/collection/find_descendants.go
 package collection
 
 import (

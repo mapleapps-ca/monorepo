@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/get_sync_data.go
+// monorepo/cloud/backend/internal/maplefile/usecase/collection/get_sync_data.go
 package collection
 
 import (

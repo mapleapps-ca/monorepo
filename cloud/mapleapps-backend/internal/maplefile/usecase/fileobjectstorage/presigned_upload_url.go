@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/fileobjectstorage/presigned_upload_url.go
+// monorepo/cloud/backend/internal/maplefile/usecase/fileobjectstorage/presigned_upload_url.go
 package fileobjectstorage
 
 import (

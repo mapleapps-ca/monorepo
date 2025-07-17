@@ -55,7 +55,7 @@ type CollectionRepository interface {
 	GetCollectionSyncDataByAccessType(ctx context.Context, userID gocql.UUID, cursor *CollectionSyncCursor, limit int64, accessType string) (*CollectionSyncResponse, error)
 
 	// Add these methods to the CollectionRepository interface in:
-	// cloud/mapleapps-backend/internal/maplefile/domain/collection/interface.go
+	// monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection/interface.go
 
 	// Count operations for all collection types (folders + albums)
 	CountOwnedCollections(ctx context.Context, userID gocql.UUID) (int, error)

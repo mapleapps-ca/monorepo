@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/update_member_permission.go
+// monorepo/cloud/backend/internal/maplefile/usecase/collection/update_member_permission.go
 package collection
 
 import (

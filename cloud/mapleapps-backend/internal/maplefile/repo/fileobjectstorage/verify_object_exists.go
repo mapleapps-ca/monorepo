@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/repo/fileobjectstorage/verify_object_exists.go
+// monorepo/cloud/backend/internal/maplefile/repo/fileobjectstorage/verify_object_exists.go
 package fileobjectstorage
 
 import (

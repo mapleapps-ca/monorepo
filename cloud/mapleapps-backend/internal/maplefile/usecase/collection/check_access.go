@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/check_access.go
+// monorepo/cloud/backend/internal/maplefile/usecase/collection/check_access.go
 package collection
 
 import (

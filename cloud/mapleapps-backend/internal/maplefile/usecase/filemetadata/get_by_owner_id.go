@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/filemetadata/get_by_owner_id.go
+// monorepo/cloud/backend/internal/maplefile/usecase/filemetadata/get_by_owner_id.go
 package filemetadata
 
 import (

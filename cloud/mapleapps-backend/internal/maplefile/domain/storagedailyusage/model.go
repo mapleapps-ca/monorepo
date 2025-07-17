@@ -1,4 +1,4 @@
-// cloud/mapleapps-backend/internal/maplefile/domain/storagedailyusage/model.go
+// monorepo/cloud/mapleapps-backend/internal/maplefile/domain/storagedailyusage/model.go
 package storagedailyusage
 
 import (

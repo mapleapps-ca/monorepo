@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/collection/remove_member_from_hierarchy.go
+// monorepo/cloud/backend/internal/maplefile/usecase/collection/remove_member_from_hierarchy.go
 package collection
 
 import (

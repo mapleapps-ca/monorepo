@@ -1,4 +1,4 @@
-// cloud/mapleapps-backend/internal/maplefile/repo/collection/delete.go
+// monorepo/cloud/mapleapps-backend/internal/maplefile/repo/collection/delete.go
 package collection
 
 import (

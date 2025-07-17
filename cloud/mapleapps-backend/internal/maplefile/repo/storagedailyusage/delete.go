@@ -1,4 +1,4 @@
-// cloud/mapleapps-backend/internal/maplefile/repo/storagedailyusage/delete.go
+// monorepo/cloud/mapleapps-backend/internal/maplefile/repo/storagedailyusage/delete.go
 package storagedailyusage
 
 import (

@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/interface/http/collection/remove_member.go
+// monorepo/cloud/backend/internal/maplefile/interface/http/collection/remove_member.go
 package collection
 
 import (

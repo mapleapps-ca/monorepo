@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/service/file/delete_multiple.go
+// monorepo/cloud/backend/internal/maplefile/service/file/delete_multiple.go
 package file
 
 import (

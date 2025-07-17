@@ -1,4 +1,4 @@
-// cloud/backend/internal/maplefile/usecase/fileobjectstorage/store_multiple_encrypted_data.go
+// monorepo/cloud/backend/internal/maplefile/usecase/fileobjectstorage/store_multiple_encrypted_data.go
 package fileobjectstorage
 
 import (
