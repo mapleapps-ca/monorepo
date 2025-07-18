@@ -15,7 +15,24 @@ import (
 func Module() fx.Option {
 	return fx.Options(
 		fx.Provide(
-			// Dashboard services
+			// File services
+			file.NewSoftDeleteFileService,
+			file.NewDeleteMultipleFilesService,
+			file.NewGetFileService,
+			file.NewListFilesByCollectionService,
+			file.NewUpdateFileService,
+			file.NewCreatePendingFileService,
+			file.NewCompleteFileUploadService,
+			file.NewGetPresignedUploadURLService,
+			file.NewGetPresignedDownloadURLService,
+			file.NewListFilesByCreatedByUserIDService,
+			file.NewListFilesByOwnerIDService,
+			file.NewArchiveFileService,
+			file.NewRestoreFileService,
+			file.NewListFileSyncDataService,
+			file.NewListRecentFilesService,
+
+			// Dashboard services (now depends on recent files service)
 			dashboard.NewGetDashboardService,
 
 			// Me services
@@ -48,23 +65,6 @@ func Module() fx.Option {
 
 			// Collection services - Sync Data
 			collection.NewGetCollectionSyncDataService,
-
-			// File services
-			file.NewSoftDeleteFileService,
-			file.NewDeleteMultipleFilesService,
-			file.NewGetFileService,
-			file.NewListFilesByCollectionService,
-			file.NewUpdateFileService,
-			file.NewCreatePendingFileService,
-			file.NewCompleteFileUploadService,
-			file.NewGetPresignedUploadURLService,
-			file.NewGetPresignedDownloadURLService,
-			file.NewListFilesByCreatedByUserIDService,
-			file.NewListFilesByOwnerIDService,
-			file.NewArchiveFileService,
-			file.NewRestoreFileService,
-			file.NewListFileSyncDataService,
-			file.NewListRecentFilesService,
 
 			// Storage Usage Event services
 			storageusageevent.NewGetStorageUsageEventsService,
