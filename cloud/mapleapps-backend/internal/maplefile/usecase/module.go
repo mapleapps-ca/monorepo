@@ -5,7 +5,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/collection"
-	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/dashboard"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/emailer"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/filemetadata"
 	"github.com/mapleapps-ca/monorepo/cloud/mapleapps-backend/internal/maplefile/usecase/fileobjectstorage"
@@ -17,9 +16,6 @@ import (
 func Module() fx.Option {
 	return fx.Options(
 		fx.Provide(
-			// Dashboard use case
-			dashboard.NewGetDashboardUseCase,
-
 			// Email use cases
 			emailer.NewSendUserPasswordResetEmailUseCase,
 			emailer.NewSendUserVerificationEmailUseCase,

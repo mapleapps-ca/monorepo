@@ -36,7 +36,7 @@ const (
 
 // FederatedUserPlanStorageLimits maps each federated user plan to its corresponding storage limit in bytes.
 var FederatedUserPlanStorageLimits = map[string]int64{
-	FederatedUserPlanFree:     10 * 1024 * 1024 * 1024,   // 10 GB
+	FederatedUserPlanFree:     1 * 1024 * 1024 * 1024,    // 1 GB
 	FederatedUserPlanPro:      100 * 1024 * 1024 * 1024,  // 100 GB
 	FederatedUserPlanBusiness: 1024 * 1024 * 1024 * 1024, // 1 TB
 }

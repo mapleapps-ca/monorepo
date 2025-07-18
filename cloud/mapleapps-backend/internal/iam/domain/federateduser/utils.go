@@ -18,6 +18,9 @@ func (u *FederatedUser) UpgradePlan(newPlan string) {
 // GetStorageUsagePercentage returns the percentage of storage used
 func (u *FederatedUser) GetStorageUsagePercentage() float64 {
 	if u.StorageLimitBytes == 0 {
+		if u.UserPlan != "" {
+			return float64(GetStorageLimitForFederatedUserPlan(u.UserPlan))
+		}
 		return 0
 	}
 	return (float64(u.StorageUsedBytes) / float64(u.StorageLimitBytes)) * 100

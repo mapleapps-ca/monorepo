@@ -32,7 +32,7 @@ func Module() fx.Option {
 			file.NewListFileSyncDataService,
 			file.NewListRecentFilesService,
 
-			// Dashboard services (now depends on recent files service)
+			// Dashboard services
 			dashboard.NewGetDashboardService,
 
 			// Me services
