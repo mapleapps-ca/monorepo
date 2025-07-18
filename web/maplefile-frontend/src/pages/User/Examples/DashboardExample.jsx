@@ -1,7 +1,7 @@
 // File: monorepo/web/maplefile-frontend/src/pages/User/Examples/DashboardExample.jsx
 // Main Dashboard page - Shows summary, storage trend, and recent files
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useAuth, useFiles } from "../../../services/Services";
 import withPasswordProtection from "../../../hocs/withPasswordProtection";
@@ -45,30 +45,33 @@ const DashboardExample = () => {
     initializeManager();
   }, [authManager]);
 
+  // Load dashboard data
+  const loadDashboardData = useCallback(
+    async (forceRefresh = false) => {
+      if (!dashboardManager) return;
+
+      setIsLoading(true);
+      setError("");
+
+      try {
+        const data = await dashboardManager.getDashboardData(forceRefresh);
+        setDashboardData(data);
+      } catch (err) {
+        console.error("[Dashboard] Failed to load dashboard:", err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [dashboardManager],
+  );
+
   // Load dashboard data when manager is ready
   useEffect(() => {
     if (dashboardManager) {
       loadDashboardData();
     }
-  }, [dashboardManager]);
-
-  // Load dashboard data
-  const loadDashboardData = async () => {
-    if (!dashboardManager) return;
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const data = await dashboardManager.getDashboardData();
-      setDashboardData(data);
-    } catch (err) {
-      console.error("[Dashboard] Failed to load dashboard:", err);
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [dashboardManager, loadDashboardData]);
 
   // Handle file download
   const handleDownloadFile = async (fileId, fileName) => {
@@ -104,9 +107,18 @@ const DashboardExample = () => {
     navigate("/list-collection-manager-example");
   };
 
-  // Refresh dashboard
+  // Refresh dashboard with forced API call
   const handleRefresh = async () => {
-    await loadDashboardData();
+    await loadDashboardData(true);
+  };
+
+  // Clear cache and refresh dashboard
+  const handleClearCache = async () => {
+    if (dashboardManager) {
+      dashboardManager.clearAllCaches();
+      console.log("[Dashboard] Cache cleared. Forcing data refresh.");
+      await loadDashboardData(true);
+    }
   };
 
   // Format storage percentage color
@@ -171,21 +183,40 @@ const DashboardExample = () => {
             Welcome back, {authManager.getCurrentUserEmail() || "User"}
           </p>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={isLoading}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#28a745",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: isLoading ? "not-allowed" : "pointer",
-            opacity: isLoading ? 0.6 : 1,
-          }}
-        >
-          {isLoading ? "Refreshing..." : "🔄 Refresh"}
-        </button>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            onClick={handleClearCache}
+            disabled={isLoading}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#6c757d",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: isLoading ? "not-allowed" : "pointer",
+              opacity: isLoading ? 0.6 : 1,
+            }}
+            title="Clear local cache and fetch fresh data from the server"
+          >
+            {isLoading ? "..." : "🧹 Clear Cache"}
+          </button>
+          <button
+            onClick={handleRefresh}
+            disabled={isLoading}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#007bff",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: isLoading ? "not-allowed" : "pointer",
+              opacity: isLoading ? 0.6 : 1,
+            }}
+            title="Force a refresh from the server, bypassing the cache"
+          >
+            {isLoading ? "Refreshing..." : "🔄 Force Refresh"}
+          </button>
+        </div>
       </div>
 
       {/* Error Message */}
