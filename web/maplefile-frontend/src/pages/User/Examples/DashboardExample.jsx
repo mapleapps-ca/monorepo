@@ -1,12 +1,12 @@
-// File: src/pages/User/Dashboard.jsx
+// File: monorepo/web/maplefile-frontend/src/pages/User/Examples/DashboardExample.jsx
 // Main Dashboard page - Shows summary, storage trend, and recent files
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth, useFiles } from "../../../services/Services";
 import withPasswordProtection from "../../../hocs/withPasswordProtection";
 
-const Dashboard = () => {
+const DashboardExample = () => {
   const navigate = useNavigate();
   const { authManager } = useAuth();
   const { downloadFileManager } = useFiles();
@@ -674,4 +674,4 @@ const Dashboard = () => {
 };
 
 // Export with password protection
-export default withPasswordProtection(Dashboard);
+export default withPasswordProtection(DashboardExample);
