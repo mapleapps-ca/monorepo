@@ -20,16 +20,17 @@ func (impl *storageDailyUsageRepositoryImpl) UpdateOrCreate(ctx context.Context,
 	usage.UsageDay = usage.UsageDay.Truncate(24 * time.Hour)
 
 	// Use UPSERT (INSERT with no IF NOT EXISTS) to update or create
-	query := `INSERT INTO mapleapps.maplefile_storage_daily_usage_by_user_id_with_asc_usage_day
-		(user_id, usage_day, total_bytes, total_add_bytes, total_remove_bytes)
-		VALUES (?, ?, ?, ?, ?)`
+	query := `INSERT INTO maplefile_storage_daily_usage_by_user_id_with_asc_usage_day
+			(user_id, usage_day, total_bytes, total_add_bytes, total_remove_bytes)
+			VALUES (?, ?, ?, ?, ?)`
 
 	err := impl.Session.Query(query,
 		usage.UserID,
 		usage.UsageDay,
 		usage.TotalBytes,
 		usage.TotalAddBytes,
-		usage.TotalRemoveBytes).WithContext(ctx).Exec()
+		usage.TotalRemoveBytes,
+	).WithContext(ctx).Exec()
 
 	if err != nil {
 		impl.Logger.Error("failed to upsert storage daily usage", zap.Error(err))
