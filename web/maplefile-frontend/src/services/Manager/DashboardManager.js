@@ -26,6 +26,21 @@ class DashboardManager {
   async initialize() {
     try {
       console.log("[DashboardManager] Initializing manager...");
+
+      // Initialize crypto services for decrypting recent files
+      const { default: FileCryptoService } = await import(
+        "../Crypto/FileCryptoService.js"
+      );
+      await FileCryptoService.initialize();
+      this.fileCryptoService = FileCryptoService;
+
+      // Initialize collection crypto service for collection keys
+      const { default: CollectionCryptoService } = await import(
+        "../Crypto/CollectionCryptoService.js"
+      );
+      await CollectionCryptoService.initialize();
+      this.collectionCryptoService = CollectionCryptoService;
+
       console.log("[DashboardManager] Manager initialized successfully");
     } catch (error) {
       console.error("[DashboardManager] Failed to initialize manager:", error);
@@ -69,7 +84,17 @@ class DashboardManager {
 
       console.log("[DashboardManager] Dashboard data fetched from API");
 
-      // STEP 3: Store in cache
+      // STEP 3: Process recent files (decrypt metadata)
+      if (dashboardData.recentFiles && dashboardData.recentFiles.length > 0) {
+        console.log(
+          "[DashboardManager] Processing recent files for decryption...",
+        );
+        dashboardData.recentFiles = await this.processRecentFiles(
+          dashboardData.recentFiles,
+        );
+      }
+
+      // STEP 4: Store in cache
       this.storageService.storeDashboardData(dashboardData, {
         fetched_at: new Date().toISOString(),
         source: "api",
@@ -97,6 +122,74 @@ class DashboardManager {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  // Process recent files to decrypt metadata
+  async processRecentFiles(files) {
+    if (!files || files.length === 0) return [];
+
+    console.log("[DashboardManager] Processing", files.length, "recent files");
+
+    const processedFiles = [];
+
+    for (const file of files) {
+      try {
+        // Normalize the file
+        const normalizedFile = this.fileCryptoService.normalizeFile(file);
+
+        // Try to get collection key if available
+        const collectionKey =
+          this.collectionCryptoService.getCachedCollectionKey(
+            file.collection_id,
+          );
+
+        let processedFile = normalizedFile;
+
+        // If we have collection key, try to decrypt
+        if (collectionKey) {
+          processedFile = await this.fileCryptoService.decryptFileFromAPI(
+            normalizedFile,
+            collectionKey,
+          );
+        } else {
+          // Mark as unable to decrypt
+          processedFile = {
+            ...normalizedFile,
+            name: "[Collection not loaded]",
+            _isDecrypted: false,
+            _decryptionError: "Collection key not available",
+          };
+        }
+
+        // Format for dashboard display
+        const dashboardFile = {
+          ...processedFile,
+          fileName: processedFile.name || "[Encrypted]",
+          type: this.getFileType(processedFile.name),
+          size: processedFile.size
+            ? { value: processedFile.size, unit: "Bytes" }
+            : null,
+          uploaded: this.formatRelativeTime(processedFile.created_at),
+          uploadedTimestamp: processedFile.created_at,
+        };
+
+        processedFiles.push(dashboardFile);
+      } catch (error) {
+        console.error(
+          "[DashboardManager] Failed to process file:",
+          file.id,
+          error,
+        );
+        processedFiles.push({
+          ...file,
+          fileName: "[Error processing file]",
+          type: "Unknown",
+          _decryptionError: error.message,
+        });
+      }
+    }
+
+    return processedFiles;
   }
 
   // Refresh dashboard data
@@ -314,6 +407,7 @@ class DashboardManager {
       isAuthenticated: this.authManager.isAuthenticated(),
       apiService: this.apiService.getDebugInfo(),
       storageService: this.storageService.getDebugInfo(),
+      fileCryptoService: this.fileCryptoService?.getDebugInfo(),
       managerStatus: this.getManagerStatus(),
       authManagerStatus: {
         userEmail: this.authManager.getCurrentUserEmail(),

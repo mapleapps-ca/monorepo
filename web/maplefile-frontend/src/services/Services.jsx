@@ -47,6 +47,9 @@ import DeleteFileManager from "./Manager/File/DeleteFileManager.js";
 // User Services
 import UserLookupManager from "./Manager/User/UserLookupManager.js";
 
+// Dashboard Services
+import DashboardManager from "./Manager/DashboardManager.js";
+
 // ========================================
 // SERVICE CREATION & DEPENDENCY INJECTION
 // ========================================
@@ -134,7 +137,14 @@ function createServices() {
   console.log("[Services] ✓ ApiClient configured with AuthManager");
 
   // ========================================
-  // 7. SERVICE REGISTRY
+  // 7. Dashboard Services
+  // ========================================
+
+  const dashboardManager = new DashboardManager(authManager);
+  console.log("[Services] ✓ Dashboard manager created");
+
+  // ========================================
+  // 8. SERVICE REGISTRY
   // ========================================
 
   const services = {
@@ -176,6 +186,9 @@ function createServices() {
 
     // User Services
     userLookupManager,
+
+    // Dashboard Services
+    dashboardManager,
   };
 
   console.log(
@@ -244,6 +257,7 @@ export function ServiceProvider({ children }) {
         // ========================================
 
         const managersToInitialize = [
+          { manager: services.dashboardManager, name: "DashboardManager" },
           { manager: services.meManager, name: "MeManager" },
           { manager: services.tokenManager, name: "TokenManager" },
           { manager: services.recoveryManager, name: "RecoveryManager" },
@@ -527,5 +541,15 @@ export function useUsers() {
   const { userLookupManager } = useServices();
   return {
     userLookupManager,
+  };
+}
+
+/**
+ * Dashboard Services
+ */
+export function useDashboard() {
+  const { dashboardManager } = useServices();
+  return {
+    dashboardManager,
   };
 }
