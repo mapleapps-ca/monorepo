@@ -26,7 +26,7 @@ import MeDetail from "./pages/User/Me/Detail";
 
 // Example Pages
 import TokenManagerExample from "./pages/User/Examples/TokenManagerExample";
-import DashboardExample from "./pages/User/Examples/DashboardExample";
+import DashboardManagerExample from "./pages/User/Examples/DashboardManagerExample";
 import SyncCollectionAPIExample from "./pages/User/Examples/SyncCollectionAPIExample";
 import SyncCollectionStorageExample from "./pages/User/Examples/SyncCollectionStorageExample";
 import SyncCollectionManagerExample from "./pages/User/Examples/SyncCollectionManagerExample.jsx";
@@ -89,7 +89,10 @@ function App() {
             <Route path="/me" element={<MeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
             {/* Example routes */}
-            <Route path="/dashboard-example" element={<DashboardExample />} />
+            <Route
+              path="/dashboard-example"
+              element={<DashboardManagerExample />}
+            />
             <Route
               path="/token-manager-example"
               element={<TokenManagerExample />}

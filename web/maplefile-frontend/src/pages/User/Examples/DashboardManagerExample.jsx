@@ -1,12 +1,11 @@
-// File: monorepo/web/maplefile-frontend/src/pages/User/Dashboard/Dashboard.jsx
-// Fixed Dashboard page using DashboardManager with proper collection key loading
+// File: monorepo/web/maplefile-frontend/src/pages/User/Dashboard/DashboardManagerExample.jsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useDashboard, useFiles, useCrypto } from "../../../services/Services";
 import withPasswordProtection from "../../../hocs/withPasswordProtection";
 
-const Dashboard = () => {
+const DashboardManagerExample = () => {
   const navigate = useNavigate();
 
   // Get services from context
@@ -335,6 +334,12 @@ const Dashboard = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => navigate("/dashboard")}>
+          ← Back to Dashboard
+        </button>
+      </div>
+
       {/* Header */}
       <div
         style={{
@@ -889,4 +894,4 @@ const Dashboard = () => {
 };
 
 // Export with password protection
-export default withPasswordProtection(Dashboard);
+export default withPasswordProtection(DashboardManagerExample);
