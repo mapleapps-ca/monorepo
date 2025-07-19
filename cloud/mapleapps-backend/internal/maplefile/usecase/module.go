@@ -50,6 +50,7 @@ func Module() fx.Option {
 			collection.NewUpdateMemberPermissionUseCase,
 			collection.NewGetCollectionSyncDataUseCase,
 			collection.NewCountUserCollectionsUseCase,
+			collection.NewCountUserFoldersUseCase,
 
 			// File Metadata use cases
 			filemetadata.NewCreateFileMetadataUseCase,

@@ -21,6 +21,16 @@ func (impl *collectionRepositoryImpl) CountSharedCollections(ctx context.Context
 	return impl.countCollectionsByUserAndType(ctx, userID, "member", "")
 }
 
+// CountOwnedFolders counts only folders owned by the user
+func (impl *collectionRepositoryImpl) CountOwnedFolders(ctx context.Context, userID gocql.UUID) (int, error) {
+	return impl.countCollectionsByUserAndType(ctx, userID, "owner", dom_collection.CollectionTypeFolder)
+}
+
+// CountSharedFolders counts only folders shared with the user
+func (impl *collectionRepositoryImpl) CountSharedFolders(ctx context.Context, userID gocql.UUID) (int, error) {
+	return impl.countCollectionsByUserAndType(ctx, userID, "member", dom_collection.CollectionTypeFolder)
+}
+
 // countCollectionsByUserAndType is a helper method that efficiently counts collections
 // filterType: empty string for all types, or specific type like "folder"
 func (impl *collectionRepositoryImpl) countCollectionsByUserAndType(ctx context.Context, userID gocql.UUID, accessType, filterType string) (int, error) {

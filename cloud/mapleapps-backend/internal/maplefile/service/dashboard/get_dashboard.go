@@ -30,7 +30,7 @@ type getDashboardServiceImpl struct {
 	listRecentFilesService      file_service.ListRecentFilesService
 	federatedUserGetByIDUseCase uc_feduser.FederatedUserGetByIDUseCase
 	countUserFilesUseCase       uc_filemetadata.CountUserFilesUseCase
-	countUserCollectionsUseCase uc_collection.CountUserCollectionsUseCase
+	countUserFoldersUseCase     uc_collection.CountUserFoldersUseCase // CHANGED: Use folder-specific counting
 	getStorageTrendUseCase      uc_storagedailyusage.GetStorageDailyUsageTrendUseCase
 }
 
@@ -40,7 +40,7 @@ func NewGetDashboardService(
 	listRecentFilesService file_service.ListRecentFilesService,
 	federatedUserGetByIDUseCase uc_feduser.FederatedUserGetByIDUseCase,
 	countUserFilesUseCase uc_filemetadata.CountUserFilesUseCase,
-	countUserCollectionsUseCase uc_collection.CountUserCollectionsUseCase,
+	countUserFoldersUseCase uc_collection.CountUserFoldersUseCase, // CHANGED: Use folder-specific counting
 	getStorageTrendUseCase uc_storagedailyusage.GetStorageDailyUsageTrendUseCase,
 ) GetDashboardService {
 	logger = logger.Named("GetDashboardService")
@@ -50,7 +50,7 @@ func NewGetDashboardService(
 		listRecentFilesService:      listRecentFilesService,
 		federatedUserGetByIDUseCase: federatedUserGetByIDUseCase,
 		countUserFilesUseCase:       countUserFilesUseCase,
-		countUserCollectionsUseCase: countUserCollectionsUseCase,
+		countUserFoldersUseCase:     countUserFoldersUseCase, // CHANGED
 		getStorageTrendUseCase:      getStorageTrendUseCase,
 	}
 }
@@ -107,20 +107,20 @@ func (svc *getDashboardServiceImpl) Execute(ctx context.Context) (*GetDashboardR
 	}
 
 	//
-	// STEP 5: Get collection count
+	// STEP 5: Get folder count (folders only, not albums)
 	//
-	collectionCountResp, err := svc.countUserCollectionsUseCase.Execute(ctx, userID)
+	folderCountResp, err := svc.countUserFoldersUseCase.Execute(ctx, userID)
 	if err != nil {
-		svc.logger.Error("Failed to count user collections for dashboard",
+		svc.logger.Error("Failed to count user folders for dashboard",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return nil, err
 	}
 
-	// Debug logging for collection count issue
-	svc.logger.Debug("Collection count debug info",
+	// Debug logging for folder count
+	svc.logger.Debug("Folder count debug info",
 		zap.String("user_id", userID.String()),
-		zap.Int("total_collections_returned", collectionCountResp.TotalCollections))
+		zap.Int("total_folders_returned", folderCountResp.TotalFolders))
 
 	//
 	// STEP 6: Get storage usage trend (last 7 days)
@@ -158,7 +158,7 @@ func (svc *getDashboardServiceImpl) Execute(ctx context.Context) (*GetDashboardR
 	// STEP 8: Build dashboard response
 	//
 	dashboard := &DashboardDataDTO{
-		Summary:           svc.buildSummary(user, fileCountResp.TotalFiles, collectionCountResp.TotalCollections),
+		Summary:           svc.buildSummary(user, fileCountResp.TotalFiles, folderCountResp.TotalFolders), // CHANGED: Use TotalFolders
 		StorageUsageTrend: svc.buildStorageUsageTrend(storageTrend),
 		RecentFiles:       recentFiles,
 	}
@@ -172,7 +172,7 @@ func (svc *getDashboardServiceImpl) Execute(ctx context.Context) (*GetDashboardR
 	svc.logger.Info("Dashboard data retrieved successfully",
 		zap.String("user_id", userID.String()),
 		zap.Int("total_files", fileCountResp.TotalFiles),
-		zap.Int("total_folders", collectionCountResp.TotalCollections),
+		zap.Int("total_folders", folderCountResp.TotalFolders), // CHANGED: Use TotalFolders
 		zap.Int("recent_files_count", len(recentFiles)))
 
 	return response, nil
@@ -206,7 +206,7 @@ func (svc *getDashboardServiceImpl) buildSummary(user *dom_feduser.FederatedUser
 
 	return SummaryDTO{
 		TotalFiles:             totalFiles,
-		TotalFolders:           totalFolders,
+		TotalFolders:           totalFolders, // Now this will be actual folders only
 		StorageUsed:            storageUsed,
 		StorageLimit:           storageLimit,
 		StorageUsagePercentage: storagePercentage,

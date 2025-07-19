@@ -1,4 +1,4 @@
-// monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection/repository.go
+// monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection/interface.go
 package collection
 
 import (
@@ -54,10 +54,9 @@ type CollectionRepository interface {
 	GetCollectionSyncData(ctx context.Context, userID gocql.UUID, cursor *CollectionSyncCursor, limit int64) (*CollectionSyncResponse, error)
 	GetCollectionSyncDataByAccessType(ctx context.Context, userID gocql.UUID, cursor *CollectionSyncCursor, limit int64, accessType string) (*CollectionSyncResponse, error)
 
-	// Add these methods to the CollectionRepository interface in:
-	// monorepo/cloud/mapleapps-backend/internal/maplefile/domain/collection/interface.go
-
 	// Count operations for all collection types (folders + albums)
 	CountOwnedCollections(ctx context.Context, userID gocql.UUID) (int, error)
 	CountSharedCollections(ctx context.Context, userID gocql.UUID) (int, error)
+	CountOwnedFolders(ctx context.Context, userID gocql.UUID) (int, error)
+	CountSharedFolders(ctx context.Context, userID gocql.UUID) (int, error)
 }

@@ -19,11 +19,29 @@ type CountCollectionsResponse struct {
 	TotalCollections  int `json:"total_collections"`
 }
 
+// CountFoldersResponse contains the folder counts for a user (folders only, not albums)
+type CountFoldersResponse struct {
+	OwnedFolders  int `json:"owned_folders"`
+	SharedFolders int `json:"shared_folders"`
+	TotalFolders  int `json:"total_folders"`
+}
+
 type CountUserCollectionsUseCase interface {
 	Execute(ctx context.Context, userID gocql.UUID) (*CountCollectionsResponse, error)
 }
 
+// NEW: Use case specifically for counting folders only
+type CountUserFoldersUseCase interface {
+	Execute(ctx context.Context, userID gocql.UUID) (*CountFoldersResponse, error)
+}
+
 type countUserCollectionsUseCaseImpl struct {
+	config *config.Configuration
+	logger *zap.Logger
+	repo   dom_collection.CollectionRepository
+}
+
+type countUserFoldersUseCaseImpl struct {
 	config *config.Configuration
 	logger *zap.Logger
 	repo   dom_collection.CollectionRepository
@@ -36,6 +54,15 @@ func NewCountUserCollectionsUseCase(
 ) CountUserCollectionsUseCase {
 	logger = logger.Named("CountUserCollectionsUseCase")
 	return &countUserCollectionsUseCaseImpl{config, logger, repo}
+}
+
+func NewCountUserFoldersUseCase(
+	config *config.Configuration,
+	logger *zap.Logger,
+	repo dom_collection.CollectionRepository,
+) CountUserFoldersUseCase {
+	logger = logger.Named("CountUserFoldersUseCase")
+	return &countUserFoldersUseCaseImpl{config, logger, repo}
 }
 
 func (uc *countUserCollectionsUseCaseImpl) Execute(ctx context.Context, userID gocql.UUID) (*CountCollectionsResponse, error) {
@@ -84,6 +111,56 @@ func (uc *countUserCollectionsUseCaseImpl) Execute(ctx context.Context, userID g
 		zap.Int("owned_collections", ownedCollections),
 		zap.Int("shared_collections", sharedCollections),
 		zap.Int("total_collections", response.TotalCollections))
+
+	return response, nil
+}
+
+func (uc *countUserFoldersUseCaseImpl) Execute(ctx context.Context, userID gocql.UUID) (*CountFoldersResponse, error) {
+	//
+	// STEP 1: Validation.
+	//
+
+	e := make(map[string]string)
+	if userID.String() == "" {
+		e["user_id"] = "User ID is required"
+	}
+	if len(e) != 0 {
+		uc.logger.Warn("Failed validating count user folders",
+			zap.Any("error", e))
+		return nil, httperror.NewForBadRequest(&e)
+	}
+
+	//
+	// STEP 2: Count folders only.
+	//
+
+	ownedFolders, err := uc.repo.CountOwnedFolders(ctx, userID)
+	if err != nil {
+		uc.logger.Error("Failed to count owned folders",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return nil, err
+	}
+
+	sharedFolders, err := uc.repo.CountSharedFolders(ctx, userID)
+	if err != nil {
+		uc.logger.Error("Failed to count shared folders",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return nil, err
+	}
+
+	response := &CountFoldersResponse{
+		OwnedFolders:  ownedFolders,
+		SharedFolders: sharedFolders,
+		TotalFolders:  ownedFolders + sharedFolders,
+	}
+
+	uc.logger.Debug("Successfully counted user folders",
+		zap.String("user_id", userID.String()),
+		zap.Int("owned_folders", ownedFolders),
+		zap.Int("shared_folders", sharedFolders),
+		zap.Int("total_folders", response.TotalFolders))
 
 	return response, nil
 }
