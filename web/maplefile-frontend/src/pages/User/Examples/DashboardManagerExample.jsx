@@ -689,16 +689,10 @@ const DashboardManagerExample = () => {
                     style={{
                       marginLeft: "60px",
                       height: "140px",
-                      display: "flex",
-                      alignItems: "flex-end",
-                      justifyContent:
-                        dashboardData.storage_usage_trend.data_points.length ===
-                        1
-                          ? "center"
-                          : "space-between",
                       borderBottom: "2px solid #dee2e6",
                       borderLeft: "2px solid #dee2e6",
                       position: "relative",
+                      backgroundColor: "#fff",
                     }}
                   >
                     {/* Grid lines */}
@@ -712,7 +706,6 @@ const DashboardManagerExample = () => {
                           bottom: `${i * 25}%`,
                           height: "1px",
                           backgroundColor: "#e9ecef",
-                          zIndex: 1,
                         }}
                       />
                     ))}
@@ -726,70 +719,61 @@ const DashboardManagerExample = () => {
                           ),
                         );
 
-                        // Calculate percentage with minimum height for visibility
+                        // Calculate percentage
                         let percentage =
                           maxValue > 0
                             ? (point.usage?.value || 0) / maxValue
                             : 0;
 
-                        // For single data point, show it as 80% of max height for better visual
+                        // For single data point, show it as 70% for better visual
                         if (
                           dashboardData.storage_usage_trend.data_points
                             .length === 1
                         ) {
-                          percentage = 0.8; // 80% height
+                          percentage = 0.7; // 70% height
                         }
 
-                        // Ensure minimum 5% height if there's any value
-                        if (percentage > 0 && percentage < 0.05) {
-                          percentage = 0.05;
+                        // Ensure minimum 10% height if there's any value
+                        if (percentage > 0 && percentage < 0.1) {
+                          percentage = 0.1;
                         }
 
-                        const barHeight = Math.max(percentage * 100, 0);
-                        const barWidth =
-                          dashboardData.storage_usage_trend.data_points
-                            .length === 1
-                            ? "80px"
-                            : "40px";
+                        const barHeight = percentage * 140; // 140px is the container height
+                        const totalDataPoints =
+                          dashboardData.storage_usage_trend.data_points.length;
+                        const barWidth = totalDataPoints === 1 ? 80 : 40;
+
+                        // Position bars
+                        let leftPosition;
+                        if (totalDataPoints === 1) {
+                          // Center the single bar
+                          leftPosition = "50%";
+                        } else {
+                          // Distribute multiple bars evenly
+                          const containerWidth = 100; // percentage
+                          const spacing =
+                            containerWidth / (totalDataPoints + 1);
+                          leftPosition = `${spacing * (index + 1)}%`;
+                        }
 
                         return (
-                          <div
-                            key={index}
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              gap: "8px",
-                              position: "relative",
-                              zIndex: 2,
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.querySelector(
-                                ".chart-bar",
-                              ).style.backgroundColor = "#0056b3";
-                              e.currentTarget.querySelector(
-                                ".chart-bar",
-                              ).style.transform = "scaleY(1.05)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.querySelector(
-                                ".chart-bar",
-                              ).style.backgroundColor = "#007bff";
-                              e.currentTarget.querySelector(
-                                ".chart-bar",
-                              ).style.transform = "scaleY(1)";
-                            }}
-                          >
-                            {/* Value label on top of bar */}
+                          <div key={index}>
+                            {/* Value label */}
                             <div
                               style={{
-                                fontSize: "10px",
+                                position: "absolute",
+                                left: leftPosition,
+                                bottom: `${barHeight + 5}px`,
+                                transform: "translateX(-50%)",
+                                fontSize: "11px",
                                 color: "#495057",
                                 fontWeight: "bold",
                                 textAlign: "center",
-                                minHeight: "12px",
-                                display: "flex",
-                                alignItems: "center",
+                                backgroundColor: "rgba(255,255,255,0.9)",
+                                padding: "2px 4px",
+                                borderRadius: "3px",
+                                border: "1px solid #dee2e6",
+                                zIndex: 10,
                               }}
                             >
                               {point.usage?.value
@@ -799,18 +783,32 @@ const DashboardManagerExample = () => {
 
                             {/* Bar */}
                             <div
-                              className="chart-bar"
                               style={{
-                                width: barWidth,
-                                height: `${barHeight}%`,
+                                position: "absolute",
+                                left: leftPosition,
+                                bottom: 0,
+                                transform: "translateX(-50%)",
+                                width: `${barWidth}px`,
+                                height: `${barHeight}px`,
                                 backgroundColor: "#007bff",
                                 borderRadius: "4px 4px 0 0",
-                                transition: "all 0.3s ease",
                                 cursor: "pointer",
-                                boxShadow: "0 2px 4px rgba(0,123,255,0.3)",
-                                position: "relative",
+                                boxShadow: "0 2px 8px rgba(0,123,255,0.3)",
+                                transition:
+                                  "background-color 0.3s ease, box-shadow 0.3s ease",
+                                border: "1px solid #0056b3",
                               }}
                               title={`${dashboardManager?.formatStorageValue(point.usage) || `${point.usage?.value || 0} ${point.usage?.unit || "KB"}`} on ${new Date(point.date).toLocaleDateString()}`}
+                              onMouseEnter={(e) => {
+                                e.target.style.backgroundColor = "#0056b3";
+                                e.target.style.boxShadow =
+                                  "0 4px 12px rgba(0,123,255,0.5)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.backgroundColor = "#007bff";
+                                e.target.style.boxShadow =
+                                  "0 2px 8px rgba(0,123,255,0.3)";
+                              }}
                             >
                               {/* Gradient effect */}
                               <div
@@ -819,10 +817,11 @@ const DashboardManagerExample = () => {
                                   top: 0,
                                   left: 0,
                                   right: 0,
-                                  height: "30%",
+                                  height: "40%",
                                   background:
-                                    "linear-gradient(to bottom, rgba(255,255,255,0.3), transparent)",
+                                    "linear-gradient(to bottom, rgba(255,255,255,0.4), transparent)",
                                   borderRadius: "4px 4px 0 0",
+                                  pointerEvents: "none",
                                 }}
                               />
                             </div>
