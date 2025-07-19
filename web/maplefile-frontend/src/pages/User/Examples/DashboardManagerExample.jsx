@@ -334,12 +334,6 @@ const DashboardManagerExample = () => {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "20px" }}>
-        <button onClick={() => navigate("/dashboard")}>
-          ← Back to Dashboard
-        </button>
-      </div>
-
       {/* Header */}
       <div
         style={{
@@ -615,70 +609,296 @@ const DashboardManagerExample = () => {
                   marginBottom: "30px",
                 }}
               >
-                <h2 style={{ margin: "0 0 20px 0", fontSize: "20px" }}>
-                  📈 Storage Usage Trend
-                </h2>
-                <p style={{ margin: "0 0 15px 0", color: "#666" }}>
-                  {dashboardData.storage_usage_trend.period}
-                </p>
                 <div
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
-                    alignItems: "flex-end",
-                    height: "150px",
-                    borderBottom: "2px solid #e0e0e0",
-                    paddingBottom: "10px",
+                    alignItems: "center",
+                    marginBottom: "20px",
                   }}
                 >
-                  {dashboardData.storage_usage_trend.data_points.map(
-                    (point, index) => {
+                  <h2 style={{ margin: 0, fontSize: "20px" }}>
+                    📈 Storage Usage Trend
+                  </h2>
+                  <div style={{ fontSize: "12px", color: "#666" }}>
+                    {dashboardData.storage_usage_trend.data_points.length} data
+                    point
+                    {dashboardData.storage_usage_trend.data_points.length !== 1
+                      ? "s"
+                      : ""}
+                  </div>
+                </div>
+
+                <p style={{ margin: "0 0 15px 0", color: "#666" }}>
+                  {dashboardData.storage_usage_trend.period}
+                </p>
+
+                {/* Chart Container */}
+                <div
+                  style={{
+                    position: "relative",
+                    height: "200px",
+                    backgroundColor: "#f8f9fa",
+                    borderRadius: "8px",
+                    padding: "20px",
+                    border: "1px solid #e9ecef",
+                  }}
+                >
+                  {/* Y-axis labels */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: "5px",
+                      top: "20px",
+                      bottom: "40px",
+                      width: "50px",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      fontSize: "10px",
+                      color: "#666",
+                    }}
+                  >
+                    {(() => {
                       const maxValue = Math.max(
                         ...dashboardData.storage_usage_trend.data_points.map(
                           (p) => p.usage?.value || 0,
                         ),
                       );
-                      const percentage =
-                        maxValue > 0 ? (point.usage?.value || 0) / maxValue : 0;
+                      const maxUnit =
+                        dashboardData.storage_usage_trend.data_points.find(
+                          (p) => p.usage?.value === maxValue,
+                        )?.usage?.unit || "KB";
 
-                      return (
-                        <div
-                          key={index}
-                          style={{
-                            flex: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: "5px",
-                          }}
-                        >
+                      // Create 5 evenly spaced labels from max to 0
+                      const labels = [];
+                      for (let i = 4; i >= 0; i--) {
+                        const value = (maxValue * i) / 4;
+                        labels.push(
+                          <div key={i} style={{ textAlign: "right" }}>
+                            {value.toFixed(0)} {maxUnit}
+                          </div>,
+                        );
+                      }
+                      return labels;
+                    })()}
+                  </div>
+
+                  {/* Chart Area */}
+                  <div
+                    style={{
+                      marginLeft: "60px",
+                      height: "140px",
+                      display: "flex",
+                      alignItems: "flex-end",
+                      justifyContent:
+                        dashboardData.storage_usage_trend.data_points.length ===
+                        1
+                          ? "center"
+                          : "space-between",
+                      borderBottom: "2px solid #dee2e6",
+                      borderLeft: "2px solid #dee2e6",
+                      position: "relative",
+                    }}
+                  >
+                    {/* Grid lines */}
+                    {[1, 2, 3, 4].map((i) => (
+                      <div
+                        key={`grid-${i}`}
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          right: 0,
+                          bottom: `${i * 25}%`,
+                          height: "1px",
+                          backgroundColor: "#e9ecef",
+                          zIndex: 1,
+                        }}
+                      />
+                    ))}
+
+                    {/* Data bars */}
+                    {dashboardData.storage_usage_trend.data_points.map(
+                      (point, index) => {
+                        const maxValue = Math.max(
+                          ...dashboardData.storage_usage_trend.data_points.map(
+                            (p) => p.usage?.value || 0,
+                          ),
+                        );
+
+                        // Calculate percentage with minimum height for visibility
+                        let percentage =
+                          maxValue > 0
+                            ? (point.usage?.value || 0) / maxValue
+                            : 0;
+
+                        // For single data point, show it as 80% of max height for better visual
+                        if (
+                          dashboardData.storage_usage_trend.data_points
+                            .length === 1
+                        ) {
+                          percentage = 0.8; // 80% height
+                        }
+
+                        // Ensure minimum 5% height if there's any value
+                        if (percentage > 0 && percentage < 0.05) {
+                          percentage = 0.05;
+                        }
+
+                        const barHeight = Math.max(percentage * 100, 0);
+                        const barWidth =
+                          dashboardData.storage_usage_trend.data_points
+                            .length === 1
+                            ? "80px"
+                            : "40px";
+
+                        return (
                           <div
+                            key={index}
                             style={{
-                              width: "40px",
-                              height: `${percentage * 100}%`,
-                              backgroundColor: "#007bff",
-                              borderRadius: "4px 4px 0 0",
-                              transition: "height 0.3s ease",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: "8px",
+                              position: "relative",
+                              zIndex: 2,
                             }}
-                            title={dashboardManager?.formatStorageValue(
-                              point.usage,
-                            )}
-                          />
-                          <div
-                            style={{
-                              fontSize: "10px",
-                              color: "#666",
-                              textAlign: "center",
+                            onMouseEnter={(e) => {
+                              e.currentTarget.querySelector(
+                                ".chart-bar",
+                              ).style.backgroundColor = "#0056b3";
+                              e.currentTarget.querySelector(
+                                ".chart-bar",
+                              ).style.transform = "scaleY(1.05)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.querySelector(
+                                ".chart-bar",
+                              ).style.backgroundColor = "#007bff";
+                              e.currentTarget.querySelector(
+                                ".chart-bar",
+                              ).style.transform = "scaleY(1)";
                             }}
                           >
-                            {new Date(point.date).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                            })}
+                            {/* Value label on top of bar */}
+                            <div
+                              style={{
+                                fontSize: "10px",
+                                color: "#495057",
+                                fontWeight: "bold",
+                                textAlign: "center",
+                                minHeight: "12px",
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              {point.usage?.value
+                                ? `${point.usage.value.toFixed(1)} ${point.usage.unit}`
+                                : ""}
+                            </div>
+
+                            {/* Bar */}
+                            <div
+                              className="chart-bar"
+                              style={{
+                                width: barWidth,
+                                height: `${barHeight}%`,
+                                backgroundColor: "#007bff",
+                                borderRadius: "4px 4px 0 0",
+                                transition: "all 0.3s ease",
+                                cursor: "pointer",
+                                boxShadow: "0 2px 4px rgba(0,123,255,0.3)",
+                                position: "relative",
+                              }}
+                              title={`${dashboardManager?.formatStorageValue(point.usage) || `${point.usage?.value || 0} ${point.usage?.unit || "KB"}`} on ${new Date(point.date).toLocaleDateString()}`}
+                            >
+                              {/* Gradient effect */}
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  height: "30%",
+                                  background:
+                                    "linear-gradient(to bottom, rgba(255,255,255,0.3), transparent)",
+                                  borderRadius: "4px 4px 0 0",
+                                }}
+                              />
+                            </div>
                           </div>
+                        );
+                      },
+                    )}
+                  </div>
+
+                  {/* X-axis labels */}
+                  <div
+                    style={{
+                      marginLeft: "60px",
+                      marginTop: "10px",
+                      display: "flex",
+                      justifyContent:
+                        dashboardData.storage_usage_trend.data_points.length ===
+                        1
+                          ? "center"
+                          : "space-between",
+                    }}
+                  >
+                    {dashboardData.storage_usage_trend.data_points.map(
+                      (point, index) => (
+                        <div
+                          key={`date-${index}`}
+                          style={{
+                            fontSize: "11px",
+                            color: "#666",
+                            textAlign: "center",
+                            fontWeight: "500",
+                          }}
+                        >
+                          {new Date(point.date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
                         </div>
-                      );
-                    },
+                      ),
+                    )}
+                  </div>
+                </div>
+
+                {/* Legend/Summary */}
+                <div
+                  style={{
+                    marginTop: "15px",
+                    padding: "10px",
+                    backgroundColor: "#f8f9fa",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    color: "#666",
+                  }}
+                >
+                  {dashboardData.storage_usage_trend.data_points.length ===
+                  1 ? (
+                    <div>
+                      <strong>Current Usage:</strong>{" "}
+                      {dashboardManager?.formatStorageValue(
+                        dashboardData.storage_usage_trend.data_points[0].usage,
+                      ) ||
+                        `${dashboardData.storage_usage_trend.data_points[0].usage?.value || 0} ${dashboardData.storage_usage_trend.data_points[0].usage?.unit || "KB"}`}
+                      <br />
+                      <em>
+                        Note: More data points will be available as you use the
+                        app over time.
+                      </em>
+                    </div>
+                  ) : (
+                    <div>
+                      <strong>Trend:</strong>{" "}
+                      {dashboardData.storage_usage_trend.data_points.length}{" "}
+                      data points over{" "}
+                      {dashboardData.storage_usage_trend.period?.toLowerCase() ||
+                        "time period"}
+                    </div>
                   )}
                 </div>
               </div>
