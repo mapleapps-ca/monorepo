@@ -4,6 +4,7 @@ package collection
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/gocql/gocql"
 	"go.uber.org/zap"
@@ -34,17 +35,32 @@ func (impl *collectionRepositoryImpl) CountSharedFolders(ctx context.Context, us
 // countCollectionsByUserAndType is a helper method that efficiently counts collections
 // filterType: empty string for all types, or specific type like "folder"
 func (impl *collectionRepositoryImpl) countCollectionsByUserAndType(ctx context.Context, userID gocql.UUID, accessType, filterType string) (int, error) {
-	// Use the access-type-specific table for efficient querying
-	query := `SELECT collection_id FROM maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
+	// FIXED: Use full table name with keyspace prefix
+	query := `SELECT collection_id FROM mapleapps.maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
 		WHERE user_id = ? AND access_type = ?`
+
+	impl.Logger.Debug("Starting collection count query",
+		zap.String("user_id", userID.String()),
+		zap.String("access_type", accessType),
+		zap.String("filter_type", filterType),
+		zap.String("query", query))
 
 	iter := impl.Session.Query(query, userID, accessType).WithContext(ctx).Iter()
 
 	count := 0
+	totalScanned := 0
 	var collectionID gocql.UUID
+	var debugCollectionIDs []string
 
 	// Iterate through results and count based on criteria
 	for iter.Scan(&collectionID) {
+		totalScanned++
+		debugCollectionIDs = append(debugCollectionIDs, collectionID.String())
+
+		impl.Logger.Debug("Processing collection for count",
+			zap.String("collection_id", collectionID.String()),
+			zap.Int("total_scanned", totalScanned))
+
 		// Get the collection to check state and type
 		collection, err := impl.getBaseCollection(ctx, collectionID)
 		if err != nil {
@@ -55,20 +71,38 @@ func (impl *collectionRepositoryImpl) countCollectionsByUserAndType(ctx context.
 		}
 
 		if collection == nil {
+			impl.Logger.Warn("collection not found for counting",
+				zap.String("collection_id", collectionID.String()))
 			continue
 		}
 
+		impl.Logger.Debug("Collection details for counting",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("state", collection.State),
+			zap.String("collection_type", collection.CollectionType),
+			zap.String("required_filter_type", filterType))
+
 		// Only count active collections
 		if collection.State != dom_collection.CollectionStateActive {
+			impl.Logger.Debug("Skipping collection due to non-active state",
+				zap.String("collection_id", collectionID.String()),
+				zap.String("state", collection.State))
 			continue
 		}
 
 		// Filter by type if specified
 		if filterType != "" && collection.CollectionType != filterType {
+			impl.Logger.Debug("Skipping collection due to type filter",
+				zap.String("collection_id", collectionID.String()),
+				zap.String("collection_type", collection.CollectionType),
+				zap.String("required_type", filterType))
 			continue
 		}
 
 		count++
+		impl.Logger.Debug("Collection counted",
+			zap.String("collection_id", collectionID.String()),
+			zap.Int("current_count", count))
 	}
 
 	if err := iter.Close(); err != nil {
@@ -80,20 +114,59 @@ func (impl *collectionRepositoryImpl) countCollectionsByUserAndType(ctx context.
 		return 0, fmt.Errorf("failed to count collections: %w", err)
 	}
 
-	impl.Logger.Debug("counted collections successfully",
+	impl.Logger.Info("Collection count completed",
 		zap.String("user_id", userID.String()),
 		zap.String("access_type", accessType),
 		zap.String("filter_type", filterType),
-		zap.Int("count", count))
+		zap.Int("final_count", count),
+		zap.Int("total_scanned", totalScanned),
+		zap.Strings("scanned_collection_ids", debugCollectionIDs))
 
 	return count, nil
+}
+
+// DEBUG: Add a method to check what's actually in the denormalized table
+func (impl *collectionRepositoryImpl) DebugCollectionRecords(ctx context.Context, userID gocql.UUID) error {
+	query := `SELECT user_id, access_type, modified_at, collection_id, permission_level, state
+		FROM mapleapps.maplefile_collections_by_user_id_and_access_type_with_desc_modified_at_and_asc_collection_id
+		WHERE user_id = ?`
+
+	iter := impl.Session.Query(query, userID).WithContext(ctx).Iter()
+
+	var (
+		resultUserID    gocql.UUID
+		accessType      string
+		modifiedAt      time.Time
+		collectionID    gocql.UUID
+		permissionLevel string
+		state           string
+	)
+
+	recordCount := 0
+	for iter.Scan(&resultUserID, &accessType, &modifiedAt, &collectionID, &permissionLevel, &state) {
+		recordCount++
+		impl.Logger.Info("DEBUG: Found collection record",
+			zap.Int("record_number", recordCount),
+			zap.String("user_id", resultUserID.String()),
+			zap.String("access_type", accessType),
+			zap.Time("modified_at", modifiedAt),
+			zap.String("collection_id", collectionID.String()),
+			zap.String("permission_level", permissionLevel),
+			zap.String("state", state))
+	}
+
+	impl.Logger.Info("DEBUG: Total records found in denormalized table",
+		zap.String("user_id", userID.String()),
+		zap.Int("total_records", recordCount))
+
+	return iter.Close()
 }
 
 // Alternative optimized implementation for when you need both owned and shared counts
 // This reduces database round trips by querying once and separating in memory
 func (impl *collectionRepositoryImpl) countCollectionsSummary(ctx context.Context, userID gocql.UUID, filterType string) (ownedCount, sharedCount int, err error) {
 	// Query all collections for the user using the general table
-	query := `SELECT collection_id, access_type FROM maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
+	query := `SELECT collection_id, access_type FROM mapleapps.maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
 		WHERE user_id = ?`
 
 	iter := impl.Session.Query(query, userID).WithContext(ctx).Iter()

@@ -131,7 +131,20 @@ func (uc *countUserFoldersUseCaseImpl) Execute(ctx context.Context, userID gocql
 	}
 
 	//
-	// STEP 2: Count folders only.
+	// STEP 2: DEBUG - Check what's actually in the database
+	//
+
+	// ADD DEBUG LOGGING - Cast to concrete type to access debug method
+	if debugRepo, ok := uc.repo.(interface {
+		DebugCollectionRecords(context.Context, gocql.UUID) error
+	}); ok {
+		if debugErr := debugRepo.DebugCollectionRecords(ctx, userID); debugErr != nil {
+			uc.logger.Warn("Failed to debug collection records", zap.Error(debugErr))
+		}
+	}
+
+	//
+	// STEP 3: Count folders only.
 	//
 
 	ownedFolders, err := uc.repo.CountOwnedFolders(ctx, userID)
@@ -156,7 +169,7 @@ func (uc *countUserFoldersUseCaseImpl) Execute(ctx context.Context, userID gocql
 		TotalFolders:  ownedFolders + sharedFolders,
 	}
 
-	uc.logger.Debug("Successfully counted user folders",
+	uc.logger.Info("Successfully counted user folders",
 		zap.String("user_id", userID.String()),
 		zap.Int("owned_folders", ownedFolders),
 		zap.Int("shared_folders", sharedFolders),
