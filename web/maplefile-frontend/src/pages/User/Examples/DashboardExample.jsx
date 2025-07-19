@@ -1,59 +1,31 @@
-// File: monorepo/web/maplefile-frontend/src/pages/User/Examples/DashboardExample.jsx
-// Main Dashboard page - Shows summary, storage trend, and recent files
+// File: monorepo/web/maplefile-frontend/src/pages/User/Dashboard/Dashboard.jsx
+// Fixed Dashboard page using DashboardManager with proper collection key loading
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useFiles } from "../../../services/Services";
+import { useDashboard, useFiles, useCrypto } from "../../../services/Services";
 import withPasswordProtection from "../../../hocs/withPasswordProtection";
 
-const DashboardExample = () => {
+const Dashboard = () => {
   const navigate = useNavigate();
+
+  // Get services from context
+  const { dashboardManager } = useDashboard();
   const {
     authService,
-    downloadFileManager,
     getCollectionManager,
     listCollectionManager,
+    downloadFileManager,
   } = useFiles();
+  const { CollectionCryptoService } = useCrypto();
 
   // State management
-  const [dashboardManager, setDashboardManager] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [dashboardData, setDashboardData] = useState(null);
   const [downloadingFiles, setDownloadingFiles] = useState(new Set());
 
-  // Initialize dashboard manager
-  useEffect(() => {
-    const initializeManager = async () => {
-      if (!authService.isAuthenticated()) return;
-
-      try {
-        const { default: DashboardManager } = await import(
-          "../../../services/Manager/DashboardManager.js"
-        );
-
-        const manager = new DashboardManager(
-          authService,
-          getCollectionManager,
-          listCollectionManager,
-        );
-        await manager.initialize();
-
-        setDashboardManager(manager);
-        console.log("[Dashboard] DashboardManager initialized");
-      } catch (err) {
-        console.error(
-          "[Dashboard] Failed to initialize DashboardManager:",
-          err,
-        );
-        setError(`Failed to initialize: ${err.message}`);
-      }
-    };
-
-    initializeManager();
-  }, [authService, getCollectionManager, listCollectionManager]);
-
-  // Load dashboard data
+  // Load dashboard data with collection key pre-loading
   const loadDashboardData = useCallback(
     async (forceRefresh = false) => {
       if (!dashboardManager) return;
@@ -62,8 +34,61 @@ const DashboardExample = () => {
       setError("");
 
       try {
+        console.log("[Dashboard] === Loading Dashboard Data ===");
+        console.log("[Dashboard] Force refresh:", forceRefresh);
+
+        // Step 1: Get dashboard data from DashboardManager
         const data = await dashboardManager.getDashboardData(forceRefresh);
+
+        console.log("[Dashboard] Dashboard data loaded:", {
+          hasRecentFiles: !!(data.recent_files && data.recent_files.length > 0),
+          recentFilesCount: data.recent_files?.length || 0,
+        });
+
+        // Step 2: If there are recent files, ensure collection keys are loaded
+        if (data.recent_files && data.recent_files.length > 0) {
+          console.log("[Dashboard] Processing recent files for decryption...");
+
+          // Group files by collection ID
+          const filesByCollection = {};
+          data.recent_files.forEach((file) => {
+            const collectionId = file.collection_id;
+            if (!filesByCollection[collectionId]) {
+              filesByCollection[collectionId] = [];
+            }
+            filesByCollection[collectionId].push(file);
+          });
+
+          const collectionIds = Object.keys(filesByCollection);
+          console.log("[Dashboard] Collections needed:", collectionIds.length);
+
+          // Step 3: Load collection keys for all collections
+          await ensureCollectionKeysLoaded(collectionIds);
+
+          // Step 4: Re-decrypt files with available collection keys
+          const reDecryptedFiles = await reDecryptRecentFiles(
+            data.recent_files,
+          );
+
+          // Update dashboard data with re-decrypted files
+          data.recent_files = reDecryptedFiles;
+
+          const decryptedCount = reDecryptedFiles.filter(
+            (f) => f._isDecrypted,
+          ).length;
+          const errorCount = reDecryptedFiles.filter(
+            (f) => f._decryptionError,
+          ).length;
+
+          console.log("[Dashboard] Re-decryption results:", {
+            total: reDecryptedFiles.length,
+            decrypted: decryptedCount,
+            errors: errorCount,
+          });
+        }
+
         setDashboardData(data);
+        console.log("[Dashboard] Dashboard loaded successfully");
       } catch (err) {
         console.error("[Dashboard] Failed to load dashboard:", err);
         setError(err.message);
@@ -71,15 +96,149 @@ const DashboardExample = () => {
         setIsLoading(false);
       }
     },
-    [dashboardManager],
+    [dashboardManager, getCollectionManager, CollectionCryptoService],
   );
 
-  // Load dashboard data when manager is ready
+  // Ensure collection keys are loaded (similar to RecentFileManagerExample)
+  const ensureCollectionKeysLoaded = async (collectionIds) => {
+    console.log("[Dashboard] === Loading Collection Keys ===");
+    console.log("[Dashboard] Collections needed:", collectionIds.length);
+
+    if (!getCollectionManager) {
+      throw new Error("GetCollectionManager not available");
+    }
+
+    const loadPromises = collectionIds.map(async (collectionId) => {
+      try {
+        // Check if we already have the collection key cached
+        let cachedKey =
+          CollectionCryptoService.getCachedCollectionKey(collectionId);
+        if (cachedKey) {
+          console.log(
+            "[Dashboard] Collection key already cached:",
+            collectionId,
+          );
+          return;
+        }
+
+        // Load collection using collection manager
+        console.log("[Dashboard] Loading collection to get key:", collectionId);
+        const collection =
+          await getCollectionManager.getCollection(collectionId);
+
+        console.log("[Dashboard] Collection loaded:", {
+          id: collection.id,
+          name: collection.name,
+          hasCollectionKey: !!collection.collection_key,
+        });
+
+        // Verify collection key is available
+        if (!collection.collection_key) {
+          throw new Error(
+            "Collection key not available after loading collection",
+          );
+        }
+
+        // Cache the collection key
+        CollectionCryptoService.cacheCollectionKey(
+          collectionId,
+          collection.collection_key,
+        );
+
+        console.log(
+          "[Dashboard] Collection key cached successfully:",
+          collectionId,
+        );
+      } catch (error) {
+        console.error(
+          `[Dashboard] Failed to load collection ${collectionId}:`,
+          error,
+        );
+        // Continue with other collections even if one fails
+      }
+    });
+
+    // Wait for all collection keys to be loaded
+    await Promise.allSettled(loadPromises);
+    console.log("[Dashboard] Collection key loading completed");
+  };
+
+  // Re-decrypt recent files with loaded collection keys
+  const reDecryptRecentFiles = async (files) => {
+    if (!files || files.length === 0) return [];
+
+    console.log("[Dashboard] === Re-decrypting Recent Files ===");
+
+    // Import FileCryptoService for decryption
+    const { default: FileCryptoService } = await import(
+      "../../../services/Crypto/FileCryptoService.js"
+    );
+
+    const decryptedFiles = [];
+
+    for (const file of files) {
+      try {
+        // Get collection key
+        const collectionKey = CollectionCryptoService.getCachedCollectionKey(
+          file.collection_id,
+        );
+
+        if (!collectionKey) {
+          console.warn(
+            `[Dashboard] No collection key available for: ${file.collection_id}`,
+          );
+          decryptedFiles.push({
+            ...file,
+            name: "[Collection key unavailable]",
+            _isDecrypted: false,
+            _decryptionError: "Collection key not available",
+          });
+          continue;
+        }
+
+        // Decrypt file with collection key
+        const decryptedFile = await FileCryptoService.decryptFileFromAPI(
+          file,
+          collectionKey,
+        );
+
+        decryptedFiles.push(decryptedFile);
+
+        if (decryptedFile._isDecrypted) {
+          console.log(`[Dashboard] ✅ File decrypted: ${decryptedFile.name}`);
+        } else {
+          console.log(
+            `[Dashboard] ❌ File decryption failed: ${decryptedFile._decryptionError}`,
+          );
+        }
+      } catch (error) {
+        console.error(`[Dashboard] Failed to decrypt file ${file.id}:`, error);
+        decryptedFiles.push({
+          ...file,
+          name: `[Decrypt failed: ${error.message.substring(0, 50)}...]`,
+          _isDecrypted: false,
+          _decryptionError: error.message,
+        });
+      }
+    }
+
+    return decryptedFiles;
+  };
+
+  // Load dashboard data when component mounts
   useEffect(() => {
-    if (dashboardManager) {
+    if (dashboardManager && authService.isAuthenticated()) {
       loadDashboardData();
     }
-  }, [dashboardManager, loadDashboardData]);
+  }, [dashboardManager, authService, loadDashboardData]);
+
+  // Handle logout
+  const handleLogout = () => {
+    if (authService?.logout) {
+      authService.logout();
+    }
+    navigate("/");
+  };
 
   // Handle file download
   const handleDownloadFile = async (fileId, fileName) => {
@@ -186,9 +345,10 @@ const DashboardExample = () => {
         }}
       >
         <div>
-          <h1 style={{ margin: 0 }}>Dashboard</h1>
+          <h1 style={{ margin: 0 }}>🏠 Dashboard</h1>
           <p style={{ margin: "5px 0 0 0", color: "#666" }}>
-            Welcome back, {authService.getCurrentUserEmail() || "User"}
+            Welcome back,{" "}
+            <strong>{authService.getCurrentUserEmail() || "User"}</strong>!
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
@@ -222,7 +382,20 @@ const DashboardExample = () => {
             }}
             title="Force a refresh from the server, bypassing the cache"
           >
-            {isLoading ? "Refreshing..." : "🔄 Force Refresh"}
+            {isLoading ? "Refreshing..." : "🔄 Refresh"}
+          </button>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#dc3545",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            🚪 Logout
           </button>
         </div>
       </div>
@@ -632,11 +805,12 @@ const DashboardExample = () => {
                             </div>
                           </td>
                           <td style={{ padding: "12px", color: "#666" }}>
-                            {file.type || "Document"}
+                            {file.mime_type || "Document"}
                           </td>
                           <td style={{ padding: "12px", color: "#666" }}>
                             {file.size
-                              ? dashboardManager?.formatStorageValue(file.size)
+                              ? dashboardManager?.formatFileSize?.(file.size) ||
+                                `${file.size} bytes`
                               : "Unknown"}
                           </td>
                           <td style={{ padding: "12px", color: "#666" }}>
@@ -715,4 +889,4 @@ const DashboardExample = () => {
 };
 
 // Export with password protection
-export default withPasswordProtection(DashboardExample);
+export default withPasswordProtection(Dashboard);
