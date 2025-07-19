@@ -3,13 +3,17 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useAuth, useFiles } from "../../../services/Services";
+import { useFiles } from "../../../services/Services";
 import withPasswordProtection from "../../../hocs/withPasswordProtection";
 
 const DashboardExample = () => {
   const navigate = useNavigate();
-  const { authManager } = useAuth();
-  const { downloadFileManager } = useFiles();
+  const {
+    authService,
+    downloadFileManager,
+    getCollectionManager,
+    listCollectionManager,
+  } = useFiles();
 
   // State management
   const [dashboardManager, setDashboardManager] = useState(null);
@@ -21,14 +25,18 @@ const DashboardExample = () => {
   // Initialize dashboard manager
   useEffect(() => {
     const initializeManager = async () => {
-      if (!authManager.isAuthenticated()) return;
+      if (!authService.isAuthenticated()) return;
 
       try {
         const { default: DashboardManager } = await import(
           "../../../services/Manager/DashboardManager.js"
         );
 
-        const manager = new DashboardManager(authManager);
+        const manager = new DashboardManager(
+          authService,
+          getCollectionManager,
+          listCollectionManager,
+        );
         await manager.initialize();
 
         setDashboardManager(manager);
@@ -43,7 +51,7 @@ const DashboardExample = () => {
     };
 
     initializeManager();
-  }, [authManager]);
+  }, [authService, getCollectionManager, listCollectionManager]);
 
   // Load dashboard data
   const loadDashboardData = useCallback(
@@ -180,7 +188,7 @@ const DashboardExample = () => {
         <div>
           <h1 style={{ margin: 0 }}>Dashboard</h1>
           <p style={{ margin: "5px 0 0 0", color: "#666" }}>
-            Welcome back, {authManager.getCurrentUserEmail() || "User"}
+            Welcome back, {authService.getCurrentUserEmail() || "User"}
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
@@ -283,7 +291,7 @@ const DashboardExample = () => {
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "28px", color: "#007bff" }}>
-                    {dashboardData.summary?.totalFiles || 0}
+                    {dashboardData.summary?.total_files || 0}
                   </h3>
                   <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>
                     Total Files
@@ -329,7 +337,7 @@ const DashboardExample = () => {
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "28px", color: "#28a745" }}>
-                    {dashboardData.summary?.totalFolders || 0}
+                    {dashboardData.summary?.total_folders || 0}
                   </h3>
                   <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>
                     Total Folders
@@ -367,13 +375,13 @@ const DashboardExample = () => {
                 <div style={{ flex: 1 }}>
                   <h3 style={{ margin: 0, fontSize: "20px", color: "#333" }}>
                     {dashboardManager?.formatStorageValue(
-                      dashboardData.summary?.storageUsed,
+                      dashboardData.summary?.storage_used,
                     ) || "0 Bytes"}
                   </h3>
                   <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>
                     of{" "}
                     {dashboardManager?.formatStorageValue(
-                      dashboardData.summary?.storageLimit,
+                      dashboardData.summary?.storage_limit,
                     ) || "0 Bytes"}{" "}
                     used
                   </p>
@@ -393,10 +401,10 @@ const DashboardExample = () => {
                 >
                   <div
                     style={{
-                      width: `${dashboardData.summary?.storageUsagePercentage || 0}%`,
+                      width: `${dashboardData.summary?.storage_usage_percentage || 0}%`,
                       height: "100%",
                       backgroundColor: getStoragePercentageColor(
-                        dashboardData.summary?.storageUsagePercentage || 0,
+                        dashboardData.summary?.storage_usage_percentage || 0,
                       ),
                       transition: "width 0.3s ease",
                     }}
@@ -410,16 +418,16 @@ const DashboardExample = () => {
                     color: "#666",
                   }}
                 >
-                  {dashboardData.summary?.storageUsagePercentage || 0}% used
+                  {dashboardData.summary?.storage_usage_percentage || 0}% used
                 </p>
               </div>
             </div>
           </div>
 
           {/* Storage Trend */}
-          {dashboardData.storageUsageTrend &&
-            dashboardData.storageUsageTrend.dataPoints &&
-            dashboardData.storageUsageTrend.dataPoints.length > 0 && (
+          {dashboardData.storage_usage_trend &&
+            dashboardData.storage_usage_trend.data_points &&
+            dashboardData.storage_usage_trend.data_points.length > 0 && (
               <div
                 style={{
                   backgroundColor: "#fff",
@@ -433,7 +441,7 @@ const DashboardExample = () => {
                   📈 Storage Usage Trend
                 </h2>
                 <p style={{ margin: "0 0 15px 0", color: "#666" }}>
-                  {dashboardData.storageUsageTrend.period}
+                  {dashboardData.storage_usage_trend.period}
                 </p>
                 <div
                   style={{
@@ -445,10 +453,10 @@ const DashboardExample = () => {
                     paddingBottom: "10px",
                   }}
                 >
-                  {dashboardData.storageUsageTrend.dataPoints.map(
+                  {dashboardData.storage_usage_trend.data_points.map(
                     (point, index) => {
                       const maxValue = Math.max(
-                        ...dashboardData.storageUsageTrend.dataPoints.map(
+                        ...dashboardData.storage_usage_trend.data_points.map(
                           (p) => p.usage?.value || 0,
                         ),
                       );
@@ -499,8 +507,8 @@ const DashboardExample = () => {
             )}
 
           {/* Recent Files */}
-          {dashboardData.recentFiles &&
-            dashboardData.recentFiles.length > 0 && (
+          {dashboardData.recent_files &&
+            dashboardData.recent_files.length > 0 && (
               <div
                 style={{
                   backgroundColor: "#fff",
@@ -593,7 +601,7 @@ const DashboardExample = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {dashboardData.recentFiles.map((file) => (
+                      {dashboardData.recent_files.map((file) => (
                         <tr
                           key={file.id}
                           style={{ borderBottom: "1px solid #f0f0f0" }}
@@ -608,7 +616,7 @@ const DashboardExample = () => {
                             >
                               <span style={{ fontSize: "20px" }}>📄</span>
                               <div>
-                                <div>{file.fileName || "[Encrypted]"}</div>
+                                <div>{file.name || "[Encrypted]"}</div>
                                 {file._decryptionError && (
                                   <div
                                     style={{
@@ -632,12 +640,14 @@ const DashboardExample = () => {
                               : "Unknown"}
                           </td>
                           <td style={{ padding: "12px", color: "#666" }}>
-                            {file.uploaded || "Unknown"}
+                            {file.modified_at
+                              ? new Date(file.modified_at).toLocaleString()
+                              : "Unknown"}
                           </td>
                           <td style={{ padding: "12px", textAlign: "center" }}>
                             <button
                               onClick={() =>
-                                handleDownloadFile(file.id, file.fileName)
+                                handleDownloadFile(file.id, file.name)
                               }
                               disabled={
                                 !file._isDecrypted ||
@@ -678,8 +688,8 @@ const DashboardExample = () => {
             )}
 
           {/* Empty State for Recent Files */}
-          {(!dashboardData.recentFiles ||
-            dashboardData.recentFiles.length === 0) && (
+          {(!dashboardData.recent_files ||
+            dashboardData.recent_files.length === 0) && (
             <div
               style={{
                 backgroundColor: "#fff",
