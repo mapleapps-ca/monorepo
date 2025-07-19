@@ -3,6 +3,7 @@ package dashboard
 
 import (
 	"context"
+	"math"
 
 	"go.uber.org/zap"
 
@@ -182,11 +183,18 @@ func (svc *getDashboardServiceImpl) buildSummary(user *dom_feduser.FederatedUser
 	storageUsed := svc.convertBytesToStorageAmount(user.StorageUsedBytes)
 	storageLimit := svc.convertBytesToStorageAmount(user.StorageLimitBytes)
 
-	// Calculate storage percentage manually to fix potential issues
+	// Calculate storage percentage with proper rounding
 	storagePercentage := 0
 	if user.StorageLimitBytes > 0 {
 		percentage := (float64(user.StorageUsedBytes) / float64(user.StorageLimitBytes)) * 100
-		storagePercentage = int(percentage)
+
+		// Use math.Round for proper rounding instead of truncation
+		storagePercentage = int(math.Round(percentage))
+
+		// If there's actual usage but percentage rounds to 0, show at least 1%
+		if storagePercentage == 0 && user.StorageUsedBytes > 0 {
+			storagePercentage = 1
+		}
 	}
 
 	// Debug logging for storage calculation
@@ -201,7 +209,7 @@ func (svc *getDashboardServiceImpl) buildSummary(user *dom_feduser.FederatedUser
 		TotalFolders:           totalFolders,
 		StorageUsed:            storageUsed,
 		StorageLimit:           storageLimit,
-		StorageUsagePercentage: storagePercentage, // Use our manual calculation
+		StorageUsagePercentage: storagePercentage,
 	}
 }
 
