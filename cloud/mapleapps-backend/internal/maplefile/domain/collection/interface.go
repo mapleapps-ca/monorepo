@@ -59,4 +59,5 @@ type CollectionRepository interface {
 	CountSharedCollections(ctx context.Context, userID gocql.UUID) (int, error)
 	CountOwnedFolders(ctx context.Context, userID gocql.UUID) (int, error)
 	CountSharedFolders(ctx context.Context, userID gocql.UUID) (int, error)
+	CountTotalUniqueFolders(ctx context.Context, userID gocql.UUID) (int, error)
 }

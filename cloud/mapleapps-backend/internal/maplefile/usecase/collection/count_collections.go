@@ -144,7 +144,7 @@ func (uc *countUserFoldersUseCaseImpl) Execute(ctx context.Context, userID gocql
 	}
 
 	//
-	// STEP 3: Count folders only.
+	// STEP 3: Count folders with separate owned/shared counts AND total unique count
 	//
 
 	ownedFolders, err := uc.repo.CountOwnedFolders(ctx, userID)
@@ -163,17 +163,36 @@ func (uc *countUserFoldersUseCaseImpl) Execute(ctx context.Context, userID gocql
 		return nil, err
 	}
 
+	// NEW: Get the deduplicated total count
+	var totalUniqueFolders int
+	if uniqueRepo, ok := uc.repo.(interface {
+		CountTotalUniqueFolders(context.Context, gocql.UUID) (int, error)
+	}); ok {
+		totalUniqueFolders, err = uniqueRepo.CountTotalUniqueFolders(ctx, userID)
+		if err != nil {
+			uc.logger.Error("Failed to count unique total folders",
+				zap.String("user_id", userID.String()),
+				zap.Error(err))
+			return nil, err
+		}
+	} else {
+		// Fallback to simple addition if the method is not available
+		uc.logger.Warn("CountTotalUniqueFolders method not available, using simple addition")
+		totalUniqueFolders = ownedFolders + sharedFolders
+	}
+
 	response := &CountFoldersResponse{
 		OwnedFolders:  ownedFolders,
 		SharedFolders: sharedFolders,
-		TotalFolders:  ownedFolders + sharedFolders,
+		TotalFolders:  totalUniqueFolders, // Use deduplicated count
 	}
 
-	uc.logger.Info("Successfully counted user folders",
+	uc.logger.Info("Successfully counted user folders with deduplication",
 		zap.String("user_id", userID.String()),
 		zap.Int("owned_folders", ownedFolders),
 		zap.Int("shared_folders", sharedFolders),
-		zap.Int("total_folders", response.TotalFolders))
+		zap.Int("total_unique_folders", totalUniqueFolders),
+		zap.Int("would_be_simple_sum", ownedFolders+sharedFolders))
 
 	return response, nil
 }

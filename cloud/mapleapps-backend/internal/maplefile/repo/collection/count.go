@@ -255,3 +255,80 @@ func (impl *collectionRepositoryImpl) countCollectionsSummary(ctx context.Contex
 
 	return ownedCount, sharedCount, nil
 }
+
+// CountTotalUniqueFolders counts unique folders accessible to the user (deduplicates owned+shared)
+func (impl *collectionRepositoryImpl) CountTotalUniqueFolders(ctx context.Context, userID gocql.UUID) (int, error) {
+	// Use a set to track unique collection IDs to avoid double-counting
+	uniqueCollectionIDs := make(map[gocql.UUID]bool)
+
+	// Query all collections for the user using the general table
+	query := `SELECT collection_id FROM mapleapps.maplefile_collections_by_user_id_with_desc_modified_at_and_asc_collection_id
+		WHERE user_id = ?`
+
+	iter := impl.Session.Query(query, userID).WithContext(ctx).Iter()
+
+	var collectionID gocql.UUID
+	totalScanned := 0
+
+	for iter.Scan(&collectionID) {
+		totalScanned++
+
+		// Get the collection to check state and type
+		collection, err := impl.getBaseCollection(ctx, collectionID)
+		if err != nil {
+			impl.Logger.Warn("failed to get collection for unique counting",
+				zap.String("collection_id", collectionID.String()),
+				zap.Error(err))
+			continue
+		}
+
+		if collection == nil {
+			continue
+		}
+
+		impl.Logger.Debug("Processing collection for unique count",
+			zap.String("collection_id", collectionID.String()),
+			zap.String("state", collection.State),
+			zap.String("collection_type", collection.CollectionType),
+			zap.Int("total_scanned", totalScanned))
+
+		// Only count active folders
+		if collection.State != dom_collection.CollectionStateActive {
+			impl.Logger.Debug("Skipping collection due to non-active state",
+				zap.String("collection_id", collectionID.String()),
+				zap.String("state", collection.State))
+			continue
+		}
+
+		// Filter by folder type
+		if collection.CollectionType != dom_collection.CollectionTypeFolder {
+			impl.Logger.Debug("Skipping collection due to type filter",
+				zap.String("collection_id", collectionID.String()),
+				zap.String("collection_type", collection.CollectionType))
+			continue
+		}
+
+		// Add to unique set (automatically deduplicates)
+		uniqueCollectionIDs[collectionID] = true
+
+		impl.Logger.Debug("Added unique folder to count",
+			zap.String("collection_id", collectionID.String()),
+			zap.Int("current_unique_count", len(uniqueCollectionIDs)))
+	}
+
+	if err := iter.Close(); err != nil {
+		impl.Logger.Error("failed to count unique folders",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return 0, fmt.Errorf("failed to count unique folders: %w", err)
+	}
+
+	uniqueCount := len(uniqueCollectionIDs)
+
+	impl.Logger.Info("Unique folder count completed",
+		zap.String("user_id", userID.String()),
+		zap.Int("total_scanned", totalScanned),
+		zap.Int("unique_folders", uniqueCount))
+
+	return uniqueCount, nil
+}
