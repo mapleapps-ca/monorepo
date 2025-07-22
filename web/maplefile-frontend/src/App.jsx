@@ -2,53 +2,68 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import { ServiceProvider } from "./services/Services";
-import IndexPage from "./pages/Anonymous/Index/IndexPage";
+
+// Front-facing pages
+import IndexPage from "./pages/Anonymous/Index/IndexPage"; //TODO
+import DeveloperIndexPage from "./pages/Developer/Index/IndexPage";
 
 // Registration pages
 import Register from "./pages/Anonymous/Register/Register";
 import RecoveryCode from "./pages/Anonymous/Register/RecoveryCode";
 import VerifyEmail from "./pages/Anonymous/Register/VerifyEmail";
 import VerifySuccess from "./pages/Anonymous/Register/VerifySuccess";
+import DeveloperRegister from "./pages/Developer/Register/Register";
+import DeveloperRecoveryCode from "./pages/Developer/Register/RecoveryCode";
+import DeveloperVerifyEmail from "./pages/Developer/Register/VerifyEmail";
+import DeveloperVerifySuccess from "./pages/Developer/Register/VerifySuccess";
 
 // Login pages
 import RequestOTT from "./pages/Anonymous/Login/RequestOTT";
 import VerifyOTT from "./pages/Anonymous/Login/VerifyOTT";
 import CompleteLogin from "./pages/Anonymous/Login/CompleteLogin";
+import DeveloperRequestOTT from "./pages/Developer/Login/RequestOTT";
+import DeveloperVerifyOTT from "./pages/Developer/Login/VerifyOTT";
+import DeveloperCompleteLogin from "./pages/Developer/Login/CompleteLogin";
 
 // Recovery pages
 import InitiateRecovery from "./pages/Anonymous/Recovery/InitiateRecovery";
 import VerifyRecovery from "./pages/Anonymous/Recovery/VerifyRecovery";
 import CompleteRecovery from "./pages/Anonymous/Recovery/CompleteRecovery";
+import DeveloperInitiateRecovery from "./pages/Developer/Recovery/InitiateRecovery";
+import DeveloperVerifyRecovery from "./pages/Developer/Recovery/VerifyRecovery";
+import DeveloperCompleteRecovery from "./pages/Developer/Recovery/CompleteRecovery";
 
 // User pages
 import Dashboard from "./pages/User/Dashboard/Dashboard";
+import DeveloperDashboard from "./pages/Developer/Dashboard/Dashboard";
 import MeDetail from "./pages/User/Me/Detail";
+import DeveloperMeDetail from "./pages/Developer/Me/Detail";
 
 // Example Pages
-import TokenManagerExample from "./pages/User/Examples/TokenManagerExample";
-import DashboardManagerExample from "./pages/User/Examples/DashboardManagerExample";
-import SyncCollectionAPIExample from "./pages/User/Examples/SyncCollectionAPIExample";
-import SyncCollectionStorageExample from "./pages/User/Examples/SyncCollectionStorageExample";
-import SyncCollectionManagerExample from "./pages/User/Examples/SyncCollectionManagerExample.jsx";
+import TokenManagerExample from "./pages/Developer/Examples/TokenManagerExample";
+import DashboardManagerExample from "./pages/Developer/Examples/DashboardManagerExample";
+import SyncCollectionAPIExample from "./pages/Developer/Examples/SyncCollectionAPIExample";
+import SyncCollectionStorageExample from "./pages/Developer/Examples/SyncCollectionStorageExample";
+import SyncCollectionManagerExample from "./pages/Developer/Examples/SyncCollectionManagerExample.jsx";
 
-import SyncFileAPIExample from "./pages/User/Examples/SyncFileAPIExample";
-import SyncFileStorageExample from "./pages/User/Examples/SyncFileStorageExample";
-import SyncFileManagerExample from "./pages/User/Examples/SyncFileManagerExample.jsx";
+import SyncFileAPIExample from "./pages/Developer/Examples/SyncFileAPIExample";
+import SyncFileStorageExample from "./pages/Developer/Examples/SyncFileStorageExample";
+import SyncFileManagerExample from "./pages/Developer/Examples/SyncFileManagerExample.jsx";
 
-import CreateCollectionManagerExample from "./pages/User/Examples/Collection/CreateCollectionManagerExample.jsx";
-import GetCollectionManagerExample from "./pages/User/Examples/Collection/GetCollectionManagerExample.jsx";
-import UpdateCollectionManagerExample from "./pages/User/Examples/Collection/UpdateCollectionManagerExample.jsx";
-import DeleteCollectionManagerExample from "./pages/User/Examples/Collection/DeleteCollectionManagerExample.jsx";
-import ListCollectionManagerExample from "./pages/User/Examples/Collection/ListCollectionManagerExample.jsx";
-import ShareCollectionManagerExample from "./pages/User/Examples/Collection/ShareCollectionManagerExample.jsx";
-import UserLookupExample from "./pages/User/Examples/User/UserLookupExample.jsx";
+import CreateCollectionManagerExample from "./pages/Developer/Examples/Collection/CreateCollectionManagerExample.jsx";
+import GetCollectionManagerExample from "./pages/Developer/Examples/Collection/GetCollectionManagerExample.jsx";
+import UpdateCollectionManagerExample from "./pages/Developer/Examples/Collection/UpdateCollectionManagerExample.jsx";
+import DeleteCollectionManagerExample from "./pages/Developer/Examples/Collection/DeleteCollectionManagerExample.jsx";
+import ListCollectionManagerExample from "./pages/Developer/Examples/Collection/ListCollectionManagerExample.jsx";
+import ShareCollectionManagerExample from "./pages/Developer/Examples/Collection/ShareCollectionManagerExample.jsx";
+import UserLookupExample from "./pages/Developer/Examples/User/UserLookupExample.jsx";
 
-import CreateFileManagerExample from "./pages/User/Examples/File/CreateFileManagerExample.jsx";
-import GetFileManagerExample from "./pages/User/Examples/File/GetFileManagerExample.jsx";
-import DownloadFileManagerExample from "./pages/User/Examples/File/DownloadFileManagerExample.jsx";
-import DeleteFileManagerExample from "./pages/User/Examples/File/DeleteFileManagerExample.jsx";
-import ListFileManagerExample from "./pages/User/Examples/File/ListFileManagerExample.jsx";
-import RecentFileManagerExample from "./pages/User/Examples/File/RecentFileManagerExample.jsx";
+import CreateFileManagerExample from "./pages/Developer/Examples/File/CreateFileManagerExample.jsx";
+import GetFileManagerExample from "./pages/Developer/Examples/File/GetFileManagerExample.jsx";
+import DownloadFileManagerExample from "./pages/Developer/Examples/File/DownloadFileManagerExample.jsx";
+import DeleteFileManagerExample from "./pages/Developer/Examples/File/DeleteFileManagerExample.jsx";
+import ListFileManagerExample from "./pages/Developer/Examples/File/ListFileManagerExample.jsx";
+import RecentFileManagerExample from "./pages/Developer/Examples/File/RecentFileManagerExample.jsx";
 
 // Styles
 const styles = {
@@ -65,112 +80,148 @@ function App() {
       <Router>
         <div style={styles.app}>
           <Routes>
+            {/* Front-facing pages */}
             <Route path="/" element={<IndexPage />} />
+            <Route path="/developer" element={<DeveloperIndexPage />} />
+
             {/* Registration routes */}
-            <Route path="/register" element={<Register />} />
-            <Route path="/register/recovery" element={<RecoveryCode />} />
-            <Route path="/register/verify-email" element={<VerifyEmail />} />
+            <Route path="/developer/register" element={<DeveloperRegister />} />
             <Route
-              path="/register/verify-success"
-              element={<VerifySuccess />}
+              path="/developer/register/recovery"
+              element={<DeveloperRecoveryCode />}
             />
+            <Route
+              path="/developer/register/verify-email"
+              element={<DeveloperVerifyEmail />}
+            />
+            <Route
+              path="/developer/register/verify-success"
+              element={<DeveloperVerifySuccess />}
+            />
+
             {/* Login routes */}
-            <Route path="/login" element={<RequestOTT />} />
-            <Route path="/login/request-ott" element={<RequestOTT />} />
-            <Route path="/login/verify-ott" element={<VerifyOTT />} />
-            <Route path="/login/complete" element={<CompleteLogin />} />
+            <Route path="/developer/login" element={<DeveloperRequestOTT />} />
+            <Route
+              path="/developer/login/request-ott"
+              element={<DeveloperRequestOTT />}
+            />
+            <Route
+              path="/developer/login/verify-ott"
+              element={<DeveloperVerifyOTT />}
+            />
+            <Route
+              path="/developer/login/complete"
+              element={<DeveloperCompleteLogin />}
+            />
             {/* Recovery routes */}
-            <Route path="/recovery" element={<InitiateRecovery />} />
-            <Route path="/recovery/initiate" element={<InitiateRecovery />} />
-            <Route path="/recovery/verify" element={<VerifyRecovery />} />
-            <Route path="/recovery/complete" element={<CompleteRecovery />} />
+            <Route
+              path="/developer/recovery"
+              element={<DeveloperInitiateRecovery />}
+            />
+            <Route
+              path="/developer/recovery/initiate"
+              element={<DeveloperInitiateRecovery />}
+            />
+            <Route
+              path="/developer/recovery/verify"
+              element={<DeveloperVerifyRecovery />}
+            />
+            <Route
+              path="/developer/recovery/complete"
+              element={<DeveloperCompleteRecovery />}
+            />
+
             {/* User routes */}
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/me" element={<MeDetail />} />
-            <Route path="/profile" element={<MeDetail />} />
+            <Route
+              path="/developer/dashboard"
+              element={<DeveloperDashboard />}
+            />
+            <Route path="/developer/me" element={<DeveloperMeDetail />} />
+            <Route path="/developer/profile" element={<DeveloperMeDetail />} />
+
             {/* Example routes */}
             <Route
-              path="/dashboard-example"
+              path="/developer/dashboard-example"
               element={<DashboardManagerExample />}
             />
             <Route
-              path="/token-manager-example"
+              path="/developer/token-manager-example"
               element={<TokenManagerExample />}
             />
             <Route
-              path="/sync-collection-api-example"
+              path="/developer/sync-collection-api-example"
               element={<SyncCollectionAPIExample />}
             />
             <Route
-              path="/sync-collection-storage-example"
+              path="/developer/sync-collection-storage-example"
               element={<SyncCollectionStorageExample />}
             />
             <Route
-              path="/sync-collection-manager-example"
+              path="/developer/sync-collection-manager-example"
               element={<SyncCollectionManagerExample />}
             />
             <Route
-              path="/create-collection-manager-example"
+              path="/developer/create-collection-manager-example"
               element={<CreateCollectionManagerExample />}
             />
             <Route
-              path="/get-collection-manager-example"
+              path="/developer/get-collection-manager-example"
               element={<GetCollectionManagerExample />}
             />
             <Route
-              path="/update-collection-manager-example"
+              path="/developer/update-collection-manager-example"
               element={<UpdateCollectionManagerExample />}
             />
             <Route
-              path="/delete-collection-manager-example"
+              path="/developer/delete-collection-manager-example"
               element={<DeleteCollectionManagerExample />}
             />
             <Route
-              path="/list-collection-manager-example"
+              path="/developer/list-collection-manager-example"
               element={<ListCollectionManagerExample />}
             />
             <Route
-              path="/create-file-manager-example"
+              path="/developer/create-file-manager-example"
               element={<CreateFileManagerExample />}
             />
             <Route
-              path="/get-file-manager-example"
+              path="/developer/get-file-manager-example"
               element={<GetFileManagerExample />}
             />
             <Route
-              path="/download-file-manager-example"
+              path="/developer/download-file-manager-example"
               element={<DownloadFileManagerExample />}
             />
             <Route
-              path="/delete-file-manager-example"
+              path="/developer/delete-file-manager-example"
               element={<DeleteFileManagerExample />}
             />
             <Route
-              path="/list-file-manager-example"
+              path="/developer/list-file-manager-example"
               element={<ListFileManagerExample />}
             />
             <Route
-              path="/recent-file-manager-example"
+              path="/developer/recent-file-manager-example"
               element={<RecentFileManagerExample />}
             />
             <Route
-              path="/sync-file-api-example"
+              path="/developer/sync-file-api-example"
               element={<SyncFileAPIExample />}
             />
             <Route
-              path="/sync-file-storage-example"
+              path="/developer/sync-file-storage-example"
               element={<SyncFileStorageExample />}
             />
             <Route
-              path="/sync-file-manager-example"
+              path="/developer/sync-file-manager-example"
               element={<SyncFileManagerExample />}
             />
             <Route
-              path="/user-lookup-manager-example"
+              path="/developer/user-lookup-manager-example"
               element={<UserLookupExample />}
             />
             <Route
-              path="/share-collection-manager-example"
+              path="/developer/share-collection-manager-example"
               element={<ShareCollectionManagerExample />}
             />
 
