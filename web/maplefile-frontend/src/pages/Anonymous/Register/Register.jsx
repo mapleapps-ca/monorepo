@@ -6,7 +6,7 @@ import { useServices } from "../../../services/Services";
 
 const Register = () => {
   const navigate = useNavigate();
-  const { authManager, cryptoService } = useServices();
+  const { authManager } = useServices();
 
   const [formData, setFormData] = useState({
     beta_access_code: "",
