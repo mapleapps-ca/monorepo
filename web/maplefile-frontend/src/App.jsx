@@ -82,9 +82,20 @@ function App() {
           <Routes>
             {/* Front-facing pages */}
             <Route path="/" element={<IndexPage />} />
+
+            {/* (Developer-only) Front-facing pages */}
             <Route path="/developer" element={<DeveloperIndexPage />} />
 
             {/* Registration routes */}
+            <Route path="/register" element={<Register />} />
+            <Route path="/register/recovery" element={<RecoveryCode />} />
+            <Route path="/register/verify-email" element={<VerifyEmail />} />
+            <Route
+              path="/register/verify-success"
+              element={<VerifySuccess />}
+            />
+
+            {/* (Developer-only) Registration routes */}
             <Route path="/developer/register" element={<DeveloperRegister />} />
             <Route
               path="/developer/register/recovery"
@@ -100,6 +111,11 @@ function App() {
             />
 
             {/* Login routes */}
+            <Route path="/login" element={<RequestOTT />} />
+            <Route path="/login/verify-ott" element={<VerifyOTT />} />
+            <Route path="/login/complete" element={<CompleteLogin />} />
+
+            {/* (Developer-only) Login routes */}
             <Route path="/developer/login" element={<DeveloperRequestOTT />} />
             <Route
               path="/developer/login/request-ott"
@@ -113,6 +129,7 @@ function App() {
               path="/developer/login/complete"
               element={<DeveloperCompleteLogin />}
             />
+
             {/* Recovery routes */}
             <Route
               path="/developer/recovery"
