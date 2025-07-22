@@ -49,7 +49,7 @@ const DeveloperVerifySuccess = () => {
     sessionStorage.removeItem("registeredEmail");
     sessionStorage.removeItem("userRole");
     // Navigate to login page
-    navigate("/developer/");
+    navigate("/developer/login");
   };
 
   if (!email || userRole === null) {
