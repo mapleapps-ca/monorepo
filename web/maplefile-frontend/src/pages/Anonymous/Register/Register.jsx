@@ -513,6 +513,7 @@ const Register = () => {
               </div>
 
               {/* Service Selection */}
+              {/*
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
                   Select Your Service
@@ -588,6 +589,7 @@ const Register = () => {
                   </label>
                 </div>
               </div>
+*/}
 
               {/* Master Password Section */}
               <div className="space-y-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
