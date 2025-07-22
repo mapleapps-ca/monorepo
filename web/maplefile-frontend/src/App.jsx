@@ -132,12 +132,16 @@ function App() {
             />
 
             {/* User routes */}
+
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route
               path="/developer/dashboard"
               element={<DeveloperDashboard />}
             />
             <Route path="/developer/me" element={<DeveloperMeDetail />} />
+            <Route path="/me" element={<MeDetail />} />
             <Route path="/developer/profile" element={<DeveloperMeDetail />} />
+            <Route path="/profile" element={<MeDetail />} />
 
             {/* Example routes */}
             <Route
