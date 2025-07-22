@@ -8,16 +8,13 @@ import {
   LockClosedIcon,
   ServerIcon,
   KeyIcon,
-  DocumentIcon,
   CloudArrowUpIcon,
   EyeSlashIcon,
-  CpuChipIcon,
+  BoltIcon,
   CheckIcon,
   SparklesIcon,
   GlobeAltIcon,
   HeartIcon,
-  UserGroupIcon,
-  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 
 function IndexPage() {
@@ -68,7 +65,7 @@ function IndexPage() {
 
   const technicalFeatures = [
     {
-      icon: CpuChipIcon,
+      icon: BoltIcon,
       feature: "ChaCha20-Poly1305 Encryption",
     },
     {
@@ -114,9 +111,7 @@ function IndexPage() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center group">
               <div className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-red-800 to-red-900 rounded-lg mr-3 group-hover:scale-105 transition-transform duration-200">
-                <span className="text-white font-bold text-lg animate-pulse">
-                  🔐
-                </span>
+                <LockClosedIcon className="h-6 w-6 text-white animate-pulse" />
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-red-800 bg-clip-text text-transparent">
                 MapleFile
@@ -149,7 +144,7 @@ function IndexPage() {
             <div className="flex justify-center mb-8">
               <div className="relative">
                 <div className="flex items-center justify-center h-20 w-20 bg-gradient-to-br from-red-800 to-red-900 rounded-2xl shadow-xl animate-bounce">
-                  <span className="text-white font-bold text-3xl">🔐</span>
+                  <LockClosedIcon className="h-12 w-12 text-white" />
                 </div>
                 <div className="absolute -inset-2 bg-gradient-to-r from-red-800 to-red-900 rounded-2xl blur opacity-20 animate-pulse"></div>
               </div>
@@ -435,7 +430,9 @@ function IndexPage() {
                     className="group w-full inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-red-800 to-red-900 text-white text-lg font-bold rounded-xl hover:from-red-900 hover:to-red-950 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
                   >
                     Start Free Trial
-                    <ArrowRightIcon className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-200" />
+                    <span className="ml-2 transform group-hover:translate-x-1 transition-transform duration-200">
+                      →
+                    </span>
                   </Link>
                   <p className="mt-4 text-sm text-gray-500">
                     No credit card required
@@ -561,7 +558,9 @@ function IndexPage() {
               </div>
               <div className="bg-gradient-to-br from-red-800 to-red-900 p-12 flex items-center justify-center">
                 <div className="text-white text-center">
-                  <div className="text-8xl mb-6 animate-pulse">🔐</div>
+                  <div className="flex justify-center mb-6">
+                    <LockClosedIcon className="h-20 w-20 animate-pulse" />
+                  </div>
                   <p className="text-3xl font-black mb-2">Secure by Design</p>
                   <p className="text-xl text-red-100">Privacy First, Always</p>
                 </div>
@@ -578,7 +577,7 @@ function IndexPage() {
             <div className="lg:col-span-2">
               <div className="flex items-center mb-6">
                 <div className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-red-800 to-red-900 rounded-lg mr-3">
-                  <span className="text-white font-bold text-lg">🔐</span>
+                  <LockClosedIcon className="h-6 w-6 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-white">MapleFile</span>
               </div>
