@@ -1,114 +1,41 @@
 // File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Login/CompleteLogin.jsx
-import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router";
 import { useServices } from "../../../services/Services";
+import {
+  ArrowRightIcon,
+  ArrowLeftIcon,
+  LockClosedIcon,
+  ShieldCheckIcon,
+  CheckIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  KeyIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  UserIcon,
+  ClockIcon,
+} from "@heroicons/react/24/outline";
 
 const CompleteLogin = () => {
   const navigate = useNavigate();
 
-  // Get services from the unified service system
+  // Get services from the unified service system (like developer version)
   const services = useServices();
   const authManager = services?.authManager;
   const localStorageService = services?.localStorageService;
-  const passwordStorageService = services?.passwordStorageService;
-
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [decrypting, setDecrypting] = useState(false);
   const [error, setError] = useState("");
-  const [verifyData, setVerifyData] = useState(null);
-  const [decryptionProgress, setDecryptionProgress] = useState("");
-  const [servicesReady, setServicesReady] = useState(false);
-  const [debugInfo, setDebugInfo] = useState({});
+  const [challengeExpired, setChallengeExpired] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [verificationData, setVerificationData] = useState(null);
 
-  // FIXED: Stable service debugging that won't cause infinite loops
-  const checkServices = useCallback(() => {
-    const debug = {
-      authManagerExists: !!authManager,
-      passwordStorageServiceExists: !!passwordStorageService,
-      localStorageServiceExists: !!localStorageService,
-      windowPasswordService: !!window.__passwordService,
-      windowMapleServices: !!window.mapleAppsServices?.passwordStorageService,
-      allServicesKeys: services ? Object.keys(services) : [],
-      timestamp: new Date().toISOString(),
-    };
-
-    // Only update if something actually changed
-    setDebugInfo((prevDebug) => {
-      const changed = JSON.stringify(prevDebug) !== JSON.stringify(debug);
-      if (changed) {
-        console.log("[CompleteLogin] Service status changed:", debug);
-      }
-      return changed ? debug : prevDebug;
-    });
-
-    const ready = !!(authManager && passwordStorageService);
-    setServicesReady((prevReady) => {
-      if (prevReady !== ready) {
-        console.log("[CompleteLogin] Services ready status changed:", ready);
-      }
-      return ready;
-    });
-
-    return debug;
-  }, [authManager, passwordStorageService, localStorageService, services]);
-
-  // FIXED: Stable effect that only runs when actual services change
   useEffect(() => {
-    checkServices();
-  }, [checkServices]);
-
-  // FIXED: Initial service check with delayed retries
-  useEffect(() => {
-    console.log("[CompleteLogin] Initial service check");
-
-    // Log what we got from useServices immediately
-    console.log("[CompleteLogin] Services from useServices:", {
-      total: services ? Object.keys(services).length : 0,
-      authManager: !!authManager,
-      passwordStorageService: !!passwordStorageService,
-      localStorageService: !!localStorageService,
-    });
-
-    // Check alternative sources
-    if (!passwordStorageService) {
-      console.log(
-        "[CompleteLogin] Looking for alternative passwordStorageService sources...",
-      );
-
-      if (window.__passwordService) {
-        console.log("[CompleteLogin] Found window.__passwordService");
-      }
-
-      if (window.mapleAppsServices?.passwordStorageService) {
-        console.log(
-          "[CompleteLogin] Found window.mapleAppsServices.passwordStorageService",
-        );
-      }
-    }
-
-    // Retry after delays for services that might still be initializing
-    const timer1 = setTimeout(() => {
-      console.log("[CompleteLogin] Retry 1 - checking services again...");
-      checkServices();
-    }, 1000);
-
-    const timer2 = setTimeout(() => {
-      console.log("[CompleteLogin] Retry 2 - final check...");
-      checkServices();
-    }, 3000);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, []); // Empty dependency array - only run once on mount
-
-  // Load email and verify data (same as before but stable dependencies)
-  useEffect(() => {
+    // Get email and verification data from previous steps
     let storedEmail = null;
-    let storedVerifyData = null;
+    let storedVerificationData = null;
 
     // Try to get email from multiple sources
     if (authManager && typeof authManager.getCurrentUserEmail === "function") {
@@ -118,6 +45,7 @@ const CompleteLogin = () => {
           console.log(
             "[CompleteLogin] Using email from authManager:",
             storedEmail,
+            typeof storedEmail,
           );
         }
       } catch (err) {
@@ -128,17 +56,14 @@ const CompleteLogin = () => {
       }
     }
 
-    if (
-      !storedEmail &&
-      localStorageService &&
-      typeof localStorageService.getUserEmail === "function"
-    ) {
+    if (!storedEmail && localStorageService) {
       try {
         storedEmail = localStorageService.getUserEmail();
         if (storedEmail) {
           console.log(
             "[CompleteLogin] Using email from localStorageService:",
             storedEmail,
+            typeof storedEmail,
           );
         }
       } catch (err) {
@@ -155,527 +80,637 @@ const CompleteLogin = () => {
         console.log(
           "[CompleteLogin] Using email from sessionStorage:",
           storedEmail,
+          typeof storedEmail,
         );
       }
     }
 
-    // Try to get verify data
-    if (
-      localStorageService &&
-      typeof localStorageService.getLoginSessionData === "function"
-    ) {
+    // Try to get verification data
+    try {
+      const sessionData = sessionStorage.getItem("otpVerificationResult");
+      if (sessionData) {
+        storedVerificationData = JSON.parse(sessionData);
+        console.log(
+          "[CompleteLogin] Using verification data from sessionStorage",
+        );
+      }
+    } catch (err) {
+      console.warn(
+        "[CompleteLogin] Could not parse verification data from sessionStorage:",
+        err,
+      );
+    }
+
+    if (!storedVerificationData && localStorageService) {
       try {
-        storedVerifyData =
+        storedVerificationData =
           localStorageService.getLoginSessionData("verify_response");
-        if (storedVerifyData) {
+        if (storedVerificationData) {
           console.log(
-            "[CompleteLogin] Using verify data from localStorageService",
+            "[CompleteLogin] Using verification data from localStorageService",
           );
         }
       } catch (err) {
         console.warn(
-          "[CompleteLogin] Could not get verify data from localStorageService:",
+          "[CompleteLogin] Could not get verification data from localStorageService:",
           err,
         );
       }
     }
 
-    if (!storedVerifyData) {
-      try {
-        const sessionVerifyData = sessionStorage.getItem(
-          "otpVerificationResult",
-        );
-        if (sessionVerifyData) {
-          storedVerifyData = JSON.parse(sessionVerifyData);
-          console.log("[CompleteLogin] Using verify data from sessionStorage");
-        }
-      } catch (err) {
-        console.warn(
-          "[CompleteLogin] Could not parse verify data from sessionStorage:",
-          err,
-        );
-      }
-    }
-
-    if (storedEmail && storedVerifyData) {
-      setEmail(storedEmail);
-      setVerifyData(storedVerifyData);
+    if (storedEmail && storedVerificationData) {
+      // Ensure email is a string and set both values together
+      setEmail(String(storedEmail));
+      setVerificationData(storedVerificationData);
     } else {
       console.error(
         "[CompleteLogin] Missing email or verify data, redirecting to start",
+        { email: storedEmail, verifyData: storedVerificationData },
       );
       navigate("/login/request-ott");
     }
-  }, [navigate, authManager, localStorageService]); // Stable dependencies
-
-  // FIXED: Better token validation function
-  const validateTokensAfterLogin = async () => {
-    console.log("[CompleteLogin] Starting token validation...");
-
-    // Method 1: Use AuthManager authentication check (preferred)
-    if (authManager && typeof authManager.isAuthenticated === "function") {
-      try {
-        const isAuthenticated = authManager.isAuthenticated();
-        console.log(
-          "[CompleteLogin] AuthManager.isAuthenticated():",
-          isAuthenticated,
-        );
-
-        if (isAuthenticated) {
-          console.log(
-            "[CompleteLogin] ✅ Authentication confirmed via AuthManager",
-          );
-          return true;
-        }
-      } catch (err) {
-        console.warn(
-          "[CompleteLogin] AuthManager.isAuthenticated() failed:",
-          err,
-        );
-      }
-    }
-
-    // Method 2: Check if AuthManager can make requests
-    if (
-      authManager &&
-      typeof authManager.canMakeAuthenticatedRequests === "function"
-    ) {
-      try {
-        const canMakeRequests = authManager.canMakeAuthenticatedRequests();
-        console.log(
-          "[CompleteLogin] AuthManager.canMakeAuthenticatedRequests():",
-          canMakeRequests,
-        );
-
-        if (canMakeRequests) {
-          console.log(
-            "[CompleteLogin] ✅ Can make authenticated requests via AuthManager",
-          );
-          return true;
-        }
-      } catch (err) {
-        console.warn(
-          "[CompleteLogin] AuthManager.canMakeAuthenticatedRequests() failed:",
-          err,
-        );
-      }
-    }
-
-    // Method 3: Direct localStorage check via localStorageService
-    if (localStorageService) {
-      try {
-        const accessToken = localStorageService.getAccessToken?.();
-        const refreshToken = localStorageService.getRefreshToken?.();
-        console.log("[CompleteLogin] Direct token check:", {
-          hasAccessToken: !!accessToken,
-          hasRefreshToken: !!refreshToken,
-          accessTokenLength: accessToken ? accessToken.length : 0,
-          refreshTokenLength: refreshToken ? refreshToken.length : 0,
-        });
-
-        if (accessToken && refreshToken) {
-          console.log(
-            "[CompleteLogin] ✅ Tokens found via localStorageService",
-          );
-          return true;
-        }
-      } catch (err) {
-        console.warn(
-          "[CompleteLogin] LocalStorageService token check failed:",
-          err,
-        );
-      }
-    }
-
-    // Method 4: Direct localStorage check (fallback)
-    try {
-      const accessToken = localStorage.getItem("mapleapps_access_token");
-      const refreshToken = localStorage.getItem("mapleapps_refresh_token");
-      console.log("[CompleteLogin] Direct localStorage check:", {
-        hasAccessToken: !!accessToken,
-        hasRefreshToken: !!refreshToken,
-        accessTokenLength: accessToken ? accessToken.length : 0,
-        refreshTokenLength: refreshToken ? refreshToken.length : 0,
-      });
-
-      if (accessToken && refreshToken) {
-        console.log(
-          "[CompleteLogin] ✅ Tokens found in direct localStorage check",
-        );
-        return true;
-      }
-    } catch (err) {
-      console.warn("[CompleteLogin] Direct localStorage check failed:", err);
-    }
-
-    console.error("[CompleteLogin] ❌ No valid tokens found via any method");
-    return false;
-  };
+  }, [navigate, authManager, localStorageService]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Find working password service
-    let workingPasswordService =
-      passwordStorageService ||
-      window.mapleAppsServices?.passwordStorageService ||
-      window.__passwordService;
-
-    if (!workingPasswordService) {
-      setError(
-        "Password storage service is not available. Please refresh the page and try again.",
-      );
-      return;
-    }
-
-    if (!authManager) {
-      setError(
-        "Authentication service not available. Please refresh the page.",
-      );
-      return;
-    }
-
     setLoading(true);
-    setDecrypting(true);
     setError("");
+    setChallengeExpired(false);
 
     try {
-      if (!password) {
-        throw new Error("Password is required");
+      // Validate services
+      if (!authManager) {
+        throw new Error(
+          "Authentication service not available. Please refresh the page.",
+        );
       }
 
-      if (!verifyData || !verifyData.challengeId) {
+      // Validate inputs
+      if (!password) {
+        throw new Error("Master password is required");
+      }
+
+      // Ensure email is a string and validate
+      if (!email || typeof email !== "string" || !email.trim()) {
+        console.error("[CompleteLogin] Invalid email data:", {
+          email,
+          type: typeof email,
+        });
+        throw new Error("Valid email address is required");
+      }
+
+      if (!verificationData || !verificationData.challengeId) {
         throw new Error(
           "Missing challenge data. Please start the login process again.",
         );
       }
 
-      console.log("[CompleteLogin] Starting login completion...");
-
-      setDecryptionProgress("Initializing cryptographic libraries...");
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      setDecryptionProgress("Deriving encryption key from password...");
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      setDecryptionProgress("Decrypting challenge data...");
-
-      const decryptedChallenge = await authManager.decryptChallenge(
-        password,
-        verifyData,
-      );
-
-      setDecryptionProgress("Completing authentication...");
-      setDecrypting(false);
-
-      console.log("[CompleteLogin] Calling authManager.completeLogin...");
-      const response = await authManager.completeLogin(
+      console.log(
+        "[CompleteLogin] Completing login via AuthManager for:",
         email,
-        verifyData.challengeId,
-        decryptedChallenge,
       );
-      console.log("[CompleteLogin] Login completed successfully!", response);
 
-      // FIXED: Better token validation with retry mechanism
-      setDecryptionProgress("Validating authentication tokens...");
+      // Use the working method signature from developer version
+      console.log("[CompleteLogin] Decrypting challenge data...");
 
-      let tokenValidationAttempts = 0;
-      const maxAttempts = 5;
-      let tokensValid = false;
-
-      while (tokenValidationAttempts < maxAttempts && !tokensValid) {
-        tokenValidationAttempts++;
-        console.log(
-          `[CompleteLogin] Token validation attempt ${tokenValidationAttempts}/${maxAttempts}`,
+      let decryptedChallenge;
+      try {
+        decryptedChallenge = await authManager.decryptChallenge(
+          password,
+          verificationData,
         );
-
-        // Wait a bit longer for tokens to be fully stored
-        if (tokenValidationAttempts > 1) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 200 * tokenValidationAttempts),
-          );
-        }
-
-        tokensValid = await validateTokensAfterLogin();
-
-        if (!tokensValid && tokenValidationAttempts < maxAttempts) {
-          console.log(
-            `[CompleteLogin] Tokens not ready, retrying in ${200 * tokenValidationAttempts}ms...`,
-          );
-        }
+      } catch (decryptError) {
+        console.error(
+          "[CompleteLogin] Challenge decryption failed:",
+          decryptError,
+        );
+        throw new Error(
+          "Failed to decrypt challenge data. Please check your password.",
+        );
       }
 
-      if (tokensValid) {
-        console.log(
-          "[CompleteLogin] ✅ Authentication successful - storing password and navigating",
+      console.log("[CompleteLogin] Calling authManager.completeLogin...");
+      let response;
+      try {
+        response = await authManager.completeLogin(
+          email, // Direct email string (no trimming/lowercasing here)
+          verificationData.challengeId,
+          decryptedChallenge,
         );
-        workingPasswordService.setPassword(password);
+      } catch (loginError) {
+        console.error(
+          "[CompleteLogin] AuthManager.completeLogin failed:",
+          loginError,
+        );
+        throw new Error("Failed to complete login: " + loginError.message);
+      }
+
+      // Validate response
+      if (!response) {
+        throw new Error("Login completion returned no response");
+      }
+
+      console.log("[CompleteLogin] Login completed successfully!", response);
+
+      // Store password in password storage service (like developer version)
+      if (services?.passwordStorageService) {
+        services.passwordStorageService.setPassword(password);
         console.log(
           "[CompleteLogin] Password stored in PasswordStorageService",
         );
-        navigate("/dashboard", { replace: true });
       } else {
-        console.error(
-          "[CompleteLogin] ❌ Token validation failed after all attempts",
-        );
-
-        // Additional debugging - check what's actually in localStorage
-        const allKeys = Object.keys(localStorage).filter((key) =>
-          key.includes("mapleapps"),
-        );
-        console.log(
-          "[CompleteLogin] All MapleApps localStorage keys:",
-          allKeys,
-        );
-
-        allKeys.forEach((key) => {
-          const value = localStorage.getItem(key);
-          console.log(
-            `[CompleteLogin] ${key}:`,
-            value ? `${value.substring(0, 50)}...` : "null",
-          );
-        });
-
-        throw new Error(
-          "Authentication completed but tokens could not be validated. " +
-            "This may be a temporary issue - please try logging in again.",
+        console.warn(
+          "[CompleteLogin] PasswordStorageService not available, password not stored",
         );
       }
+
+      // Clear stored session data
+      try {
+        sessionStorage.removeItem("loginEmail");
+        sessionStorage.removeItem("otpVerificationResult");
+
+        if (
+          localStorageService &&
+          typeof localStorageService.clearLoginSessionData === "function"
+        ) {
+          localStorageService.clearLoginSessionData();
+        }
+      } catch (cleanupError) {
+        console.warn(
+          "[CompleteLogin] Could not clear session data:",
+          cleanupError,
+        );
+      }
+
+      console.log(
+        "[CompleteLogin] Login completed successfully, redirecting to dashboard",
+      );
+
+      // Navigate to dashboard
+      navigate("/dashboard");
     } catch (error) {
-      console.error("[CompleteLogin] Login failed:", error);
-      setError(error.message);
-      setDecrypting(false);
-      setDecryptionProgress("");
+      console.error("[CompleteLogin] Login completion failed:", error);
+
+      // Handle specific error types with user-friendly messages
+      const errorMessage = error.message || error.toString();
+
+      // Check for expired challenge - this is a common, recoverable error
+      if (
+        errorMessage.includes("Invalid or expired challenge") ||
+        errorMessage.includes("challenge") ||
+        errorMessage.includes("expired")
+      ) {
+        console.log(
+          "[CompleteLogin] Challenge expired - directing user to get new code",
+        );
+        setChallengeExpired(true);
+        setError("");
+      }
+      // Check for wrong password
+      else if (
+        errorMessage.includes("password") ||
+        errorMessage.includes("decrypt") ||
+        errorMessage.includes("authentication failed")
+      ) {
+        setError(
+          "Incorrect password. Please check your master password and try again.",
+        );
+        setChallengeExpired(false);
+      }
+      // Check for network/server errors
+      else if (
+        errorMessage.includes("fetch") ||
+        errorMessage.includes("network") ||
+        errorMessage.includes("500") ||
+        errorMessage.includes("Request failed")
+      ) {
+        setError(
+          "Connection error. Please check your internet connection and try again.",
+        );
+        setChallengeExpired(false);
+      }
+      // Generic error with helpful context
+      else {
+        setError(
+          `Login failed: ${errorMessage}. Please try again or contact support if the issue persists.`,
+        );
+        setChallengeExpired(false);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleBackToVerify = () => {
+    // Clear all error states before navigating
+    setError("");
+    setChallengeExpired(false);
     navigate("/login/verify-ott");
   };
 
-  if (!verifyData) {
+  const handleStartOver = () => {
+    // Clear all session data and error states
+    setError("");
+    setChallengeExpired(false);
+
+    try {
+      sessionStorage.removeItem("loginEmail");
+      sessionStorage.removeItem("otpVerificationResult");
+
+      if (
+        localStorageService &&
+        typeof localStorageService.clearLoginSessionData === "function"
+      ) {
+        localStorageService.clearLoginSessionData();
+      }
+    } catch (cleanupError) {
+      console.warn(
+        "[CompleteLogin] Could not clear session data:",
+        cleanupError,
+      );
+    }
+
+    navigate("/login/request-ott");
+  };
+
+  // Early return if verification data is not available (like developer version)
+  if (!verificationData) {
     return (
-      <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-        <h2>Loading...</h2>
-        <p>Loading verification data...</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-red-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h2>
+          <p className="text-gray-600">Loading verification data...</p>
+        </div>
       </div>
     );
   }
 
-  // Check all possible password service sources
-  const hasPasswordService = !!(
-    passwordStorageService ||
-    window.mapleAppsServices?.passwordStorageService ||
-    window.__passwordService
-  );
-
-  const canSubmit = !loading && password && authManager && hasPasswordService;
-
   return (
-    <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-      <h2>Step 3: Complete Login</h2>
-      <p>
-        Enter your password to complete login for <strong>{email}</strong>
-      </p>
-
-      {error && (
-        <div
-          style={{
-            color: "#d32f2f",
-            backgroundColor: "#ffebee",
-            padding: "10px",
-            borderRadius: "4px",
-            marginBottom: "15px",
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {decrypting && decryptionProgress && (
-        <div
-          style={{
-            color: "#1976d2",
-            backgroundColor: "#e3f2fd",
-            padding: "10px",
-            borderRadius: "4px",
-            marginBottom: "15px",
-          }}
-        >
-          🔐 {decryptionProgress}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: "20px" }}>
-          <label htmlFor="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter your password"
-            required
-            disabled={loading}
-            autoComplete="current-password"
-            style={{
-              width: "100%",
-              padding: "8px",
-              marginTop: "5px",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-            }}
-          />
-          <div style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>
-            Your password will be used to decrypt your secure keys locally
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-red-50 flex flex-col">
+      {/* Navigation */}
+      <nav className="bg-white/95 backdrop-blur-sm border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <Link to="/" className="flex items-center group">
+              <div className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-red-800 to-red-900 rounded-lg mr-3 group-hover:scale-105 transition-transform duration-200">
+                <LockClosedIcon className="h-6 w-6 text-white" />
+              </div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-red-800 bg-clip-text text-transparent">
+                MapleFile
+              </span>
+            </Link>
+            <div className="flex items-center space-x-6">
+              <Link
+                to="/register"
+                className="text-base font-medium text-gray-700 hover:text-red-800 transition-colors duration-200"
+              >
+                Need an account?
+              </Link>
+              <Link
+                to="/recovery"
+                className="text-base font-medium text-gray-700 hover:text-red-800 transition-colors duration-200"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </div>
         </div>
+      </nav>
 
-        {/* ENHANCED Service status display */}
-        <div
-          style={{
-            fontSize: "12px",
-            color: "#666",
-            marginBottom: "15px",
-            padding: "8px",
-            backgroundColor: "#f5f5f5",
-            borderRadius: "4px",
-          }}
-        >
-          <strong>Service Status:</strong>
-          <br />
-          Password Length: {password.length}
-          <br />
-          AuthManager: {authManager ? "✅ Available" : "❌ Missing"}
-          <br />
-          LocalStorageService:{" "}
-          {localStorageService ? "✅ Available" : "❌ Missing"}
-          <br />
-          PasswordStorageService (useServices):{" "}
-          {passwordStorageService ? "✅ Available" : "❌ Missing"}
-          <br />
-          PasswordStorageService (window.__passwordService):{" "}
-          {window.__passwordService ? "✅ Available" : "❌ Missing"}
-          <br />
-          PasswordStorageService (window.mapleAppsServices):{" "}
-          {window.mapleAppsServices?.passwordStorageService
-            ? "✅ Available"
-            : "❌ Missing"}
-          <br />
-          Any Password Service:{" "}
-          {hasPasswordService ? "✅ Available" : "❌ Missing"}
-          <br />
-          Can Submit: {canSubmit ? "✅ Yes" : "❌ No"}
-        </div>
+      {/* Main Content */}
+      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          {/* Progress Indicator */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                <div className="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full text-white text-sm font-bold">
+                  <CheckIcon className="h-4 w-4" />
+                </div>
+                <span className="ml-2 text-sm font-semibold text-green-600">
+                  Email
+                </span>
+              </div>
+              <div className="w-12 h-0.5 bg-green-500"></div>
+              <div className="flex items-center">
+                <div className="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full text-white text-sm font-bold">
+                  <CheckIcon className="h-4 w-4" />
+                </div>
+                <span className="ml-2 text-sm font-semibold text-green-600">
+                  Verify
+                </span>
+              </div>
+              <div className="w-12 h-0.5 bg-green-500"></div>
+              <div className="flex items-center">
+                <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-red-800 to-red-900 rounded-full text-white text-sm font-bold">
+                  3
+                </div>
+                <span className="ml-2 text-sm font-semibold text-gray-900">
+                  Access
+                </span>
+              </div>
+            </div>
+          </div>
 
-        <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            style={{
-              flex: 1,
-              padding: "10px",
-              backgroundColor: canSubmit ? "#1976d2" : "#ccc",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: canSubmit ? "pointer" : "not-allowed",
-            }}
-          >
-            {loading
-              ? decrypting
-                ? "Decrypting..."
-                : "Completing Login..."
-              : "Complete Login"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleBackToVerify}
-            disabled={loading}
-            style={{
-              padding: "10px 15px",
-              backgroundColor: "transparent",
-              color: loading ? "#ccc" : "#666",
-              border: `1px solid ${loading ? "#ccc" : "#666"}`,
-              borderRadius: "4px",
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            Back
-          </button>
-        </div>
-
-        {/* Warning if services missing */}
-        {!hasPasswordService && (
-          <div
-            style={{
-              padding: "10px",
-              backgroundColor: "#fff3cd",
-              border: "1px solid #ffeaa7",
-              borderRadius: "4px",
-              marginBottom: "15px",
-              fontSize: "14px",
-            }}
-          >
-            <strong>⚠️ Password storage service not found</strong>
-            <p>
-              The password storage service could not be found in any of the
-              expected locations. Please refresh the page to reinitialize
-              services.
+          {/* Header */}
+          <div className="text-center animate-fade-in-up">
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <div className="flex items-center justify-center h-16 w-16 bg-gradient-to-br from-red-800 to-red-900 rounded-2xl shadow-lg animate-pulse">
+                  <UserIcon className="h-8 w-8 text-white" />
+                </div>
+                <div className="absolute -inset-1 bg-gradient-to-r from-red-800 to-red-900 rounded-2xl blur opacity-20 animate-pulse"></div>
+              </div>
+            </div>
+            <h2 className="text-3xl font-black text-gray-900 mb-2">
+              Complete Secure Login
+            </h2>
+            <p className="text-gray-600 mb-2">
+              Enter your master password to decrypt your files and complete
+              login
             </p>
+            <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+              <ShieldCheckIcon className="h-4 w-4 text-green-600" />
+              <span>All encryption happens locally in your browser</span>
+            </div>
           </div>
-        )}
-      </form>
 
-      {/* Debug info (development only) */}
-      {import.meta.env.DEV && (
-        <div
-          style={{
-            marginTop: "20px",
-            padding: "10px",
-            backgroundColor: "#f0f0f0",
-            borderRadius: "4px",
-            fontSize: "11px",
-            fontFamily: "monospace",
-          }}
-        >
-          <strong>Debug Info:</strong>
-          <br />
-          Services Available: {debugInfo.allServicesKeys?.join(", ")}
-          <br />
-          AuthManager Exists: {debugInfo.authManagerExists ? "Yes" : "No"}
-          <br />
-          LocalStorageService Exists:{" "}
-          {debugInfo.localStorageServiceExists ? "Yes" : "No"}
-          <br />
-          PasswordStorageService Exists:{" "}
-          {debugInfo.passwordStorageServiceExists ? "Yes" : "No"}
-          <br />
-          Window.__passwordService:{" "}
-          {debugInfo.windowPasswordService ? "Yes" : "No"}
-          <br />
-          Window.mapleAppsServices:{" "}
-          {debugInfo.windowMapleServices ? "Yes" : "No"}
-          <br />
-          Last Check: {debugInfo.timestamp}
-          <br />
-          {/* ENHANCED: Show current localStorage state */}
-          <br />
-          <strong>Current Token State:</strong>
-          <br />
-          Access Token in localStorage:{" "}
-          {localStorage.getItem("mapleapps_access_token") ? "Yes" : "No"}
-          <br />
-          Refresh Token in localStorage:{" "}
-          {localStorage.getItem("mapleapps_refresh_token") ? "Yes" : "No"}
-          <br />
-          User Email in localStorage:{" "}
-          {localStorage.getItem("mapleapps_user_email") ? "Yes" : "No"}
+          {/* Form Card */}
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 animate-fade-in-up-delay">
+            {/* Challenge Expired Message */}
+            {challengeExpired && (
+              <div className="mb-6 p-6 rounded-lg bg-amber-50 border border-amber-200 animate-fade-in">
+                <div className="flex items-start">
+                  <ClockIcon className="h-6 w-6 text-amber-600 mr-3 flex-shrink-0 mt-1" />
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-amber-800 mb-2">
+                      Security Code Expired
+                    </h3>
+                    <p className="text-sm text-amber-700 mb-4">
+                      Your verification code has expired for security reasons.
+                      This is normal and helps protect your account.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={() => navigate("/login/verify-ott")}
+                        className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+                      >
+                        <ArrowLeftIcon className="mr-2 h-4 w-4" />
+                        Get New Code
+                      </button>
+                      <button
+                        onClick={handleStartOver}
+                        className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-amber-300 text-amber-700 text-sm font-medium rounded-lg hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+                      >
+                        Start Over
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 animate-fade-in">
+                <div className="flex items-center">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-red-800">
+                      Authentication Error
+                    </h3>
+                    <p className="text-sm text-red-700 mt-1">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* User Display */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+              <div className="flex items-center">
+                <UserIcon className="h-5 w-5 text-gray-500 mr-3" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-700">
+                    Signing in as:
+                  </p>
+                  <p className="text-sm text-gray-900 font-mono">{email}</p>
+                </div>
+                <button
+                  onClick={handleStartOver}
+                  disabled={loading}
+                  className="text-sm text-red-600 hover:text-red-700 font-medium hover:underline transition-colors duration-200"
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-semibold text-gray-700 mb-2"
+                >
+                  Master Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      // Clear error states when user starts typing
+                      if (error) setError("");
+                      if (challengeExpired) setChallengeExpired(false);
+                    }}
+                    placeholder="Enter your master password"
+                    required
+                    disabled={loading || challengeExpired}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed text-gray-900 placeholder-gray-500 pr-12"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={loading}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showPassword ? (
+                      <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    )}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  This password decrypts your encryption keys locally
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="submit"
+                  disabled={
+                    loading ||
+                    !password.trim() ||
+                    !authManager ||
+                    !email ||
+                    typeof email !== "string" ||
+                    !verificationData ||
+                    challengeExpired
+                  }
+                  className="group w-full flex justify-center items-center py-3 px-4 border border-transparent text-base font-semibold rounded-lg text-white bg-gradient-to-r from-red-800 to-red-900 hover:from-red-900 hover:to-red-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  {loading ? (
+                    <>
+                      <svg
+                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Decrypting & Signing In...
+                    </>
+                  ) : (
+                    <>
+                      <KeyIcon className="mr-2 h-4 w-4" />
+                      Decrypt & Access Files
+                      <ArrowRightIcon className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform duration-200" />
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleBackToVerify}
+                  disabled={loading}
+                  className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  <ArrowLeftIcon className="mr-2 h-4 w-4" />
+                  Back to Verification
+                </button>
+              </div>
+            </form>
+
+            {/* Security Info Section */}
+            <div className="mt-8 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+              <h3 className="text-sm font-semibold text-blue-900 mb-3 flex items-center">
+                <InformationCircleIcon className="h-4 w-4 mr-2" />
+                Security Information
+              </h3>
+              <ul className="text-sm text-blue-800 space-y-2">
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2 mt-0.5">•</span>
+                  Your master password never leaves your device
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2 mt-0.5">•</span>
+                  All decryption happens locally in your browser
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2 mt-0.5">•</span>
+                  We cannot recover your password if you forget it
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2 mt-0.5">•</span>
+                  This ensures maximum privacy and security
+                </li>
+              </ul>
+            </div>
+
+            {/* Forgot Password Link */}
+            <div className="mt-6 text-center">
+              <Link
+                to="/recovery"
+                className="text-sm text-red-600 hover:text-red-700 font-medium hover:underline transition-colors duration-200"
+              >
+                Forgot your master password? Use account recovery
+              </Link>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-100 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center text-sm text-gray-500">
+            <p>&copy; 2025 MapleFile Inc. All rights reserved.</p>
+            <div className="mt-2 space-x-4">
+              <Link
+                to="#"
+                className="hover:text-gray-700 transition-colors duration-200"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                to="#"
+                className="hover:text-gray-700 transition-colors duration-200"
+              >
+                Terms of Service
+              </Link>
+              <Link
+                to="#"
+                className="hover:text-gray-700 transition-colors duration-200"
+              >
+                Support
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fade-in-up {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.4s ease-out;
+        }
+
+        .animate-fade-in-up {
+          animation: fade-in-up 0.6s ease-out;
+        }
+
+        .animate-fade-in-up-delay {
+          animation: fade-in-up 0.6s ease-out 0.2s both;
+        }
+      `}</style>
     </div>
   );
 };
