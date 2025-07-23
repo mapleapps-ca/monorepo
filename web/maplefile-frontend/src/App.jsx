@@ -148,8 +148,7 @@ function App() {
               element={<DeveloperCompleteRecovery />}
             />
 
-            {/* User routes */}
-
+            {/* User routes - Now using the new styled Dashboard */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route
               path="/developer/dashboard"
@@ -160,7 +159,7 @@ function App() {
             <Route path="/developer/profile" element={<DeveloperMeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
 
-            {/* Example routes */}
+            {/* Example routes - These will now have Navigation through the Dashboard component */}
             <Route
               path="/developer/dashboard-example"
               element={<DashboardManagerExample />}
