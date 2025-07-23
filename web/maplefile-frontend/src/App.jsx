@@ -39,6 +39,9 @@ import DeveloperDashboard from "./pages/Developer/Dashboard/Dashboard";
 import MeDetail from "./pages/User/Me/Detail";
 import DeveloperMeDetail from "./pages/Developer/Me/Detail";
 
+// Collection
+import CollectionList from "./pages/User/Collection/List";
+
 // Example Pages
 import TokenManagerExample from "./pages/Developer/Examples/TokenManagerExample";
 import DashboardManagerExample from "./pages/Developer/Examples/DashboardManagerExample";
@@ -158,6 +161,10 @@ function App() {
             <Route path="/me" element={<MeDetail />} />
             <Route path="/developer/profile" element={<DeveloperMeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
+
+            {/* Collection */}
+            <Route path="/collections" element={<CollectionList />} />
+            <Route path="/collections/list" element={<CollectionList />} />
 
             {/* Example routes - These will now have Navigation through the Dashboard component */}
             <Route

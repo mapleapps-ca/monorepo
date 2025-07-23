@@ -49,7 +49,7 @@ const Navigation = () => {
     },
     {
       name: "Collections",
-      path: "/developer/list-collection-manager-example",
+      path: "/collections",
       icon: FolderIcon,
       description: "Organize your files",
     },
