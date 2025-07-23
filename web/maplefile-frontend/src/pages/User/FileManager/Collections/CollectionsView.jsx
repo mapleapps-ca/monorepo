@@ -1,7 +1,7 @@
 // File: src/pages/FileManager/Collections/CollectionsView.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import Navigation from "../../../components/Navigation";
+import Navigation from "../../../../components/Navigation";
 import {
   FolderIcon,
   FolderOpenIcon,

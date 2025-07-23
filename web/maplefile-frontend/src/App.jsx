@@ -40,13 +40,15 @@ import MeDetail from "./pages/User/Me/Detail";
 import DeveloperMeDetail from "./pages/Developer/Me/Detail";
 
 // Collection
-import CollectionsView from "./pages/User/Collection/CollectionsView";
-import CollectionCreate from "./pages/User/Collection/CollectionCreate";
-import CollectionDetails from "./pages/User/Collection/CollectionDetails";
-import CollectionEdit from "./pages/User/Collection/CollectionEdit";
-
-// File Manager
+import FileManagerIndex from "./pages/User/FileManager/FileManagerIndex";
+import CollectionsView from "./pages/User/FileManager/Collections/CollectionsView";
+import CollectionCreate from "./pages/User/FileManager/Collections/CollectionCreate";
+import CollectionDetails from "./pages/User/FileManager/Collections/CollectionDetails";
+import CollectionEdit from "./pages/User/FileManager/Collections/CollectionEdit";
 import FileUpload from "./pages/User/FileManager/Files/FileUpload";
+import FileDetails from "./pages/User/FileManager/Files/FileDetails";
+import SearchResults from "./pages/User/FileManager/Search/SearchResults";
+import TrashView from "./pages/User/FileManager/Trash/TrashView";
 
 // Example Pages
 import TokenManagerExample from "./pages/Developer/Examples/TokenManagerExample";
@@ -168,16 +170,35 @@ function App() {
             <Route path="/developer/profile" element={<DeveloperMeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
 
-            {/* Collection & File Manager  */}
-            <Route path="/file-manager" element={<CollectionsView />} />
-            <Route path="/file-manager/list" element={<CollectionsView />} />
+            {/* File Manager Prototype Routes */}
+            <Route path="/file-manager" element={<FileManagerIndex />} />
+            <Route
+              path="/file-manager"
+              element={<Navigate to="/file-manager/collections" />}
+            />
+            <Route
+              path="/file-manager/collections"
+              element={<CollectionsView />}
+            />
             <Route
               path="/file-manager/collections/create"
               element={<CollectionCreate />}
             />
-            <Route path="/file-manager/:id" element={<CollectionDetails />} />
-            <Route path="/file-manager/:id/edit" element={<CollectionEdit />} />
+            <Route
+              path="/file-manager/collections/:collectionId"
+              element={<CollectionDetails />}
+            />
+            <Route
+              path="/file-manager/collections/:collectionId/edit"
+              element={<CollectionEdit />}
+            />
             <Route path="/file-manager/upload" element={<FileUpload />} />
+            <Route
+              path="/file-manager/files/:fileId"
+              element={<FileDetails />}
+            />
+            <Route path="/file-manager/search" element={<SearchResults />} />
+            <Route path="/file-manager/trash" element={<TrashView />} />
 
             {/* Example routes - These will now have Navigation through the Dashboard component */}
             <Route
