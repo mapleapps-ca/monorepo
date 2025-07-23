@@ -40,7 +40,13 @@ import MeDetail from "./pages/User/Me/Detail";
 import DeveloperMeDetail from "./pages/Developer/Me/Detail";
 
 // Collection
-import CollectionList from "./pages/User/Collection/List";
+import CollectionsView from "./pages/User/Collection/CollectionsView";
+import CollectionCreate from "./pages/User/Collection/CollectionCreate";
+import CollectionDetails from "./pages/User/Collection/CollectionDetails";
+import CollectionEdit from "./pages/User/Collection/CollectionEdit";
+
+// File Manager
+import FileUpload from "./pages/User/FileManager/Files/FileUpload";
 
 // Example Pages
 import TokenManagerExample from "./pages/Developer/Examples/TokenManagerExample";
@@ -162,9 +168,16 @@ function App() {
             <Route path="/developer/profile" element={<DeveloperMeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
 
-            {/* Collection */}
-            <Route path="/collections" element={<CollectionList />} />
-            <Route path="/collections/list" element={<CollectionList />} />
+            {/* Collection & File Manager  */}
+            <Route path="/file-manager" element={<CollectionsView />} />
+            <Route path="/file-manager/list" element={<CollectionsView />} />
+            <Route
+              path="/file-manager/collections/create"
+              element={<CollectionCreate />}
+            />
+            <Route path="/file-manager/:id" element={<CollectionDetails />} />
+            <Route path="/file-manager/:id/edit" element={<CollectionEdit />} />
+            <Route path="/file-manager/upload" element={<FileUpload />} />
 
             {/* Example routes - These will now have Navigation through the Dashboard component */}
             <Route

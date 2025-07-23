@@ -48,8 +48,8 @@ const Navigation = () => {
       description: "Overview and recent files",
     },
     {
-      name: "Collections",
-      path: "/collections",
+      name: "My Files",
+      path: "/file-manager",
       icon: FolderIcon,
       description: "Organize your files",
     },
