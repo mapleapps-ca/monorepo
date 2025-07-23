@@ -10,6 +10,15 @@ import {
 import withPasswordProtection from "../../../hocs/withPasswordProtection";
 import Navigation from "../../../components/Navigation";
 import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import {
   CloudArrowUpIcon,
   FolderIcon,
   DocumentIcon,
@@ -322,7 +331,10 @@ const Dashboard = () => {
               <ArrowPathIcon className="h-4 w-4 mr-2" />
               {isLoading ? "Refreshing..." : "Refresh"}
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+            <button
+              onClick={() => navigate("/developer/create-file-manager-example")}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
               <CloudArrowUpIcon className="h-4 w-4 mr-2" />
               Upload Files
             </button>
@@ -404,7 +416,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Storage Usage Trend Chart */}
+            {/* Storage Usage Trend Chart - FIXED WITH RECHARTS */}
             {dashboardData.storage_usage_trend &&
               dashboardData.storage_usage_trend.data_points &&
               dashboardData.storage_usage_trend.data_points.length > 0 && (
@@ -416,137 +428,46 @@ const Dashboard = () => {
                     <span className="text-sm text-gray-500">Last 7 days</span>
                   </div>
 
-                  {/* Chart Container */}
-                  <div className="relative h-64">
-                    <svg
-                      width="100%"
-                      height="100%"
-                      className="overflow-visible"
-                    >
-                      {/* Chart background and grid */}
-                      <defs>
-                        <pattern
-                          id="grid"
-                          width="50"
-                          height="40"
-                          patternUnits="userSpaceOnUse"
-                        >
-                          <path
-                            d="M 50 0 L 0 0 0 40"
-                            fill="none"
-                            stroke="#f3f4f6"
-                            strokeWidth="1"
-                          />
-                        </pattern>
-                      </defs>
-                      <rect width="100%" height="100%" fill="url(#grid)" />
-
-                      {/* Y-axis labels */}
-                      {(() => {
-                        const maxValue = Math.max(
-                          ...dashboardData.storage_usage_trend.data_points.map(
-                            (p) => p.usage?.value || 0,
-                          ),
-                        );
-                        const maxUnit =
-                          dashboardData.storage_usage_trend.data_points.find(
-                            (p) => p.usage?.value === maxValue,
-                          )?.usage?.unit || "GB";
-
-                        const yLabels = [];
-                        for (let i = 0; i <= 4; i++) {
-                          const value = (maxValue * (4 - i)) / 4;
-                          const y = (i * 200) / 4 + 20;
-                          yLabels.push(
-                            <text
-                              key={i}
-                              x="40"
-                              y={y + 5}
-                              className="text-xs fill-gray-500"
-                              textAnchor="end"
-                            >
-                              {value.toFixed(1)} {maxUnit}
-                            </text>,
-                          );
-                        }
-                        return yLabels;
-                      })()}
-
-                      {/* Chart line and points */}
-                      {(() => {
-                        const points =
-                          dashboardData.storage_usage_trend.data_points;
-                        const maxValue = Math.max(
-                          ...points.map((p) => p.usage?.value || 0),
-                        );
-                        const chartWidth = 600; // Approximate chart width
-                        const chartHeight = 200;
-                        const leftMargin = 60;
-
-                        // Calculate points
-                        const chartPoints = points.map((point, index) => {
-                          const x =
-                            leftMargin +
-                            (index * (chartWidth - leftMargin)) /
-                              (points.length - 1);
-                          const y =
-                            20 +
-                            chartHeight -
-                            ((point.usage?.value || 0) / maxValue) *
-                              chartHeight;
-                          return { x, y, point };
-                        });
-
-                        // Create path for line
-                        const pathData = chartPoints
-                          .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-                          .join(" ");
-
-                        return (
-                          <>
-                            {/* Line */}
-                            <path
-                              d={pathData}
-                              fill="none"
-                              stroke="#dc2626"
-                              strokeWidth="2"
-                            />
-
-                            {/* Points */}
-                            {chartPoints.map((p, index) => (
-                              <circle
-                                key={index}
-                                cx={p.x}
-                                cy={p.y}
-                                r="4"
-                                fill="#dc2626"
-                                stroke="white"
-                                strokeWidth="2"
-                              />
-                            ))}
-
-                            {/* X-axis labels */}
-                            {chartPoints.map((p, index) => (
-                              <text
-                                key={`date-${index}`}
-                                x={p.x}
-                                y="250"
-                                className="text-xs fill-gray-500"
-                                textAnchor="middle"
-                              >
-                                {new Date(p.point.date).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                  },
-                                )}
-                              </text>
-                            ))}
-                          </>
-                        );
-                      })()}
-                    </svg>
+                  {/* Chart Container with Recharts */}
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={dashboardData.storage_usage_trend.data_points.map(
+                          (point) => ({
+                            name: new Date(point.date).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                              },
+                            ),
+                            usage: point.usage?.value || 0,
+                            unit: point.usage?.unit || "GB",
+                          }),
+                        )}
+                        margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" />
+                        <YAxis
+                          unit={` ${dashboardData.storage_usage_trend.data_points[0]?.usage?.unit || "GB"}`}
+                        />
+                        <Tooltip
+                          formatter={(value, name, props) => [
+                            `${value} ${props.payload?.unit || "GB"}`,
+                            "Storage Used",
+                          ]}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="usage"
+                          stroke="#dc2626"
+                          strokeWidth={2}
+                          dot={{ r: 4, strokeWidth: 2 }}
+                          activeDot={{ r: 6, strokeWidth: 2 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
               )}
