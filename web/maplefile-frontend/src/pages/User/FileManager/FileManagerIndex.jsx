@@ -23,18 +23,15 @@ import {
   ListBulletIcon,
   ChevronRightIcon,
   HomeIcon,
-  StarIcon,
   ClockIcon,
   CloudArrowUpIcon,
   ChevronDownIcon,
-  CheckIcon,
   ExclamationTriangleIcon,
   ArrowPathIcon,
   InformationCircleIcon,
   LockClosedIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
-import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
 
 const FileManagerIndex = () => {
   const navigate = useNavigate();
@@ -48,8 +45,7 @@ const FileManagerIndex = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [collections, setCollections] = useState([]);
-  const [viewMode, setViewMode] = useState("grid"); // grid, list, columns
-  const [selectedItems, setSelectedItems] = useState(new Set());
+  const [viewMode, setViewMode] = useState("grid"); // grid, list
   const [showDropdown, setShowDropdown] = useState(null);
   const [sortBy, setSortBy] = useState("name");
   const [filterType, setFilterType] = useState("all");
@@ -190,12 +186,14 @@ const FileManagerIndex = () => {
         }
 
         // Add UI-specific properties
-        processedCollection.type = "folder"; // or determine based on collection type
-        processedCollection.items = collection.file_count || 0;
+        processedCollection.type = collection.collection_type || "folder";
+        processedCollection.itemCount = collection.file_count || 0;
+        processedCollection.totalSize = collection.total_size || 0;
         processedCollection.modified =
           collection.updated_at || collection.created_at;
-        processedCollection.size = formatCollectionSize(collection.total_size);
-        processedCollection.starred = false; // TODO: implement starring functionality
+        processedCollection.sizeFormatted = formatCollectionSize(
+          collection.total_size,
+        );
 
         processedCollections.push(processedCollection);
       } catch (error) {
@@ -257,17 +255,6 @@ const FileManagerIndex = () => {
     }
   }, [listCollectionManager, authManager, loadCollections]);
 
-  // Handle item selection
-  const handleSelectItem = (id) => {
-    const newSelected = new Set(selectedItems);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedItems(newSelected);
-  };
-
   // Handle refresh
   const handleRefresh = async () => {
     await loadCollections(true);
@@ -308,7 +295,7 @@ const FileManagerIndex = () => {
         case "modified":
           return new Date(b.modified || 0) - new Date(a.modified || 0);
         case "size":
-          return (b.total_size || 0) - (a.total_size || 0);
+          return (b.totalSize || 0) - (a.totalSize || 0);
         default:
           return 0;
       }
@@ -331,7 +318,9 @@ const FileManagerIndex = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">My Files</h1>
             <p className="text-gray-600">
-              {isLoading ? "Loading..." : `${collections.length} collections`}
+              {isLoading
+                ? "Loading..."
+                : `${collections.length} ${collections.length === 1 ? "collection" : "collections"}`}
             </p>
           </div>
 
@@ -376,6 +365,9 @@ const FileManagerIndex = () => {
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200"
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Click any collection to view its files and folders
+              </p>
             </div>
 
             {/* Filters and View Options */}
@@ -473,21 +465,11 @@ const FileManagerIndex = () => {
                 {filteredCollections.map((collection) => (
                   <div
                     key={collection.id}
-                    className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-all duration-200 cursor-pointer group relative"
-                    onDoubleClick={() =>
+                    className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg hover:border-red-300 transition-all duration-200 cursor-pointer group relative transform hover:scale-[1.02]"
+                    onClick={() =>
                       navigate(`/file-manager/collections/${collection.id}`)
                     }
                   >
-                    {/* Selection Checkbox */}
-                    <div className="absolute top-4 left-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedItems.has(collection.id)}
-                        onChange={() => handleSelectItem(collection.id)}
-                        className="h-4 w-4 text-red-600 rounded border-gray-300 focus:ring-red-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                      />
-                    </div>
-
                     {/* Dropdown Menu */}
                     <div className="absolute top-4 right-4">
                       <button
@@ -505,65 +487,111 @@ const FileManagerIndex = () => {
                       </button>
                     </div>
 
-                    {/* Collection Icon */}
-                    <div
-                      className={`inline-flex items-center justify-center h-12 w-12 rounded-lg mb-4 ${
-                        collection.type === "album"
-                          ? "bg-pink-100 text-pink-600"
-                          : "bg-blue-100 text-blue-600"
-                      } ${!collection._isDecrypted ? "opacity-50" : ""}`}
-                    >
-                      {getIcon(collection.type)}
-                      {!collection._isDecrypted && (
-                        <LockClosedIcon className="h-3 w-3 absolute" />
-                      )}
+                    {/* Collection Icon and Type */}
+                    <div className="flex items-start space-x-4 mb-4">
+                      <div
+                        className={`flex items-center justify-center h-16 w-16 rounded-xl group-hover:scale-105 transition-transform duration-200 ${
+                          collection.type === "album"
+                            ? "bg-pink-100 text-pink-600 group-hover:bg-pink-200"
+                            : "bg-blue-100 text-blue-600 group-hover:bg-blue-200"
+                        } ${!collection._isDecrypted ? "opacity-50" : ""}`}
+                      >
+                        {getIcon(collection.type)}
+                        {!collection._isDecrypted && (
+                          <LockClosedIcon className="h-4 w-4 absolute text-red-500" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        {/* Collection Type Badge */}
+                        <div className="mb-2">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              collection.type === "album"
+                                ? "bg-pink-100 text-pink-800"
+                                : "bg-blue-100 text-blue-800"
+                            }`}
+                          >
+                            {collection.type === "album"
+                              ? "📷 Photo Album"
+                              : "📁 Folder"}
+                          </span>
+                        </div>
+
+                        {/* Collection Name */}
+                        <h3 className="font-semibold text-lg text-gray-900 truncate group-hover:text-red-800 transition-colors duration-200">
+                          {collection.name || "[Encrypted]"}
+                        </h3>
+
+                        {/* Decryption Error */}
+                        {collection._decryptionError && (
+                          <p className="text-xs text-red-500 mt-1">
+                            ⚠️ Decryption failed
+                          </p>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Collection Info */}
-                    <h3 className="font-semibold text-gray-900 mb-1 truncate">
-                      {collection.name || "[Encrypted]"}
-                    </h3>
-                    {collection._decryptionError && (
-                      <p className="text-xs text-red-500 mb-1">
-                        {collection._decryptionError}
-                      </p>
-                    )}
-                    <p className="text-sm text-gray-500 mb-2">
-                      {collection.items} items
-                    </p>
-                    <div className="flex items-center justify-between text-xs text-gray-400">
-                      <span>{collection.size}</span>
-                      <span>{getTimeAgo(collection.modified)}</span>
+                    {/* Collection Stats */}
+                    <div className="space-y-2">
+                      {/* File Count (only if > 0) */}
+                      {collection.itemCount > 0 && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <DocumentIcon className="h-4 w-4 mr-2" />
+                          <span>
+                            {collection.itemCount}{" "}
+                            {collection.itemCount === 1 ? "file" : "files"}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Size (only if > 0) */}
+                      {collection.totalSize > 0 && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <span className="h-4 w-4 mr-2 flex items-center justify-center">
+                            💾
+                          </span>
+                          <span>{collection.sizeFormatted}</span>
+                        </div>
+                      )}
+
+                      {/* Modified Time */}
+                      <div className="flex items-center text-sm text-gray-500">
+                        <ClockIcon className="h-4 w-4 mr-2" />
+                        <span>Modified {getTimeAgo(collection.modified)}</span>
+                      </div>
                     </div>
 
-                    {/* Star Icon */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // TODO: Toggle star
-                      }}
-                      className="absolute bottom-4 right-4"
-                    >
-                      {collection.starred ? (
-                        <StarIconSolid className="h-4 w-4 text-yellow-400" />
-                      ) : (
-                        <StarIcon className="h-4 w-4 text-gray-300 hover:text-yellow-400 transition-colors duration-200" />
-                      )}
-                    </button>
+                    {/* Click indicator */}
+                    <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <div className="flex items-center text-xs text-red-600 font-medium">
+                        <span>Open</span>
+                        <ChevronRightIcon className="h-4 w-4 ml-1" />
+                      </div>
+                    </div>
                   </div>
                 ))}
 
                 {/* Create New Collection Card */}
                 <div
                   onClick={() => navigate("/file-manager/collections/create")}
-                  className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-6 hover:border-red-400 transition-all duration-200 cursor-pointer group flex flex-col items-center justify-center min-h-[200px]"
+                  className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-6 hover:border-red-400 hover:bg-red-50 transition-all duration-200 cursor-pointer group flex flex-col items-center justify-center min-h-[180px] text-center"
                 >
-                  <div className="inline-flex items-center justify-center h-12 w-12 rounded-lg bg-gray-100 group-hover:bg-red-100 mb-4 transition-colors duration-200">
-                    <PlusIcon className="h-6 w-6 text-gray-400 group-hover:text-red-600 transition-colors duration-200" />
+                  <div className="inline-flex items-center justify-center h-16 w-16 rounded-xl bg-gray-100 group-hover:bg-red-100 mb-4 transition-colors duration-200 group-hover:scale-110">
+                    <PlusIcon className="h-8 w-8 text-gray-400 group-hover:text-red-600 transition-colors duration-200" />
                   </div>
-                  <span className="font-medium text-gray-600 group-hover:text-red-600 transition-colors duration-200">
-                    Create Collection
-                  </span>
+                  <h3 className="font-semibold text-gray-700 group-hover:text-red-700 transition-colors duration-200 mb-1">
+                    Create New Collection
+                  </h3>
+                  <p className="text-sm text-gray-500 group-hover:text-red-600 transition-colors duration-200">
+                    Organize your encrypted files
+                  </p>
+                  <div className="mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <div className="flex items-center text-xs text-red-600 font-medium">
+                      <span>Click to create</span>
+                      <ChevronRightIcon className="h-4 w-4 ml-1" />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -574,20 +602,14 @@ const FileManagerIndex = () => {
                 <table className="min-w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
-                        />
-                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
+                        Collection
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Type
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Items
+                        Files
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Size
@@ -610,18 +632,9 @@ const FileManagerIndex = () => {
                         }
                       >
                         <td className="px-6 py-4">
-                          <input
-                            type="checkbox"
-                            checked={selectedItems.has(collection.id)}
-                            onChange={() => handleSelectItem(collection.id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-4 w-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
-                          />
-                        </td>
-                        <td className="px-6 py-4">
                           <div className="flex items-center">
                             <div
-                              className={`flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center mr-3 ${
+                              className={`flex-shrink-0 h-10 w-10 rounded-lg flex items-center justify-center mr-4 ${
                                 collection.type === "album"
                                   ? "bg-pink-100 text-pink-600"
                                   : "bg-blue-100 text-blue-600"
@@ -629,21 +642,36 @@ const FileManagerIndex = () => {
                             >
                               {getIcon(collection.type)}
                               {!collection._isDecrypted && (
-                                <LockClosedIcon className="h-3 w-3 absolute" />
+                                <LockClosedIcon className="h-3 w-3 absolute text-red-500" />
                               )}
                             </div>
-                            <div className="flex items-center">
-                              <span className="font-medium text-gray-900">
-                                {collection.name || "[Encrypted]"}
-                              </span>
-                              {collection.starred && (
-                                <StarIconSolid className="h-4 w-4 text-yellow-400 ml-2" />
-                              )}
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-semibold text-gray-900 hover:text-red-800 transition-colors duration-200">
+                                  {collection.name || "[Encrypted]"}
+                                </span>
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    collection.type === "album"
+                                      ? "bg-pink-100 text-pink-700"
+                                      : "bg-blue-100 text-blue-700"
+                                  }`}
+                                >
+                                  {collection.type === "album"
+                                    ? "📷 Album"
+                                    : "📁 Folder"}
+                                </span>
+                                {collection._decryptionError && (
+                                  <ExclamationTriangleIcon
+                                    className="h-4 w-4 text-red-500"
+                                    title={collection._decryptionError}
+                                  />
+                                )}
+                              </div>
                               {collection._decryptionError && (
-                                <ExclamationTriangleIcon
-                                  className="h-4 w-4 text-red-500 ml-2"
-                                  title={collection._decryptionError}
-                                />
+                                <p className="text-xs text-red-500 mt-1">
+                                  Decryption failed
+                                </p>
                               )}
                             </div>
                           </div>
@@ -651,11 +679,15 @@ const FileManagerIndex = () => {
                         <td className="px-6 py-4 text-sm text-gray-500 capitalize">
                           {collection.type}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {collection.items}
+                        <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                          {collection.itemCount > 0
+                            ? `${collection.itemCount} ${collection.itemCount === 1 ? "file" : "files"}`
+                            : "—"}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {collection.size}
+                        <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                          {collection.totalSize > 0
+                            ? collection.sizeFormatted
+                            : "—"}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           {getTimeAgo(collection.modified)}
@@ -663,25 +695,28 @@ const FileManagerIndex = () => {
                         <td className="px-6 py-4 text-sm text-gray-500">
                           <div className="flex items-center space-x-2">
                             <button
-                              className="text-gray-400 hover:text-gray-600"
+                              className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
                               onClick={(e) => e.stopPropagation()}
+                              title="Share collection"
                             >
                               <ShareIcon className="h-4 w-4" />
                             </button>
                             <button
-                              className="text-gray-400 hover:text-gray-600"
+                              className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(
                                   `/file-manager/collections/${collection.id}/edit`,
                                 );
                               }}
+                              title="Edit collection"
                             >
                               <PencilIcon className="h-4 w-4" />
                             </button>
                             <button
-                              className="text-gray-400 hover:text-red-600"
+                              className="text-gray-400 hover:text-red-600 transition-colors duration-200"
                               onClick={(e) => e.stopPropagation()}
+                              title="Delete collection"
                             >
                               <TrashIcon className="h-4 w-4" />
                             </button>
@@ -704,41 +739,19 @@ const FileManagerIndex = () => {
                 <p className="text-sm text-gray-500 mb-4">
                   {searchQuery
                     ? `No collections match "${searchQuery}"`
-                    : "Create your first collection to organize your files"}
+                    : "Create your first collection to organize your encrypted files"}
                 </p>
                 {!searchQuery && (
                   <button
                     onClick={() => navigate("/file-manager/collections/create")}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors duration-200"
                   >
                     <PlusIcon className="h-4 w-4 mr-2" />
-                    Create Collection
+                    Create Your First Collection
                   </button>
                 )}
               </div>
             )}
-          </div>
-        )}
-
-        {/* Selection Actions Bar */}
-        {selectedItems.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white rounded-lg shadow-lg px-6 py-3 flex items-center space-x-4 animate-fade-in-up">
-            <span className="text-sm font-medium">
-              {selectedItems.size} selected
-            </span>
-            <div className="h-4 w-px bg-gray-600"></div>
-            <button className="text-sm hover:text-red-400 transition-colors duration-200">
-              Share
-            </button>
-            <button className="text-sm hover:text-red-400 transition-colors duration-200">
-              Download
-            </button>
-            <button className="text-sm hover:text-red-400 transition-colors duration-200">
-              Move
-            </button>
-            <button className="text-sm hover:text-red-400 transition-colors duration-200">
-              Delete
-            </button>
           </div>
         )}
       </div>
@@ -750,22 +763,6 @@ const FileManagerIndex = () => {
       >
         <CloudArrowUpIcon className="h-6 w-6" />
       </button>
-
-      <style jsx>{`
-        @keyframes fade-in-up {
-          from {
-            opacity: 0;
-            transform: translate(-50%, 20px);
-          }
-          to {
-            opacity: 1;
-            transform: translate(-50%, 0);
-          }
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 };
