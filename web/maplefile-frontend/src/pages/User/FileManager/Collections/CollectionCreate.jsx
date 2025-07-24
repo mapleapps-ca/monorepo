@@ -1,482 +1,523 @@
-// File: src/pages/FileManager/Collections/CollectionCreate.jsx
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router";
+// File: src/pages/User/FileManager/Collections/CollectionCreate.jsx
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
+import { useFiles, useAuth } from "../../../../services/Services";
+import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 import Navigation from "../../../../components/Navigation";
 import {
+  ArrowLeftIcon,
   FolderIcon,
   PhotoIcon,
-  ArrowLeftIcon,
-  InformationCircleIcon,
-  ShieldCheckIcon,
-  LockClosedIcon,
-  UsersIcon,
-  CheckIcon,
-  XMarkIcon,
   PlusIcon,
-  SparklesIcon,
-  DocumentDuplicateIcon,
-  GlobeAltIcon,
-  EyeIcon,
+  LockClosedIcon,
+  ShieldCheckIcon,
   ChevronRightIcon,
   HomeIcon,
+  ExclamationTriangleIcon,
+  CheckIcon,
+  KeyIcon,
+  InformationCircleIcon,
+  XMarkIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 
 const CollectionCreate = () => {
   const navigate = useNavigate();
-  const [collectionType, setCollectionType] = useState("folder");
+  const { createCollectionManager } = useFiles();
+  const { authManager } = useAuth();
+
+  // State management
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Form state
   const [collectionName, setCollectionName] = useState("");
-  const [description, setDescription] = useState("");
-  const [parentCollection, setParentCollection] = useState(null);
-  const [privacyMode, setPrivacyMode] = useState("private");
-  const [selectedUsers, setSelectedUsers] = useState([]);
-  const [showUserSearch, setShowUserSearch] = useState(false);
-  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [collectionType, setCollectionType] = useState("folder");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Mock users for sharing
-  const mockUsers = [
-    { id: 1, name: "Alice Johnson", email: "alice@example.com", avatar: "AJ" },
-    { id: 2, name: "Bob Smith", email: "bob@example.com", avatar: "BS" },
-    { id: 3, name: "Carol Williams", email: "carol@example.com", avatar: "CW" },
-  ];
+  // Computed values
+  const isAuthenticated = authManager?.isAuthenticated() || false;
+  const canCreateCollections = isAuthenticated && !isLoading;
 
-  const handleCreate = () => {
-    // Mock creation - just navigate back
-    navigate("/file-manager/collections");
-  };
-
-  const handleAddUser = (user) => {
-    if (!selectedUsers.find((u) => u.id === user.id)) {
-      setSelectedUsers([...selectedUsers, user]);
+  // Handle collection creation
+  const handleCreateCollection = async () => {
+    if (!collectionName.trim()) {
+      setError("Collection name is required");
+      return;
     }
-    setShowUserSearch(false);
-    setUserSearchQuery("");
+
+    if (!createCollectionManager) {
+      setError("Collection service not available. Please refresh the page.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      console.log("[CollectionCreate] Creating collection:", {
+        name: collectionName.trim(),
+        type: collectionType,
+        hasPassword: !!password,
+      });
+
+      const result = await createCollectionManager.createCollection(
+        {
+          name: collectionName.trim(),
+          collection_type: collectionType,
+        },
+        password || null,
+      );
+
+      if (result.success) {
+        setSuccess(
+          `${collectionType === "folder" ? "Folder" : "Album"} "${collectionName}" created successfully!`,
+        );
+
+        console.log("[CollectionCreate] Collection created successfully:", {
+          id: result.collectionId,
+          name: collectionName,
+          type: collectionType,
+        });
+
+        // Clear form
+        setCollectionName("");
+        setPassword("");
+
+        // Navigate to the new collection after a brief delay
+        setTimeout(() => {
+          navigate(`/file-manager/collections/${result.collectionId}`);
+        }, 2000);
+      }
+    } catch (err) {
+      console.error("[CollectionCreate] Collection creation failed:", err);
+      setError(err.message || "Failed to create collection");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleRemoveUser = (userId) => {
-    setSelectedUsers(selectedUsers.filter((u) => u.id !== userId));
+  // Handle quick folder creation
+  const handleCreateFolder = async () => {
+    setCollectionType("folder");
+    await handleCreateCollection();
+  };
+
+  // Handle quick album creation
+  const handleCreateAlbum = async () => {
+    setCollectionType("album");
+    await handleCreateCollection();
+  };
+
+  // Get password from storage
+  const handleGetStoredPassword = async () => {
+    if (!createCollectionManager) {
+      setError("Collection service not available");
+      return;
+    }
+
+    try {
+      const storedPassword = await createCollectionManager.getUserPassword();
+      if (storedPassword) {
+        setPassword(storedPassword);
+        setSuccess("Password loaded from secure storage");
+      } else {
+        setError("No password found in storage");
+      }
+    } catch (err) {
+      console.error("[CollectionCreate] Failed to get stored password:", err);
+      setError(`Failed to get stored password: ${err.message}`);
+    }
+  };
+
+  // Clear messages
+  const clearMessages = () => {
+    setError("");
+    setSuccess("");
+  };
+
+  // Auto-clear messages
+  useEffect(() => {
+    if (success || error) {
+      const timer = setTimeout(clearMessages, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success, error]);
+
+  // Handle form submission
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    handleCreateCollection();
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-red-50">
       <Navigation />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Breadcrumb */}
         <div className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
           <HomeIcon className="h-4 w-4" />
           <ChevronRightIcon className="h-3 w-3" />
-          <Link to="/file-manager/collections" className="hover:text-gray-900">
+          <button
+            onClick={() => navigate("/file-manager")}
+            className="hover:text-gray-900 transition-colors duration-200"
+          >
             My Files
-          </Link>
+          </button>
           <ChevronRightIcon className="h-3 w-3" />
           <span className="font-medium text-gray-900">Create Collection</span>
         </div>
 
         {/* Header */}
-        <div className="mb-8">
+        <div className="flex items-center space-x-4 mb-8">
           <button
-            onClick={() => navigate("/file-manager/collections")}
-            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4 transition-colors duration-200"
+            onClick={() => navigate("/file-manager")}
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
           >
-            <ArrowLeftIcon className="h-4 w-4 mr-1" />
-            Back to Collections
+            <ArrowLeftIcon className="h-5 w-5" />
           </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Create New Collection
+            </h1>
+            <p className="text-gray-600">
+              Organize your files with end-to-end encrypted folders and albums
+            </p>
+          </div>
+        </div>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Create New Collection
-          </h1>
-          <p className="text-gray-600">
-            Organize your files with encrypted collections
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 animate-fade-in">
+            <div className="flex items-center">
+              <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-red-800">Error</h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
+              </div>
+              <button
+                onClick={clearMessages}
+                className="text-red-500 hover:text-red-700 transition-colors duration-200"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 p-4 rounded-lg bg-green-50 border border-green-200 animate-fade-in">
+            <div className="flex items-center">
+              <CheckIcon className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-green-800">Success</h3>
+                <p className="text-sm text-green-700 mt-1">{success}</p>
+                <p className="text-xs text-green-600 mt-1">
+                  Redirecting to your new collection...
+                </p>
+              </div>
+              <button
+                onClick={clearMessages}
+                className="text-green-500 hover:text-green-700 transition-colors duration-200"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Security Notice */}
+        <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-100 p-4 mb-6">
+          <div className="flex items-center justify-center mb-2">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-1">
+                <LockClosedIcon className="h-4 w-4 text-green-600" />
+                <span className="text-xs font-semibold text-green-800">
+                  End-to-End Encrypted
+                </span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <ShieldCheckIcon className="h-4 w-4 text-blue-600" />
+                <span className="text-xs font-semibold text-blue-800">
+                  Zero-Knowledge Architecture
+                </span>
+              </div>
+            </div>
+          </div>
+          <p className="text-center text-xs text-gray-600">
+            Collections are encrypted on your device before storage
           </p>
         </div>
 
         {/* Main Form */}
-        <div className="space-y-6">
-          {/* Collection Type Selection */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <SparklesIcon className="h-5 w-5 mr-2 text-gray-500" />
-              Collection Type
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label
-                className={`relative flex cursor-pointer rounded-lg border-2 p-6 hover:border-gray-300 transition-all duration-200 ${
-                  collectionType === "folder"
-                    ? "border-red-500 bg-red-50"
-                    : "border-gray-200"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="collection-type"
-                  value="folder"
-                  checked={collectionType === "folder"}
-                  onChange={(e) => setCollectionType(e.target.value)}
-                  className="sr-only"
-                />
-                <div className="flex items-center">
-                  <div
-                    className={`flex items-center justify-center h-12 w-12 rounded-lg mr-4 ${
-                      collectionType === "folder"
-                        ? "bg-blue-600 text-white"
-                        : "bg-blue-100 text-blue-600"
-                    }`}
-                  >
-                    <FolderIcon className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Folder</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      For documents and general files
-                    </p>
-                  </div>
-                </div>
-                {collectionType === "folder" && (
-                  <CheckIcon className="absolute top-4 right-4 h-5 w-5 text-red-600" />
-                )}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Collection Name */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Collection Name
               </label>
-
-              <label
-                className={`relative flex cursor-pointer rounded-lg border-2 p-6 hover:border-gray-300 transition-all duration-200 ${
-                  collectionType === "album"
-                    ? "border-red-500 bg-red-50"
-                    : "border-gray-200"
+              <input
+                type="text"
+                value={collectionName}
+                onChange={(e) => setCollectionName(e.target.value)}
+                placeholder="Enter a name for your collection"
+                required
+                disabled={isLoading}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed text-gray-900 placeholder-gray-500 ${
+                  collectionName.length > 0
+                    ? "border-green-300 bg-green-50"
+                    : "border-gray-300"
                 }`}
-              >
-                <input
-                  type="radio"
-                  name="collection-type"
-                  value="album"
-                  checked={collectionType === "album"}
-                  onChange={(e) => setCollectionType(e.target.value)}
-                  className="sr-only"
-                />
-                <div className="flex items-center">
-                  <div
-                    className={`flex items-center justify-center h-12 w-12 rounded-lg mr-4 ${
-                      collectionType === "album"
-                        ? "bg-pink-600 text-white"
-                        : "bg-pink-100 text-pink-600"
-                    }`}
-                  >
-                    <PhotoIcon className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Album</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      For photos and media files
-                    </p>
-                  </div>
-                </div>
-                {collectionType === "album" && (
-                  <CheckIcon className="absolute top-4 right-4 h-5 w-5 text-red-600" />
-                )}
-              </label>
+              />
+              {collectionName.length > 0 && (
+                <p className="mt-1 text-xs text-green-600 flex items-center">
+                  <CheckIcon className="h-3 w-3 mr-1" />
+                  Good! This will be encrypted before storage
+                </p>
+              )}
             </div>
-          </div>
 
-          {/* Basic Information */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <DocumentDuplicateIcon className="h-5 w-5 mr-2 text-gray-500" />
-              Basic Information
-            </h2>
-
-            <div className="space-y-4">
-              <div>
+            {/* Collection Type */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Collection Type
+              </label>
+              <div className="grid grid-cols-2 gap-4">
                 <label
-                  htmlFor="name"
-                  className="block text-sm font-medium text-gray-700 mb-2"
+                  className={`relative flex cursor-pointer rounded-xl border p-6 focus:outline-none transition-all duration-200 ${
+                    collectionType === "folder"
+                      ? "border-red-600 bg-red-50 ring-2 ring-red-600"
+                      : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+                  }`}
                 >
-                  Collection Name <span className="text-red-500">*</span>
+                  <input
+                    type="radio"
+                    name="collection_type"
+                    value="folder"
+                    checked={collectionType === "folder"}
+                    onChange={(e) => setCollectionType(e.target.value)}
+                    className="sr-only"
+                  />
+                  <div className="flex flex-col items-center text-center w-full">
+                    <div
+                      className={`flex items-center justify-center h-12 w-12 rounded-lg mb-3 transition-colors duration-200 ${
+                        collectionType === "folder"
+                          ? "bg-blue-100 text-blue-600"
+                          : "bg-gray-100 text-gray-400"
+                      }`}
+                    >
+                      <FolderIcon className="h-6 w-6" />
+                    </div>
+                    <span className="block text-sm font-semibold text-gray-900">
+                      📁 Folder
+                    </span>
+                    <span className="mt-1 text-xs text-gray-500">
+                      For documents and files
+                    </span>
+                  </div>
+                  {collectionType === "folder" && (
+                    <CheckIcon className="absolute right-3 top-3 h-5 w-5 text-red-600" />
+                  )}
                 </label>
-                <input
-                  type="text"
-                  id="name"
-                  value={collectionName}
-                  onChange={(e) => setCollectionName(e.target.value)}
-                  placeholder={
+
+                <label
+                  className={`relative flex cursor-pointer rounded-xl border p-6 focus:outline-none transition-all duration-200 ${
                     collectionType === "album"
-                      ? "e.g., Summer Vacation 2024"
-                      : "e.g., Work Documents"
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="description"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Description (Optional)
-                </label>
-                <textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  placeholder="Add a description to help you remember what's in this collection..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="parent"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Parent Collection (Optional)
-                </label>
-                <select
-                  id="parent"
-                  value={parentCollection || ""}
-                  onChange={(e) => setParentCollection(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200"
-                >
-                  <option value="">Root level (no parent)</option>
-                  <option value="1">Work Documents</option>
-                  <option value="2">Personal Files</option>
-                  <option value="3">Archive</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Privacy & Sharing */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <UsersIcon className="h-5 w-5 mr-2 text-gray-500" />
-              Privacy & Sharing
-            </h2>
-
-            {/* Privacy Mode */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Privacy Mode
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <label
-                  className={`relative flex cursor-pointer rounded-lg border p-4 hover:border-gray-300 transition-all duration-200 ${
-                    privacyMode === "private"
-                      ? "border-red-500 bg-red-50"
-                      : "border-gray-200"
+                      ? "border-red-600 bg-red-50 ring-2 ring-red-600"
+                      : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
                   }`}
                 >
                   <input
                     type="radio"
-                    name="privacy"
-                    value="private"
-                    checked={privacyMode === "private"}
-                    onChange={(e) => setPrivacyMode(e.target.value)}
+                    name="collection_type"
+                    value="album"
+                    checked={collectionType === "album"}
+                    onChange={(e) => setCollectionType(e.target.value)}
                     className="sr-only"
                   />
-                  <div className="flex items-center">
-                    <LockClosedIcon
-                      className={`h-5 w-5 mr-2 ${privacyMode === "private" ? "text-red-600" : "text-gray-400"}`}
-                    />
-                    <div>
-                      <p className="font-medium text-gray-900">Private</p>
-                      <p className="text-xs text-gray-500">Only you</p>
+                  <div className="flex flex-col items-center text-center w-full">
+                    <div
+                      className={`flex items-center justify-center h-12 w-12 rounded-lg mb-3 transition-colors duration-200 ${
+                        collectionType === "album"
+                          ? "bg-pink-100 text-pink-600"
+                          : "bg-gray-100 text-gray-400"
+                      }`}
+                    >
+                      <PhotoIcon className="h-6 w-6" />
                     </div>
+                    <span className="block text-sm font-semibold text-gray-900">
+                      📷 Album
+                    </span>
+                    <span className="mt-1 text-xs text-gray-500">
+                      For photos and media
+                    </span>
                   </div>
-                  {privacyMode === "private" && (
-                    <CheckIcon className="absolute top-3 right-3 h-4 w-4 text-red-600" />
-                  )}
-                </label>
-
-                <label
-                  className={`relative flex cursor-pointer rounded-lg border p-4 hover:border-gray-300 transition-all duration-200 ${
-                    privacyMode === "shared"
-                      ? "border-red-500 bg-red-50"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="privacy"
-                    value="shared"
-                    checked={privacyMode === "shared"}
-                    onChange={(e) => setPrivacyMode(e.target.value)}
-                    className="sr-only"
-                  />
-                  <div className="flex items-center">
-                    <UsersIcon
-                      className={`h-5 w-5 mr-2 ${privacyMode === "shared" ? "text-red-600" : "text-gray-400"}`}
-                    />
-                    <div>
-                      <p className="font-medium text-gray-900">Shared</p>
-                      <p className="text-xs text-gray-500">Specific users</p>
-                    </div>
-                  </div>
-                  {privacyMode === "shared" && (
-                    <CheckIcon className="absolute top-3 right-3 h-4 w-4 text-red-600" />
-                  )}
-                </label>
-
-                <label
-                  className={`relative flex cursor-pointer rounded-lg border p-4 hover:border-gray-300 transition-all duration-200 ${
-                    privacyMode === "public"
-                      ? "border-red-500 bg-red-50"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="privacy"
-                    value="public"
-                    checked={privacyMode === "public"}
-                    onChange={(e) => setPrivacyMode(e.target.value)}
-                    className="sr-only"
-                  />
-                  <div className="flex items-center">
-                    <GlobeAltIcon
-                      className={`h-5 w-5 mr-2 ${privacyMode === "public" ? "text-red-600" : "text-gray-400"}`}
-                    />
-                    <div>
-                      <p className="font-medium text-gray-900">Public</p>
-                      <p className="text-xs text-gray-500">Anyone with link</p>
-                    </div>
-                  </div>
-                  {privacyMode === "public" && (
-                    <CheckIcon className="absolute top-3 right-3 h-4 w-4 text-red-600" />
+                  {collectionType === "album" && (
+                    <CheckIcon className="absolute right-3 top-3 h-5 w-5 text-red-600" />
                   )}
                 </label>
               </div>
             </div>
 
-            {/* Share with Users */}
-            {privacyMode === "shared" && (
+            {/* Password Section */}
+            <div className="space-y-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+              <h3 className="text-sm font-semibold text-blue-900 flex items-center">
+                <KeyIcon className="h-4 w-4 mr-2" />
+                Encryption Password
+              </h3>
+              <p className="text-xs text-blue-800">
+                Used to generate encryption keys locally on your device
+              </p>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Share with Users
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Master Password
                 </label>
-
-                {/* Selected Users */}
-                {selectedUsers.length > 0 && (
-                  <div className="mb-3 space-y-2">
-                    {selectedUsers.map((user) => (
-                      <div
-                        key={user.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center">
-                          <div className="flex items-center justify-center h-8 w-8 bg-red-100 text-red-600 text-sm font-medium rounded-full mr-3">
-                            {user.avatar}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
-                              {user.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {user.email}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveUser(user.id)}
-                          className="text-gray-400 hover:text-red-600 transition-colors duration-200"
-                        >
-                          <XMarkIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add User Button */}
-                <button
-                  onClick={() => setShowUserSearch(!showUserSearch)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200"
-                >
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Add Users
-                </button>
-
-                {/* User Search Dropdown */}
-                {showUserSearch && (
-                  <div className="mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex space-x-2">
+                  <div className="relative flex-1">
                     <input
-                      type="text"
-                      value={userSearchQuery}
-                      onChange={(e) => setUserSearchQuery(e.target.value)}
-                      placeholder="Search by name or email..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter password or use stored password"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 pr-10"
                     />
-                    <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
-                      {mockUsers
-                        .filter(
-                          (u) => !selectedUsers.find((su) => su.id === u.id),
-                        )
-                        .map((user) => (
-                          <button
-                            key={user.id}
-                            onClick={() => handleAddUser(user)}
-                            className="w-full flex items-center p-2 hover:bg-white rounded-lg transition-colors duration-200"
-                          >
-                            <div className="flex items-center justify-center h-8 w-8 bg-red-100 text-red-600 text-sm font-medium rounded-full mr-3">
-                              {user.avatar}
-                            </div>
-                            <div className="text-left">
-                              <p className="text-sm font-medium text-gray-900">
-                                {user.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {user.email}
-                              </p>
-                            </div>
-                          </button>
-                        ))}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      {showPassword ? (
+                        <EyeSlashIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                      ) : (
+                        <EyeIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                      )}
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Security Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <div className="flex items-start">
-              <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-800">
-                <h3 className="font-semibold mb-1">End-to-End Encryption</h3>
-                <p>
-                  Your collection will be encrypted with ChaCha20-Poly1305
-                  encryption. Files added to this collection will inherit its
-                  encryption settings.
+                  <button
+                    type="button"
+                    onClick={handleGetStoredPassword}
+                    disabled={isLoading}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+                  >
+                    Use Stored
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty to use password from secure storage
                 </p>
               </div>
             </div>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-6 border-t">
-            <button
-              onClick={() => navigate("/file-manager/collections")}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200"
-            >
-              Cancel
-            </button>
-
-            <div className="flex items-center space-x-3">
-              <button className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200">
-                Save as Draft
-              </button>
+            {/* Action Buttons */}
+            <div className="space-y-4">
+              {/* Primary Create Button */}
               <button
-                onClick={handleCreate}
-                disabled={!collectionName.trim()}
-                className="inline-flex items-center px-6 py-2 border border-transparent rounded-lg shadow-sm text-white bg-gradient-to-r from-red-800 to-red-900 hover:from-red-900 hover:to-red-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                type="submit"
+                disabled={
+                  isLoading || !collectionName.trim() || !isAuthenticated
+                }
+                className="group w-full flex justify-center items-center py-3 px-4 border border-transparent text-base font-semibold rounded-lg text-white bg-gradient-to-r from-red-800 to-red-900 hover:from-red-900 hover:to-red-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                <CheckIcon className="h-4 w-4 mr-2" />
-                Create Collection
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Creating {collectionType === "folder" ? "Folder" : "Album"}
+                    ...
+                  </>
+                ) : (
+                  <>
+                    <PlusIcon className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform duration-200" />
+                    Create {collectionType === "folder" ? "Folder" : "Album"}
+                  </>
+                )}
               </button>
+
+              {/* Quick Action Buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={handleCreateFolder}
+                  disabled={
+                    isLoading || !collectionName.trim() || !isAuthenticated
+                  }
+                  className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  <FolderIcon className="h-4 w-4 mr-2" />
+                  Quick Folder
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCreateAlbum}
+                  disabled={
+                    isLoading || !collectionName.trim() || !isAuthenticated
+                  }
+                  className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-pink-50 hover:border-pink-300 hover:text-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  <PhotoIcon className="h-4 w-4 mr-2" />
+                  Quick Album
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* Info Section */}
+        <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 p-4">
+          <div className="flex items-start space-x-3">
+            <InformationCircleIcon className="h-5 w-5 text-blue-600 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-semibold text-blue-900 mb-2">
+                What happens next?
+              </h3>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>
+                  • Your collection will be encrypted locally on your device
+                </li>
+                <li>
+                  • A unique encryption key will be generated for this
+                  collection
+                </li>
+                <li>
+                  • You'll be redirected to your new collection to start adding
+                  files
+                </li>
+                <li>
+                  • Files added to this collection will be automatically
+                  encrypted
+                </li>
+              </ul>
             </div>
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.4s ease-out;
+        }
+      `}</style>
     </div>
   );
 };
 
-export default CollectionCreate;
+// Export with password protection
+export default withPasswordProtection(CollectionCreate);
