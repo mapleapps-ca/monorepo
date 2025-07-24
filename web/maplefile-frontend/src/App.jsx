@@ -43,6 +43,7 @@ import DeveloperMeDetail from "./pages/Developer/Me/Detail";
 import FileManagerIndex from "./pages/User/FileManager/FileManagerIndex";
 import CollectionCreate from "./pages/User/FileManager/Collections/CollectionCreate";
 import CollectionDetails from "./pages/User/FileManager/Collections/CollectionDetails";
+import CollectionShare from "./pages/User/FileManager/Collections/CollectionShare";
 import CollectionEdit from "./pages/User/FileManager/Collections/CollectionEdit";
 import FileUpload from "./pages/User/FileManager/Files/FileUpload";
 import FileDetails from "./pages/User/FileManager/Files/FileDetails";
@@ -182,6 +183,10 @@ function App() {
             <Route
               path="/file-manager/collections/:collectionId"
               element={<CollectionDetails />}
+            />
+            <Route
+              path="/file-manager/collections/:collectionId/share"
+              element={<CollectionShare />}
             />
             <Route
               path="/file-manager/collections/:collectionId/edit"

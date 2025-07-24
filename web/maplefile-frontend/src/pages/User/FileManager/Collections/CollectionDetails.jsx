@@ -60,7 +60,6 @@ const CollectionDetails = () => {
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [showInfo, setShowInfo] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
   const [downloadingFiles, setDownloadingFiles] = useState(new Set());
 
   // Load collection details
@@ -581,13 +580,6 @@ const CollectionDetails = () => {
                 </p>
                 <div className="flex items-center space-x-4 mt-3 text-sm text-gray-500">
                   <span className="flex items-center">
-                    <DocumentIcon className="h-4 w-4 mr-1" />
-                    {collection.itemCount || 0} items
-                  </span>
-                  <span>•</span>
-                  <span>{collection.totalSize}</span>
-                  <span>•</span>
-                  <span className="flex items-center">
                     <ClockIcon className="h-4 w-4 mr-1" />
                     Modified{" "}
                     {getTimeAgo(collection.updated_at || collection.created_at)}
@@ -607,7 +599,9 @@ const CollectionDetails = () => {
                 {isLoading ? "Refreshing..." : "Refresh"}
               </button>
               <button
-                onClick={() => setShowShareModal(true)}
+                onClick={() =>
+                  navigate(`/file-manager/collections/${collection.id}/share`)
+                }
                 className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
                 <ShareIcon className="h-4 w-4 mr-2" />
@@ -696,18 +690,22 @@ const CollectionDetails = () => {
                       <span className="text-gray-500">Total Files:</span>
                       <span className="font-medium">{files.length}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Decrypted:</span>
-                      <span className="font-medium text-green-600">
-                        {files.filter((f) => f._isDecrypted).length}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Failed:</span>
-                      <span className="font-medium text-red-600">
-                        {files.filter((f) => !f._isDecrypted).length}
-                      </span>
-                    </div>
+                    {files.length > 0 && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Decrypted:</span>
+                          <span className="font-medium text-green-600">
+                            {files.filter((f) => f._isDecrypted).length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Failed:</span>
+                          <span className="font-medium text-red-600">
+                            {files.filter((f) => !f._isDecrypted).length}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1053,60 +1051,6 @@ const CollectionDetails = () => {
           </div>
         )}
       </div>
-
-      {/* Share Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Share Collection
-              </h3>
-              <button
-                onClick={() => setShowShareModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Add people
-                </label>
-                <input
-                  type="email"
-                  placeholder="Enter email addresses..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Permission
-                </label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                  <option>Can view</option>
-                  <option>Can edit</option>
-                </select>
-              </div>
-
-              <div className="pt-4 flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowShareModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button className="px-4 py-2 bg-gradient-to-r from-red-800 to-red-900 text-white rounded-lg hover:from-red-900 hover:to-red-950">
-                  Share
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
