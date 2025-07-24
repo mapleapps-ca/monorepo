@@ -35,12 +35,19 @@ const CollectionDetails = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [collection, setCollection] = useState(null);
-  const [files, setFiles] = useState([]);
+  const [allFiles, setAllFiles] = useState([]); // Store all files unfiltered
+  const [files, setFiles] = useState([]); // Filtered files for display
   const [subCollections, setSubCollections] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [downloadingFiles, setDownloadingFiles] = useState(new Set());
   const [fileManager, setFileManager] = useState(null);
-  const [viewMode, setViewMode] = useState("active"); // active, archived, deleted, all
+  const [viewMode, setViewMode] = useState("active"); // active, archived, deleted, pending, all
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
+  const [hasMoreFiles, setHasMoreFiles] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Initialize file manager
   useEffect(() => {
@@ -105,8 +112,8 @@ const CollectionDetails = () => {
           }
         }
 
-        // Load files in this collection
-        await loadCollectionFiles(collectionId, forceRefresh);
+        // Load ALL files (all states) to properly filter client-side
+        await loadAllCollectionFiles(collectionId, forceRefresh);
 
         // Load sub-collections
         await loadSubCollections(collectionId, forceRefresh);
@@ -158,42 +165,87 @@ const CollectionDetails = () => {
     return processedCollection;
   };
 
-  // Load files using the correct method from ListFileManager
-  const loadCollectionFiles = useCallback(
+  // Load ALL files and store them for client-side filtering
+  const loadAllCollectionFiles = useCallback(
     async (collectionId, forceRefresh = false) => {
       if (!fileManager) return;
 
       try {
         console.log(
-          "[CollectionDetails] Loading files for collection:",
+          "[CollectionDetails] Loading ALL files for collection:",
           collectionId,
         );
 
-        // Determine states to include based on view mode
-        const statesToInclude = getStatesToInclude(viewMode);
-
-        // Use the correct method: listFilesByCollection
+        // Load files with ALL states to enable proper client-side filtering
+        const allStates = Object.values(fileManager.FILE_STATES);
         const loadedFiles = await fileManager.listFilesByCollection(
           collectionId,
-          statesToInclude,
+          allStates,
           forceRefresh,
         );
 
-        console.log("[CollectionDetails] Files loaded:", loadedFiles.length);
-        setFiles(loadedFiles);
+        console.log(
+          "[CollectionDetails] All files loaded:",
+          loadedFiles.length,
+        );
+        setAllFiles(loadedFiles);
 
-        if (loadedFiles.length === 0 && viewMode === "active") {
-          console.log(
-            "[CollectionDetails] No active files found in collection",
-          );
-        }
+        // Apply initial filter
+        filterFilesByViewMode(loadedFiles, viewMode);
       } catch (err) {
         console.error("[CollectionDetails] Failed to load files:", err);
+        setAllFiles([]);
         setFiles([]);
       }
     },
-    [fileManager, viewMode],
+    [fileManager],
   );
+
+  // Filter files based on view mode
+  const filterFilesByViewMode = (filesToFilter, mode) => {
+    console.log(
+      "[CollectionDetails] Filtering files by mode:",
+      mode,
+      "Total files:",
+      filesToFilter.length,
+    );
+
+    let filtered = [];
+
+    switch (mode) {
+      case "active":
+        filtered = filesToFilter.filter(
+          (f) => f.state === "active" || (!f.state && f._is_active),
+        );
+        break;
+      case "archived":
+        filtered = filesToFilter.filter(
+          (f) => f.state === "archived" || f._is_archived,
+        );
+        break;
+      case "deleted":
+        filtered = filesToFilter.filter(
+          (f) => f.state === "deleted" || f._is_deleted,
+        );
+        break;
+      case "pending":
+        filtered = filesToFilter.filter(
+          (f) => f.state === "pending" || f._is_pending,
+        );
+        break;
+      case "all":
+        filtered = filesToFilter;
+        break;
+      default:
+        filtered = filesToFilter.filter(
+          (f) => f.state === "active" || (!f.state && f._is_active),
+        );
+    }
+
+    console.log("[CollectionDetails] Filtered files:", filtered.length);
+    setFiles(filtered);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
 
   // Load sub-collections
   const loadSubCollections = useCallback(
@@ -240,33 +292,21 @@ const CollectionDetails = () => {
     [listCollectionManager],
   );
 
-  // Get states to include based on view mode
-  const getStatesToInclude = (mode) => {
-    if (!fileManager) return ["active"];
-
-    switch (mode) {
-      case "active":
-        return [fileManager.FILE_STATES.ACTIVE];
-      case "archived":
-        return [fileManager.FILE_STATES.ARCHIVED];
-      case "deleted":
-        return [fileManager.FILE_STATES.DELETED];
-      case "pending":
-        return [fileManager.FILE_STATES.PENDING];
-      case "all":
-        return Object.values(fileManager.FILE_STATES);
-      default:
-        return [fileManager.FILE_STATES.ACTIVE];
-    }
-  };
-
   // Handle view mode change
   const handleViewModeChange = (newMode) => {
+    console.log("[CollectionDetails] Changing view mode to:", newMode);
     setViewMode(newMode);
-    // Reload files with new view mode
-    if (collectionId && fileManager) {
-      loadCollectionFiles(collectionId, false);
-    }
+    filterFilesByViewMode(allFiles, newMode);
+  };
+
+  // Handle create sub-collection
+  const handleCreateSubCollection = () => {
+    navigate("/file-manager/collections/create", {
+      state: {
+        parentCollectionId: collectionId,
+        parentCollectionName: collection?.name || "Parent Folder",
+      },
+    });
   };
 
   // Handle file download
@@ -326,26 +366,39 @@ const CollectionDetails = () => {
 
   // Get state color
   const getStateColor = (state) => {
-    if (!fileManager) return "#6c757d";
-
     switch (state) {
-      case fileManager.FILE_STATES.ACTIVE:
+      case "active":
         return "#28a745";
-      case fileManager.FILE_STATES.ARCHIVED:
+      case "archived":
         return "#6c757d";
-      case fileManager.FILE_STATES.DELETED:
+      case "deleted":
         return "#dc3545";
-      case fileManager.FILE_STATES.PENDING:
+      case "pending":
         return "#ffc107";
       default:
         return "#6c757d";
     }
   };
 
-  // Get file statistics
+  // Get file statistics from all files
   const getFileStats = () => {
-    if (!fileManager || !collectionId) return {};
-    return fileManager.getFileStats(collectionId);
+    const stats = {
+      total: allFiles.length,
+      active: 0,
+      archived: 0,
+      deleted: 0,
+      pending: 0,
+    };
+
+    allFiles.forEach((file) => {
+      if (file.state === "active" || (!file.state && file._is_active))
+        stats.active++;
+      else if (file.state === "archived" || file._is_archived) stats.archived++;
+      else if (file.state === "deleted" || file._is_deleted) stats.deleted++;
+      else if (file.state === "pending" || file._is_pending) stats.pending++;
+    });
+
+    return stats;
   };
 
   // Load collection when ready
@@ -379,14 +432,23 @@ const CollectionDetails = () => {
     });
   };
 
-  // Filter files and collections
-  const filteredFiles = files.filter((file) =>
+  // Filter files and collections by search
+  const searchFilteredFiles = files.filter((file) =>
     (file.name || "").toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const filteredSubCollections = subCollections.filter((col) =>
     (col.name || "").toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentFiles = searchFilteredFiles.slice(
+    indexOfFirstItem,
+    indexOfLastItem,
+  );
+  const totalPages = Math.ceil(searchFilteredFiles.length / itemsPerPage);
 
   const fileStats = getFileStats();
 
@@ -497,9 +559,9 @@ const CollectionDetails = () => {
           </div>
         )}
 
-        {/* Search */}
-        <div className="mb-6">
-          <div className="relative max-w-md">
+        {/* Search and Actions Bar */}
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
@@ -509,92 +571,84 @@ const CollectionDetails = () => {
               className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
             />
           </div>
+
+          <button
+            onClick={handleCreateSubCollection}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            New Folder
+          </button>
         </div>
 
         {/* File Statistics */}
-        {fileStats && Object.keys(fileStats).length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              gap: "15px",
-              marginBottom: "20px",
-              padding: "15px",
-              backgroundColor: "#f8f9fa",
-              borderRadius: "8px",
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <strong>Total:</strong> {fileStats.total || 0}
-            </div>
-            <div>
-              <strong>Active:</strong>{" "}
-              <span style={{ color: getStateColor("active") }}>
-                {fileStats.active || 0}
-              </span>
-            </div>
-            <div>
-              <strong>Archived:</strong>{" "}
-              <span style={{ color: getStateColor("archived") }}>
-                {fileStats.archived || 0}
-              </span>
-            </div>
-            <div>
-              <strong>Deleted:</strong>{" "}
-              <span style={{ color: getStateColor("deleted") }}>
-                {fileStats.deleted || 0}
-              </span>
-            </div>
-            <div>
-              <strong>Pending:</strong>{" "}
-              <span style={{ color: getStateColor("pending") }}>
-                {fileStats.pending || 0}
-              </span>
+        {allFiles.length > 0 && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex gap-6 text-sm">
+                <div>
+                  <span className="text-gray-500">Total:</span>{" "}
+                  <span className="font-medium">{fileStats.total}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Active:</span>{" "}
+                  <span
+                    className="font-medium"
+                    style={{ color: getStateColor("active") }}
+                  >
+                    {fileStats.active}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Archived:</span>{" "}
+                  <span
+                    className="font-medium"
+                    style={{ color: getStateColor("archived") }}
+                  >
+                    {fileStats.archived}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Deleted:</span>{" "}
+                  <span
+                    className="font-medium"
+                    style={{ color: getStateColor("deleted") }}
+                  >
+                    {fileStats.deleted}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Pending:</span>{" "}
+                  <span
+                    className="font-medium"
+                    style={{ color: getStateColor("pending") }}
+                  >
+                    {fileStats.pending}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* View Mode Toggle */}
-        {(files.length > 0 || fileStats.total > 0) && (
-          <div
-            style={{
-              display: "flex",
-              gap: "10px",
-              marginBottom: "20px",
-              flexWrap: "wrap",
-            }}
-          >
+        {allFiles.length > 0 && (
+          <div className="mb-6 flex gap-2 flex-wrap">
             {[
-              { key: "active", label: "Active", count: fileStats.active || 0 },
-              {
-                key: "archived",
-                label: "Archived",
-                count: fileStats.archived || 0,
-              },
-              {
-                key: "deleted",
-                label: "Deleted",
-                count: fileStats.deleted || 0,
-              },
-              {
-                key: "pending",
-                label: "Pending",
-                count: fileStats.pending || 0,
-              },
-              { key: "all", label: "All", count: fileStats.total || 0 },
+              { key: "active", label: "Active", count: fileStats.active },
+              { key: "archived", label: "Archived", count: fileStats.archived },
+              { key: "deleted", label: "Deleted", count: fileStats.deleted },
+              { key: "pending", label: "Pending", count: fileStats.pending },
+              { key: "all", label: "All", count: fileStats.total },
             ].map(({ key, label, count }) => (
               <button
                 key={key}
                 onClick={() => handleViewModeChange(key)}
-                style={{
-                  padding: "8px 16px",
-                  backgroundColor: viewMode === key ? "#007bff" : "#e9ecef",
-                  color: viewMode === key ? "white" : "#495057",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  viewMode === key
+                    ? "bg-red-800 text-white"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                }`}
               >
                 {label} ({count})
               </button>
@@ -646,18 +700,21 @@ const CollectionDetails = () => {
 
         {/* Files */}
         <div className="bg-white rounded-lg border border-gray-200">
-          {filteredFiles.length === 0 && filteredSubCollections.length === 0 ? (
+          {searchFilteredFiles.length === 0 &&
+          filteredSubCollections.length === 0 ? (
             <div className="p-8 text-center">
               <DocumentIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-sm font-medium text-gray-900 mb-2">
-                {searchQuery ? "No items found" : `No ${viewMode} items yet`}
+                {searchQuery
+                  ? "No items found"
+                  : `No ${viewMode === "all" ? "" : viewMode} items`}
               </h3>
               <p className="text-sm text-gray-500 mb-4">
                 {searchQuery
                   ? `No items match "${searchQuery}"`
                   : viewMode === "active"
-                    ? "Upload files or create folders"
-                    : `Switch to "Active" view to see available items`}
+                    ? "Upload files or create folders to get started"
+                    : `There are no ${viewMode} items in this folder`}
               </p>
               {!searchQuery && viewMode === "active" && (
                 <div className="flex justify-center space-x-3">
@@ -669,7 +726,7 @@ const CollectionDetails = () => {
                     Upload Files
                   </button>
                   <button
-                    onClick={() => navigate("/file-manager/collections/create")}
+                    onClick={handleCreateSubCollection}
                     className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
                   >
                     <PlusIcon className="h-4 w-4 mr-2" />
@@ -678,72 +735,105 @@ const CollectionDetails = () => {
                 </div>
               )}
             </div>
-          ) : filteredFiles.length > 0 ? (
-            <div className="divide-y divide-gray-200">
-              {filteredFiles.map((file) => (
-                <div
-                  key={file.id}
-                  className="p-4 hover:bg-gray-50 flex items-center justify-between"
-                >
+          ) : currentFiles.length > 0 ? (
+            <>
+              <div className="divide-y divide-gray-200">
+                {currentFiles.map((file) => (
                   <div
-                    className="flex items-center space-x-3 flex-1 cursor-pointer"
-                    onClick={() => navigate(`/file-manager/files/${file.id}`)}
+                    key={file.id}
+                    className="p-4 hover:bg-gray-50 flex items-center justify-between"
                   >
-                    <DocumentIcon className="h-5 w-5 text-gray-400" />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900">
-                        {file.name || "Locked File"}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {formatFileSize(
-                          file.size || file.encrypted_file_size_in_bytes,
-                        )}{" "}
-                        •{getTimeAgo(file.modified_at || file.created_at)}
-                        {file.state !== "active" && (
-                          <span
-                            style={{
-                              marginLeft: "8px",
-                              padding: "2px 6px",
-                              borderRadius: "3px",
-                              backgroundColor: getStateColor(file.state),
-                              color: "white",
-                              fontSize: "10px",
-                            }}
-                          >
-                            {file.state?.toUpperCase()}
-                          </span>
-                        )}
+                    <div
+                      className="flex items-center space-x-3 flex-1 cursor-pointer"
+                      onClick={() => navigate(`/file-manager/files/${file.id}`)}
+                    >
+                      <DocumentIcon className="h-5 w-5 text-gray-400" />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900">
+                          {file.name || "Locked File"}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {formatFileSize(
+                            file.size || file.encrypted_file_size_in_bytes,
+                          )}{" "}
+                          •{getTimeAgo(file.modified_at || file.created_at)}
+                          {file.state && file.state !== "active" && (
+                            <span
+                              className="ml-2 px-2 py-0.5 rounded-full text-white"
+                              style={{
+                                backgroundColor: getStateColor(file.state),
+                                fontSize: "10px",
+                              }}
+                            >
+                              {file.state.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadFile(file.id, file.name);
+                      }}
+                      disabled={
+                        !file._isDecrypted ||
+                        downloadingFiles.has(file.id) ||
+                        (fileManager && !fileManager.canDownloadFile(file))
+                      }
+                      className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                      title={
+                        !file._isDecrypted
+                          ? "File cannot be decrypted"
+                          : fileManager && !fileManager.canDownloadFile(file)
+                            ? "File cannot be downloaded in its current state"
+                            : "Download file"
+                      }
+                    >
+                      {downloadingFiles.has(file.id) ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b border-gray-400"></div>
+                      ) : (
+                        <ArrowDownTrayIcon className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownloadFile(file.id, file.name);
-                    }}
-                    disabled={
-                      !file._isDecrypted ||
-                      downloadingFiles.has(file.id) ||
-                      (fileManager && !fileManager.canDownloadFile(file))
-                    }
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-                    title={
-                      !file._isDecrypted
-                        ? "File cannot be decrypted"
-                        : fileManager && !fileManager.canDownloadFile(file)
-                          ? "File cannot be downloaded in its current state"
-                          : "Download file"
-                    }
-                  >
-                    {downloadingFiles.has(file.id) ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b border-gray-400"></div>
-                    ) : (
-                      <ArrowDownTrayIcon className="h-4 w-4" />
-                    )}
-                  </button>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                  <div className="text-sm text-gray-700">
+                    Showing {indexOfFirstItem + 1} to{" "}
+                    {Math.min(indexOfLastItem, searchFilteredFiles.length)} of{" "}
+                    {searchFilteredFiles.length} files
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() =>
+                        setCurrentPage(Math.max(1, currentPage - 1))
+                      }
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-700">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() =>
+                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           ) : null}
         </div>
       </div>

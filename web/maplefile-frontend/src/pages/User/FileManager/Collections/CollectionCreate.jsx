@@ -1,6 +1,6 @@
 // File: src/pages/User/FileManager/Collections/CollectionCreate.jsx
-import React, { useState } from "react";
-import { useNavigate } from "react-router";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router";
 import { useFiles, useAuth } from "../../../../services/Services";
 import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 import Navigation from "../../../../components/Navigation";
@@ -13,8 +13,13 @@ import {
 
 const CollectionCreate = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { createCollectionManager } = useFiles();
   const { authManager } = useAuth();
+
+  // Get parent collection info from navigation state
+  const parentCollectionId = location.state?.parentCollectionId;
+  const parentCollectionName = location.state?.parentCollectionName;
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -38,22 +43,41 @@ const CollectionCreate = () => {
     setError("");
 
     try {
+      const collectionData = {
+        name: collectionName.trim(),
+        collection_type: collectionType,
+      };
+
+      // Add parent collection if creating a sub-collection
+      if (parentCollectionId) {
+        collectionData.parent_collection_id = parentCollectionId;
+      }
+
       const result = await createCollectionManager.createCollection(
-        {
-          name: collectionName.trim(),
-          collection_type: collectionType,
-        },
+        collectionData,
         null,
       );
 
       if (result.success) {
-        navigate(`/file-manager/collections/${result.collectionId}`);
+        // Navigate back to parent collection or to the new collection
+        if (parentCollectionId) {
+          navigate(`/file-manager/collections/${parentCollectionId}`);
+        } else {
+          navigate(`/file-manager/collections/${result.collectionId}`);
+        }
       }
     } catch (err) {
       setError("Could not create folder. Please try again.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getBackUrl = () => {
+    if (parentCollectionId) {
+      return `/file-manager/collections/${parentCollectionId}`;
+    }
+    return "/file-manager";
   };
 
   return (
@@ -64,15 +88,20 @@ const CollectionCreate = () => {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate("/file-manager")}
+            onClick={() => navigate(getBackUrl())}
             className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
-            Back to My Files
+            Back to {parentCollectionName || "My Files"}
           </button>
           <h1 className="text-2xl font-semibold text-gray-900">
             Create New Folder
           </h1>
+          {parentCollectionName && (
+            <p className="text-sm text-gray-500 mt-1">
+              Creating folder inside: {parentCollectionName}
+            </p>
+          )}
         </div>
 
         {/* Form */}
