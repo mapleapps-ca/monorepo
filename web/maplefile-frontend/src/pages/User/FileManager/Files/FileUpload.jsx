@@ -18,15 +18,11 @@ import {
   MusicalNoteIcon,
   DocumentTextIcon,
   PaperClipIcon,
-  SparklesIcon,
   ChevronRightIcon,
   HomeIcon,
   ArrowPathIcon,
   LockClosedIcon,
   ExclamationTriangleIcon,
-  KeyIcon,
-  EyeIcon,
-  EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 
 const FileUpload = () => {
@@ -50,16 +46,9 @@ const FileUpload = () => {
   const [uploadProgress, setUploadProgress] = useState({});
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [eventLog, setEventLog] = useState([]);
-
-  // Upload options
-  const [encryptFiles, setEncryptFiles] = useState(true);
-  const [generateThumbnails, setGenerateThumbnails] = useState(false);
-  const [skipDuplicates, setSkipDuplicates] = useState(true);
 
   // Initialize file manager
   useEffect(() => {
@@ -315,25 +304,6 @@ const FileUpload = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  // Get password from storage
-  const handleGetStoredPassword = async () => {
-    try {
-      const { default: passwordStorageService } = await import(
-        "../../../../services/PasswordStorageService.js"
-      );
-      const storedPassword = passwordStorageService.getPassword();
-
-      if (storedPassword) {
-        setPassword(storedPassword);
-        setSuccess("Password loaded from storage");
-      } else {
-        setError("No password found in storage");
-      }
-    } catch (err) {
-      setError(`Failed to get stored password: ${err.message}`);
-    }
-  };
-
   // Start upload process
   const startUpload = async () => {
     if (!fileManager || !selectedCollection || files.length === 0) {
@@ -373,7 +343,7 @@ const FileUpload = () => {
           const result = await fileManager.createAndUploadFileFromFile(
             fileObj.file,
             selectedCollection,
-            password || null,
+            null, // Password handled by withPasswordProtection
           );
 
           // Update file with success
@@ -716,102 +686,8 @@ const FileUpload = () => {
               </select>
 
               <p className="text-xs text-gray-500 mt-2">
-                Files will inherit the collection's encryption settings
+                Files will be automatically encrypted using your master password
               </p>
-            </div>
-
-            {/* Password Section */}
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-              <h4 className="text-sm font-semibold text-blue-900 flex items-center mb-3">
-                <KeyIcon className="h-4 w-4 mr-2" />
-                Encryption Password
-              </h4>
-              <p className="text-xs text-blue-800 mb-3">
-                Used to generate encryption keys locally on your device
-              </p>
-
-              <div className="flex space-x-2">
-                <div className="relative flex-1">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password or use stored password"
-                    className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showPassword ? (
-                      <EyeSlashIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                    ) : (
-                      <EyeIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                    )}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleGetStoredPassword}
-                  disabled={isUploading}
-                  className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 text-sm"
-                >
-                  Use Stored
-                </button>
-              </div>
-              <p className="text-xs text-blue-700 mt-1">
-                Leave empty to use password from secure storage
-              </p>
-            </div>
-
-            {/* Upload Options */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <SparklesIcon className="h-5 w-5 mr-2 text-gray-500" />
-                Upload Options
-              </h3>
-
-              <div className="space-y-3">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={encryptFiles}
-                    onChange={(e) => setEncryptFiles(e.target.checked)}
-                    disabled={isUploading}
-                    className="h-4 w-4 text-red-600 rounded border-gray-300 focus:ring-red-500 disabled:opacity-50"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">
-                    Encrypt files before upload
-                  </span>
-                </label>
-
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={generateThumbnails}
-                    onChange={(e) => setGenerateThumbnails(e.target.checked)}
-                    disabled={isUploading}
-                    className="h-4 w-4 text-red-600 rounded border-gray-300 focus:ring-red-500 disabled:opacity-50"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">
-                    Generate thumbnails for images
-                  </span>
-                </label>
-
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={skipDuplicates}
-                    onChange={(e) => setSkipDuplicates(e.target.checked)}
-                    disabled={isUploading}
-                    className="h-4 w-4 text-red-600 rounded border-gray-300 focus:ring-red-500 disabled:opacity-50"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">
-                    Skip duplicate files
-                  </span>
-                </label>
-              </div>
             </div>
 
             {/* Security Info */}
@@ -819,12 +695,17 @@ const FileUpload = () => {
               <div className="flex items-start">
                 <InformationCircleIcon className="h-5 w-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-800">
-                  <h4 className="font-semibold mb-1">Secure Upload</h4>
-                  <p className="text-xs">
-                    Files are encrypted locally with ChaCha20-Poly1305 before
-                    upload. Your files remain encrypted at rest and only you can
-                    decrypt them.
-                  </p>
+                  <h4 className="font-semibold mb-1">
+                    Automatic Security Features
+                  </h4>
+                  <ul className="text-xs space-y-1">
+                    <li>
+                      • Files encrypted with ChaCha20-Poly1305 before upload
+                    </li>
+                    <li>• Thumbnails generated automatically for images</li>
+                    <li>• Duplicate files are automatically skipped</li>
+                    <li>• Your master password is used for encryption</li>
+                  </ul>
                 </div>
               </div>
             </div>
