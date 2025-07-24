@@ -41,7 +41,6 @@ import DeveloperMeDetail from "./pages/Developer/Me/Detail";
 
 // Collection
 import FileManagerIndex from "./pages/User/FileManager/FileManagerIndex";
-import CollectionsView from "./pages/User/FileManager/Collections/CollectionsView";
 import CollectionCreate from "./pages/User/FileManager/Collections/CollectionCreate";
 import CollectionDetails from "./pages/User/FileManager/Collections/CollectionDetails";
 import CollectionEdit from "./pages/User/FileManager/Collections/CollectionEdit";
@@ -175,10 +174,6 @@ function App() {
             <Route
               path="/file-manager"
               element={<Navigate to="/file-manager/collections" />}
-            />
-            <Route
-              path="/file-manager/collections"
-              element={<CollectionsView />}
             />
             <Route
               path="/file-manager/collections/create"
