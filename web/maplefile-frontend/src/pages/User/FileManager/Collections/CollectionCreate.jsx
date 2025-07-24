@@ -15,11 +15,8 @@ import {
   HomeIcon,
   ExclamationTriangleIcon,
   CheckIcon,
-  KeyIcon,
   InformationCircleIcon,
   XMarkIcon,
-  EyeIcon,
-  EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 
 const CollectionCreate = () => {
@@ -35,8 +32,6 @@ const CollectionCreate = () => {
   // Form state
   const [collectionName, setCollectionName] = useState("");
   const [collectionType, setCollectionType] = useState("folder");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   // Computed values
   const isAuthenticated = authManager?.isAuthenticated() || false;
@@ -62,7 +57,6 @@ const CollectionCreate = () => {
       console.log("[CollectionCreate] Creating collection:", {
         name: collectionName.trim(),
         type: collectionType,
-        hasPassword: !!password,
       });
 
       const result = await createCollectionManager.createCollection(
@@ -70,7 +64,7 @@ const CollectionCreate = () => {
           name: collectionName.trim(),
           collection_type: collectionType,
         },
-        password || null,
+        null, // Password handled by withPasswordProtection
       );
 
       if (result.success) {
@@ -84,53 +78,16 @@ const CollectionCreate = () => {
           type: collectionType,
         });
 
-        // Clear form
-        setCollectionName("");
-        setPassword("");
-
         // Navigate to the new collection after a brief delay
         setTimeout(() => {
           navigate(`/file-manager/collections/${result.collectionId}`);
-        }, 2000);
+        }, 1500);
       }
     } catch (err) {
       console.error("[CollectionCreate] Collection creation failed:", err);
       setError(err.message || "Failed to create collection");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Handle quick folder creation
-  const handleCreateFolder = async () => {
-    setCollectionType("folder");
-    await handleCreateCollection();
-  };
-
-  // Handle quick album creation
-  const handleCreateAlbum = async () => {
-    setCollectionType("album");
-    await handleCreateCollection();
-  };
-
-  // Get password from storage
-  const handleGetStoredPassword = async () => {
-    if (!createCollectionManager) {
-      setError("Collection service not available");
-      return;
-    }
-
-    try {
-      const storedPassword = await createCollectionManager.getUserPassword();
-      if (storedPassword) {
-        setPassword(storedPassword);
-        setSuccess("Password loaded from secure storage");
-      } else {
-        setError("No password found in storage");
-      }
-    } catch (err) {
-      console.error("[CollectionCreate] Failed to get stored password:", err);
-      setError(`Failed to get stored password: ${err.message}`);
     }
   };
 
@@ -158,7 +115,7 @@ const CollectionCreate = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-red-50">
       <Navigation />
 
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <div className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
           <HomeIcon className="h-4 w-4" />
@@ -174,20 +131,24 @@ const CollectionCreate = () => {
         </div>
 
         {/* Header */}
-        <div className="flex items-center space-x-4 mb-8">
-          <button
-            onClick={() => navigate("/file-manager")}
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-          >
-            <ArrowLeftIcon className="h-5 w-5" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Create New Collection
-            </h1>
-            <p className="text-gray-600">
-              Organize your files with end-to-end encrypted folders and albums
-            </p>
+        <div className="text-center mb-8 animate-fade-in-up">
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="flex items-center justify-center h-16 w-16 bg-gradient-to-br from-red-800 to-red-900 rounded-2xl shadow-lg animate-pulse">
+                <PlusIcon className="h-8 w-8 text-white" />
+              </div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-red-800 to-red-900 rounded-2xl blur opacity-20 animate-pulse"></div>
+            </div>
+          </div>
+          <h1 className="text-3xl font-black text-gray-900 mb-2">
+            Create New Collection
+          </h1>
+          <p className="text-gray-600 mb-2">
+            Organize your files with end-to-end encrypted folders and albums
+          </p>
+          <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+            <LockClosedIcon className="h-4 w-4 text-green-600" />
+            <span>Automatically encrypted with your master password</span>
           </div>
         </div>
 
@@ -197,7 +158,7 @@ const CollectionCreate = () => {
             <div className="flex items-center">
               <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
               <div className="flex-1">
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
+                <h3 className="text-sm font-semibold text-red-800">Error</h3>
                 <p className="text-sm text-red-700 mt-1">{error}</p>
               </div>
               <button
@@ -215,7 +176,9 @@ const CollectionCreate = () => {
             <div className="flex items-center">
               <CheckIcon className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
               <div className="flex-1">
-                <h3 className="text-sm font-medium text-green-800">Success</h3>
+                <h3 className="text-sm font-semibold text-green-800">
+                  Success
+                </h3>
                 <p className="text-sm text-green-700 mt-1">{success}</p>
                 <p className="text-xs text-green-600 mt-1">
                   Redirecting to your new collection...
@@ -231,31 +194,8 @@ const CollectionCreate = () => {
           </div>
         )}
 
-        {/* Security Notice */}
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-100 p-4 mb-6">
-          <div className="flex items-center justify-center mb-2">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-1">
-                <LockClosedIcon className="h-4 w-4 text-green-600" />
-                <span className="text-xs font-semibold text-green-800">
-                  End-to-End Encrypted
-                </span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <ShieldCheckIcon className="h-4 w-4 text-blue-600" />
-                <span className="text-xs font-semibold text-blue-800">
-                  Zero-Knowledge Architecture
-                </span>
-              </div>
-            </div>
-          </div>
-          <p className="text-center text-xs text-gray-600">
-            Collections are encrypted on your device before storage
-          </p>
-        </div>
-
-        {/* Main Form */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+        {/* Main Form Card */}
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 animate-fade-in-up-delay">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Collection Name */}
             <div>
@@ -278,7 +218,7 @@ const CollectionCreate = () => {
               {collectionName.length > 0 && (
                 <p className="mt-1 text-xs text-green-600 flex items-center">
                   <CheckIcon className="h-3 w-3 mr-1" />
-                  Good! This will be encrypted before storage
+                  Ready to be encrypted and stored securely
                 </p>
               )}
             </div>
@@ -289,6 +229,7 @@ const CollectionCreate = () => {
                 Collection Type
               </label>
               <div className="grid grid-cols-2 gap-4">
+                {/* Folder Option */}
                 <label
                   className={`relative flex cursor-pointer rounded-xl border p-6 focus:outline-none transition-all duration-200 ${
                     collectionType === "folder"
@@ -306,26 +247,27 @@ const CollectionCreate = () => {
                   />
                   <div className="flex flex-col items-center text-center w-full">
                     <div
-                      className={`flex items-center justify-center h-12 w-12 rounded-lg mb-3 transition-colors duration-200 ${
+                      className={`flex items-center justify-center h-16 w-16 rounded-xl mb-4 transition-all duration-200 ${
                         collectionType === "folder"
-                          ? "bg-blue-100 text-blue-600"
+                          ? "bg-blue-100 text-blue-600 scale-110"
                           : "bg-gray-100 text-gray-400"
                       }`}
                     >
-                      <FolderIcon className="h-6 w-6" />
+                      <FolderIcon className="h-8 w-8" />
                     </div>
-                    <span className="block text-sm font-semibold text-gray-900">
+                    <span className="block text-lg font-bold text-gray-900 mb-1">
                       📁 Folder
                     </span>
-                    <span className="mt-1 text-xs text-gray-500">
-                      For documents and files
+                    <span className="text-sm text-gray-500">
+                      For documents, files, and general storage
                     </span>
                   </div>
                   {collectionType === "folder" && (
-                    <CheckIcon className="absolute right-3 top-3 h-5 w-5 text-red-600" />
+                    <CheckIcon className="absolute right-3 top-3 h-6 w-6 text-red-600" />
                   )}
                 </label>
 
+                {/* Album Option */}
                 <label
                   className={`relative flex cursor-pointer rounded-xl border p-6 focus:outline-none transition-all duration-200 ${
                     collectionType === "album"
@@ -343,130 +285,83 @@ const CollectionCreate = () => {
                   />
                   <div className="flex flex-col items-center text-center w-full">
                     <div
-                      className={`flex items-center justify-center h-12 w-12 rounded-lg mb-3 transition-colors duration-200 ${
+                      className={`flex items-center justify-center h-16 w-16 rounded-xl mb-4 transition-all duration-200 ${
                         collectionType === "album"
-                          ? "bg-pink-100 text-pink-600"
+                          ? "bg-pink-100 text-pink-600 scale-110"
                           : "bg-gray-100 text-gray-400"
                       }`}
                     >
-                      <PhotoIcon className="h-6 w-6" />
+                      <PhotoIcon className="h-8 w-8" />
                     </div>
-                    <span className="block text-sm font-semibold text-gray-900">
+                    <span className="block text-lg font-bold text-gray-900 mb-1">
                       📷 Album
                     </span>
-                    <span className="mt-1 text-xs text-gray-500">
-                      For photos and media
+                    <span className="text-sm text-gray-500">
+                      For photos, videos, and media files
                     </span>
                   </div>
                   {collectionType === "album" && (
-                    <CheckIcon className="absolute right-3 top-3 h-5 w-5 text-red-600" />
+                    <CheckIcon className="absolute right-3 top-3 h-6 w-6 text-red-600" />
                   )}
                 </label>
               </div>
             </div>
 
-            {/* Password Section */}
-            <div className="space-y-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
-              <h3 className="text-sm font-semibold text-blue-900 flex items-center">
-                <KeyIcon className="h-4 w-4 mr-2" />
-                Encryption Password
-              </h3>
-              <p className="text-xs text-blue-800">
-                Used to generate encryption keys locally on your device
-              </p>
+            {/* Create Button */}
+            <button
+              type="submit"
+              disabled={isLoading || !collectionName.trim() || !isAuthenticated}
+              className="group w-full flex justify-center items-center py-3 px-4 border border-transparent text-base font-semibold rounded-lg text-white bg-gradient-to-r from-red-800 to-red-900 hover:from-red-900 hover:to-red-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                  Creating {collectionType === "folder" ? "Folder" : "Album"}...
+                </>
+              ) : (
+                <>
+                  <PlusIcon className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform duration-200" />
+                  Create {collectionType === "folder" ? "Folder" : "Album"}
+                </>
+              )}
+            </button>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Master Password
-                </label>
-                <div className="flex space-x-2">
-                  <div className="relative flex-1">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter password or use stored password"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    >
-                      {showPassword ? (
-                        <EyeSlashIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                      ) : (
-                        <EyeIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                      )}
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleGetStoredPassword}
-                    disabled={isLoading}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
-                  >
-                    Use Stored
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Leave empty to use password from secure storage
-                </p>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="space-y-4">
-              {/* Primary Create Button */}
+            {/* Back to Files */}
+            <div className="text-center">
               <button
-                type="submit"
-                disabled={
-                  isLoading || !collectionName.trim() || !isAuthenticated
-                }
-                className="group w-full flex justify-center items-center py-3 px-4 border border-transparent text-base font-semibold rounded-lg text-white bg-gradient-to-r from-red-800 to-red-900 hover:from-red-900 hover:to-red-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
+                type="button"
+                onClick={() => navigate("/file-manager")}
+                className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200"
               >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creating {collectionType === "folder" ? "Folder" : "Album"}
-                    ...
-                  </>
-                ) : (
-                  <>
-                    <PlusIcon className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform duration-200" />
-                    Create {collectionType === "folder" ? "Folder" : "Album"}
-                  </>
-                )}
+                <ArrowLeftIcon className="h-4 w-4 mr-1" />
+                Back to My Files
               </button>
-
-              {/* Quick Action Buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={handleCreateFolder}
-                  disabled={
-                    isLoading || !collectionName.trim() || !isAuthenticated
-                  }
-                  className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                >
-                  <FolderIcon className="h-4 w-4 mr-2" />
-                  Quick Folder
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleCreateAlbum}
-                  disabled={
-                    isLoading || !collectionName.trim() || !isAuthenticated
-                  }
-                  className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-pink-50 hover:border-pink-300 hover:text-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                >
-                  <PhotoIcon className="h-4 w-4 mr-2" />
-                  Quick Album
-                </button>
-              </div>
             </div>
           </form>
+        </div>
+
+        {/* Security Trust Section */}
+        <div className="mt-8 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-100">
+          <div className="flex items-center justify-center mb-3">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-1">
+                <LockClosedIcon className="h-4 w-4 text-green-600" />
+                <span className="text-xs font-semibold text-green-800">
+                  ChaCha20-Poly1305 Encrypted
+                </span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <ShieldCheckIcon className="h-4 w-4 text-blue-600" />
+                <span className="text-xs font-semibold text-blue-800">
+                  Zero-Knowledge Architecture
+                </span>
+              </div>
+            </div>
+          </div>
+          <p className="text-center text-xs text-gray-600">
+            Collections are encrypted on your device before storage using your
+            master password
+          </p>
         </div>
 
         {/* Info Section */}
@@ -479,7 +374,8 @@ const CollectionCreate = () => {
               </h3>
               <ul className="text-sm text-blue-800 space-y-1">
                 <li>
-                  • Your collection will be encrypted locally on your device
+                  • Your collection will be encrypted automatically using your
+                  master password
                 </li>
                 <li>
                   • A unique encryption key will be generated for this
@@ -490,8 +386,7 @@ const CollectionCreate = () => {
                   files
                 </li>
                 <li>
-                  • Files added to this collection will be automatically
-                  encrypted
+                  • All files added will be end-to-end encrypted before upload
                 </li>
               </ul>
             </div>
@@ -500,6 +395,25 @@ const CollectionCreate = () => {
       </div>
 
       <style jsx>{`
+        @keyframes fade-in-up {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in-up {
+          animation: fade-in-up 0.6s ease-out;
+        }
+
+        .animate-fade-in-up-delay {
+          animation: fade-in-up 0.6s ease-out 0.2s both;
+        }
+
         @keyframes fade-in {
           from {
             opacity: 0;
