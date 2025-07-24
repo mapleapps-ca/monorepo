@@ -62,6 +62,20 @@ const CollectionDetails = () => {
   const [showInfo, setShowInfo] = useState(false);
   const [downloadingFiles, setDownloadingFiles] = useState(new Set());
 
+  // Navigate to upload with pre-selected collection
+  const handleUploadToCollection = () => {
+    // Pass collection info via query params and state
+    navigate(`/file-manager/upload?collection=${collectionId}`, {
+      state: {
+        preSelectedCollection: {
+          id: collectionId,
+          name: collection?.name || "[Encrypted]",
+          type: collection?.type || "folder",
+        },
+      },
+    });
+  };
+
   // Load collection details
   const loadCollection = useCallback(
     async (forceRefresh = false) => {
@@ -741,12 +755,13 @@ const CollectionDetails = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
+              {/* FIXED: Upload button now passes collection info */}
               <button
-                onClick={() => navigate("/file-manager/upload")}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                onClick={handleUploadToCollection}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-red-800 to-red-900 hover:from-red-900 hover:to-red-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200"
               >
                 <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-                Upload
+                Upload Files to This Collection
               </button>
               <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                 <FolderPlusIcon className="h-4 w-4 mr-2" />
@@ -854,7 +869,7 @@ const CollectionDetails = () => {
                 </p>
                 {!searchQuery && (
                   <button
-                    onClick={() => navigate("/file-manager/upload")}
+                    onClick={handleUploadToCollection}
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
                   >
                     <CloudArrowUpIcon className="h-4 w-4 mr-2" />

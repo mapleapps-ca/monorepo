@@ -1,6 +1,6 @@
 // File: src/pages/User/FileManager/Files/FileUpload.jsx
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router";
 import { useServices } from "../../../../services/Services";
 import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 import Navigation from "../../../../components/Navigation";
@@ -23,10 +23,13 @@ import {
   ArrowPathIcon,
   LockClosedIcon,
   ExclamationTriangleIcon,
+  ChevronLeftIcon,
 } from "@heroicons/react/24/outline";
 
 const FileUpload = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const fileInputRef = useRef(null);
 
   // Get services from context
@@ -37,10 +40,17 @@ const FileUpload = () => {
     authManager,
   } = useServices();
 
+  // Extract pre-selected collection info
+  const preSelectedCollectionId = searchParams.get("collection");
+  const preSelectedCollectionInfo = location.state?.preSelectedCollection;
+  const isCollectionPreSelected = !!preSelectedCollectionId;
+
   // State management
   const [fileManager, setFileManager] = useState(null);
   const [files, setFiles] = useState([]);
-  const [selectedCollection, setSelectedCollection] = useState("");
+  const [selectedCollection, setSelectedCollection] = useState(
+    preSelectedCollectionId || "",
+  );
   const [availableCollections, setAvailableCollections] = useState([]);
   const [isLoadingCollections, setIsLoadingCollections] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
@@ -304,6 +314,21 @@ const FileUpload = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+  // Get back URL - either to specific collection or file manager index
+  const getBackUrl = () => {
+    if (isCollectionPreSelected) {
+      return `/file-manager/collections/${preSelectedCollectionId}`;
+    }
+    return "/file-manager";
+  };
+
+  const getBackText = () => {
+    if (isCollectionPreSelected && preSelectedCollectionInfo) {
+      return `Back to ${preSelectedCollectionInfo.name}`;
+    }
+    return "Back to My Files";
+  };
+
   // Start upload process
   const startUpload = async () => {
     if (!fileManager || !selectedCollection || files.length === 0) {
@@ -383,6 +408,18 @@ const FileUpload = () => {
 
       if (successCount === totalCount) {
         setSuccess(`All ${totalCount} files uploaded successfully!`);
+
+        // If uploading to a specific collection, offer to go back
+        if (isCollectionPreSelected) {
+          setTimeout(() => {
+            const shouldRedirect = window.confirm(
+              `Files uploaded successfully! Would you like to go back to ${preSelectedCollectionInfo?.name || "the collection"}?`,
+            );
+            if (shouldRedirect) {
+              navigate(getBackUrl());
+            }
+          }, 1500);
+        }
       } else {
         setSuccess(
           `${successCount} of ${totalCount} files uploaded successfully`,
@@ -414,6 +451,11 @@ const FileUpload = () => {
   const completedFiles = files.filter((f) => f.status === "complete").length;
   const errorFiles = files.filter((f) => f.status === "error").length;
 
+  // Get the pre-selected collection from the available collections
+  const preSelectedCollection = availableCollections.find(
+    (col) => col.id === preSelectedCollectionId,
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-red-50">
       <Navigation />
@@ -426,6 +468,14 @@ const FileUpload = () => {
           <Link to="/file-manager" className="hover:text-gray-900">
             My Files
           </Link>
+          {isCollectionPreSelected && preSelectedCollectionInfo && (
+            <>
+              <ChevronRightIcon className="h-3 w-3" />
+              <Link to={getBackUrl()} className="hover:text-gray-900">
+                {preSelectedCollectionInfo.name}
+              </Link>
+            </>
+          )}
           <ChevronRightIcon className="h-3 w-3" />
           <span className="font-medium text-gray-900">Upload Files</span>
         </div>
@@ -433,20 +483,77 @@ const FileUpload = () => {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate("/file-manager")}
+            onClick={() => navigate(getBackUrl())}
             className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4 transition-colors duration-200"
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
-            Back to Collections
+            {getBackText()}
           </button>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Upload Files
-          </h1>
-          <p className="text-gray-600">
-            Securely upload and encrypt your files with end-to-end encryption
-          </p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {isCollectionPreSelected
+                  ? `Upload to ${preSelectedCollectionInfo?.name || "[Collection]"}`
+                  : "Upload Files"}
+              </h1>
+              <p className="text-gray-600">
+                {isCollectionPreSelected
+                  ? `Add files to this ${preSelectedCollectionInfo?.type || "collection"} with automatic encryption`
+                  : "Securely upload and encrypt your files with end-to-end encryption"}
+              </p>
+            </div>
+
+            {isCollectionPreSelected && preSelectedCollectionInfo && (
+              <div className="flex items-center space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div
+                  className={`flex items-center justify-center h-10 w-10 rounded-lg ${
+                    preSelectedCollectionInfo.type === "album"
+                      ? "bg-pink-100 text-pink-600"
+                      : "bg-blue-100 text-blue-600"
+                  }`}
+                >
+                  {preSelectedCollectionInfo.type === "album" ? (
+                    <PhotoIcon className="h-5 w-5" />
+                  ) : (
+                    <FolderIcon className="h-5 w-5" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">
+                    {preSelectedCollectionInfo.name}
+                  </p>
+                  <p className="text-xs text-blue-700 capitalize">
+                    {preSelectedCollectionInfo.type} • Pre-selected
+                  </p>
+                </div>
+                <LockClosedIcon className="h-4 w-4 text-blue-600" />
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Pre-selected Collection Notice */}
+        {isCollectionPreSelected && (
+          <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+            <div className="flex items-start">
+              <InformationCircleIcon className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-blue-900 mb-1">
+                  Collection Pre-selected
+                </h3>
+                <p className="text-sm text-blue-800">
+                  Files will be uploaded directly to{" "}
+                  <strong>
+                    {preSelectedCollectionInfo?.name || "this collection"}
+                  </strong>
+                  . This simplifies the upload process and ensures your files go
+                  to the right place.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Error/Success Messages */}
         {error && (
@@ -476,6 +583,14 @@ const FileUpload = () => {
                   Success
                 </h3>
                 <p className="text-sm text-green-700 mt-1">{success}</p>
+                {isCollectionPreSelected && (
+                  <button
+                    onClick={() => navigate(getBackUrl())}
+                    className="text-sm text-green-800 hover:text-green-900 underline mt-2"
+                  >
+                    View files in collection →
+                  </button>
+                )}
               </div>
               <button
                 onClick={clearMessages}
@@ -653,41 +768,88 @@ const FileUpload = () => {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <FolderIcon className="h-5 w-5 mr-2 text-gray-500" />
-                  Upload to Collection
+                  {isCollectionPreSelected
+                    ? "Upload Destination"
+                    : "Upload to Collection"}
                 </h3>
-                <button
-                  onClick={loadCollections}
-                  disabled={isLoadingCollections}
-                  className="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50"
-                >
-                  <ArrowPathIcon className="h-4 w-4" />
-                </button>
+                {!isCollectionPreSelected && (
+                  <button
+                    onClick={loadCollections}
+                    disabled={isLoadingCollections}
+                    className="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                  >
+                    <ArrowPathIcon className="h-4 w-4" />
+                  </button>
+                )}
               </div>
 
-              <select
-                value={selectedCollection}
-                onChange={(e) => setSelectedCollection(e.target.value)}
-                disabled={availableCollections.length === 0 || isUploading}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed"
-              >
-                <option value="">
-                  {isLoadingCollections
-                    ? "Loading collections..."
-                    : availableCollections.length === 0
-                      ? "No collections available - click refresh"
-                      : "Select a collection..."}
-                </option>
-                {availableCollections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
-                    {collection.name || "[Encrypted]"} (
-                    {collection.collection_type})
-                  </option>
-                ))}
-              </select>
+              {isCollectionPreSelected ? (
+                // Show locked pre-selected collection
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div
+                      className={`flex items-center justify-center h-8 w-8 rounded-lg ${
+                        preSelectedCollectionInfo?.type === "album"
+                          ? "bg-pink-100 text-pink-600"
+                          : "bg-blue-100 text-blue-600"
+                      }`}
+                    >
+                      {preSelectedCollectionInfo?.type === "album" ? (
+                        <PhotoIcon className="h-4 w-4" />
+                      ) : (
+                        <FolderIcon className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-blue-900">
+                        {preSelectedCollectionInfo?.name ||
+                          preSelectedCollection?.name ||
+                          "[Encrypted]"}
+                      </p>
+                      <p className="text-xs text-blue-700 capitalize">
+                        {preSelectedCollectionInfo?.type ||
+                          preSelectedCollection?.collection_type ||
+                          "folder"}{" "}
+                        • Locked
+                      </p>
+                    </div>
+                    <LockClosedIcon className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <p className="text-xs text-blue-700 mt-2">
+                    Collection automatically selected. Files will be uploaded
+                    here.
+                  </p>
+                </div>
+              ) : (
+                // Show collection selector
+                <>
+                  <select
+                    value={selectedCollection}
+                    onChange={(e) => setSelectedCollection(e.target.value)}
+                    disabled={availableCollections.length === 0 || isUploading}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {isLoadingCollections
+                        ? "Loading collections..."
+                        : availableCollections.length === 0
+                          ? "No collections available - click refresh"
+                          : "Select a collection..."}
+                    </option>
+                    {availableCollections.map((collection) => (
+                      <option key={collection.id} value={collection.id}>
+                        {collection.name || "[Encrypted]"} (
+                        {collection.collection_type})
+                      </option>
+                    ))}
+                  </select>
 
-              <p className="text-xs text-gray-500 mt-2">
-                Files will be automatically encrypted using your master password
-              </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Files will be automatically encrypted using your master
+                    password
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Security Info */}
@@ -727,6 +889,16 @@ const FileUpload = () => {
                     <span className="text-gray-600">Total size:</span>
                     <span className="font-medium text-gray-900">
                       {formatFileSize(totalSize)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Destination:</span>
+                    <span className="font-medium text-gray-900 truncate max-w-32">
+                      {isCollectionPreSelected
+                        ? preSelectedCollectionInfo?.name || "[Collection]"
+                        : availableCollections.find(
+                            (c) => c.id === selectedCollection,
+                          )?.name || "Not selected"}
                     </span>
                   </div>
                   {(completedFiles > 0 || errorFiles > 0) && (
@@ -784,7 +956,9 @@ const FileUpload = () => {
                   className="inline-flex items-center px-6 py-2 border border-transparent rounded-lg shadow-sm text-white bg-gradient-to-r from-red-800 to-red-900 hover:from-red-900 hover:to-red-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   <CloudArrowUpIcon className="h-4 w-4 mr-2" />
-                  Start Secure Upload
+                  {isCollectionPreSelected
+                    ? `Upload to ${preSelectedCollectionInfo?.name || "Collection"}`
+                    : "Start Secure Upload"}
                 </button>
               )}
             </div>

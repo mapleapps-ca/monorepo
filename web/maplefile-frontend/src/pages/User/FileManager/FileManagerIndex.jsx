@@ -51,6 +51,11 @@ const FileManagerIndex = () => {
   const [filterType, setFilterType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Navigate to general upload (no pre-selected collection)
+  const handleGeneralUpload = () => {
+    navigate("/file-manager/upload");
+  };
+
   // Load collections with proper decryption
   const loadCollections = useCallback(
     async (forceRefresh = false) => {
@@ -334,11 +339,11 @@ const FileManagerIndex = () => {
               {isLoading ? "Refreshing..." : "Refresh"}
             </button>
             <button
-              onClick={() => navigate("/file-manager/upload")}
+              onClick={handleGeneralUpload}
               className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200"
             >
               <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
-              Upload
+              Upload Files
             </button>
             <button
               onClick={() => navigate("/file-manager/collections/create")}
@@ -457,6 +462,36 @@ const FileManagerIndex = () => {
               <p className="text-center text-xs text-gray-600">
                 All collections are encrypted on your device before storage
               </p>
+            </div>
+
+            {/* Quick Upload Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                    Quick Actions
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    Get started with your files and collections
+                  </p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={handleGeneralUpload}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200"
+                  >
+                    <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
+                    Upload Files
+                  </button>
+                  <button
+                    onClick={() => navigate("/file-manager/collections/create")}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-red-800 to-red-900 hover:from-red-900 hover:to-red-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Create Collection
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Grid View */}
@@ -742,13 +777,25 @@ const FileManagerIndex = () => {
                     : "Create your first collection to organize your encrypted files"}
                 </p>
                 {!searchQuery && (
-                  <button
-                    onClick={() => navigate("/file-manager/collections/create")}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors duration-200"
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Create Your First Collection
-                  </button>
+                  <div className="flex items-center justify-center space-x-3">
+                    <button
+                      onClick={() =>
+                        navigate("/file-manager/collections/create")
+                      }
+                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors duration-200"
+                    >
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Create Collection
+                    </button>
+                    <span className="text-gray-500">or</span>
+                    <button
+                      onClick={handleGeneralUpload}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
+                      Upload Files
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -758,8 +805,9 @@ const FileManagerIndex = () => {
 
       {/* Upload Floating Action Button */}
       <button
-        onClick={() => navigate("/file-manager/upload")}
+        onClick={handleGeneralUpload}
         className="fixed bottom-6 right-6 inline-flex items-center justify-center h-14 w-14 bg-gradient-to-r from-red-800 to-red-900 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200"
+        title="Upload Files"
       >
         <CloudArrowUpIcon className="h-6 w-6" />
       </button>
