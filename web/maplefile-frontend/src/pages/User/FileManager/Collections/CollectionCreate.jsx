@@ -1,7 +1,7 @@
 // File: src/pages/User/FileManager/Collections/CollectionCreate.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { useFiles, useAuth } from "../../../../services/Services";
+import { useCollections, useAuth } from "../../../../services/Services"; // FIXED: Changed useFiles to useCollections
 import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 import Navigation from "../../../../components/Navigation";
 import {
@@ -14,7 +14,7 @@ import {
 const CollectionCreate = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { createCollectionManager } = useFiles();
+  const { createCollectionManager } = useCollections(); // FIXED: Now using useCollections
   const { authManager } = useAuth();
 
   // Get parent collection info from navigation state
