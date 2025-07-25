@@ -26,6 +26,9 @@ import {
   EyeSlashIcon as PrivacyIcon,
   HeartIcon,
   SparklesIcon,
+  PencilIcon,
+  TrashIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 const MeDetail = () => {
@@ -38,6 +41,60 @@ const MeDetail = () => {
   const [showKeys, setShowKeys] = useState(false);
   const [copiedKey, setCopiedKey] = useState("");
 
+  // Edit mode states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [formData, setFormData] = useState({
+    email: "",
+    first_name: "",
+    last_name: "",
+    phone: "",
+    country: "",
+    region: "",
+    timezone: "",
+    agree_promotions: false,
+    agree_to_tracking_across_third_party_apps_and_services: false,
+  });
+
+  // Delete account states
+  const [showDeleteSection, setShowDeleteSection] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  // Countries and timezones lists
+  const countries = [
+    "Canada",
+    "United States",
+    "United Kingdom",
+    "Australia",
+    "Germany",
+    "France",
+    "Japan",
+    "South Korea",
+    "Brazil",
+    "Mexico",
+    "India",
+    "Other",
+  ];
+
+  const timezones = [
+    { value: "America/Toronto", label: "Toronto (EST/EDT)" },
+    { value: "America/Vancouver", label: "Vancouver (PST/PDT)" },
+    { value: "America/New_York", label: "New York (EST/EDT)" },
+    { value: "America/Los_Angeles", label: "Los Angeles (PST/PDT)" },
+    { value: "America/Chicago", label: "Chicago (CST/CDT)" },
+    { value: "America/Denver", label: "Denver (MST/MDT)" },
+    { value: "Europe/London", label: "London (GMT/BST)" },
+    { value: "Europe/Paris", label: "Paris (CET/CEST)" },
+    { value: "Europe/Berlin", label: "Berlin (CET/CEST)" },
+    { value: "Asia/Tokyo", label: "Tokyo (JST)" },
+    { value: "Asia/Seoul", label: "Seoul (KST)" },
+    { value: "Australia/Sydney", label: "Sydney (AEST/AEDT)" },
+    { value: "UTC", label: "UTC" },
+  ];
+
   // Load user profile data
   const loadUserProfile = async () => {
     if (!meManager) return;
@@ -47,8 +104,24 @@ const MeDetail = () => {
 
     try {
       console.log("[Profile] Loading user profile...");
-      const profile = await meManager.getMe();
+      const profile = await meManager.getCurrentUser(); // Fixed: was getMe()
       setUserProfile(profile);
+
+      // Populate form data for editing
+      setFormData({
+        email: profile.email || "",
+        first_name: profile.first_name || "",
+        last_name: profile.last_name || "",
+        phone: profile.phone || "",
+        country: profile.country || "Canada",
+        region: profile.region || "",
+        timezone: profile.timezone || "America/Toronto",
+        agree_promotions: profile.agree_promotions || false,
+        agree_to_tracking_across_third_party_apps_and_services:
+          profile.agree_to_tracking_across_third_party_apps_and_services ||
+          false,
+      });
+
       console.log("[Profile] Profile loaded successfully");
     } catch (err) {
       console.error("[Profile] Failed to load profile:", err);
@@ -63,6 +136,116 @@ const MeDetail = () => {
       loadUserProfile();
     }
   }, [meManager, authManager]);
+
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+
+    // Clear field-specific error when user starts typing
+    if (editError) {
+      setEditError("");
+    }
+  };
+
+  // Handle profile update
+  const handleSaveChanges = async (e) => {
+    e.preventDefault();
+
+    try {
+      setEditLoading(true);
+      setEditError("");
+
+      const updateData = {
+        email: formData.email,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone,
+        country: formData.country,
+        region: formData.region,
+        timezone: formData.timezone,
+        agree_promotions: formData.agree_promotions,
+        agree_to_tracking_across_third_party_apps_and_services:
+          formData.agree_to_tracking_across_third_party_apps_and_services,
+      };
+
+      const updatedProfile = await meManager.updateCurrentUser(updateData); // Fixed: was updateMe()
+      setUserProfile(updatedProfile);
+      setIsEditing(false);
+
+      console.log("Profile updated successfully");
+    } catch (err) {
+      console.error("Failed to update profile:", err);
+      setEditError(err.message || "Failed to update profile");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    // Reset form data to original user data
+    if (userProfile) {
+      setFormData({
+        email: userProfile.email || "",
+        first_name: userProfile.first_name || "",
+        last_name: userProfile.last_name || "",
+        phone: userProfile.phone || "",
+        country: userProfile.country || "Canada",
+        region: userProfile.region || "",
+        timezone: userProfile.timezone || "America/Toronto",
+        agree_promotions: userProfile.agree_promotions || false,
+        agree_to_tracking_across_third_party_apps_and_services:
+          userProfile.agree_to_tracking_across_third_party_apps_and_services ||
+          false,
+      });
+    }
+    setIsEditing(false);
+    setEditError("");
+  };
+
+  // Handle account deletion
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault();
+
+    if (!deletePassword) {
+      setDeleteError("Password is required to delete your account");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "Are you sure you want to delete your account? This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setDeleteLoading(true);
+      setDeleteError("");
+
+      await meManager.deleteCurrentUser(deletePassword); // Fixed: was deleteMe()
+
+      // Account deleted successfully, logout and redirect
+      if (authManager?.logout) {
+        authManager.logout();
+      }
+      sessionStorage.clear();
+      localStorage.removeItem("mapleapps_access_token");
+      localStorage.removeItem("mapleapps_refresh_token");
+      localStorage.removeItem("mapleapps_user_email");
+      navigate("/");
+    } catch (err) {
+      console.error("Failed to delete account:", err);
+      setDeleteError(err.message || "Failed to delete account");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   // Handle key copy
   const handleCopyKey = async (keyType, keyValue) => {
@@ -200,205 +383,438 @@ const MeDetail = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Personal Information */}
-              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 animate-fade-in-up-delay">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center h-12 w-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl">
-                      <UserIcon className="h-6 w-6 text-white" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      Personal Information
-                    </h2>
-                  </div>
-                  <SparklesIcon className="h-6 w-6 text-blue-300" />
-                </div>
-
-                <div className="space-y-6">
-                  {/* Name */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+            {/* View/Edit Mode */}
+            {!isEditing ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Personal Information */}
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 animate-fade-in-up-delay">
+                  <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center space-x-3">
-                      <UserIcon className="h-5 w-5 text-gray-500" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">
-                          Full Name
-                        </p>
-                        <p className="text-lg font-semibold text-gray-900">
-                          {userProfile.first_name} {userProfile.last_name}
-                        </p>
+                      <div className="flex items-center justify-center h-12 w-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl">
+                        <UserIcon className="h-6 w-6 text-white" />
                       </div>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        Personal Information
+                      </h2>
                     </div>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200"
+                    >
+                      <PencilIcon className="h-4 w-4 mr-1.5" />
+                      Edit
+                    </button>
                   </div>
 
-                  {/* Email */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <EnvelopeIcon className="h-5 w-5 text-gray-500" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">
-                          Email
-                        </p>
-                        <p className="text-lg font-semibold text-gray-900 font-mono">
-                          {userProfile.email}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Phone */}
-                  {userProfile.phone && (
+                  <div className="space-y-6">
+                    {/* Name */}
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                       <div className="flex items-center space-x-3">
-                        <PhoneIcon className="h-5 w-5 text-gray-500" />
+                        <UserIcon className="h-5 w-5 text-gray-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-600">
-                            Phone
+                            Full Name
                           </p>
                           <p className="text-lg font-semibold text-gray-900">
-                            {userProfile.phone}
+                            {userProfile.first_name} {userProfile.last_name}
                           </p>
                         </div>
                       </div>
                     </div>
-                  )}
 
-                  {/* Country */}
-                  {userProfile.country && (
+                    {/* Email */}
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                       <div className="flex items-center space-x-3">
-                        <GlobeAltIcon className="h-5 w-5 text-gray-500" />
+                        <EnvelopeIcon className="h-5 w-5 text-gray-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-600">
-                            Country
+                            Email
                           </p>
-                          <p className="text-lg font-semibold text-gray-900">
-                            {userProfile.country}
+                          <p className="text-lg font-semibold text-gray-900 font-mono">
+                            {userProfile.email}
                           </p>
                         </div>
                       </div>
                     </div>
-                  )}
 
-                  {/* Timezone */}
-                  {userProfile.timezone && (
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                      <div className="flex items-center space-x-3">
-                        <ClockIcon className="h-5 w-5 text-gray-500" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">
-                            Timezone
-                          </p>
-                          <p className="text-lg font-semibold text-gray-900">
-                            {userProfile.timezone}
-                          </p>
+                    {/* Phone */}
+                    {userProfile.phone && (
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <div className="flex items-center space-x-3">
+                          <PhoneIcon className="h-5 w-5 text-gray-500" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">
+                              Phone
+                            </p>
+                            <p className="text-lg font-semibold text-gray-900">
+                              {userProfile.phone}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                    {/* Country */}
+                    {userProfile.country && (
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <div className="flex items-center space-x-3">
+                          <GlobeAltIcon className="h-5 w-5 text-gray-500" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">
+                              Country
+                            </p>
+                            <p className="text-lg font-semibold text-gray-900">
+                              {userProfile.country}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Timezone */}
+                    {userProfile.timezone && (
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <div className="flex items-center space-x-3">
+                          <ClockIcon className="h-5 w-5 text-gray-500" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">
+                              Timezone
+                            </p>
+                            <p className="text-lg font-semibold text-gray-900">
+                              {userProfile.timezone}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Account Information */}
-              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 animate-fade-in-up-delay-2">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center h-12 w-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl">
-                      <ShieldCheckIcon className="h-6 w-6 text-white" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      Account Details
-                    </h2>
-                  </div>
-                  <CheckIcon className="h-6 w-6 text-green-500" />
-                </div>
-
-                <div className="space-y-6">
-                  {/* User ID */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                {/* Account Information */}
+                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 animate-fade-in-up-delay-2">
+                  <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center space-x-3">
-                      <DocumentTextIcon className="h-5 w-5 text-gray-500" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">
-                          User ID
-                        </p>
-                        <p className="text-lg font-semibold text-gray-900 font-mono">
-                          {userProfile.id}
-                        </p>
+                      <div className="flex items-center justify-center h-12 w-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl">
+                        <ShieldCheckIcon className="h-6 w-6 text-white" />
                       </div>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        Account Details
+                      </h2>
                     </div>
+                    <CheckIcon className="h-6 w-6 text-green-500" />
                   </div>
 
-                  {/* User Role */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <ShieldCheckIcon className="h-5 w-5 text-gray-500" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">
-                          Role
-                        </p>
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${getRoleInfo(userProfile.user_role).bg} ${getRoleInfo(userProfile.user_role).color}`}
-                        >
-                          {getRoleInfo(userProfile.user_role).text}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Registration Date */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <CalendarIcon className="h-5 w-5 text-gray-500" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">
-                          Member Since
-                        </p>
-                        <p className="text-lg font-semibold text-gray-900">
-                          {formatDate(userProfile.created_at)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Last Updated */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                    <div className="flex items-center space-x-3">
-                      <ClockIcon className="h-5 w-5 text-gray-500" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">
-                          Last Updated
-                        </p>
-                        <p className="text-lg font-semibold text-gray-900">
-                          {formatDate(userProfile.updated_at)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Module */}
-                  {userProfile.module && (
+                  <div className="space-y-6">
+                    {/* User ID */}
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                       <div className="flex items-center space-x-3">
                         <DocumentTextIcon className="h-5 w-5 text-gray-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-600">
-                            Service
+                            User ID
                           </p>
-                          <p className="text-lg font-semibold text-gray-900">
-                            {userProfile.module === 1
-                              ? "MapleFile"
-                              : userProfile.module === 2
-                                ? "PaperCloud"
-                                : "Unknown"}
+                          <p className="text-lg font-semibold text-gray-900 font-mono">
+                            {userProfile.id}
                           </p>
                         </div>
                       </div>
                     </div>
-                  )}
+
+                    {/* User Role */}
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                      <div className="flex items-center space-x-3">
+                        <ShieldCheckIcon className="h-5 w-5 text-gray-500" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">
+                            Role
+                          </p>
+                          <span
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${getRoleInfo(userProfile.user_role || userProfile.role).bg} ${getRoleInfo(userProfile.user_role || userProfile.role).color}`}
+                          >
+                            {
+                              getRoleInfo(
+                                userProfile.user_role || userProfile.role,
+                              ).text
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Registration Date */}
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                      <div className="flex items-center space-x-3">
+                        <CalendarIcon className="h-5 w-5 text-gray-500" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">
+                            Member Since
+                          </p>
+                          <p className="text-lg font-semibold text-gray-900">
+                            {formatDate(userProfile.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Last Updated */}
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                      <div className="flex items-center space-x-3">
+                        <ClockIcon className="h-5 w-5 text-gray-500" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">
+                            Last Updated
+                          </p>
+                          <p className="text-lg font-semibold text-gray-900">
+                            {formatDate(userProfile.updated_at)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Module */}
+                    {userProfile.module && (
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <div className="flex items-center space-x-3">
+                          <DocumentTextIcon className="h-5 w-5 text-gray-500" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-600">
+                              Service
+                            </p>
+                            <p className="text-lg font-semibold text-gray-900">
+                              {userProfile.module === 1
+                                ? "MapleFile"
+                                : userProfile.module === 2
+                                  ? "PaperCloud"
+                                  : "Unknown"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              /* Edit Mode */
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 animate-fade-in">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Edit Profile
+                  </h2>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200"
+                  >
+                    <XMarkIcon className="h-4 w-4 mr-1.5" />
+                    Cancel
+                  </button>
+                </div>
+
+                {editError && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-700">{editError}</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveChanges} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* First Name */}
+                    <div>
+                      <label
+                        htmlFor="first_name"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        First Name
+                      </label>
+                      <input
+                        type="text"
+                        id="first_name"
+                        name="first_name"
+                        value={formData.first_name}
+                        onChange={handleInputChange}
+                        required
+                        disabled={editLoading}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Last Name */}
+                    <div>
+                      <label
+                        htmlFor="last_name"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Last Name
+                      </label>
+                      <input
+                        type="text"
+                        id="last_name"
+                        name="last_name"
+                        value={formData.last_name}
+                        onChange={handleInputChange}
+                        required
+                        disabled={editLoading}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <label
+                        htmlFor="email"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        required
+                        disabled={editLoading}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                      <label
+                        htmlFor="phone"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        required
+                        disabled={editLoading}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Country */}
+                    <div>
+                      <label
+                        htmlFor="country"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Country
+                      </label>
+                      <select
+                        id="country"
+                        name="country"
+                        value={formData.country}
+                        onChange={handleInputChange}
+                        required
+                        disabled={editLoading}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {countries.map((country) => (
+                          <option key={country} value={country}>
+                            {country}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Timezone */}
+                    <div>
+                      <label
+                        htmlFor="timezone"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Timezone
+                      </label>
+                      <select
+                        id="timezone"
+                        name="timezone"
+                        value={formData.timezone}
+                        onChange={handleInputChange}
+                        required
+                        disabled={editLoading}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {timezones.map((tz) => (
+                          <option key={tz.value} value={tz.value}>
+                            {tz.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Preferences */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Preferences
+                    </h3>
+
+                    <div className="flex items-start">
+                      <input
+                        type="checkbox"
+                        id="agree_promotions"
+                        name="agree_promotions"
+                        checked={formData.agree_promotions}
+                        onChange={handleInputChange}
+                        disabled={editLoading}
+                        className="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500 mt-1"
+                      />
+                      <label
+                        htmlFor="agree_promotions"
+                        className="ml-3 text-sm text-gray-700"
+                      >
+                        I agree to receive promotional communications
+                      </label>
+                    </div>
+
+                    <div className="flex items-start">
+                      <input
+                        type="checkbox"
+                        id="agree_to_tracking_across_third_party_apps_and_services"
+                        name="agree_to_tracking_across_third_party_apps_and_services"
+                        checked={
+                          formData.agree_to_tracking_across_third_party_apps_and_services
+                        }
+                        onChange={handleInputChange}
+                        disabled={editLoading}
+                        className="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500 mt-1"
+                      />
+                      <label
+                        htmlFor="agree_to_tracking_across_third_party_apps_and_services"
+                        className="ml-3 text-sm text-gray-700"
+                      >
+                        I agree to tracking across third-party apps and services
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Form Actions */}
+                  <div className="flex justify-end space-x-3 pt-6 border-t">
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      disabled={editLoading}
+                      className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={editLoading}
+                      className="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {editLoading ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
 
             {/* Encryption Keys Section */}
             <div className="mt-8 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 animate-fade-in-up-delay-3">
@@ -610,6 +1026,113 @@ const MeDetail = () => {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Delete Account Section */}
+            <div className="mt-8 bg-white rounded-2xl shadow-xl border border-red-200 p-8">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="flex items-center justify-center h-12 w-12 bg-red-100 rounded-xl">
+                  <TrashIcon className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Danger Zone
+                  </h2>
+                  <p className="text-gray-600">
+                    Permanently delete your account
+                  </p>
+                </div>
+              </div>
+
+              {!showDeleteSection ? (
+                <div>
+                  <p className="text-gray-700 mb-4">
+                    Once you delete your account, there is no going back. Please
+                    be certain.
+                  </p>
+                  <button
+                    onClick={() => setShowDeleteSection(true)}
+                    className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  >
+                    <TrashIcon className="h-4 w-4 mr-2" />
+                    Delete My Account
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  {deleteError && (
+                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-700">{deleteError}</p>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleDeleteAccount} className="space-y-4">
+                    <div>
+                      <label
+                        htmlFor="delete_password"
+                        className="block text-sm font-medium text-gray-700 mb-2"
+                      >
+                        Enter your password to confirm deletion
+                      </label>
+                      <input
+                        type="password"
+                        id="delete_password"
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        placeholder="Enter your password"
+                        required
+                        disabled={deleteLoading}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-red-800 mb-2">
+                        What happens when you delete your account:
+                      </h4>
+                      <ul className="text-sm text-red-700 space-y-1">
+                        <li>
+                          • Your profile and account information will be
+                          permanently deleted
+                        </li>
+                        <li>
+                          • All your files and data will be permanently removed
+                        </li>
+                        <li>• You will be immediately logged out</li>
+                        <li>• This action cannot be undone</li>
+                        <li>
+                          • Your email address will become available for new
+                          registrations
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowDeleteSection(false);
+                          setDeletePassword("");
+                          setDeleteError("");
+                        }}
+                        disabled={deleteLoading}
+                        className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={deleteLoading || !deletePassword}
+                        className="px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {deleteLoading
+                          ? "Deleting..."
+                          : "Permanently Delete Account"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
             </div>
           </>
         )}
