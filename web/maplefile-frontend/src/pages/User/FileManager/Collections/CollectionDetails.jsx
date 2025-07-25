@@ -263,9 +263,9 @@ const CollectionDetails = () => {
           await listCollectionManager.listCollections(forceRefresh);
 
         if (result.collections) {
-          // Filter for collections that have this collection as parent
+          // FIXED: Filter for collections that have this collection as parent using correct field name
           const subCollections = result.collections.filter(
-            (col) => col.parent_collection_id === parentCollectionId,
+            (col) => col.parent_id === parentCollectionId,
           );
 
           // Process sub-collections for decryption

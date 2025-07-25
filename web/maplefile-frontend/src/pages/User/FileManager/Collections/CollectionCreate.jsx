@@ -50,7 +50,7 @@ const CollectionCreate = () => {
 
       // Add parent collection if creating a sub-collection
       if (parentCollectionId) {
-        collectionData.parent_collection_id = parentCollectionId;
+        collectionData.parent_id = parentCollectionId; // FIXED: Use parent_id instead of parent_collection_id
       }
 
       const result = await createCollectionManager.createCollection(

@@ -35,9 +35,15 @@ const FileManagerIndex = () => {
         const result =
           await listCollectionManager.listCollections(forceRefresh);
         if (result.collections) {
-          const processedCollections = await processCollections(
-            result.collections,
+          // FIXED: Filter to only show root-level collections (no parent)
+          const rootCollections = result.collections.filter(
+            (collection) =>
+              !collection.parent_id ||
+              collection.parent_id === "00000000-0000-0000-0000-000000000000",
           );
+
+          const processedCollections =
+            await processCollections(rootCollections);
           setCollections(processedCollections);
         }
       } catch (err) {
