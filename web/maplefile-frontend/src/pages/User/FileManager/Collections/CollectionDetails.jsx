@@ -128,6 +128,8 @@ const CollectionDetails = () => {
         console.log(
           "[CollectionDetails] Loading ALL files for collection:",
           collectionId,
+          "forceRefresh:",
+          forceRefresh,
         );
 
         const allStates = Object.values(fileManager.FILE_STATES);
@@ -175,7 +177,7 @@ const CollectionDetails = () => {
     [],
   );
 
-  // Load sub-collections - FIXED: Added to useCallback dependencies
+  // Load sub-collections
   const loadSubCollections = useCallback(
     async (parentCollectionId, forceRefresh = false) => {
       if (!listCollectionManager) return;
@@ -188,7 +190,7 @@ const CollectionDetails = () => {
           forceRefresh,
         );
 
-        // FIXED: Force refresh to ensure we get latest data after collection creation
+        // Force refresh to ensure we get latest data after collection creation
         const result =
           await listCollectionManager.listCollections(forceRefresh);
 
@@ -218,10 +220,10 @@ const CollectionDetails = () => {
         setSubCollections([]);
       }
     },
-    [listCollectionManager, processCollection], // FIXED: Added processCollection to dependencies
+    [listCollectionManager, processCollection],
   );
 
-  // FIXED: Added loadSubCollections to dependencies and improved cache invalidation
+  // Main load collection function with comprehensive cache clearing
   const loadCollection = useCallback(
     async (forceRefresh = false) => {
       if (!getCollectionManager || !collectionId || !fileManager) return;
@@ -237,12 +239,33 @@ const CollectionDetails = () => {
           forceRefresh,
         );
 
-        // FIXED: If forceRefresh, clear the ListCollectionManager cache first
-        if (forceRefresh && listCollectionManager) {
+        // 🔧 COMPREHENSIVE CACHE CLEARING
+        if (forceRefresh) {
           console.log(
-            "[CollectionDetails] Clearing ListCollectionManager cache before refresh",
+            "[CollectionDetails] Force refresh - clearing ALL caches",
           );
-          listCollectionManager.clearAllCache();
+
+          // Clear ListCollectionManager cache
+          if (listCollectionManager) {
+            listCollectionManager.clearAllCache();
+            console.log(
+              "[CollectionDetails] ListCollectionManager cache cleared",
+            );
+          }
+
+          // Clear GetCollectionManager cache
+          if (getCollectionManager) {
+            getCollectionManager.clearAllCache();
+            console.log(
+              "[CollectionDetails] GetCollectionManager cache cleared",
+            );
+          }
+
+          // Clear file manager caches
+          if (fileManager) {
+            fileManager.clearAllCaches();
+            console.log("[CollectionDetails] FileManager cache cleared");
+          }
         }
 
         // Load collection details
@@ -271,6 +294,12 @@ const CollectionDetails = () => {
 
         // Load sub-collections with force refresh
         await loadSubCollections(collectionId, forceRefresh);
+
+        if (forceRefresh) {
+          console.log(
+            "[CollectionDetails] Force refresh completed successfully",
+          );
+        }
       } catch (err) {
         console.error("[CollectionDetails] Failed to load collection:", err);
         setError("Could not load folder. Please try again.");
@@ -285,8 +314,8 @@ const CollectionDetails = () => {
       CollectionCryptoService,
       loadAllCollectionFiles,
       loadSubCollections,
-      listCollectionManager, // FIXED: Added listCollectionManager
-      processCollection, // FIXED: Added processCollection
+      listCollectionManager,
+      processCollection,
     ],
   );
 
@@ -308,27 +337,64 @@ const CollectionDetails = () => {
     loadCollection,
   ]);
 
-  // FIXED: Enhanced refresh handling when returning from collection creation
+  // 🔧 COMPREHENSIVE FIX: Handle both collection creation AND file upload refresh
   useEffect(() => {
-    if (location.state?.refresh && location.state?.newCollectionCreated) {
-      console.log(
-        "[CollectionDetails] Forcing refresh due to new collection creation",
-      );
+    const shouldRefresh = location.state?.refresh;
+    const isCollectionCreation = location.state?.newCollectionCreated;
+    const isFileUpload = location.state?.refreshFiles;
 
-      // Force refresh to show the newly created sub-collection
+    console.log("[CollectionDetails] Checking refresh state:", {
+      shouldRefresh,
+      isCollectionCreation,
+      isFileUpload,
+      uploadedFileCount: location.state?.uploadedFileCount,
+      locationState: location.state,
+    });
+
+    if (shouldRefresh && (isCollectionCreation || isFileUpload)) {
+      if (isCollectionCreation) {
+        console.log(
+          "[CollectionDetails] 🆕 Forcing refresh due to new collection creation",
+        );
+      }
+
+      if (isFileUpload) {
+        console.log(
+          "[CollectionDetails] 📁 Forcing refresh due to file upload,",
+          "uploaded files:",
+          location.state?.uploadedFileCount || "unknown",
+        );
+
+        // Show success message for file upload
+        if (location.state?.uploadedFileCount) {
+          setSuccess(
+            `${location.state.uploadedFileCount} file(s) uploaded successfully!`,
+          );
+
+          // Clear success message after 5 seconds
+          setTimeout(() => {
+            setSuccess("");
+          }, 5000);
+        }
+      }
+
+      // Force refresh if all required services are available
       if (
         getCollectionManager &&
         fileManager &&
         collectionId &&
         authManager?.isAuthenticated()
       ) {
-        // FIXED: Add a small delay to ensure the API has processed the creation
+        console.log("[CollectionDetails] 🔄 Starting force refresh...");
+
+        // Add a small delay to ensure the backend has processed the changes
         setTimeout(() => {
-          loadCollection(true); // Force refresh
-        }, 100);
+          loadCollection(true); // Force refresh with cache clearing
+        }, 200);
       }
 
       // Clear the state to prevent repeated refreshes
+      console.log("[CollectionDetails] 🧹 Clearing navigation state");
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [

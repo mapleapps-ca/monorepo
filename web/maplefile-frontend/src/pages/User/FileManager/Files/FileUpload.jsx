@@ -184,12 +184,36 @@ const FileUpload = () => {
 
     if (successCount === files.length) {
       setSuccess("All files uploaded successfully!");
+
+      // 🔧 COMPREHENSIVE FIX: Clear all caches and force refresh on redirect
       if (preSelectedCollectionId) {
-        setTimeout(
-          () =>
-            navigate(`/file-manager/collections/${preSelectedCollectionId}`),
-          1500,
+        // Clear caches immediately before navigation
+        try {
+          if (listCollectionManager) {
+            console.log(
+              "[FileUpload] Clearing ListCollectionManager cache after upload",
+            );
+            listCollectionManager.clearAllCache();
+          }
+        } catch (error) {
+          console.warn("[FileUpload] Failed to clear collection cache:", error);
+        }
+
+        console.log(
+          `[FileUpload] Redirecting with refresh state after uploading ${successCount} files`,
         );
+
+        setTimeout(() => {
+          navigate(`/file-manager/collections/${preSelectedCollectionId}`, {
+            state: {
+              refresh: true,
+              refreshFiles: true, // 🔧 NEW: Specific flag for file refresh
+              uploadedFileCount: successCount,
+              uploadTimestamp: Date.now(),
+            },
+            replace: false, // Use push navigation to ensure state is passed
+          });
+        }, 1500);
       }
     } else {
       setSuccess(`${successCount} of ${files.length} files uploaded`);
