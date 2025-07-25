@@ -61,7 +61,10 @@ const CollectionCreate = () => {
       if (result.success) {
         // Navigate back to parent collection or to the new collection
         if (parentCollectionId) {
-          navigate(`/file-manager/collections/${parentCollectionId}`);
+          // FIXED: Pass state to force refresh of parent collection
+          navigate(`/file-manager/collections/${parentCollectionId}`, {
+            state: { refresh: true, newCollectionCreated: true },
+          });
         } else {
           navigate(`/file-manager/collections/${result.collectionId}`);
         }

@@ -1,6 +1,6 @@
 // File: src/pages/User/FileManager/Collections/CollectionDetails.jsx
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
 import { useFiles, useCrypto, useAuth } from "../../../../services/Services";
 import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 import Navigation from "../../../../components/Navigation";
@@ -20,6 +20,7 @@ import {
 const CollectionDetails = () => {
   const navigate = useNavigate();
   const { collectionId } = useParams();
+  const location = useLocation(); // ADDED: To detect navigation state
 
   const {
     getCollectionManager,
@@ -344,6 +345,37 @@ const CollectionDetails = () => {
     collectionId,
     authManager,
     loadCollection,
+  ]);
+
+  // ADDED: Handle refresh when returning from collection creation
+  useEffect(() => {
+    if (location.state?.refresh && location.state?.newCollectionCreated) {
+      console.log(
+        "[CollectionDetails] Forcing refresh due to new collection creation",
+      );
+      // Force refresh to show the newly created sub-collection
+      if (
+        getCollectionManager &&
+        fileManager &&
+        collectionId &&
+        authManager?.isAuthenticated()
+      ) {
+        loadCollection(true); // Force refresh
+      }
+
+      // Clear the state to prevent repeated refreshes
+      // Replace the current state without the refresh flag
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [
+    location.state,
+    getCollectionManager,
+    fileManager,
+    collectionId,
+    authManager,
+    loadCollection,
+    navigate,
+    location.pathname,
   ]);
 
   // Handle upload to collection
