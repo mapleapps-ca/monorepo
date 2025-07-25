@@ -42,6 +42,10 @@ const CollectionDetails = () => {
   const [downloadingFiles, setDownloadingFiles] = useState(new Set());
   const [fileManager, setFileManager] = useState(null);
 
+  // 🔧 NEW: State to track pending refresh operations
+  const [pendingRefresh, setPendingRefresh] = useState(false);
+  const [refreshReason, setRefreshReason] = useState(null);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
@@ -119,6 +123,74 @@ const CollectionDetails = () => {
     [CollectionCryptoService],
   );
 
+  // 🔧 ENHANCED: Comprehensive cache clearing function
+  const performComprehensiveCacheClearing = useCallback(() => {
+    console.log(
+      "[CollectionDetails] 🧹 Starting comprehensive cache clearing...",
+    );
+
+    try {
+      // Clear ListCollectionManager cache
+      if (listCollectionManager) {
+        listCollectionManager.clearAllCache();
+        console.log(
+          "[CollectionDetails] ✅ ListCollectionManager cache cleared",
+        );
+      }
+
+      // Clear GetCollectionManager cache
+      if (getCollectionManager) {
+        getCollectionManager.clearAllCache();
+        console.log(
+          "[CollectionDetails] ✅ GetCollectionManager cache cleared",
+        );
+      }
+
+      // Clear FileManager caches
+      if (fileManager) {
+        fileManager.clearAllCaches();
+        console.log("[CollectionDetails] ✅ FileManager cache cleared");
+      }
+
+      // Clear localStorage file-related caches
+      const fileRelatedKeys = Object.keys(localStorage).filter(
+        (key) =>
+          key.includes("file_list") ||
+          key.includes("file_cache") ||
+          key.includes("mapleapps_file"),
+      );
+
+      fileRelatedKeys.forEach((key) => {
+        localStorage.removeItem(key);
+        console.log("[CollectionDetails] ✅ Removed localStorage key:", key);
+      });
+
+      // Clear via global services if available
+      const services = window.mapleAppsServices;
+      if (services) {
+        console.log("[CollectionDetails] 🌐 Clearing via global services");
+
+        if (services.getFileManager) {
+          services.getFileManager.clearAllCaches();
+          console.log(
+            "[CollectionDetails] ✅ Global GetFileManager cache cleared",
+          );
+        }
+
+        if (services.fileCryptoService) {
+          services.fileCryptoService.clearFileKeyCache();
+          console.log("[CollectionDetails] ✅ FileCryptoService cache cleared");
+        }
+      }
+
+      console.log(
+        "[CollectionDetails] 🎉 Comprehensive cache clearing completed",
+      );
+    } catch (error) {
+      console.warn("[CollectionDetails] ⚠️ Some cache clearing failed:", error);
+    }
+  }, [listCollectionManager, getCollectionManager, fileManager]);
+
   // Load ALL files and store them for client-side filtering
   const loadAllCollectionFiles = useCallback(
     async (collectionId, forceRefresh = false) => {
@@ -136,7 +208,7 @@ const CollectionDetails = () => {
         const loadedFiles = await fileManager.listFilesByCollection(
           collectionId,
           allStates,
-          forceRefresh,
+          forceRefresh, // 🔧 PASS forceRefresh to the file manager
         );
 
         console.log(
@@ -239,33 +311,12 @@ const CollectionDetails = () => {
           forceRefresh,
         );
 
-        // 🔧 COMPREHENSIVE CACHE CLEARING
+        // 🔧 ENHANCED: Comprehensive cache clearing when forcing refresh
         if (forceRefresh) {
           console.log(
-            "[CollectionDetails] Force refresh - clearing ALL caches",
+            "[CollectionDetails] 🧹 Force refresh - clearing ALL caches",
           );
-
-          // Clear ListCollectionManager cache
-          if (listCollectionManager) {
-            listCollectionManager.clearAllCache();
-            console.log(
-              "[CollectionDetails] ListCollectionManager cache cleared",
-            );
-          }
-
-          // Clear GetCollectionManager cache
-          if (getCollectionManager) {
-            getCollectionManager.clearAllCache();
-            console.log(
-              "[CollectionDetails] GetCollectionManager cache cleared",
-            );
-          }
-
-          // Clear file manager caches
-          if (fileManager) {
-            fileManager.clearAllCaches();
-            console.log("[CollectionDetails] FileManager cache cleared");
-          }
+          performComprehensiveCacheClearing();
         }
 
         // Load collection details
@@ -297,7 +348,7 @@ const CollectionDetails = () => {
 
         if (forceRefresh) {
           console.log(
-            "[CollectionDetails] Force refresh completed successfully",
+            "[CollectionDetails] 🎉 Force refresh completed successfully",
           );
         }
       } catch (err) {
@@ -316,54 +367,41 @@ const CollectionDetails = () => {
       loadSubCollections,
       listCollectionManager,
       processCollection,
+      performComprehensiveCacheClearing,
     ],
   );
 
-  // Load collection when ready
-  useEffect(() => {
-    if (
-      getCollectionManager &&
-      fileManager &&
-      collectionId &&
-      authManager?.isAuthenticated()
-    ) {
-      loadCollection();
-    }
-  }, [
-    getCollectionManager,
-    fileManager,
-    collectionId,
-    authManager,
-    loadCollection,
-  ]);
-
-  // 🔧 COMPREHENSIVE FIX: Handle both collection creation AND file upload refresh
+  // 🔧 NEW: Detect refresh state and store it for later processing
   useEffect(() => {
     const shouldRefresh = location.state?.refresh;
     const isCollectionCreation = location.state?.newCollectionCreated;
-    const isFileUpload = location.state?.refreshFiles;
+    const isFileUpload =
+      location.state?.refreshFiles || location.state?.forceFileRefresh;
 
-    console.log("[CollectionDetails] Checking refresh state:", {
+    console.log("[CollectionDetails] 🔍 Checking refresh state:", {
       shouldRefresh,
       isCollectionCreation,
       isFileUpload,
       uploadedFileCount: location.state?.uploadedFileCount,
+      cacheCleared: location.state?.cacheCleared,
       locationState: location.state,
     });
 
     if (shouldRefresh && (isCollectionCreation || isFileUpload)) {
       if (isCollectionCreation) {
         console.log(
-          "[CollectionDetails] 🆕 Forcing refresh due to new collection creation",
+          "[CollectionDetails] 🆕 Collection creation refresh requested",
         );
+        setRefreshReason("collection_creation");
       }
 
       if (isFileUpload) {
         console.log(
-          "[CollectionDetails] 📁 Forcing refresh due to file upload,",
+          "[CollectionDetails] 📁 File upload refresh requested -",
           "uploaded files:",
           location.state?.uploadedFileCount || "unknown",
         );
+        setRefreshReason("file_upload");
 
         // Show success message for file upload
         if (location.state?.uploadedFileCount) {
@@ -378,34 +416,65 @@ const CollectionDetails = () => {
         }
       }
 
-      // Force refresh if all required services are available
-      if (
-        getCollectionManager &&
-        fileManager &&
-        collectionId &&
-        authManager?.isAuthenticated()
-      ) {
-        console.log("[CollectionDetails] 🔄 Starting force refresh...");
+      // Mark that we need to refresh once managers are ready
+      setPendingRefresh(true);
 
-        // Add a small delay to ensure the backend has processed the changes
-        setTimeout(() => {
-          loadCollection(true); // Force refresh with cache clearing
-        }, 200);
-      }
-
-      // Clear the state to prevent repeated refreshes
+      // Clear the navigation state immediately to prevent repeated processing
       console.log("[CollectionDetails] 🧹 Clearing navigation state");
       navigate(location.pathname, { replace: true, state: {} });
     }
+  }, [location.state, navigate, location.pathname]);
+
+  // 🔧 NEW: Execute pending refresh when all managers are ready
+  useEffect(() => {
+    if (
+      pendingRefresh &&
+      getCollectionManager &&
+      fileManager &&
+      collectionId &&
+      authManager?.isAuthenticated()
+    ) {
+      console.log(
+        "[CollectionDetails] 🚀 All managers ready, executing pending refresh for:",
+        refreshReason,
+      );
+
+      // Execute the force refresh
+      loadCollection(true);
+
+      // Clear pending refresh state
+      setPendingRefresh(false);
+      setRefreshReason(null);
+    }
   }, [
-    location.state,
+    pendingRefresh,
+    refreshReason,
     getCollectionManager,
     fileManager,
     collectionId,
     authManager,
     loadCollection,
-    navigate,
-    location.pathname,
+  ]);
+
+  // Load collection when ready (normal loading, not refresh)
+  useEffect(() => {
+    if (
+      getCollectionManager &&
+      fileManager &&
+      collectionId &&
+      authManager?.isAuthenticated() &&
+      !pendingRefresh // 🔧 Don't load normally if we have a pending refresh
+    ) {
+      console.log("[CollectionDetails] 📁 Normal collection load");
+      loadCollection();
+    }
+  }, [
+    getCollectionManager,
+    fileManager,
+    collectionId,
+    authManager,
+    loadCollection,
+    pendingRefresh,
   ]);
 
   // Handle create sub-collection
@@ -486,6 +555,17 @@ const CollectionDetails = () => {
     });
   };
 
+  // 🔧 ENHANCED: Manual refresh function with comprehensive cache clearing
+  const handleManualRefresh = async () => {
+    console.log("[CollectionDetails] 🔄 Manual refresh triggered");
+
+    // Clear all caches first
+    performComprehensiveCacheClearing();
+
+    // Then force load with refresh
+    await loadCollection(true);
+  };
+
   // Filter files and collections by search
   const searchFilteredFiles = files.filter((file) =>
     (file.name || "").toLowerCase().includes(searchQuery.toLowerCase()),
@@ -524,7 +604,14 @@ const CollectionDetails = () => {
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-800 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading folder...</p>
+              <p className="text-gray-600">
+                Loading folder...
+                {pendingRefresh && (
+                  <span className="block text-sm text-blue-600 mt-2">
+                    🔄 Refreshing with latest data
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         </div>
@@ -569,7 +656,7 @@ const CollectionDetails = () => {
 
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => loadCollection(true)}
+                onClick={handleManualRefresh}
                 disabled={isLoading}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
