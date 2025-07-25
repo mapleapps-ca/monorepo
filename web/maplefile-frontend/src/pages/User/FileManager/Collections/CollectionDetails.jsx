@@ -8,13 +8,14 @@ import {
   FolderIcon,
   PhotoIcon,
   DocumentIcon,
-  ArrowLeftIcon,
   CloudArrowUpIcon,
   ShareIcon,
   ArrowDownTrayIcon,
   MagnifyingGlassIcon,
   ArrowPathIcon,
   PlusIcon,
+  HomeIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 
 const CollectionDetails = () => {
@@ -41,6 +42,10 @@ const CollectionDetails = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [downloadingFiles, setDownloadingFiles] = useState(new Set());
   const [fileManager, setFileManager] = useState(null);
+
+  // 🔧 NEW: Breadcrumb navigation state
+  const [breadcrumbs, setBreadcrumbs] = useState([]);
+  const [isLoadingBreadcrumbs, setIsLoadingBreadcrumbs] = useState(false);
 
   // 🔧 NEW: State to track pending refresh operations
   const [pendingRefresh, setPendingRefresh] = useState(false);
@@ -121,6 +126,142 @@ const CollectionDetails = () => {
       return processedCollection;
     },
     [CollectionCryptoService],
+  );
+
+  // 🔧 FIXED: Build breadcrumb trail by walking up parent chain
+  const loadBreadcrumbs = useCallback(
+    async (currentCollection) => {
+      if (!currentCollection || !getCollectionManager) return;
+
+      setIsLoadingBreadcrumbs(true);
+      try {
+        console.log(
+          "[CollectionDetails] Building breadcrumb trail for:",
+          currentCollection.id,
+          currentCollection.name,
+        );
+
+        const breadcrumbItems = [];
+
+        // Walk up the parent chain to build the full path
+        const collectionChain = [];
+        let currentId = currentCollection.id;
+        let current = currentCollection;
+
+        // Add current collection first
+        collectionChain.unshift({
+          id: current.id,
+          name: current.name || "Locked Folder",
+          isCurrent: true,
+        });
+
+        // Walk up the parent chain
+        while (current.parent_id) {
+          try {
+            console.log(
+              "[CollectionDetails] Loading parent:",
+              current.parent_id,
+            );
+            const result = await getCollectionManager.getCollection(
+              current.parent_id,
+            );
+
+            if (result.collection) {
+              const processedParent = await processCollection(
+                result.collection,
+              );
+              console.log(
+                "[CollectionDetails] Loaded parent:",
+                processedParent.name,
+              );
+
+              // Add to beginning of chain (we're walking backwards)
+              collectionChain.unshift({
+                id: processedParent.id,
+                name: processedParent.name || "Locked Folder",
+                isCurrent: false,
+              });
+
+              // Move up to next parent
+              current = processedParent;
+            } else {
+              console.warn(
+                "[CollectionDetails] Parent collection not found:",
+                current.parent_id,
+              );
+              break;
+            }
+          } catch (error) {
+            console.warn(
+              "[CollectionDetails] Failed to load parent:",
+              current.parent_id,
+              error,
+            );
+            break;
+          }
+        }
+
+        console.log(
+          "[CollectionDetails] Built collection chain:",
+          collectionChain.map((c) => c.name),
+        );
+
+        // Now build the breadcrumb items
+
+        // Always start with root
+        breadcrumbItems.push({
+          id: "root",
+          name: "My Files",
+          path: "/file-manager",
+          isRoot: true,
+        });
+
+        // Add each collection in the chain
+        collectionChain.forEach((collection, index) => {
+          const isLast = index === collectionChain.length - 1;
+
+          breadcrumbItems.push({
+            id: collection.id,
+            name: collection.name,
+            path: isLast ? null : `/file-manager/collections/${collection.id}`, // Current collection is not clickable
+            isRoot: false,
+            isCurrent: isLast,
+          });
+        });
+
+        setBreadcrumbs(breadcrumbItems);
+        console.log(
+          "[CollectionDetails] Final breadcrumbs:",
+          breadcrumbItems.map(
+            (b) => `${b.name}${b.isCurrent ? " (current)" : ""}`,
+          ),
+        );
+      } catch (error) {
+        console.error(
+          "[CollectionDetails] Failed to build breadcrumbs:",
+          error,
+        );
+        // Minimal fallback breadcrumbs
+        setBreadcrumbs([
+          {
+            id: "root",
+            name: "My Files",
+            path: "/file-manager",
+            isRoot: true,
+          },
+          {
+            id: currentCollection.id,
+            name: currentCollection.name || "Current Folder",
+            path: null,
+            isRoot: false,
+            isCurrent: true,
+          },
+        ]);
+      } finally {
+        setIsLoadingBreadcrumbs(false);
+      }
+    },
+    [getCollectionManager, processCollection],
   );
 
   // 🔧 ENHANCED: Comprehensive cache clearing function
@@ -338,6 +479,9 @@ const CollectionDetails = () => {
               result.collection.collection_key,
             );
           }
+
+          // 🔧 NEW: Load breadcrumbs after collection is loaded
+          await loadBreadcrumbs(processedCollection);
         }
 
         // Load ALL files (all states) to properly filter client-side
@@ -368,6 +512,7 @@ const CollectionDetails = () => {
       listCollectionManager,
       processCollection,
       performComprehensiveCacheClearing,
+      loadBreadcrumbs,
     ],
   );
 
@@ -476,6 +621,51 @@ const CollectionDetails = () => {
     loadCollection,
     pendingRefresh,
   ]);
+
+  // 🔧 SIMPLIFIED: Breadcrumb navigation component (no back button needed)
+  const Breadcrumbs = () => {
+    if (breadcrumbs.length === 0) return null;
+
+    return (
+      <nav
+        className="flex items-center space-x-1 text-sm text-gray-600 mb-6"
+        aria-label="Breadcrumb"
+      >
+        {breadcrumbs.map((crumb, index) => (
+          <React.Fragment key={crumb.id}>
+            {index > 0 && (
+              <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+            )}
+
+            {crumb.isCurrent ? (
+              // Current page - not clickable
+              <span className="font-medium text-gray-900">
+                {isLoadingBreadcrumbs ? (
+                  <div className="inline-flex items-center">
+                    <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>
+                  </div>
+                ) : (
+                  crumb.name
+                )}
+              </span>
+            ) : (
+              // Clickable breadcrumb
+              <button
+                onClick={() => navigate(crumb.path)}
+                className="hover:text-gray-900 flex items-center space-x-1 transition-colors"
+              >
+                {crumb.isRoot && <HomeIcon className="h-4 w-4" />}
+                {!crumb.isRoot && <FolderIcon className="h-4 w-4" />}
+                <span>{crumb.name}</span>
+              </button>
+            )}
+          </React.Fragment>
+        ))}
+      </nav>
+    );
+  };
+
+  // Removed back button logic - using only breadcrumbs for cleaner UX
 
   // Handle create sub-collection
   const handleCreateSubCollection = () => {
@@ -624,16 +814,11 @@ const CollectionDetails = () => {
       <Navigation />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* 🔧 SIMPLIFIED: Only breadcrumb navigation (no redundant back button) */}
+        <Breadcrumbs />
+
         {/* Header */}
         <div className="mb-6">
-          <button
-            onClick={() => navigate("/file-manager")}
-            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeftIcon className="h-4 w-4 mr-1" />
-            Back to My Files
-          </button>
-
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div
