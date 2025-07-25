@@ -15,7 +15,6 @@ import {
   MagnifyingGlassIcon,
   ArrowPathIcon,
   PlusIcon,
-  CheckIcon,
 } from "@heroicons/react/24/outline";
 
 const CollectionDetails = () => {
@@ -41,7 +40,6 @@ const CollectionDetails = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [downloadingFiles, setDownloadingFiles] = useState(new Set());
   const [fileManager, setFileManager] = useState(null);
-  const [viewMode, setViewMode] = useState("active"); // active, archived, deleted, pending, all
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -191,7 +189,7 @@ const CollectionDetails = () => {
         setAllFiles(loadedFiles);
 
         // Apply initial filter
-        filterFilesByViewMode(loadedFiles, viewMode);
+        filterFilesByViewMode(loadedFiles);
       } catch (err) {
         console.error("[CollectionDetails] Failed to load files:", err);
         setAllFiles([]);
@@ -202,7 +200,7 @@ const CollectionDetails = () => {
   );
 
   // Filter files based on view mode
-  const filterFilesByViewMode = (filesToFilter, mode) => {
+  const filterFilesByViewMode = (filesToFilter, mode = "active") => {
     console.log(
       "[CollectionDetails] Filtering files by mode:",
       mode,
@@ -210,37 +208,10 @@ const CollectionDetails = () => {
       filesToFilter.length,
     );
 
-    let filtered = [];
-
-    switch (mode) {
-      case "active":
-        filtered = filesToFilter.filter(
-          (f) => f.state === "active" || (!f.state && f._is_active),
-        );
-        break;
-      case "archived":
-        filtered = filesToFilter.filter(
-          (f) => f.state === "archived" || f._is_archived,
-        );
-        break;
-      case "deleted":
-        filtered = filesToFilter.filter(
-          (f) => f.state === "deleted" || f._is_deleted,
-        );
-        break;
-      case "pending":
-        filtered = filesToFilter.filter(
-          (f) => f.state === "pending" || f._is_pending,
-        );
-        break;
-      case "all":
-        filtered = filesToFilter;
-        break;
-      default:
-        filtered = filesToFilter.filter(
-          (f) => f.state === "active" || (!f.state && f._is_active),
-        );
-    }
+    // Only show active files for simplified UI
+    const filtered = filesToFilter.filter(
+      (f) => f.state === "active" || (!f.state && f._is_active),
+    );
 
     console.log("[CollectionDetails] Filtered files:", filtered.length);
     setFiles(filtered);
@@ -291,13 +262,6 @@ const CollectionDetails = () => {
     },
     [listCollectionManager],
   );
-
-  // Handle view mode change
-  const handleViewModeChange = (newMode) => {
-    console.log("[CollectionDetails] Changing view mode to:", newMode);
-    setViewMode(newMode);
-    filterFilesByViewMode(allFiles, newMode);
-  };
 
   // Handle create sub-collection
   const handleCreateSubCollection = () => {
@@ -364,43 +328,6 @@ const CollectionDetails = () => {
     return "This week";
   };
 
-  // Get state color
-  const getStateColor = (state) => {
-    switch (state) {
-      case "active":
-        return "#28a745";
-      case "archived":
-        return "#6c757d";
-      case "deleted":
-        return "#dc3545";
-      case "pending":
-        return "#ffc107";
-      default:
-        return "#6c757d";
-    }
-  };
-
-  // Get file statistics from all files
-  const getFileStats = () => {
-    const stats = {
-      total: allFiles.length,
-      active: 0,
-      archived: 0,
-      deleted: 0,
-      pending: 0,
-    };
-
-    allFiles.forEach((file) => {
-      if (file.state === "active" || (!file.state && file._is_active))
-        stats.active++;
-      else if (file.state === "archived" || file._is_archived) stats.archived++;
-      else if (file.state === "deleted" || file._is_deleted) stats.deleted++;
-      else if (file.state === "pending" || file._is_pending) stats.pending++;
-    });
-
-    return stats;
-  };
-
   // Load collection when ready
   useEffect(() => {
     if (
@@ -449,8 +376,6 @@ const CollectionDetails = () => {
     indexOfLastItem,
   );
   const totalPages = Math.ceil(searchFilteredFiles.length / itemsPerPage);
-
-  const fileStats = getFileStats();
 
   // Clear messages after 5 seconds
   useEffect(() => {
@@ -581,81 +506,6 @@ const CollectionDetails = () => {
           </button>
         </div>
 
-        {/* File Statistics */}
-        {allFiles.length > 0 && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-6 text-sm">
-                <div>
-                  <span className="text-gray-500">Total:</span>{" "}
-                  <span className="font-medium">{fileStats.total}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Active:</span>{" "}
-                  <span
-                    className="font-medium"
-                    style={{ color: getStateColor("active") }}
-                  >
-                    {fileStats.active}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Archived:</span>{" "}
-                  <span
-                    className="font-medium"
-                    style={{ color: getStateColor("archived") }}
-                  >
-                    {fileStats.archived}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Deleted:</span>{" "}
-                  <span
-                    className="font-medium"
-                    style={{ color: getStateColor("deleted") }}
-                  >
-                    {fileStats.deleted}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Pending:</span>{" "}
-                  <span
-                    className="font-medium"
-                    style={{ color: getStateColor("pending") }}
-                  >
-                    {fileStats.pending}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* View Mode Toggle */}
-        {allFiles.length > 0 && (
-          <div className="mb-6 flex gap-2 flex-wrap">
-            {[
-              { key: "active", label: "Active", count: fileStats.active },
-              { key: "archived", label: "Archived", count: fileStats.archived },
-              { key: "deleted", label: "Deleted", count: fileStats.deleted },
-              { key: "pending", label: "Pending", count: fileStats.pending },
-              { key: "all", label: "All", count: fileStats.total },
-            ].map(({ key, label, count }) => (
-              <button
-                key={key}
-                onClick={() => handleViewModeChange(key)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  viewMode === key
-                    ? "bg-red-800 text-white"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                {label} ({count})
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* Sub-Collections */}
         {filteredSubCollections.length > 0 && (
           <div className="mb-6">
@@ -687,9 +537,6 @@ const CollectionDetails = () => {
                       <h3 className="font-medium text-gray-900 truncate">
                         {subCol.name || "Locked Folder"}
                       </h3>
-                      <p className="text-sm text-gray-500">
-                        {subCol.file_count || 0} items
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -705,18 +552,14 @@ const CollectionDetails = () => {
             <div className="p-8 text-center">
               <DocumentIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-sm font-medium text-gray-900 mb-2">
-                {searchQuery
-                  ? "No items found"
-                  : `No ${viewMode === "all" ? "" : viewMode} items`}
+                {searchQuery ? "No items found" : "No items"}
               </h3>
               <p className="text-sm text-gray-500 mb-4">
                 {searchQuery
                   ? `No items match "${searchQuery}"`
-                  : viewMode === "active"
-                    ? "Upload files or create folders to get started"
-                    : `There are no ${viewMode} items in this folder`}
+                  : "Upload files or create folders to get started"}
               </p>
-              {!searchQuery && viewMode === "active" && (
+              {!searchQuery && (
                 <div className="flex justify-center space-x-3">
                   <button
                     onClick={handleUploadToCollection}
@@ -756,18 +599,7 @@ const CollectionDetails = () => {
                           {formatFileSize(
                             file.size || file.encrypted_file_size_in_bytes,
                           )}{" "}
-                          •{getTimeAgo(file.modified_at || file.created_at)}
-                          {file.state && file.state !== "active" && (
-                            <span
-                              className="ml-2 px-2 py-0.5 rounded-full text-white"
-                              style={{
-                                backgroundColor: getStateColor(file.state),
-                                fontSize: "10px",
-                              }}
-                            >
-                              {file.state.toUpperCase()}
-                            </span>
-                          )}
+                          • {getTimeAgo(file.modified_at || file.created_at)}
                         </div>
                       </div>
                     </div>
