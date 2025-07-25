@@ -144,7 +144,15 @@ function createServices() {
   console.log("[Services] ✓ Dashboard manager created");
 
   // ========================================
-  // 8. SERVICE REGISTRY
+  // 8. MANAGER CROSS-REFERENCES (For Cache Invalidation)
+  // ========================================
+
+  // Set up cross-references for cache invalidation
+  createCollectionManager.setListCollectionManager(listCollectionManager);
+  console.log("[Services] ✓ Manager cross-references configured");
+
+  // ========================================
+  // 9. SERVICE REGISTRY
   // ========================================
 
   const services = {

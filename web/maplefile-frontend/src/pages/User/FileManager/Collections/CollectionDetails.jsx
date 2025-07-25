@@ -20,7 +20,7 @@ import {
 const CollectionDetails = () => {
   const navigate = useNavigate();
   const { collectionId } = useParams();
-  const location = useLocation(); // ADDED: To detect navigation state
+  const location = useLocation();
 
   const {
     getCollectionManager,
@@ -35,8 +35,8 @@ const CollectionDetails = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [collection, setCollection] = useState(null);
-  const [allFiles, setAllFiles] = useState([]); // Store all files unfiltered
-  const [files, setFiles] = useState([]); // Filtered files for display
+  const [allFiles, setAllFiles] = useState([]);
+  const [files, setFiles] = useState([]);
   const [subCollections, setSubCollections] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [downloadingFiles, setDownloadingFiles] = useState(new Set());
@@ -45,8 +45,6 @@ const CollectionDetails = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
-  const [hasMoreFiles, setHasMoreFiles] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Initialize file manager
   useEffect(() => {
@@ -79,90 +77,47 @@ const CollectionDetails = () => {
     initializeManager();
   }, [authService, getCollectionManager, listCollectionManager]);
 
-  // Load collection and its contents
-  const loadCollection = useCallback(
-    async (forceRefresh = false) => {
-      if (!getCollectionManager || !collectionId || !fileManager) return;
-
-      setIsLoading(true);
-      setError("");
-
-      try {
-        console.log("[CollectionDetails] Loading collection:", collectionId);
-
-        // Load collection details
-        const result = await getCollectionManager.getCollection(
-          collectionId,
-          forceRefresh,
-        );
-
-        if (result.collection) {
-          const processedCollection = await processCollection(
-            result.collection,
-          );
-          setCollection(processedCollection);
-
-          // Cache collection key if available
-          if (result.collection.collection_key) {
-            CollectionCryptoService.cacheCollectionKey(
-              collectionId,
-              result.collection.collection_key,
-            );
-          }
-        }
-
-        // Load ALL files (all states) to properly filter client-side
-        await loadAllCollectionFiles(collectionId, forceRefresh);
-
-        // Load sub-collections
-        await loadSubCollections(collectionId, forceRefresh);
-      } catch (err) {
-        console.error("[CollectionDetails] Failed to load collection:", err);
-        setError("Could not load folder. Please try again.");
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [getCollectionManager, collectionId, fileManager, CollectionCryptoService],
-  );
-
   // Process collection for decryption
-  const processCollection = async (rawCollection) => {
-    let processedCollection = { ...rawCollection };
+  const processCollection = useCallback(
+    async (rawCollection) => {
+      let processedCollection = { ...rawCollection };
 
-    if (rawCollection.encrypted_name || rawCollection.encrypted_description) {
-      try {
-        let collectionKey =
-          rawCollection.collection_key ||
-          CollectionCryptoService.getCachedCollectionKey(rawCollection.id);
+      if (rawCollection.encrypted_name || rawCollection.encrypted_description) {
+        try {
+          let collectionKey =
+            rawCollection.collection_key ||
+            CollectionCryptoService.getCachedCollectionKey(rawCollection.id);
 
-        if (collectionKey) {
-          const { default: CollectionCryptoServiceClass } = await import(
-            "../../../../services/Crypto/CollectionCryptoService.js"
-          );
-
-          const decryptedCollection =
-            await CollectionCryptoServiceClass.decryptCollectionFromAPI(
-              rawCollection,
-              collectionKey,
+          if (collectionKey) {
+            const { default: CollectionCryptoServiceClass } = await import(
+              "../../../../services/Crypto/CollectionCryptoService.js"
             );
-          processedCollection = decryptedCollection;
-        } else {
+
+            const decryptedCollection =
+              await CollectionCryptoServiceClass.decryptCollectionFromAPI(
+                rawCollection,
+                collectionKey,
+              );
+            processedCollection = decryptedCollection;
+          } else {
+            processedCollection.name = "Locked Folder";
+            processedCollection._isDecrypted = false;
+          }
+        } catch (decryptError) {
+          console.error("[CollectionDetails] Decryption error:", decryptError);
           processedCollection.name = "Locked Folder";
           processedCollection._isDecrypted = false;
         }
-      } catch (decryptError) {
-        console.error("[CollectionDetails] Decryption error:", decryptError);
-        processedCollection.name = "Locked Folder";
-        processedCollection._isDecrypted = false;
+      } else {
+        processedCollection._isDecrypted = true;
       }
-    } else {
-      processedCollection._isDecrypted = true;
-    }
 
-    processedCollection.type = processedCollection.collection_type || "folder";
-    return processedCollection;
-  };
+      processedCollection.type =
+        processedCollection.collection_type || "folder";
+      return processedCollection;
+    },
+    [CollectionCryptoService],
+  );
 
   // Load ALL files and store them for client-side filtering
   const loadAllCollectionFiles = useCallback(
@@ -175,7 +130,6 @@ const CollectionDetails = () => {
           collectionId,
         );
 
-        // Load files with ALL states to enable proper client-side filtering
         const allStates = Object.values(fileManager.FILE_STATES);
         const loadedFiles = await fileManager.listFilesByCollection(
           collectionId,
@@ -201,25 +155,27 @@ const CollectionDetails = () => {
   );
 
   // Filter files based on view mode
-  const filterFilesByViewMode = (filesToFilter, mode = "active") => {
-    console.log(
-      "[CollectionDetails] Filtering files by mode:",
-      mode,
-      "Total files:",
-      filesToFilter.length,
-    );
+  const filterFilesByViewMode = useCallback(
+    (filesToFilter, mode = "active") => {
+      console.log(
+        "[CollectionDetails] Filtering files by mode:",
+        mode,
+        "Total files:",
+        filesToFilter.length,
+      );
 
-    // Only show active files for simplified UI
-    const filtered = filesToFilter.filter(
-      (f) => f.state === "active" || (!f.state && f._is_active),
-    );
+      const filtered = filesToFilter.filter(
+        (f) => f.state === "active" || (!f.state && f._is_active),
+      );
 
-    console.log("[CollectionDetails] Filtered files:", filtered.length);
-    setFiles(filtered);
-    setCurrentPage(1); // Reset to first page when filter changes
-  };
+      console.log("[CollectionDetails] Filtered files:", filtered.length);
+      setFiles(filtered);
+      setCurrentPage(1);
+    },
+    [],
+  );
 
-  // Load sub-collections
+  // Load sub-collections - FIXED: Added to useCallback dependencies
   const loadSubCollections = useCallback(
     async (parentCollectionId, forceRefresh = false) => {
       if (!listCollectionManager) return;
@@ -228,14 +184,15 @@ const CollectionDetails = () => {
         console.log(
           "[CollectionDetails] Loading sub-collections for:",
           parentCollectionId,
+          "forceRefresh:",
+          forceRefresh,
         );
 
-        // Get all collections
+        // FIXED: Force refresh to ensure we get latest data after collection creation
         const result =
           await listCollectionManager.listCollections(forceRefresh);
 
         if (result.collections) {
-          // FIXED: Filter for collections that have this collection as parent using correct field name
           const subCollections = result.collections.filter(
             (col) => col.parent_id === parentCollectionId,
           );
@@ -261,8 +218,129 @@ const CollectionDetails = () => {
         setSubCollections([]);
       }
     },
-    [listCollectionManager],
+    [listCollectionManager, processCollection], // FIXED: Added processCollection to dependencies
   );
+
+  // FIXED: Added loadSubCollections to dependencies and improved cache invalidation
+  const loadCollection = useCallback(
+    async (forceRefresh = false) => {
+      if (!getCollectionManager || !collectionId || !fileManager) return;
+
+      setIsLoading(true);
+      setError("");
+
+      try {
+        console.log(
+          "[CollectionDetails] Loading collection:",
+          collectionId,
+          "forceRefresh:",
+          forceRefresh,
+        );
+
+        // FIXED: If forceRefresh, clear the ListCollectionManager cache first
+        if (forceRefresh && listCollectionManager) {
+          console.log(
+            "[CollectionDetails] Clearing ListCollectionManager cache before refresh",
+          );
+          listCollectionManager.clearAllCache();
+        }
+
+        // Load collection details
+        const result = await getCollectionManager.getCollection(
+          collectionId,
+          forceRefresh,
+        );
+
+        if (result.collection) {
+          const processedCollection = await processCollection(
+            result.collection,
+          );
+          setCollection(processedCollection);
+
+          // Cache collection key if available
+          if (result.collection.collection_key) {
+            CollectionCryptoService.cacheCollectionKey(
+              collectionId,
+              result.collection.collection_key,
+            );
+          }
+        }
+
+        // Load ALL files (all states) to properly filter client-side
+        await loadAllCollectionFiles(collectionId, forceRefresh);
+
+        // Load sub-collections with force refresh
+        await loadSubCollections(collectionId, forceRefresh);
+      } catch (err) {
+        console.error("[CollectionDetails] Failed to load collection:", err);
+        setError("Could not load folder. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [
+      getCollectionManager,
+      collectionId,
+      fileManager,
+      CollectionCryptoService,
+      loadAllCollectionFiles,
+      loadSubCollections,
+      listCollectionManager, // FIXED: Added listCollectionManager
+      processCollection, // FIXED: Added processCollection
+    ],
+  );
+
+  // Load collection when ready
+  useEffect(() => {
+    if (
+      getCollectionManager &&
+      fileManager &&
+      collectionId &&
+      authManager?.isAuthenticated()
+    ) {
+      loadCollection();
+    }
+  }, [
+    getCollectionManager,
+    fileManager,
+    collectionId,
+    authManager,
+    loadCollection,
+  ]);
+
+  // FIXED: Enhanced refresh handling when returning from collection creation
+  useEffect(() => {
+    if (location.state?.refresh && location.state?.newCollectionCreated) {
+      console.log(
+        "[CollectionDetails] Forcing refresh due to new collection creation",
+      );
+
+      // Force refresh to show the newly created sub-collection
+      if (
+        getCollectionManager &&
+        fileManager &&
+        collectionId &&
+        authManager?.isAuthenticated()
+      ) {
+        // FIXED: Add a small delay to ensure the API has processed the creation
+        setTimeout(() => {
+          loadCollection(true); // Force refresh
+        }, 100);
+      }
+
+      // Clear the state to prevent repeated refreshes
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [
+    location.state,
+    getCollectionManager,
+    fileManager,
+    collectionId,
+    authManager,
+    loadCollection,
+    navigate,
+    location.pathname,
+  ]);
 
   // Handle create sub-collection
   const handleCreateSubCollection = () => {
@@ -328,55 +406,6 @@ const CollectionDetails = () => {
     if (diffInMinutes < 2880) return "Yesterday";
     return "This week";
   };
-
-  // Load collection when ready
-  useEffect(() => {
-    if (
-      getCollectionManager &&
-      fileManager &&
-      collectionId &&
-      authManager?.isAuthenticated()
-    ) {
-      loadCollection();
-    }
-  }, [
-    getCollectionManager,
-    fileManager,
-    collectionId,
-    authManager,
-    loadCollection,
-  ]);
-
-  // ADDED: Handle refresh when returning from collection creation
-  useEffect(() => {
-    if (location.state?.refresh && location.state?.newCollectionCreated) {
-      console.log(
-        "[CollectionDetails] Forcing refresh due to new collection creation",
-      );
-      // Force refresh to show the newly created sub-collection
-      if (
-        getCollectionManager &&
-        fileManager &&
-        collectionId &&
-        authManager?.isAuthenticated()
-      ) {
-        loadCollection(true); // Force refresh
-      }
-
-      // Clear the state to prevent repeated refreshes
-      // Replace the current state without the refresh flag
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [
-    location.state,
-    getCollectionManager,
-    fileManager,
-    collectionId,
-    authManager,
-    loadCollection,
-    navigate,
-    location.pathname,
-  ]);
 
   // Handle upload to collection
   const handleUploadToCollection = () => {

@@ -1,7 +1,7 @@
 // File: src/pages/User/FileManager/Collections/CollectionCreate.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { useCollections, useAuth } from "../../../../services/Services"; // FIXED: Changed useFiles to useCollections
+import { useCollections, useAuth } from "../../../../services/Services";
 import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 import Navigation from "../../../../components/Navigation";
 import {
@@ -14,7 +14,7 @@ import {
 const CollectionCreate = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { createCollectionManager } = useCollections(); // FIXED: Now using useCollections
+  const { createCollectionManager } = useCollections();
   const { authManager } = useAuth();
 
   // Get parent collection info from navigation state
@@ -50,7 +50,7 @@ const CollectionCreate = () => {
 
       // Add parent collection if creating a sub-collection
       if (parentCollectionId) {
-        collectionData.parent_id = parentCollectionId; // FIXED: Use parent_id instead of parent_collection_id
+        collectionData.parent_id = parentCollectionId;
       }
 
       const result = await createCollectionManager.createCollection(
@@ -59,17 +59,49 @@ const CollectionCreate = () => {
       );
 
       if (result.success) {
-        // Navigate back to parent collection or to the new collection
+        console.log(
+          "[CollectionCreate] Collection created successfully:",
+          result.collectionId,
+        );
+
+        // FIXED: Handle both root and sub-collection cases with proper cache invalidation
         if (parentCollectionId) {
-          // FIXED: Pass state to force refresh of parent collection
+          // Creating a sub-collection - navigate back to parent with refresh state
+          console.log(
+            "[CollectionCreate] Navigating to parent collection with refresh",
+          );
           navigate(`/file-manager/collections/${parentCollectionId}`, {
             state: { refresh: true, newCollectionCreated: true },
+            replace: false, // Don't replace history so user can go back
           });
         } else {
-          navigate(`/file-manager/collections/${result.collectionId}`);
+          // Creating a root collection - navigate to file manager index with refresh event
+          console.log(
+            "[CollectionCreate] Navigating to file manager with cache invalidation",
+          );
+
+          // Dispatch a custom event to notify FileManagerIndex to refresh its cache
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("rootCollectionCreated", {
+                detail: {
+                  collectionId: result.collectionId,
+                  name: collectionData.name,
+                  timestamp: Date.now(),
+                },
+              }),
+            );
+          }
+
+          // Navigate to the file manager index (which will refresh due to the event)
+          navigate("/file-manager", {
+            state: { refresh: true, newRootCollectionCreated: true },
+            replace: false,
+          });
         }
       }
     } catch (err) {
+      console.error("[CollectionCreate] Collection creation failed:", err);
       setError("Could not create folder. Please try again.");
     } finally {
       setIsLoading(false);
@@ -81,6 +113,13 @@ const CollectionCreate = () => {
       return `/file-manager/collections/${parentCollectionId}`;
     }
     return "/file-manager";
+  };
+
+  const getBackText = () => {
+    if (parentCollectionName) {
+      return `Back to ${parentCollectionName}`;
+    }
+    return "Back to My Files";
   };
 
   return (
@@ -95,7 +134,7 @@ const CollectionCreate = () => {
             className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
-            Back to {parentCollectionName || "My Files"}
+            {getBackText()}
           </button>
           <h1 className="text-2xl font-semibold text-gray-900">
             Create New Folder
@@ -103,6 +142,11 @@ const CollectionCreate = () => {
           {parentCollectionName && (
             <p className="text-sm text-gray-500 mt-1">
               Creating folder inside: {parentCollectionName}
+            </p>
+          )}
+          {!parentCollectionName && (
+            <p className="text-sm text-gray-500 mt-1">
+              Creating a root-level folder
             </p>
           )}
         </div>

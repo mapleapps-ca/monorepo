@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/services/Manager/Collection/CreateCollectionManager.js
-// Create Collection Manager - Orchestrates API, Storage, and Crypto services for collection creation (FIXED)
+// Create Collection Manager - Orchestrates API, Storage, and Crypto services for collection creation (FIXED with cache invalidation)
 
 import CreateCollectionAPIService from "../../API/Collection/CreateCollectionAPIService.js";
 import CreateCollectionStorageService from "../../Storage/Collection/CreateCollectionStorageService.js";
@@ -18,6 +18,9 @@ class CreateCollectionManager {
 
     // Event listeners for collection creation events
     this.collectionCreationListeners = new Set();
+
+    // ADDED: Reference to other managers for cache invalidation
+    this.listCollectionManager = null;
 
     console.log(
       "[CreateCollectionManager] Collection manager initialized with AuthManager dependency",
@@ -40,6 +43,70 @@ class CreateCollectionManager {
     } catch (error) {
       console.error(
         "[CreateCollectionManager] Failed to initialize collection manager:",
+        error,
+      );
+    }
+  }
+
+  // ADDED: Set reference to ListCollectionManager for cache invalidation
+  setListCollectionManager(listCollectionManager) {
+    this.listCollectionManager = listCollectionManager;
+    console.log(
+      "[CreateCollectionManager] ListCollectionManager reference set for cache invalidation",
+    );
+  }
+
+  // ADDED: Invalidate related caches when collection is created
+  invalidateRelatedCaches(collectionData) {
+    try {
+      console.log(
+        "[CreateCollectionManager] Invalidating related caches after collection creation",
+      );
+
+      // Invalidate ListCollectionManager cache
+      if (this.listCollectionManager) {
+        this.listCollectionManager.clearAllCache();
+        console.log(
+          "[CreateCollectionManager] ListCollectionManager cache cleared",
+        );
+      }
+
+      // Dispatch appropriate events based on collection type
+      if (typeof window !== "undefined") {
+        // Always dispatch the generic collection created event
+        window.dispatchEvent(
+          new CustomEvent("collectionCreated", {
+            detail: {
+              timestamp: Date.now(),
+              source: "CreateCollectionManager",
+              collectionData: collectionData,
+            },
+          }),
+        );
+
+        // If it's a root collection (no parent), also dispatch rootCollectionCreated
+        if (!collectionData.parent_id) {
+          window.dispatchEvent(
+            new CustomEvent("rootCollectionCreated", {
+              detail: {
+                timestamp: Date.now(),
+                source: "CreateCollectionManager",
+                collectionData: collectionData,
+              },
+            }),
+          );
+          console.log(
+            "[CreateCollectionManager] rootCollectionCreated event dispatched",
+          );
+        }
+
+        console.log(
+          "[CreateCollectionManager] collectionCreated event dispatched",
+        );
+      }
+    } catch (error) {
+      console.warn(
+        "[CreateCollectionManager] Failed to invalidate some caches:",
         error,
       );
     }
@@ -111,11 +178,16 @@ class CreateCollectionManager {
       // Store in local storage
       this.storageService.storeCreatedCollection(decryptedCollection);
 
+      // ADDED: Invalidate related caches to ensure fresh data
+      this.invalidateRelatedCaches(collectionData);
+
       // Notify listeners
       this.notifyCollectionCreationListeners("collection_created", {
         collectionId,
         name: collectionData.name,
         type: collectionData.collection_type || "folder",
+        hasParent: !!collectionData.parent_id,
+        parentId: collectionData.parent_id,
       });
 
       console.log(
@@ -249,6 +321,9 @@ class CreateCollectionManager {
       const removed = this.storageService.removeCollection(collectionId);
 
       if (removed) {
+        // ADDED: Invalidate caches when collection is removed
+        this.invalidateRelatedCaches({});
+
         this.notifyCollectionCreationListeners("collection_removed", {
           collectionId,
         });
@@ -270,6 +345,9 @@ class CreateCollectionManager {
       console.log("[CreateCollectionManager] Clearing all collections");
 
       this.storageService.clearAllCollections();
+
+      // ADDED: Invalidate caches when all collections are cleared
+      this.invalidateRelatedCaches({});
 
       this.notifyCollectionCreationListeners("all_collections_cleared", {});
 
@@ -366,6 +444,7 @@ class CreateCollectionManager {
       crypto: cryptoStatus,
       listenerCount: this.collectionCreationListeners.size,
       hasPasswordService: !!this.getUserPassword,
+      hasListCollectionManager: !!this.listCollectionManager,
     };
   }
 
