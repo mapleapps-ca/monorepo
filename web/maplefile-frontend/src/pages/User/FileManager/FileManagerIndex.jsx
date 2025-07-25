@@ -1,6 +1,6 @@
 // File: src/pages/User/FileManager/FileManagerIndex.jsx
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router"; // ADDED: useLocation import
 import { useFiles, useCrypto, useAuth } from "../../../services/Services";
 import withPasswordProtection from "../../../hocs/withPasswordProtection";
 import Navigation from "../../../components/Navigation";
@@ -15,6 +15,7 @@ import {
 
 const FileManagerIndex = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // ADDED: Get location for state handling
   const { listCollectionManager, getCollectionManager } = useFiles();
   const { CollectionCryptoService } = useCrypto();
   const { authManager } = useAuth();
@@ -146,11 +147,71 @@ const FileManagerIndex = () => {
     return "This week";
   };
 
+  // ORIGINAL: Load collections when dependencies are ready
   useEffect(() => {
     if (listCollectionManager && authManager?.isAuthenticated()) {
       loadCollections();
     }
   }, [listCollectionManager, authManager, loadCollections]);
+
+  // ADDED: Listen for collection creation events and refresh
+  useEffect(() => {
+    const handleCollectionCreated = () => {
+      console.log(
+        "[FileManagerIndex] Collection created event received, refreshing collections",
+      );
+      if (listCollectionManager && authManager?.isAuthenticated()) {
+        loadCollections(true); // Force refresh
+      }
+    };
+
+    const handleRootCollectionCreated = (event) => {
+      console.log(
+        "[FileManagerIndex] Root collection created event received:",
+        event.detail,
+      );
+      if (listCollectionManager && authManager?.isAuthenticated()) {
+        loadCollections(true); // Force refresh
+      }
+    };
+
+    // Listen for both generic collection creation and specific root collection creation
+    window.addEventListener("collectionCreated", handleCollectionCreated);
+    window.addEventListener(
+      "rootCollectionCreated",
+      handleRootCollectionCreated,
+    );
+
+    return () => {
+      window.removeEventListener("collectionCreated", handleCollectionCreated);
+      window.removeEventListener(
+        "rootCollectionCreated",
+        handleRootCollectionCreated,
+      );
+    };
+  }, [listCollectionManager, authManager, loadCollections]);
+
+  // ADDED: Handle refresh when returning from collection creation
+  useEffect(() => {
+    if (location.state?.refresh && location.state?.newRootCollectionCreated) {
+      console.log(
+        "[FileManagerIndex] Forcing refresh due to new root collection creation",
+      );
+      if (listCollectionManager && authManager?.isAuthenticated()) {
+        loadCollections(true); // Force refresh
+      }
+
+      // Clear the state to prevent repeated refreshes
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [
+    location.state,
+    listCollectionManager,
+    authManager,
+    loadCollections,
+    navigate,
+    location.pathname,
+  ]);
 
   const filteredCollections = collections.filter((collection) => {
     if (searchQuery) {
