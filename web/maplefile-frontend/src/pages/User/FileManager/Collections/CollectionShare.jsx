@@ -1,7 +1,12 @@
 // File: src/pages/User/FileManager/Collections/CollectionShare.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useFiles, useAuth, useUsers } from "../../../../services/Services";
+import {
+  useFiles,
+  useAuth,
+  useUsers,
+  useCollections,
+} from "../../../../services/Services";
 import withPasswordProtection from "../../../../hocs/withPasswordProtection";
 import Navigation from "../../../../components/Navigation";
 import {
@@ -17,7 +22,8 @@ import {
 const CollectionShare = () => {
   const navigate = useNavigate();
   const { collectionId } = useParams();
-  const { shareCollectionManager, getCollectionManager } = useFiles();
+  const { getCollectionManager } = useFiles();
+  const { shareCollectionManager } = useCollections();
   const { authManager } = useAuth();
   const { userLookupManager } = useUsers();
 
@@ -63,17 +69,70 @@ const CollectionShare = () => {
     }
   };
 
-  const loadCollectionMembers = async () => {
+  const loadCollectionMembers = async (forceRefresh = false) => {
     setIsLoading(true);
     try {
+      console.log(
+        `[CollectionShare] Loading collection members for ${collectionId}, forceRefresh: ${forceRefresh}`,
+      );
+
       const members = await shareCollectionManager.getCollectionMembers(
         collectionId,
-        false,
+        forceRefresh,
       );
-      setCollectionMembers(Array.isArray(members) ? members : []);
+
+      console.log(
+        `[CollectionShare] API returned ${members.length} members:`,
+        members,
+      );
+
+      // Validate the members array
+      if (!Array.isArray(members)) {
+        console.warn("[CollectionShare] Members is not an array:", members);
+        setCollectionMembers([]);
+        return;
+      }
+
+      setCollectionMembers(members);
+
+      // If no members but we know we just shared, show a warning
+      if (members.length === 0 && success) {
+        console.warn(
+          "[CollectionShare] No members returned from API despite successful sharing",
+        );
+        setError(
+          "Collection shared successfully, but member list may take a moment to update. Try refreshing in a few seconds.",
+        );
+      }
     } catch (err) {
-      console.error("Failed to load members:", err);
-      setError("Could not load folder members");
+      console.error("[CollectionShare] Failed to load members:", err);
+      setError("Could not load folder members: " + err.message);
+
+      // Try to get from local storage as fallback
+      try {
+        const localShares =
+          shareCollectionManager.getSharedCollectionsByCollectionId(
+            collectionId,
+          );
+        console.log("[CollectionShare] Fallback - local shares:", localShares);
+
+        if (localShares && localShares.length > 0) {
+          // Convert local shares to member format
+          const membersFromLocal = localShares.map((share) => ({
+            recipient_id: share.recipient_id,
+            recipient_email: share.recipient_email,
+            permission_level: share.permission_level,
+            shared_at: share.shared_at || share.locally_stored_at,
+          }));
+          setCollectionMembers(membersFromLocal);
+          console.log("[CollectionShare] Using local shares as member list");
+        }
+      } catch (localErr) {
+        console.error(
+          "[CollectionShare] Failed to get local shares:",
+          localErr,
+        );
+      }
     } finally {
       setIsLoading(false);
     }
@@ -151,6 +210,23 @@ const CollectionShare = () => {
 
       setSuccess(`Folder shared successfully with ${recipientEmail}!`);
 
+      // Immediately add the new member to the local list (optimistic update)
+      const newMember = {
+        recipient_id: recipientId,
+        recipient_email: recipientEmail,
+        permission_level: permissionLevel,
+        shared_at: new Date().toISOString(),
+        _isLocal: true, // Mark as locally added
+      };
+
+      setCollectionMembers((prevMembers) => {
+        // Remove any existing member with same recipient_id to avoid duplicates
+        const filtered = prevMembers.filter(
+          (m) => m.recipient_id !== recipientId,
+        );
+        return [...filtered, newMember];
+      });
+
       // Reset form
       setRecipientEmail("");
       setRecipientId("");
@@ -158,8 +234,21 @@ const CollectionShare = () => {
       setRecipientInfo(null);
       setPermissionLevel("read_write");
 
-      // Reload members
-      await loadCollectionMembers();
+      // Also try to reload from API in the background (don't block UI)
+      console.log(
+        "[CollectionShare] Sharing successful, attempting background refresh...",
+      );
+      setTimeout(async () => {
+        try {
+          await loadCollectionMembers(true);
+        } catch (bgErr) {
+          console.warn(
+            "[CollectionShare] Background refresh failed:",
+            bgErr.message,
+          );
+          // Don't show error to user since we already have the optimistic update
+        }
+      }, 1000); // Wait 1 second for API to update
     } catch (err) {
       console.error("Failed to share collection:", err);
       setError("Could not share folder. Please try again.");
@@ -176,12 +265,34 @@ const CollectionShare = () => {
     setSuccess("");
 
     try {
+      // Optimistically remove from UI immediately
+      setCollectionMembers((prevMembers) =>
+        prevMembers.filter((m) => m.recipient_id !== memberId),
+      );
+
       await shareCollectionManager.removeMember(collectionId, memberId, true);
       setSuccess(`${memberEmail} removed from folder`);
-      await loadCollectionMembers();
+
+      // Background refresh to ensure consistency
+      console.log(
+        "[CollectionShare] Member removal successful, attempting background refresh...",
+      );
+      setTimeout(async () => {
+        try {
+          await loadCollectionMembers(true);
+        } catch (bgErr) {
+          console.warn(
+            "[CollectionShare] Background refresh after removal failed:",
+            bgErr.message,
+          );
+        }
+      }, 1000);
     } catch (err) {
-      console.error("Failed to remove member:", err);
-      setError("Could not remove member");
+      console.error("[CollectionShare] Failed to remove member:", err);
+      setError("Could not remove member: " + err.message);
+
+      // Revert the optimistic update on error
+      await loadCollectionMembers(true);
     } finally {
       setIsLoading(false);
     }
@@ -428,9 +539,19 @@ const CollectionShare = () => {
 
         {/* Current Members */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-          <h2 className="text-lg font-medium text-gray-900 mb-6">
-            People with Access ({collectionMembers.length})
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-medium text-gray-900">
+              People with Access ({collectionMembers.length})
+            </h2>
+            <button
+              onClick={() => loadCollectionMembers(true)}
+              disabled={isLoading}
+              className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
+              title="Refresh member list"
+            >
+              {isLoading ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
 
           {isLoading && collectionMembers.length === 0 ? (
             <div className="text-center py-8">
@@ -452,7 +573,11 @@ const CollectionShare = () => {
               {collectionMembers.map((member, index) => (
                 <div
                   key={`${member.recipient_id}-${index}`}
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className={`flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors ${
+                    member._isLocal
+                      ? "border-green-200 bg-green-50"
+                      : "border-gray-200"
+                  }`}
                 >
                   <div className="flex items-center space-x-3">
                     <div className="h-10 w-10 bg-red-100 rounded-full flex items-center justify-center">
@@ -461,9 +586,16 @@ const CollectionShare = () => {
                       </span>
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">
-                        {member.recipient_email}
-                      </p>
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium text-gray-900">
+                          {member.recipient_email}
+                        </p>
+                        {member._isLocal && (
+                          <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                            Just shared
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500 flex items-center">
                         {getPermissionIcon(member.permission_level)}
                         <span className="ml-1">
@@ -490,6 +622,67 @@ const CollectionShare = () => {
             </div>
           )}
         </div>
+
+        {/* Debug Section for Development */}
+        {import.meta.env.DEV && (
+          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h3 className="text-sm font-medium text-yellow-800 mb-2">
+              🔧 Debug Info (Dev Mode Only)
+            </h3>
+            <div className="text-xs text-yellow-700 space-y-1">
+              <p>
+                <strong>Collection ID:</strong> {collectionId}
+              </p>
+              <p>
+                <strong>Members Array Length:</strong>{" "}
+                {collectionMembers.length}
+              </p>
+              <p>
+                <strong>Share Collection Manager:</strong>{" "}
+                {shareCollectionManager ? "✅ Available" : "❌ Missing"}
+              </p>
+              <p>
+                <strong>User Lookup Manager:</strong>{" "}
+                {userLookupManager ? "✅ Available" : "❌ Missing"}
+              </p>
+              <p>
+                <strong>Last Success Message:</strong> {success || "None"}
+              </p>
+              <p>
+                <strong>Last Error Message:</strong> {error || "None"}
+              </p>
+              <button
+                onClick={() => {
+                  console.log("=== COLLECTION SHARE DEBUG ===");
+                  console.log("Collection ID:", collectionId);
+                  console.log("Collection Members:", collectionMembers);
+                  console.log(
+                    "Share Collection Manager:",
+                    shareCollectionManager,
+                  );
+                  console.log("Auth Manager:", authManager);
+                  console.log("User Lookup Manager:", userLookupManager);
+
+                  // Try to get local shares
+                  try {
+                    const localShares =
+                      shareCollectionManager.getSharedCollectionsByCollectionId(
+                        collectionId,
+                      );
+                    console.log("Local Shares:", localShares);
+                  } catch (e) {
+                    console.error("Error getting local shares:", e);
+                  }
+
+                  console.log("=== END DEBUG ===");
+                }}
+                className="mt-2 px-2 py-1 bg-yellow-200 hover:bg-yellow-300 text-yellow-800 rounded text-xs"
+              >
+                Log Debug Info to Console
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Security Notice */}
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
