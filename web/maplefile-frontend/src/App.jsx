@@ -21,6 +21,7 @@ import DeveloperVerifySuccess from "./pages/Developer/Register/VerifySuccess";
 import RequestOTT from "./pages/Anonymous/Login/RequestOTT";
 import VerifyOTT from "./pages/Anonymous/Login/VerifyOTT";
 import CompleteLogin from "./pages/Anonymous/Login/CompleteLogin";
+import SessionExpired from "./pages/Anonymous/Login/SessionExpired";
 import DeveloperRequestOTT from "./pages/Developer/Login/RequestOTT";
 import DeveloperVerifyOTT from "./pages/Developer/Login/VerifyOTT";
 import DeveloperCompleteLogin from "./pages/Developer/Login/CompleteLogin";
@@ -93,10 +94,8 @@ function App() {
           <Routes>
             {/* Front-facing pages */}
             <Route path="/" element={<IndexPage />} />
-
             {/* (Developer-only) Front-facing pages */}
             <Route path="/developer" element={<DeveloperIndexPage />} />
-
             {/* Registration routes */}
             <Route path="/register" element={<Register />} />
             <Route path="/register/recovery" element={<RecoveryCode />} />
@@ -105,7 +104,6 @@ function App() {
               path="/register/verify-success"
               element={<VerifySuccess />}
             />
-
             {/* (Developer-only) Registration routes */}
             <Route path="/developer/register" element={<DeveloperRegister />} />
             <Route
@@ -120,12 +118,11 @@ function App() {
               path="/developer/register/verify-success"
               element={<DeveloperVerifySuccess />}
             />
-
             {/* Login routes */}
             <Route path="/login" element={<RequestOTT />} />
             <Route path="/login/verify-ott" element={<VerifyOTT />} />
             <Route path="/login/complete" element={<CompleteLogin />} />
-
+            <Route path="/session-expired" element={<SessionExpired />} />{" "}
             {/* (Developer-only) Login routes */}
             <Route path="/developer/login" element={<DeveloperRequestOTT />} />
             <Route
@@ -140,7 +137,6 @@ function App() {
               path="/developer/login/complete"
               element={<DeveloperCompleteLogin />}
             />
-
             {/* Recovery routes */}
             <Route
               path="/developer/recovery"
@@ -158,7 +154,6 @@ function App() {
               path="/developer/recovery/complete"
               element={<DeveloperCompleteRecovery />}
             />
-
             {/* User routes - Now using the new styled Dashboard */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route
@@ -169,7 +164,6 @@ function App() {
             <Route path="/me" element={<MeDetail />} />
             <Route path="/developer/profile" element={<DeveloperMeDetail />} />
             <Route path="/profile" element={<MeDetail />} />
-
             {/* File Manager Prototype Routes */}
             <Route path="/file-manager" element={<FileManagerIndex />} />
             <Route
@@ -199,7 +193,6 @@ function App() {
             />
             <Route path="/file-manager/search" element={<SearchResults />} />
             <Route path="/file-manager/trash" element={<TrashView />} />
-
             {/* Example routes - These will now have Navigation through the Dashboard component */}
             <Route
               path="/developer/dashboard-example"
@@ -285,7 +278,6 @@ function App() {
               path="/developer/share-collection-manager-example"
               element={<ShareCollectionManagerExample />}
             />
-
             {/* Redirect any unknown routes to home */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
