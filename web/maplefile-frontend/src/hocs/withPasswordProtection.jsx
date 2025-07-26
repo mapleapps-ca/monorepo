@@ -1,12 +1,12 @@
 // File: src/hocs/withPasswordProtection.jsx
-// Enhanced HOC with password expiry event handling - UPDATED for unified services
+// Enhanced HOC with password expiry event handling - FIXED for ServiceProvider context
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { useStorage } from "../services/Services";
 
 /**
  * HOC that protects components by checking if password is available
  * Enhanced with password expiry event handling - Works with unified services architecture
+ * FIXED: Safely handles ServiceProvider context availability
  */
 const withPasswordProtection = (WrappedComponent, options = {}) => {
   const {
@@ -20,14 +20,85 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
   const PasswordProtectedComponent = (props) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { passwordStorageService } = useStorage();
+
+    // 🔧 FIXED: Safely access services with fallback
+    const [servicesAvailable, setServicesAvailable] = useState(false);
+    const [passwordStorageService, setPasswordStorageService] = useState(null);
     const [isChecking, setIsChecking] = useState(true);
     const [hasPassword, setHasPassword] = useState(false);
     const [expiryMessage, setExpiryMessage] = useState("");
 
+    // 🔧 NEW: Initialize services safely
+    useEffect(() => {
+      const initializeServices = async () => {
+        try {
+          // Try to import services safely
+          const { useStorage } = await import("../services/Services");
+
+          // Check if we're in a ServiceProvider context
+          if (window.mapleAppsServices?.passwordStorageService) {
+            setPasswordStorageService(
+              window.mapleAppsServices.passwordStorageService,
+            );
+            setServicesAvailable(true);
+            console.log(
+              "[withPasswordProtection] Services initialized via window.mapleAppsServices",
+            );
+          } else {
+            // Try React context (but this might fail if outside provider)
+            try {
+              const services = useStorage();
+              setPasswordStorageService(services.passwordStorageService);
+              setServicesAvailable(true);
+              console.log(
+                "[withPasswordProtection] Services initialized via React context",
+              );
+            } catch (contextError) {
+              console.warn(
+                "[withPasswordProtection] React context not available:",
+                contextError.message,
+              );
+
+              // Fallback: Try to get services directly
+              try {
+                const { default: passwordStorageService } = await import(
+                  "../services/PasswordStorageService.js"
+                );
+                setPasswordStorageService(passwordStorageService);
+                setServicesAvailable(true);
+                console.log(
+                  "[withPasswordProtection] Services initialized via direct import",
+                );
+              } catch (importError) {
+                console.error(
+                  "[withPasswordProtection] Failed to initialize services:",
+                  importError,
+                );
+                // Still allow the component to render, but it will redirect to login
+                setServicesAvailable(false);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(
+            "[withPasswordProtection] Error initializing services:",
+            error,
+          );
+          setServicesAvailable(false);
+        }
+      };
+
+      initializeServices();
+    }, []);
+
     useEffect(() => {
       let mounted = true;
       let intervalId = null;
+
+      // Only proceed if services are available
+      if (!servicesAvailable || !passwordStorageService) {
+        return;
+      }
 
       // ENHANCED: Listen for password expiry events
       const handlePasswordExpired = (event) => {
@@ -231,7 +302,28 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
       onPasswordExpired,
       expiryMessage,
       passwordStorageService,
+      servicesAvailable,
     ]);
+
+    // 🔧 NEW: Show loading while services initialize
+    if (!servicesAvailable) {
+      return (
+        <div style={{ padding: "20px", textAlign: "center" }}>
+          <p>Initializing services...</p>
+          {import.meta.env.DEV && (
+            <div style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
+              <p>
+                Dev mode: Attempting to initialize password storage service...
+              </p>
+              <p>
+                If this persists, check that ServiceProvider is properly
+                configured
+              </p>
+            </div>
+          )}
+        </div>
+      );
+    }
 
     // Show expiry message if password expired
     if (expiryMessage) {
