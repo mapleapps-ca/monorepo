@@ -1,16 +1,17 @@
 // File: src/hocs/withPasswordProtection.jsx
-// Enhanced HOC with password expiry event handling - FIXED for ServiceProvider context
+// Enhanced HOC with password expiry event handling and session expired page redirect
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 
 /**
  * HOC that protects components by checking if password is available
- * Enhanced with password expiry event handling - Works with unified services architecture
+ * Enhanced with password expiry event handling and better UX for session expiry
  * FIXED: Safely handles ServiceProvider context availability
  */
 const withPasswordProtection = (WrappedComponent, options = {}) => {
   const {
     redirectTo = "/login",
+    sessionExpiredRedirectTo = "/session-expired", // NEW: Dedicated session expired page
     showLoadingWhileChecking = true,
     checkInterval = null,
     customMessage = "Password required. Redirecting to login...",
@@ -138,22 +139,18 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
           }
         }
 
-        // Redirect to login after a brief delay to show the message
-        setTimeout(() => {
-          if (mounted) {
-            console.log(
-              `[withPasswordProtection] Redirecting due to password expiry: ${message}`,
-            );
-            navigate(redirectTo, {
-              state: {
-                from: location,
-                message: message,
-                reason: reason,
-              },
-              replace: true,
-            });
-          }
-        }, 2000); // 2 second delay to show the message
+        // NEW: Redirect to dedicated session expired page instead of showing message and then redirecting
+        console.log(
+          `[withPasswordProtection] Redirecting to session expired page due to: ${reason}`,
+        );
+        navigate(sessionExpiredRedirectTo, {
+          state: {
+            from: location,
+            message: message,
+            reason: reason,
+          },
+          replace: true,
+        });
       };
 
       // Add password expiry event listener
@@ -275,10 +272,14 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
             const stillHasPassword = passwordStorageService.hasPassword();
             if (!stillHasPassword && mounted && !expiryMessage) {
               console.log(
-                "[withPasswordProtection] Password lost during periodic check, redirecting...",
+                "[withPasswordProtection] Password lost during periodic check, redirecting to session expired page...",
               );
-              navigate(redirectTo, {
-                state: { from: location, message: "Session expired" },
+              navigate(sessionExpiredRedirectTo, {
+                state: {
+                  from: location,
+                  message: "Session expired",
+                  reason: "periodic_check_timeout",
+                },
                 replace: true,
               });
             }
@@ -297,6 +298,7 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
       navigate,
       location,
       redirectTo,
+      sessionExpiredRedirectTo, // NEW: Include in dependencies
       checkInterval,
       customMessage,
       onPasswordExpired,
@@ -325,7 +327,7 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
       );
     }
 
-    // Show expiry message if password expired
+    // Show expiry message if password expired (this should now be rarely seen since we redirect immediately)
     if (expiryMessage) {
       return (
         <div
@@ -345,7 +347,7 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
             {expiryMessage}
           </p>
           <p style={{ fontSize: "14px", color: "#666" }}>
-            Redirecting to login...
+            Redirecting to session expired page...
           </p>
         </div>
       );
@@ -372,6 +374,7 @@ const withPasswordProtection = (WrappedComponent, options = {}) => {
                 Password timeout: Extended on user activity and API calls
                 (logging reduced)
               </p>
+              <p>Session expiry: Redirects to dedicated page for better UX</p>
             </div>
           )}
         </div>
@@ -431,6 +434,9 @@ export const debugPasswordProtection = () => {
   console.log("Activity detected:", info.activityDetected);
   console.log("Logging: Reduced verbosity for activity tracking");
   console.log(
+    "Session expiry UX: Dedicated page with countdown and explanation",
+  );
+  console.log(
     "Storage type:",
     passwordStorageService.storage === localStorage
       ? "localStorage"
@@ -454,6 +460,7 @@ export const debugPasswordProtection = () => {
     timeoutMinutes: info.timeoutMinutes,
     activityDetected: info.activityDetected,
     loggingMode: "reduced_verbosity",
+    sessionExpiryUX: "dedicated_page_with_countdown",
     unifiedServicesAvailable: !!window.mapleAppsServices,
     authManagerAvailable: !!window.mapleAppsServices?.authManager,
   };
@@ -501,6 +508,12 @@ export const getPasswordServiceStatus = () => {
       authManager: !!window.mapleAppsServices?.authManager,
       passwordStorageService:
         !!window.mapleAppsServices?.passwordStorageService,
+    },
+    sessionExpiryFeatures: {
+      dedicatedPage: true,
+      autoRedirectCountdown: true,
+      reasonBasedMessages: true,
+      securityExplanation: true,
     },
   };
 };

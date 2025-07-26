@@ -10,12 +10,15 @@ import {
   InformationCircleIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
+
 const SessionExpired = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [countdown, setCountdown] = useState(30);
+
   // Get the reason and message from location state
   const { reason, message, from } = location.state || {};
+
   // Determine the appropriate message and icon based on reason
   const getSessionInfo = () => {
     switch (reason) {
@@ -51,7 +54,9 @@ const SessionExpired = () => {
         };
     }
   };
+
   const sessionInfo = getSessionInfo();
+
   // Auto-redirect countdown
   useEffect(() => {
     const timer = setInterval(() => {
@@ -69,8 +74,10 @@ const SessionExpired = () => {
         return prev - 1;
       });
     }, 1000);
+
     return () => clearInterval(timer);
   }, [navigate, from]);
+
   const handleSignInNow = () => {
     navigate("/login", {
       state: {
@@ -79,9 +86,11 @@ const SessionExpired = () => {
       },
     });
   };
+
   const handleGoHome = () => {
     navigate("/");
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-red-50 flex flex-col">
       {/* Navigation */}
@@ -113,6 +122,7 @@ const SessionExpired = () => {
           </div>
         </div>
       </nav>
+
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
@@ -283,4 +293,5 @@ const SessionExpired = () => {
     </div>
   );
 };
+
 export default SessionExpired;
