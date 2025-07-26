@@ -75,35 +75,57 @@ const FileDetails = () => {
   // NEW: Load version history separately with better error handling
   const loadVersionHistory = useCallback(
     async (forceRefresh = false) => {
-      if (!getFileManager || !fileId) return;
+      if (!fileDetails) {
+        console.log(
+          "[FileDetails] No file details available for version history",
+        );
+        return;
+      }
 
       setIsLoadingVersions(true);
       setVersionError("");
 
       try {
-        console.log("[FileDetails] Loading version history for:", fileId);
-        const versions = await getFileManager.getFileVersionHistory(
-          fileId,
-          forceRefresh,
-        );
-        setVersionHistory(versions);
+        console.log("[FileDetails] Creating mock version history for:", fileId);
+
+        // Since version history endpoint doesn't exist in backend, create mock from current file
+        const mockVersion = {
+          id: fileDetails.id,
+          version: fileDetails.version || 1,
+          name: fileDetails.name,
+          state: fileDetails.state || "active",
+          size: fileDetails.size,
+          encrypted_file_size_in_bytes:
+            fileDetails.encrypted_file_size_in_bytes,
+          modified_at: fileDetails.modified_at,
+          created_at: fileDetails.created_at,
+          _isDecrypted: fileDetails._isDecrypted,
+          mime_type: fileDetails.mime_type,
+        };
+
+        setVersionHistory([mockVersion]);
         setHasLoadedVersions(true);
-        console.log(
-          "[FileDetails] Version history loaded:",
-          versions.length,
-          "versions",
-        );
-      } catch (err) {
-        console.warn("[FileDetails] Failed to load version history:", err);
+
+        // Show informational message about version history not being implemented
         setVersionError(
-          "Could not load version history. This feature may not be available.",
+          "Version history is not yet implemented in the backend. Showing current file version only.",
+        );
+
+        console.log("[FileDetails] Mock version history created successfully");
+      } catch (err) {
+        console.warn(
+          "[FileDetails] Failed to create mock version history:",
+          err,
+        );
+        setVersionError(
+          "Could not load version history. This feature is not yet available.",
         );
         setVersionHistory([]);
       } finally {
         setIsLoadingVersions(false);
       }
     },
-    [getFileManager, fileId],
+    [fileDetails, fileId],
   );
 
   useEffect(() => {
@@ -605,12 +627,29 @@ const FileDetails = () => {
                       </button>
                     </div>
 
-                    {/* Version Error */}
+                    {/* Version History Information */}
                     {versionError && (
-                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800">
-                          {versionError}
-                        </p>
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex">
+                          <div className="h-5 w-5 text-blue-400 mr-2 flex-shrink-0 mt-0.5">
+                            ℹ️
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-blue-800">
+                              Version History
+                            </h4>
+                            <p className="text-sm text-blue-700 mt-1">
+                              {versionError}
+                            </p>
+                            <p className="text-xs text-blue-600 mt-2">
+                              💡 The backend currently doesn't support the{" "}
+                              <code className="bg-blue-100 px-1 rounded">
+                                GET /files/{`{id}`}/versions
+                              </code>{" "}
+                              endpoint. Only the current version is shown.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     )}
 
@@ -643,88 +682,99 @@ const FileDetails = () => {
                       )}
 
                     {!isLoadingVersions && versionHistory.length > 0 && (
-                      <div className="overflow-hidden border border-gray-200 rounded-lg">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Version
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Name
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                State
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Size
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Modified
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Status
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {versionHistory.map((version, index) => (
-                              <tr
-                                key={`${version.id}-${version.version}`}
-                                className={index === 0 ? "bg-green-50" : ""}
-                              >
-                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                  v{version.version}
-                                  {index === 0 && (
-                                    <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                      Current
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                  {version.name || "[Unable to decrypt]"}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap">
-                                  <span
-                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${getStateColor(version.state)}`}
-                                  >
-                                    {getStateLabel(version.state)}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                  {formatFileSize(
-                                    version.size ||
-                                      version.encrypted_file_size_in_bytes,
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                  {formatDate(version.modified_at)}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap">
-                                  <span
-                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                      version._isDecrypted
-                                        ? "bg-green-100 text-green-800"
-                                        : "bg-red-100 text-red-800"
-                                    }`}
-                                  >
-                                    {version._isDecrypted ? (
-                                      <>
-                                        <CheckIcon className="h-3 w-3 mr-1" />
-                                        Decrypted
-                                      </>
-                                    ) : (
-                                      <>
-                                        <XMarkIcon className="h-3 w-3 mr-1" />
-                                        Encrypted
-                                      </>
-                                    )}
-                                  </span>
-                                </td>
+                      <div>
+                        {versionError && versionHistory.length === 1 && (
+                          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-sm text-blue-800">
+                              ℹ️ Showing current file information as a single
+                              version entry.
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="overflow-hidden border border-gray-200 rounded-lg">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Version
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Name
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  State
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Size
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Modified
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Status
+                                </th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {versionHistory.map((version, index) => (
+                                <tr
+                                  key={`${version.id}-${version.version}`}
+                                  className={index === 0 ? "bg-green-50" : ""}
+                                >
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    v{version.version}
+                                    {index === 0 && (
+                                      <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Current
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                    {version.name || "[Unable to decrypt]"}
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <span
+                                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${getStateColor(version.state)}`}
+                                    >
+                                      {getStateLabel(version.state)}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                    {formatFileSize(
+                                      version.size ||
+                                        version.encrypted_file_size_in_bytes,
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                    {formatDate(version.modified_at)}
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <span
+                                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                        version._isDecrypted
+                                          ? "bg-green-100 text-green-800"
+                                          : "bg-red-100 text-red-800"
+                                      }`}
+                                    >
+                                      {version._isDecrypted ? (
+                                        <>
+                                          <CheckIcon className="h-3 w-3 mr-1" />
+                                          Decrypted
+                                        </>
+                                      ) : (
+                                        <>
+                                          <XMarkIcon className="h-3 w-3 mr-1" />
+                                          Encrypted
+                                        </>
+                                      )}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     )}
                   </div>
