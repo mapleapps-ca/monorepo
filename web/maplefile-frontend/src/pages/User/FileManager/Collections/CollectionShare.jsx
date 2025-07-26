@@ -85,6 +85,15 @@ const CollectionShare = () => {
       return;
     }
 
+    // Check if user is trying to share with themselves
+    const currentUserEmail = authManager.getCurrentUserEmail();
+    if (
+      recipientEmail.trim().toLowerCase() === currentUserEmail?.toLowerCase()
+    ) {
+      setError("You cannot share a folder with yourself");
+      return;
+    }
+
     // Reset verification state
     setRecipientVerified(false);
     setRecipientId("");
@@ -179,12 +188,28 @@ const CollectionShare = () => {
   };
 
   const handleEmailChange = (e) => {
-    setRecipientEmail(e.target.value);
+    const newEmail = e.target.value;
+    setRecipientEmail(newEmail);
+
     // Reset verification when email changes
     if (recipientVerified) {
       setRecipientVerified(false);
       setRecipientId("");
       setRecipientInfo(null);
+    }
+
+    // Clear any existing errors when user starts typing
+    if (error) {
+      setError("");
+    }
+
+    // Check if user is trying to enter their own email
+    const currentUserEmail = authManager.getCurrentUserEmail();
+    if (
+      newEmail.trim().toLowerCase() === currentUserEmail?.toLowerCase() &&
+      newEmail.trim()
+    ) {
+      setError("You cannot share a folder with yourself");
     }
   };
 
@@ -280,7 +305,11 @@ const CollectionShare = () => {
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 ${
                       recipientVerified
                         ? "border-green-300 bg-green-50"
-                        : "border-gray-300"
+                        : authManager.getCurrentUserEmail()?.toLowerCase() ===
+                              recipientEmail.trim().toLowerCase() &&
+                            recipientEmail.trim()
+                          ? "border-red-300 bg-red-50"
+                          : "border-gray-300"
                     }`}
                     disabled={isVerifying || isLoading}
                   />
@@ -292,7 +321,13 @@ const CollectionShare = () => {
                 </div>
                 <button
                   onClick={handleVerifyRecipient}
-                  disabled={isVerifying || isLoading || !recipientEmail.trim()}
+                  disabled={
+                    isVerifying ||
+                    isLoading ||
+                    !recipientEmail.trim() ||
+                    authManager.getCurrentUserEmail()?.toLowerCase() ===
+                      recipientEmail.trim().toLowerCase()
+                  }
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center"
                 >
                   {isVerifying ? (
@@ -314,13 +349,22 @@ const CollectionShare = () => {
                     <strong>✅ Verified:</strong>{" "}
                     {recipientInfo.name || recipientInfo.email}
                   </p>
-                  <p className="text-xs text-green-600 mt-1">
-                    User ID: {recipientInfo.userId}
-                  </p>
+                  <div className="text-xs text-green-600 mt-1 space-y-1">
+                    <p>
+                      <strong>User ID:</strong> {recipientInfo.userId}
+                    </p>
+                    <p>
+                      <strong>Verification ID:</strong>{" "}
+                      {recipientInfo.verificationId ||
+                        recipientInfo.verification_id ||
+                        "N/A"}
+                    </p>
+                  </div>
                 </div>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                We'll verify this user exists before sharing
+                We'll verify this user exists before sharing. You cannot share
+                with yourself.
               </p>
             </div>
 
