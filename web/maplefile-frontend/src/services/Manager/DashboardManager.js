@@ -1,5 +1,6 @@
 // File: src/services/Manager/DashboardManager.js
 // Dashboard Manager - Orchestrates API and Storage services for dashboard data
+// Enhanced with better cache management and event handling
 
 import DashboardAPIService from "../API/DashboardAPIService.js";
 import DashboardStorageService from "../Storage/DashboardStorageService.js";
@@ -17,9 +18,92 @@ class DashboardManager {
     // Event listeners for dashboard events
     this.dashboardListeners = new Set();
 
+    // 🔧 NEW: Track last refresh for preventing rapid refreshes
+    this.lastRefreshTime = 0;
+    this.minimumRefreshInterval = 2000; // 2 seconds
+
     console.log(
       "[DashboardManager] Manager initialized with AuthManager dependency",
     );
+
+    // 🔧 NEW: Set up global event listeners for cache invalidation
+    this.setupCacheInvalidationListeners();
+  }
+
+  // 🔧 NEW: Set up listeners for events that should invalidate dashboard cache
+  setupCacheInvalidationListeners() {
+    // Listen for file upload completion events
+    if (typeof window !== "undefined") {
+      window.addEventListener(
+        "dashboardRefresh",
+        this.handleDashboardRefreshEvent.bind(this),
+      );
+      window.addEventListener("storage", this.handleStorageEvent.bind(this));
+    }
+  }
+
+  // 🔧 NEW: Handle dashboard refresh events
+  handleDashboardRefreshEvent(event) {
+    console.log(
+      "[DashboardManager] Dashboard refresh event received:",
+      event.detail,
+    );
+    this.invalidateCacheAndRefresh("external_event");
+  }
+
+  // 🔧 NEW: Handle storage events (for cross-tab communication)
+  handleStorageEvent(event) {
+    if (event.key === "mapleapps_upload_refresh_signal") {
+      console.log("[DashboardManager] Upload refresh signal detected");
+      this.invalidateCacheAndRefresh("cross_tab_upload");
+    }
+  }
+
+  // 🔧 NEW: Invalidate cache and trigger refresh with throttling
+  async invalidateCacheAndRefresh(reason = "unknown") {
+    const now = Date.now();
+
+    // Throttle refreshes to prevent rapid successive calls
+    if (now - this.lastRefreshTime < this.minimumRefreshInterval) {
+      console.log(
+        "[DashboardManager] Refresh throttled, too soon since last refresh",
+      );
+      return;
+    }
+
+    this.lastRefreshTime = now;
+
+    console.log(
+      "[DashboardManager] Invalidating cache and refreshing due to:",
+      reason,
+    );
+
+    // Clear all caches
+    this.clearAllCaches();
+
+    // Notify listeners that cache was invalidated
+    this.notifyDashboardListeners("cache_invalidated", {
+      reason,
+      timestamp: now,
+    });
+
+    // If we're authenticated, trigger a refresh
+    if (this.authManager.isAuthenticated()) {
+      try {
+        await this.getDashboardData(true);
+        this.notifyDashboardListeners("auto_refresh_completed", {
+          reason,
+          timestamp: Date.now(),
+        });
+      } catch (error) {
+        console.error("[DashboardManager] Auto-refresh failed:", error);
+        this.notifyDashboardListeners("auto_refresh_failed", {
+          reason,
+          error: error.message,
+          timestamp: Date.now(),
+        });
+      }
+    }
   }
 
   // Initialize the manager
@@ -56,8 +140,13 @@ class DashboardManager {
       console.log("[DashboardManager] === Getting Dashboard Data ===");
       console.log("[DashboardManager] Force refresh:", forceRefresh);
 
+      // 🔧 ENHANCED: Check if cache should be bypassed due to recent invalidation
+      const cacheAge = this.storageService.getCacheAge();
+      const shouldBypassCache =
+        forceRefresh || (cacheAge !== null && cacheAge < 1); // Less than 1 minute old but force refresh
+
       // STEP 1: Check cache first unless forcing refresh
-      if (!forceRefresh) {
+      if (!shouldBypassCache) {
         const cachedDashboard = this.storageService.getDashboardData();
         if (cachedDashboard) {
           console.log("[DashboardManager] Found cached dashboard data");
@@ -65,6 +154,7 @@ class DashboardManager {
           this.notifyDashboardListeners("dashboard_loaded_from_cache", {
             fromCache: true,
             summary: cachedDashboard.dashboard?.summary,
+            cacheAge: cacheAge,
           });
 
           console.log("[DashboardManager] Returning cached dashboard data");
@@ -94,10 +184,13 @@ class DashboardManager {
         );
       }
 
-      // STEP 4: Store in cache
+      // STEP 4: Store in cache with enhanced metadata
       this.storageService.storeDashboardData(dashboardData, {
         fetched_at: new Date().toISOString(),
         source: "api",
+        force_refresh: forceRefresh,
+        file_count: dashboardData.recentFiles?.length || 0,
+        storage_usage: dashboardData.summary?.storage_usage_percentage || 0,
       });
 
       this.notifyDashboardListeners("dashboard_loaded_from_api", {
@@ -105,6 +198,7 @@ class DashboardManager {
         summary: dashboardData.summary,
         hasStorageTrend: !!dashboardData.storageUsageTrend,
         recentFilesCount: dashboardData.recentFiles?.length || 0,
+        forceRefresh: forceRefresh,
       });
 
       console.log(
@@ -116,6 +210,7 @@ class DashboardManager {
 
       this.notifyDashboardListeners("dashboard_load_failed", {
         error: error.message,
+        forceRefresh: forceRefresh,
       });
 
       throw error;
@@ -195,6 +290,24 @@ class DashboardManager {
   // Refresh dashboard data
   async refreshDashboardData() {
     return this.getDashboardData(true);
+  }
+
+  // 🔧 NEW: Smart refresh that checks if refresh is needed
+  async smartRefresh() {
+    const cacheAge = this.storageService.getCacheAge();
+
+    // If cache is older than 2 minutes or doesn't exist, force refresh
+    if (cacheAge === null || cacheAge > 2) {
+      console.log(
+        "[DashboardManager] Smart refresh: Cache is old, forcing refresh",
+      );
+      return this.getDashboardData(true);
+    }
+
+    console.log(
+      "[DashboardManager] Smart refresh: Cache is recent, using cached data",
+    );
+    return this.getDashboardData(false);
   }
 
   // === Utility Methods ===
@@ -334,15 +447,31 @@ class DashboardManager {
 
   // === Cache Management ===
 
-  // Clear all dashboard caches
-  clearAllCaches() {
+  // 🔧 ENHANCED: Clear all dashboard caches with reason logging
+  clearAllCaches(reason = "manual") {
+    console.log("[DashboardManager] Clearing all caches, reason:", reason);
     this.storageService.clearAllCaches();
-    console.log("[DashboardManager] All caches cleared");
+
+    // Notify listeners about cache clearing
+    this.notifyDashboardListeners("caches_cleared", {
+      reason,
+      timestamp: Date.now(),
+    });
   }
 
   // Clear expired caches
   clearExpiredCaches() {
     return this.storageService.clearExpiredCaches();
+  }
+
+  // 🔧 NEW: Force cache refresh (clear and reload)
+  async forceCacheRefresh(reason = "manual") {
+    console.log(
+      "[DashboardManager] Force cache refresh requested, reason:",
+      reason,
+    );
+    this.clearAllCaches(reason);
+    return this.getDashboardData(true);
   }
 
   // === Event Management ===
@@ -394,7 +523,26 @@ class DashboardManager {
       canGetDashboard: this.authManager.canMakeAuthenticatedRequests(),
       storage: storageInfo,
       listenerCount: this.dashboardListeners.size,
+      lastRefreshTime: this.lastRefreshTime,
+      cacheAge: this.storageService.getCacheAge(),
+      hasValidCache: this.storageService.hasValidDashboardCache(),
     };
+  }
+
+  // 🔧 NEW: Cleanup method for removing event listeners
+  cleanup() {
+    if (typeof window !== "undefined") {
+      window.removeEventListener(
+        "dashboardRefresh",
+        this.handleDashboardRefreshEvent.bind(this),
+      );
+      window.removeEventListener("storage", this.handleStorageEvent.bind(this));
+    }
+
+    // Clear all listeners
+    this.dashboardListeners.clear();
+
+    console.log("[DashboardManager] Cleanup completed");
   }
 
   // === Debug Information ===
@@ -413,6 +561,11 @@ class DashboardManager {
         userEmail: this.authManager.getCurrentUserEmail(),
         canMakeRequests: this.authManager.canMakeAuthenticatedRequests(),
         sessionKeyStatus: this.authManager.getSessionKeyStatus(),
+      },
+      cacheInvalidation: {
+        lastRefreshTime: this.lastRefreshTime,
+        minimumRefreshInterval: this.minimumRefreshInterval,
+        hasEventListeners: true,
       },
     };
   }

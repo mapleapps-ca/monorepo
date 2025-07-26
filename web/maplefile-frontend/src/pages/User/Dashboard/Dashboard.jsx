@@ -1,6 +1,6 @@
 // File: src/pages/User/Dashboard/Dashboard.jsx
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import {
   useDashboard,
   useFiles,
@@ -10,17 +10,29 @@ import {
 import withPasswordProtection from "../../../hocs/withPasswordProtection";
 import Navigation from "../../../components/Navigation";
 import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import {
   CloudArrowUpIcon,
   FolderIcon,
   DocumentIcon,
   ArrowDownTrayIcon,
   ArrowPathIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { dashboardManager } = useDashboard();
-  const { getCollectionManager, downloadFileManager } = useFiles();
+  const { getCollectionManager, downloadFileManager, createFileManager } =
+    useFiles();
   const { CollectionCryptoService } = useCrypto();
   const { authManager } = useAuth();
 
@@ -37,6 +49,7 @@ const Dashboard = () => {
       setError("");
 
       try {
+        console.log("[Dashboard] Loading dashboard data...", { forceRefresh });
         const data = await dashboardManager.getDashboardData(forceRefresh);
 
         if (data.recent_files && data.recent_files.length > 0) {
@@ -58,7 +71,9 @@ const Dashboard = () => {
         }
 
         setDashboardData(data);
+        console.log("[Dashboard] Dashboard loaded successfully");
       } catch (err) {
+        console.error("[Dashboard] Failed to load dashboard:", err);
         setError("Could not load your files. Please try again.");
       } finally {
         setIsLoading(false);
@@ -131,11 +146,98 @@ const Dashboard = () => {
     return decryptedFiles;
   };
 
+  // 🔧 NEW: Handle file upload events to refresh dashboard
+  const handleFileUploadEvents = useCallback(
+    (eventType, eventData) => {
+      console.log(
+        "[Dashboard] File upload event received:",
+        eventType,
+        eventData,
+      );
+
+      if (eventType === "file_upload_completed") {
+        console.log(
+          "[Dashboard] File upload completed, refreshing dashboard...",
+        );
+        // Force refresh dashboard data when file upload completes
+        loadDashboardData(true);
+      }
+    },
+    [loadDashboardData],
+  );
+
+  // 🔧 NEW: Clear dashboard cache when needed
+  const clearDashboardCache = useCallback(() => {
+    if (dashboardManager) {
+      console.log("[Dashboard] Clearing dashboard cache");
+      dashboardManager.clearAllCaches();
+    }
+  }, [dashboardManager]);
+
   useEffect(() => {
     if (dashboardManager && authManager?.isAuthenticated()) {
       loadDashboardData();
     }
   }, [dashboardManager, authManager, loadDashboardData]);
+
+  // 🔧 NEW: Listen for file upload events
+  useEffect(() => {
+    if (createFileManager) {
+      console.log("[Dashboard] Adding file upload event listener");
+      createFileManager.addFileCreationListener(handleFileUploadEvents);
+
+      return () => {
+        console.log("[Dashboard] Removing file upload event listener");
+        createFileManager.removeFileCreationListener(handleFileUploadEvents);
+      };
+    }
+  }, [createFileManager, handleFileUploadEvents]);
+
+  // 🔧 NEW: Handle refresh when returning from upload
+  useEffect(() => {
+    if (location.state?.refreshDashboard || location.state?.uploadCompleted) {
+      console.log("[Dashboard] Detected upload completion, forcing refresh");
+      clearDashboardCache();
+      loadDashboardData(true);
+
+      // Clear the state to prevent repeated refreshes
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [
+    location.state,
+    loadDashboardData,
+    clearDashboardCache,
+    navigate,
+    location.pathname,
+  ]);
+
+  // 🔧 NEW: Listen for storage events (in case files are uploaded in another tab)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key && e.key.includes("file") && e.key.includes("upload")) {
+        console.log(
+          "[Dashboard] Storage change detected, refreshing dashboard",
+        );
+        loadDashboardData(true);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [loadDashboardData]);
+
+  // 🔧 NEW: Listen for custom dashboard refresh events
+  useEffect(() => {
+    const handleDashboardRefresh = () => {
+      console.log("[Dashboard] Dashboard refresh event received");
+      clearDashboardCache();
+      loadDashboardData(true);
+    };
+
+    window.addEventListener("dashboardRefresh", handleDashboardRefresh);
+    return () =>
+      window.removeEventListener("dashboardRefresh", handleDashboardRefresh);
+  }, [loadDashboardData, clearDashboardCache]);
 
   const handleDownloadFile = async (fileId, fileName) => {
     if (!downloadFileManager) return;
@@ -144,6 +246,7 @@ const Dashboard = () => {
       setDownloadingFiles((prev) => new Set(prev).add(fileId));
       await downloadFileManager.downloadFile(fileId, { saveToDisk: true });
     } catch (err) {
+      console.error("[Dashboard] Failed to download file:", err);
       setError("Could not download file. Please try again.");
     } finally {
       setDownloadingFiles((prev) => {
@@ -152,6 +255,13 @@ const Dashboard = () => {
         return next;
       });
     }
+  };
+
+  // 🔧 ENHANCED: Manual refresh with cache clearing
+  const handleManualRefresh = async () => {
+    console.log("[Dashboard] Manual refresh triggered");
+    clearDashboardCache();
+    await loadDashboardData(true);
   };
 
   const getTimeAgo = (dateString) => {
@@ -183,9 +293,9 @@ const Dashboard = () => {
           <h1 className="text-2xl font-semibold text-gray-900">Welcome Back</h1>
           <div className="flex space-x-3">
             <button
-              onClick={() => loadDashboardData(true)}
+              onClick={handleManualRefresh}
               disabled={isLoading}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
             >
               <ArrowPathIcon
                 className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
@@ -202,109 +312,213 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Quick Stats */}
-        {dashboardData && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="text-2xl font-semibold text-gray-900">
-                {dashboardData.summary?.total_files || 0}
-              </div>
-              <div className="text-sm text-gray-600">Files</div>
-            </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="text-2xl font-semibold text-gray-900">
-                {dashboardData.summary?.total_folders || 0}
-              </div>
-              <div className="text-sm text-gray-600">Folders</div>
-            </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="text-2xl font-semibold text-gray-900">
-                {dashboardManager?.formatStorageValue(
-                  dashboardData.summary?.storage_used,
-                ) || "0 GB"}
-              </div>
-              <div className="text-sm text-gray-600">Used</div>
-            </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="text-2xl font-semibold text-gray-900">
-                {dashboardManager?.formatStorageValue(
-                  dashboardData.summary?.storage_limit,
-                ) || "0 GB"}
-              </div>
-              <div className="text-sm text-gray-600">Total</div>
+        {/* Loading State */}
+        {isLoading && !dashboardData && (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading your files...</p>
             </div>
           </div>
         )}
 
-        {/* Recent Files */}
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">Recent Files</h2>
+        {/* Error State */}
+        {error && !dashboardData && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+            <div className="flex">
+              <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium text-red-800">
+                  Error loading dashboard
+                </h3>
+                <p className="text-sm text-red-700 mt-1">{error}</p>
+              </div>
+            </div>
           </div>
+        )}
 
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-800 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading your files...</p>
+        {/* Dashboard Content */}
+        {dashboardData && (
+          <>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="text-2xl font-semibold text-gray-900">
+                  {dashboardData.summary?.total_files || 0}
+                </div>
+                <div className="text-sm text-gray-600">Files</div>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="text-2xl font-semibold text-gray-900">
+                  {dashboardData.summary?.total_folders || 0}
+                </div>
+                <div className="text-sm text-gray-600">Folders</div>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="text-2xl font-semibold text-gray-900">
+                  {dashboardManager?.formatStorageValue(
+                    dashboardData.summary?.storage_used,
+                  ) || "0 GB"}
+                </div>
+                <div className="text-sm text-gray-600">Used</div>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="text-2xl font-semibold text-gray-900">
+                  {dashboardManager?.formatStorageValue(
+                    dashboardData.summary?.storage_limit,
+                  ) || "0 GB"}
+                </div>
+                <div className="text-sm text-gray-600">Total</div>
+              </div>
             </div>
-          ) : error ? (
-            <div className="p-8 text-center">
-              <p className="text-red-600">{error}</p>
-            </div>
-          ) : dashboardData?.recent_files?.length > 0 ? (
-            <div className="divide-y divide-gray-200">
-              {dashboardData.recent_files.slice(0, 10).map((file) => (
-                <div
-                  key={file.id}
-                  className="p-4 hover:bg-gray-50 flex items-center justify-between"
-                >
-                  <div className="flex items-center space-x-3">
-                    <DocumentIcon className="h-5 w-5 text-gray-400" />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {file.name || "Locked File"}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {formatFileSize(file.size)} •{" "}
-                        {getTimeAgo(file.created_at)}
-                      </div>
-                    </div>
+
+            {/* Storage Usage Trend Chart */}
+            {dashboardData.storage_usage_trend &&
+              dashboardData.storage_usage_trend.data_points &&
+              dashboardData.storage_usage_trend.data_points.length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-lg font-medium text-gray-900">
+                      Storage Usage Trend
+                    </h2>
+                    <span className="text-sm text-gray-500">Last 7 days</span>
                   </div>
+
+                  {/* Chart Container with Recharts */}
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={dashboardData.storage_usage_trend.data_points.map(
+                          (point) => ({
+                            name: new Date(point.date).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                              },
+                            ),
+                            usage: point.usage?.value || 0,
+                            unit: point.usage?.unit || "GB",
+                          }),
+                        )}
+                        margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" />
+                        <YAxis
+                          unit={` ${dashboardData.storage_usage_trend.data_points[0]?.usage?.unit || "GB"}`}
+                        />
+                        <Tooltip
+                          formatter={(value, name, props) => [
+                            `${value} ${props.payload?.unit || "GB"}`,
+                            "Storage Used",
+                          ]}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="usage"
+                          stroke="#dc2626"
+                          strokeWidth={2}
+                          dot={{ r: 4, strokeWidth: 2 }}
+                          activeDot={{ r: 6, strokeWidth: 2 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+            {/* Storage Usage Bar */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-900">
+                  Storage Usage:{" "}
+                  {dashboardData.summary?.storage_usage_percentage || 0}%
+                </span>
+                <span className="text-sm text-gray-500">
+                  {dashboardManager?.formatStorageValue(
+                    dashboardData.summary?.storage_used,
+                  ) || "0 GB"}{" "}
+                  of{" "}
+                  {dashboardManager?.formatStorageValue(
+                    dashboardData.summary?.storage_limit,
+                  ) || "0 GB"}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-red-600 h-2 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(dashboardData.summary?.storage_usage_percentage || 0, 100)}%`,
+                  }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Recent Files */}
+            <div className="bg-white rounded-lg border border-gray-200">
+              <div className="p-4 border-b border-gray-200">
+                <h2 className="text-lg font-medium text-gray-900">
+                  Recent Files
+                </h2>
+              </div>
+
+              {dashboardData?.recent_files?.length > 0 ? (
+                <div className="divide-y divide-gray-200">
+                  {dashboardData.recent_files.slice(0, 10).map((file) => (
+                    <div
+                      key={file.id}
+                      className="p-4 hover:bg-gray-50 flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <DocumentIcon className="h-5 w-5 text-gray-400" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {file.name || "Locked File"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {formatFileSize(file.size)} •{" "}
+                            {getTimeAgo(file.created_at)}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadFile(file.id, file.name)}
+                        disabled={
+                          !file._isDecrypted || downloadingFiles.has(file.id)
+                        }
+                        className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                      >
+                        {downloadingFiles.has(file.id) ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b border-gray-400"></div>
+                        ) : (
+                          <ArrowDownTrayIcon className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center">
+                  <FolderIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-sm font-medium text-gray-900 mb-2">
+                    No files yet
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Upload your first file to get started
+                  </p>
                   <button
-                    onClick={() => handleDownloadFile(file.id, file.name)}
-                    disabled={
-                      !file._isDecrypted || downloadingFiles.has(file.id)
-                    }
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                    onClick={() => navigate("/file-manager/upload")}
+                    className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-800 hover:bg-red-900"
                   >
-                    {downloadingFiles.has(file.id) ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b border-gray-400"></div>
-                    ) : (
-                      <ArrowDownTrayIcon className="h-4 w-4" />
-                    )}
+                    <CloudArrowUpIcon className="h-4 w-4 mr-2" />
+                    Upload Files
                   </button>
                 </div>
-              ))}
+              )}
             </div>
-          ) : (
-            <div className="p-8 text-center">
-              <FolderIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-sm font-medium text-gray-900 mb-2">
-                No files yet
-              </h3>
-              <p className="text-sm text-gray-500 mb-4">
-                Upload your first file to get started
-              </p>
-              <button
-                onClick={() => navigate("/file-manager/upload")}
-                className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-800 hover:bg-red-900"
-              >
-                <CloudArrowUpIcon className="h-4 w-4 mr-2" />
-                Upload Files
-              </button>
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

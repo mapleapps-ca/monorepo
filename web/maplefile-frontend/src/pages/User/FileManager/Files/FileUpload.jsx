@@ -24,6 +24,7 @@ const FileUpload = () => {
     createCollectionManager,
     listCollectionManager,
     authManager,
+    dashboardManager, // 🔧 NEW: Add dashboardManager for cache clearing
   } = useServices();
 
   const preSelectedCollectionId = searchParams.get("collection");
@@ -136,7 +137,7 @@ const FileUpload = () => {
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
   };
 
-  // 🔧 ENHANCED: Comprehensive cache clearing before navigation
+  // 🔧 ENHANCED: Comprehensive cache clearing including dashboard cache
   const clearAllRelevantCaches = async () => {
     console.log("[FileUpload] Starting comprehensive cache clearing...");
 
@@ -147,13 +148,20 @@ const FileUpload = () => {
         listCollectionManager.clearAllCache();
       }
 
+      // 🔧 NEW: Clear dashboard cache
+      if (dashboardManager) {
+        console.log("[FileUpload] Clearing dashboard cache");
+        dashboardManager.clearAllCaches();
+      }
+
       // Clear file-related caches from localStorage
       console.log("[FileUpload] Clearing file caches from localStorage");
       const fileListKeys = Object.keys(localStorage).filter(
         (key) =>
           key.includes("file_list") ||
           key.includes("file_cache") ||
-          key.includes("mapleapps_file"),
+          key.includes("mapleapps_file") ||
+          key.includes("dashboard"), // 🔧 NEW: Also clear dashboard keys
       );
 
       fileListKeys.forEach((key) => {
@@ -180,10 +188,10 @@ const FileUpload = () => {
           console.log("[FileUpload] GetFileManager cache cleared");
         }
 
-        // Clear FileCryptoService file key cache
-        if (services.cryptoService) {
-          // Clear any crypto service caches
-          console.log("[FileUpload] CryptoService caches cleared");
+        // 🔧 NEW: Clear dashboard manager cache
+        if (services.dashboardManager) {
+          services.dashboardManager.clearAllCaches();
+          console.log("[FileUpload] DashboardManager cache cleared");
         }
       }
 
@@ -191,6 +199,34 @@ const FileUpload = () => {
     } catch (error) {
       console.warn("[FileUpload] ⚠️ Some cache clearing failed:", error);
     }
+  };
+
+  // 🔧 NEW: Trigger dashboard refresh event
+  const triggerDashboardRefresh = () => {
+    console.log("[FileUpload] Triggering dashboard refresh event");
+
+    // Dispatch custom event for dashboard refresh
+    const refreshEvent = new CustomEvent("dashboardRefresh", {
+      detail: { reason: "file_upload_completed", timestamp: Date.now() },
+    });
+    window.dispatchEvent(refreshEvent);
+
+    // Also store in localStorage to signal refresh across tabs
+    const refreshSignal = {
+      event: "file_upload_completed",
+      timestamp: Date.now(),
+      collection: selectedCollection,
+      fileCount: files.length,
+    };
+    localStorage.setItem(
+      "mapleapps_upload_refresh_signal",
+      JSON.stringify(refreshSignal),
+    );
+
+    // Remove the signal after a short delay
+    setTimeout(() => {
+      localStorage.removeItem("mapleapps_upload_refresh_signal");
+    }, 5000);
   };
 
   const startUpload = async () => {
@@ -251,27 +287,53 @@ const FileUpload = () => {
         // Clear all relevant caches immediately
         await clearAllRelevantCaches();
 
+        // Trigger dashboard refresh event
+        triggerDashboardRefresh();
+
         // Show success message briefly before redirect
         setTimeout(async () => {
           console.log(
-            `[FileUpload] 🔄 Redirecting to collection with force refresh state`,
+            `[FileUpload] 🔄 Redirecting to collection with comprehensive refresh state`,
           );
 
           navigate(`/file-manager/collections/${preSelectedCollectionId}`, {
             state: {
               refresh: true,
               refreshFiles: true,
-              forceFileRefresh: true, // 🔧 NEW: Additional flag for file refresh
+              forceFileRefresh: true,
               uploadedFileCount: successCount,
               uploadTimestamp: Date.now(),
-              cacheCleared: true, // 🔧 NEW: Flag indicating caches were cleared
+              cacheCleared: true,
+              refreshDashboard: true, // 🔧 NEW: Signal dashboard refresh
             },
             replace: false,
           });
-        }, 1000); // Reduced delay to 1 second
+        }, 1000);
+      } else {
+        // If no pre-selected collection, go to dashboard with refresh
+        setTimeout(async () => {
+          await clearAllRelevantCaches();
+          triggerDashboardRefresh();
+
+          navigate("/dashboard", {
+            state: {
+              refreshDashboard: true,
+              uploadCompleted: true,
+              uploadedFileCount: successCount,
+              uploadTimestamp: Date.now(),
+            },
+            replace: false,
+          });
+        }, 1000);
       }
     } else {
       setSuccess(`${successCount} of ${files.length} files uploaded`);
+
+      // Even for partial success, trigger dashboard refresh
+      if (successCount > 0) {
+        await clearAllRelevantCaches();
+        triggerDashboardRefresh();
+      }
     }
   };
 
