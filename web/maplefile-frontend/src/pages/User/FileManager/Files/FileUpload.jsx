@@ -10,7 +10,13 @@ import {
   ArrowLeftIcon,
   DocumentIcon,
   XMarkIcon,
-  CheckIcon,
+  PhotoIcon,
+  FilmIcon,
+  MusicalNoteIcon,
+  DocumentTextIcon,
+  ArrowUpTrayIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 
 const FileUpload = () => {
@@ -40,7 +46,7 @@ const FileUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [success, setSuccess] = useState(""); // Kept for logic, but UI will use inline status
 
   useEffect(() => {
     const initializeManager = async () => {
@@ -62,13 +68,7 @@ const FileUpload = () => {
     initializeManager();
   }, [authManager]);
 
-  useEffect(() => {
-    if (createCollectionManager && listCollectionManager) {
-      loadCollections();
-    }
-  }, [createCollectionManager, listCollectionManager]);
-
-  const loadCollections = async () => {
+  const loadCollections = useCallback(async () => {
     setIsLoadingCollections(true);
     try {
       const result = await listCollectionManager.listCollections(false);
@@ -80,7 +80,13 @@ const FileUpload = () => {
     } finally {
       setIsLoadingCollections(false);
     }
-  };
+  }, [listCollectionManager]);
+
+  useEffect(() => {
+    if (createCollectionManager && listCollectionManager) {
+      loadCollections();
+    }
+  }, [createCollectionManager, listCollectionManager, loadCollections]);
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
@@ -115,10 +121,11 @@ const FileUpload = () => {
     });
 
     const fileObjects = validFiles.map((file) => ({
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).substring(2, 11),
       file,
       name: file.name,
       size: file.size,
+      type: file.type,
       status: "pending",
     }));
 
@@ -135,6 +142,27 @@ const FileUpload = () => {
     const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  };
+
+  const getFileIcon = (file) => {
+    const iconClass = "h-5 w-5";
+
+    if (file.type.startsWith("image/")) {
+      return <PhotoIcon className={`${iconClass} text-purple-600`} />;
+    }
+    if (file.type.startsWith("video/")) {
+      return <FilmIcon className={`${iconClass} text-pink-600`} />;
+    }
+    if (file.type.startsWith("audio/")) {
+      return <MusicalNoteIcon className={`${iconClass} text-green-600`} />;
+    }
+    if (file.type.includes("pdf")) {
+      return <DocumentIcon className={`${iconClass} text-red-600`} />;
+    }
+    if (file.type.includes("text") || file.name.endsWith(".txt")) {
+      return <DocumentTextIcon className={`${iconClass} text-gray-600`} />;
+    }
+    return <DocumentIcon className={`${iconClass} text-blue-600`} />;
   };
 
   // 🔧 ENHANCED: Comprehensive cache clearing including dashboard cache
@@ -240,8 +268,9 @@ const FileUpload = () => {
     setSuccess("");
 
     let successCount = 0;
+    const filesToUpload = files.filter((f) => f.status === "pending");
 
-    for (const fileObj of files) {
+    for (const fileObj of filesToUpload) {
       try {
         setFiles((prev) =>
           prev.map((f) =>
@@ -275,7 +304,7 @@ const FileUpload = () => {
 
     setIsUploading(false);
 
-    if (successCount === files.length) {
+    if (successCount === filesToUpload.length && successCount > 0) {
       setSuccess("All files uploaded successfully!");
 
       // 🔧 ENHANCED: Comprehensive cache clearing and improved navigation
@@ -308,7 +337,7 @@ const FileUpload = () => {
             },
             replace: false,
           });
-        }, 1000);
+        }, 1500);
       } else {
         // If no pre-selected collection, go to dashboard with refresh
         setTimeout(async () => {
@@ -324,13 +353,12 @@ const FileUpload = () => {
             },
             replace: false,
           });
-        }, 1000);
+        }, 1500);
       }
     } else {
-      setSuccess(`${successCount} of ${files.length} files uploaded`);
-
-      // Even for partial success, trigger dashboard refresh
       if (successCount > 0) {
+        setSuccess(`${successCount} of ${filesToUpload.length} files uploaded`);
+        // Even for partial success, trigger dashboard refresh
         await clearAllRelevantCaches();
         triggerDashboardRefresh();
       }
@@ -343,59 +371,74 @@ const FileUpload = () => {
       : "/file-manager";
   };
 
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  const pendingFiles = files.filter((f) => f.status === "pending");
+  const uploadingFiles = files.filter((f) => f.status === "uploading");
+  const completedFiles = files.filter((f) => f.status === "complete");
+  const errorFiles = files.filter((f) => f.status === "error");
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 animate-fade-in-down">
           <button
             onClick={() => navigate(getBackUrl())}
-            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"
+            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4 transition-colors duration-200"
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
             Back to {preSelectedCollectionInfo?.name || "My Files"}
           </button>
-          <h1 className="text-2xl font-semibold text-gray-900">Upload Files</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Upload Files</h1>
+            <p className="text-gray-600 mt-1">
+              Drag and drop or click to select files
+            </p>
+          </div>
         </div>
 
-        {/* Messages */}
+        {/* General Error Message */}
         {error && (
           <div className="mb-6 p-3 rounded-lg bg-red-50 border border-red-200">
             <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
-        {success && (
-          <div className="mb-6 p-3 rounded-lg bg-green-50 border border-green-200">
-            <p className="text-sm text-green-700">{success}</p>
-          </div>
-        )}
 
-        {/* Upload Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Upload Area */}
+          <div className="lg:col-span-2 space-y-6">
             {/* Drop Zone */}
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => !isUploading && fileInputRef.current?.click()}
-              className={`bg-white rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-all ${
+              className={`bg-white rounded-lg border-2 border-dashed p-12 text-center cursor-pointer transition-all duration-300 animate-fade-in-up ${
                 isDragging
-                  ? "border-red-800 bg-red-50"
-                  : "border-gray-300 hover:border-gray-400"
+                  ? "border-red-500 bg-red-50 scale-105 shadow-lg"
+                  : "border-gray-300 hover:border-gray-400 hover:shadow-md"
               } ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              <CloudArrowUpIcon
-                className={`mx-auto h-12 w-12 mb-3 ${
-                  isDragging ? "text-red-800" : "text-gray-400"
+              <div
+                className={`h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center transition-all duration-300 ${
+                  isDragging
+                    ? "bg-gradient-to-br from-red-500 to-red-600 scale-110"
+                    : "bg-gradient-to-br from-gray-400 to-gray-500"
                 }`}
-              />
-              <h3 className="text-sm font-medium text-gray-900 mb-1">
-                {isDragging ? "Drop files here" : "Click or drag files"}
+              >
+                <CloudArrowUpIcon className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {isDragging ? "Drop files here" : "Upload your files"}
               </h3>
-              <p className="text-xs text-gray-500">Max 5GB per file</p>
+              <p className="text-sm text-gray-600 mb-4">
+                Drag and drop or click to browse
+              </p>
+              <p className="text-xs text-gray-500">
+                Maximum file size: 5GB • All file types supported
+              </p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -408,48 +451,78 @@ const FileUpload = () => {
 
             {/* Files List */}
             {files.length > 0 && (
-              <div className="mt-6 bg-white rounded-lg border border-gray-200">
-                <div className="p-4 border-b border-gray-200">
-                  <h3 className="font-medium text-gray-900">
-                    {files.length} file{files.length !== 1 ? "s" : ""} selected
-                  </h3>
+              <div
+                className="bg-white rounded-lg border border-gray-200 shadow-sm animate-fade-in-up"
+                style={{ animationDelay: "100ms" }}
+              >
+                <div className="p-4 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900">
+                      {files.length} file{files.length !== 1 ? "s" : ""}{" "}
+                      selected
+                    </h3>
+                    <span className="text-sm text-gray-600">
+                      Total: {formatFileSize(totalSize)}
+                    </span>
+                  </div>
                 </div>
-                <div className="divide-y divide-gray-200 max-h-64 overflow-y-auto">
+
+                <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
                   {files.map((file) => (
                     <div
                       key={file.id}
-                      className="p-4 flex items-center justify-between"
+                      className="p-4 hover:bg-gray-50 transition-colors duration-200"
                     >
-                      <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        <DocumentIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {file.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {formatFileSize(file.size)}
-                          </p>
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-shrink-0">
+                          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center">
+                            {getFileIcon(file)}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center">
-                        {file.status === "pending" && (
-                          <button
-                            onClick={() => removeFile(file.id)}
-                            disabled={isUploading}
-                            className="text-gray-400 hover:text-red-600"
-                          >
-                            <XMarkIcon className="h-5 w-5" />
-                          </button>
-                        )}
-                        {file.status === "uploading" && (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-800"></div>
-                        )}
-                        {file.status === "complete" && (
-                          <CheckIcon className="h-5 w-5 text-green-600" />
-                        )}
-                        {file.status === "error" && (
-                          <XMarkIcon className="h-5 w-5 text-red-600" />
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="text-sm font-medium text-gray-900 truncate pr-2">
+                              {file.name}
+                            </h4>
+                            <span className="text-xs text-gray-500 flex-shrink-0">
+                              {formatFileSize(file.size)}
+                            </span>
+                          </div>
+                          {file.status === "error" && file.error && (
+                            <p className="text-xs text-red-600 mt-1 truncate">
+                              {file.error}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex-shrink-0">
+                          {file.status === "pending" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeFile(file.id);
+                              }}
+                              disabled={isUploading}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                            >
+                              <XMarkIcon className="h-5 w-5" />
+                            </button>
+                          )}
+                          {file.status === "uploading" && (
+                            <div className="p-2">
+                              <div className="animate-spin rounded-full h-5 w-5 border-2 border-red-700 border-t-transparent"></div>
+                            </div>
+                          )}
+                          {file.status === "complete" && (
+                            <div className="p-2">
+                              <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                            </div>
+                          )}
+                          {file.status === "error" && (
+                            <div className="p-2">
+                              <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -459,18 +532,30 @@ const FileUpload = () => {
           </div>
 
           {/* Sidebar */}
-          <div>
-            {/* Folder Selection */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-              <h3 className="font-medium text-gray-900 mb-3">Upload to</h3>
+          <div className="space-y-6">
+            <div
+              className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 animate-fade-in-up"
+              style={{ animationDelay: "200ms" }}
+            >
+              <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+                <FolderIcon className="h-5 w-5 mr-2 text-gray-600" />
+                Upload Destination
+              </h3>
 
               {preSelectedCollectionId ? (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <FolderIcon className="h-5 w-5 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-900">
-                      {preSelectedCollectionInfo?.name || "Selected Folder"}
-                    </span>
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                      <FolderIcon className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">
+                        {preSelectedCollectionInfo?.name || "Selected Folder"}
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        Files will be uploaded here
+                      </p>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -490,19 +575,95 @@ const FileUpload = () => {
               )}
             </div>
 
-            {/* Upload Button */}
+            {files.length > 0 && (
+              <div
+                className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 animate-fade-in-up"
+                style={{ animationDelay: "300ms" }}
+              >
+                <h3 className="font-semibold text-gray-900 mb-4">
+                  Upload Status
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Pending</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {pendingFiles.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Uploading</span>
+                    <span className="text-sm font-medium text-blue-600">
+                      {uploadingFiles.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Completed</span>
+                    <span className="text-sm font-medium text-green-600">
+                      {completedFiles.length}
+                    </span>
+                  </div>
+                  {errorFiles.length > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Errors</span>
+                      <span className="text-sm font-medium text-red-600">
+                        {errorFiles.length}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {completedFiles.length + errorFiles.length === files.length &&
+                  files.length > 0 &&
+                  !isUploading &&
+                  pendingFiles.length === 0 && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm text-green-800 flex items-center">
+                        <CheckCircleIcon className="h-4 w-4 mr-2" />
+                        All uploads processed!
+                      </p>
+                    </div>
+                  )}
+              </div>
+            )}
+
             <button
               onClick={startUpload}
               disabled={
                 !selectedCollection ||
                 !fileManager ||
                 files.length === 0 ||
-                isUploading
+                isUploading ||
+                pendingFiles.length === 0
               }
-              className="w-full py-2 px-4 rounded-lg text-white bg-red-800 hover:bg-red-900 disabled:bg-gray-400"
+              className="w-full flex justify-center items-center py-3 px-4 rounded-lg text-white bg-red-800 hover:bg-red-900 disabled:bg-gray-400 text-base font-semibold animate-fade-in-up"
+              style={{ animationDelay: "400ms" }}
             >
-              {isUploading ? "Uploading..." : "Upload Files"}
+              {isUploading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
+                  Uploading {uploadingFiles.length} of {files.length}...
+                </>
+              ) : (
+                <>
+                  <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
+                  Upload {pendingFiles.length} File
+                  {pendingFiles.length !== 1 ? "s" : ""}
+                </>
+              )}
             </button>
+
+            <div
+              className="p-4 bg-blue-50 rounded-lg border border-blue-200 animate-fade-in-up"
+              style={{ animationDelay: "500ms" }}
+            >
+              <h4 className="text-sm font-medium text-blue-900 mb-2 flex items-center">
+                <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
+                Security Notice
+              </h4>
+              <p className="text-xs text-blue-800">
+                All files are encrypted end-to-end before upload. Only you and
+                those you share with can decrypt them.
+              </p>
+            </div>
           </div>
         </div>
       </div>
