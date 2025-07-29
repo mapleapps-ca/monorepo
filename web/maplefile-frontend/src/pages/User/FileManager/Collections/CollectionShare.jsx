@@ -17,6 +17,13 @@ import {
   CheckIcon,
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
+  EnvelopeIcon,
+  LockClosedIcon,
+  ShieldCheckIcon,
+  UserGroupIcon,
+  PencilIcon,
+  EyeIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 
 const CollectionShare = () => {
@@ -38,6 +45,31 @@ const CollectionShare = () => {
   const [recipientVerified, setRecipientVerified] = useState(false);
   const [recipientInfo, setRecipientInfo] = useState(null);
   const [permissionLevel, setPermissionLevel] = useState("read_write");
+  const [showPermissionDropdown, setShowPermissionDropdown] = useState(false);
+
+  const permissionLevels = [
+    {
+      value: "read_only",
+      label: "View Only",
+      description: "Can view and download files",
+      icon: EyeIcon,
+      color: "text-blue-600",
+    },
+    {
+      value: "read_write",
+      label: "Can Edit",
+      description: "Can add, edit, and delete files",
+      icon: PencilIcon,
+      color: "text-green-600",
+    },
+    {
+      value: "admin",
+      label: "Full Access",
+      description: "Can manage sharing and permissions",
+      icon: ShieldCheckIcon,
+      color: "text-purple-600",
+    },
+  ];
 
   useEffect(() => {
     if (collectionId && getCollectionManager && shareCollectionManager) {
@@ -72,34 +104,17 @@ const CollectionShare = () => {
   const loadCollectionMembers = async (forceRefresh = false) => {
     setIsLoading(true);
     try {
-      console.log(
-        `[CollectionShare] Loading collection members for ${collectionId}, forceRefresh: ${forceRefresh}`,
-      );
-
       const members = await shareCollectionManager.getCollectionMembers(
         collectionId,
         forceRefresh,
       );
-
-      console.log(
-        `[CollectionShare] API returned ${members.length} members:`,
-        members,
-      );
-
-      // Validate the members array
       if (!Array.isArray(members)) {
         console.warn("[CollectionShare] Members is not an array:", members);
         setCollectionMembers([]);
         return;
       }
-
       setCollectionMembers(members);
-
-      // If no members but we know we just shared, show a warning
       if (members.length === 0 && success) {
-        console.warn(
-          "[CollectionShare] No members returned from API despite successful sharing",
-        );
         setError(
           "Collection shared successfully, but member list may take a moment to update. Try refreshing in a few seconds.",
         );
@@ -107,17 +122,12 @@ const CollectionShare = () => {
     } catch (err) {
       console.error("[CollectionShare] Failed to load members:", err);
       setError("Could not load folder members: " + err.message);
-
-      // Try to get from local storage as fallback
       try {
         const localShares =
           shareCollectionManager.getSharedCollectionsByCollectionId(
             collectionId,
           );
-        console.log("[CollectionShare] Fallback - local shares:", localShares);
-
         if (localShares && localShares.length > 0) {
-          // Convert local shares to member format
           const membersFromLocal = localShares.map((share) => ({
             recipient_id: share.recipient_id,
             recipient_email: share.recipient_email,
@@ -125,7 +135,6 @@ const CollectionShare = () => {
             shared_at: share.shared_at || share.locally_stored_at,
           }));
           setCollectionMembers(membersFromLocal);
-          console.log("[CollectionShare] Using local shares as member list");
         }
       } catch (localErr) {
         console.error(
@@ -144,7 +153,6 @@ const CollectionShare = () => {
       return;
     }
 
-    // Check if user is trying to share with themselves
     const currentUserEmail = authManager.getCurrentUserEmail();
     if (
       recipientEmail.trim().toLowerCase() === currentUserEmail?.toLowerCase()
@@ -153,7 +161,6 @@ const CollectionShare = () => {
       return;
     }
 
-    // Reset verification state
     setRecipientVerified(false);
     setRecipientId("");
     setRecipientInfo(null);
@@ -162,16 +169,13 @@ const CollectionShare = () => {
     setIsVerifying(true);
 
     try {
-      // Use userLookupManager to get user public key and info
       const userInfo = await userLookupManager.getUserPublicKey(
         recipientEmail.trim(),
       );
-
       if (userInfo && userInfo.userId) {
         setRecipientId(userInfo.userId);
         setRecipientInfo(userInfo);
         setRecipientVerified(true);
-        setSuccess(`✅ User verified: ${userInfo.name || userInfo.email}`);
       } else {
         throw new Error("User information incomplete");
       }
@@ -210,45 +214,30 @@ const CollectionShare = () => {
 
       setSuccess(`Folder shared successfully with ${recipientEmail}!`);
 
-      // Immediately add the new member to the local list (optimistic update)
       const newMember = {
         recipient_id: recipientId,
-        recipient_email: recipientEmail,
+        recipient_email: recipientEmail.trim(),
         permission_level: permissionLevel,
         shared_at: new Date().toISOString(),
-        _isLocal: true, // Mark as locally added
+        _isLocal: true,
       };
 
       setCollectionMembers((prevMembers) => {
-        // Remove any existing member with same recipient_id to avoid duplicates
         const filtered = prevMembers.filter(
           (m) => m.recipient_id !== recipientId,
         );
         return [...filtered, newMember];
       });
 
-      // Reset form
       setRecipientEmail("");
       setRecipientId("");
       setRecipientVerified(false);
       setRecipientInfo(null);
       setPermissionLevel("read_write");
 
-      // Also try to reload from API in the background (don't block UI)
-      console.log(
-        "[CollectionShare] Sharing successful, attempting background refresh...",
-      );
-      setTimeout(async () => {
-        try {
-          await loadCollectionMembers(true);
-        } catch (bgErr) {
-          console.warn(
-            "[CollectionShare] Background refresh failed:",
-            bgErr.message,
-          );
-          // Don't show error to user since we already have the optimistic update
-        }
-      }, 1000); // Wait 1 second for API to update
+      setTimeout(() => {
+        loadCollectionMembers(true);
+      }, 1000);
     } catch (err) {
       console.error("Failed to share collection:", err);
       setError("Could not share folder. Please try again.");
@@ -265,7 +254,6 @@ const CollectionShare = () => {
     setSuccess("");
 
     try {
-      // Optimistically remove from UI immediately
       setCollectionMembers((prevMembers) =>
         prevMembers.filter((m) => m.recipient_id !== memberId),
       );
@@ -273,26 +261,13 @@ const CollectionShare = () => {
       await shareCollectionManager.removeMember(collectionId, memberId, true);
       setSuccess(`${memberEmail} removed from folder`);
 
-      // Background refresh to ensure consistency
-      console.log(
-        "[CollectionShare] Member removal successful, attempting background refresh...",
-      );
-      setTimeout(async () => {
-        try {
-          await loadCollectionMembers(true);
-        } catch (bgErr) {
-          console.warn(
-            "[CollectionShare] Background refresh after removal failed:",
-            bgErr.message,
-          );
-        }
+      setTimeout(() => {
+        loadCollectionMembers(true);
       }, 1000);
     } catch (err) {
       console.error("[CollectionShare] Failed to remove member:", err);
       setError("Could not remove member: " + err.message);
-
-      // Revert the optimistic update on error
-      await loadCollectionMembers(true);
+      loadCollectionMembers(true);
     } finally {
       setIsLoading(false);
     }
@@ -302,19 +277,15 @@ const CollectionShare = () => {
     const newEmail = e.target.value;
     setRecipientEmail(newEmail);
 
-    // Reset verification when email changes
     if (recipientVerified) {
       setRecipientVerified(false);
       setRecipientId("");
       setRecipientInfo(null);
+      setSuccess("");
     }
-
-    // Clear any existing errors when user starts typing
     if (error) {
       setError("");
     }
-
-    // Check if user is trying to enter their own email
     const currentUserEmail = authManager.getCurrentUserEmail();
     if (
       newEmail.trim().toLowerCase() === currentUserEmail?.toLowerCase() &&
@@ -324,31 +295,27 @@ const CollectionShare = () => {
     }
   };
 
-  const getPermissionDisplayName = (level) => {
-    switch (level) {
-      case "read_only":
-        return "View Only";
-      case "read_write":
-        return "Can Edit";
-      case "admin":
-        return "Full Access";
-      default:
-        return level;
-    }
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 60) return "Just now";
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return "Yesterday";
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    return date.toLocaleDateString();
   };
 
-  const getPermissionIcon = (level) => {
-    switch (level) {
-      case "read_only":
-        return "👁️";
-      case "read_write":
-        return "✏️";
-      case "admin":
-        return "👑";
-      default:
-        return "📝";
-    }
-  };
+  const currentPermission = permissionLevels.find(
+    (p) => p.value === permissionLevel,
+  );
+  const currentUserEmail = authManager?.getCurrentUserEmail();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -356,78 +323,75 @@ const CollectionShare = () => {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 animate-fade-in-down">
           <button
             onClick={() =>
               navigate(`/file-manager/collections/${collectionId}`)
             }
-            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4 transition-colors duration-200"
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
             Back to {collection?.name || "Folder"}
           </button>
           <div className="flex items-center">
-            <ShareIcon className="h-8 w-8 text-red-800 mr-3" />
-            <h1 className="text-2xl font-semibold text-gray-900">
-              Share Folder
-            </h1>
+            <div className="h-12 w-12 bg-gradient-to-br from-red-600 to-red-800 rounded-xl flex items-center justify-center mr-4">
+              <ShareIcon className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Share Folder</h1>
+              {collection && (
+                <p className="text-gray-600 mt-1">
+                  Share "{collection.name}" with end-to-end encryption
+                </p>
+              )}
+            </div>
           </div>
-          {collection && (
-            <p className="text-gray-600 mt-2">
-              Sharing "{collection.name}" with end-to-end encryption
-            </p>
-          )}
         </div>
 
         {/* Messages */}
         {error && (
-          <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 flex items-start">
+          <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 flex items-start animate-fade-in">
             <ExclamationTriangleIcon className="h-5 w-5 text-red-400 mt-0.5 mr-3 flex-shrink-0" />
             <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
         {success && (
-          <div className="mb-6 p-4 rounded-lg bg-green-50 border border-green-200 flex items-start">
+          <div className="mb-6 p-4 rounded-lg bg-green-50 border border-green-200 flex items-start animate-fade-in">
             <CheckIcon className="h-5 w-5 text-green-400 mt-0.5 mr-3 flex-shrink-0" />
             <p className="text-sm text-green-700">{success}</p>
           </div>
         )}
 
-        {/* Add People */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6 shadow-sm">
-          <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
-            <UserPlusIcon className="h-5 w-5 mr-2" />
-            Add People
-          </h2>
+        {/* Add People Section */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6 animate-fade-in-up">
+          <div className="flex items-center mb-6">
+            <UserPlusIcon className="h-6 w-6 text-gray-700 mr-3" />
+            <h2 className="text-lg font-semibold text-gray-900">Add People</h2>
+          </div>
 
-          <div className="space-y-6">
-            {/* Email Input with Verification */}
+          <div className="space-y-4">
+            {/* Email Input */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email Address
               </label>
               <div className="flex space-x-3">
                 <div className="flex-1 relative">
+                  <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="email"
                     value={recipientEmail}
                     onChange={handleEmailChange}
-                    placeholder="Enter email address to share with"
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 ${
+                    placeholder="Enter email address"
+                    className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors ${
                       recipientVerified
                         ? "border-green-300 bg-green-50"
-                        : authManager.getCurrentUserEmail()?.toLowerCase() ===
-                              recipientEmail.trim().toLowerCase() &&
-                            recipientEmail.trim()
-                          ? "border-red-300 bg-red-50"
-                          : "border-gray-300"
+                        : "border-gray-300"
                     }`}
                     disabled={isVerifying || isLoading}
                   />
                   {recipientVerified && (
-                    <div className="absolute right-2 top-2">
-                      <CheckIcon className="h-5 w-5 text-green-500" />
-                    </div>
+                    <CheckIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-green-600" />
                   )}
                 </div>
                 <button
@@ -436,74 +400,114 @@ const CollectionShare = () => {
                     isVerifying ||
                     isLoading ||
                     !recipientEmail.trim() ||
-                    authManager.getCurrentUserEmail()?.toLowerCase() ===
-                      recipientEmail.trim().toLowerCase()
+                    recipientEmail.trim().toLowerCase() ===
+                      currentUserEmail?.toLowerCase()
                   }
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center"
+                  className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors flex items-center"
                 >
                   {isVerifying ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
                       Verifying...
                     </>
                   ) : (
                     <>
-                      <MagnifyingGlassIcon className="h-4 w-4 mr-1" />
+                      <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
                       Verify
                     </>
                   )}
                 </button>
               </div>
-              {recipientVerified && recipientInfo && (
-                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-800">
-                    <strong>✅ Verified:</strong>{" "}
-                    {recipientInfo.name || recipientInfo.email}
+              {recipientVerified && (
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg animate-fade-in">
+                  <p className="text-sm text-green-800 flex items-center">
+                    <CheckIcon className="h-4 w-4 mr-2" />
+                    User verified and ready to share
                   </p>
-                  <div className="text-xs text-green-600 mt-1 space-y-1">
-                    <p>
-                      <strong>User ID:</strong> {recipientInfo.userId}
-                    </p>
-                    <p>
-                      <strong>Verification ID:</strong>{" "}
-                      {recipientInfo.verificationId ||
-                        recipientInfo.verification_id ||
-                        "N/A"}
-                    </p>
-                  </div>
                 </div>
               )}
-              <p className="text-xs text-gray-500 mt-1">
-                We'll verify this user exists before sharing. You cannot share
-                with yourself.
-              </p>
             </div>
 
             {/* Permission Level */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Permission Level
-              </label>
-              <select
-                value={permissionLevel}
-                onChange={(e) => setPermissionLevel(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                disabled={isLoading}
-              >
-                <option value="read_only">
-                  👁️ View Only - Can only view files
-                </option>
-                <option value="read_write">
-                  ✏️ Can Edit - Can add and edit files
-                </option>
-                <option value="admin">
-                  👑 Full Access - Can manage sharing and permissions
-                </option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Choose what level of access this person should have
-              </p>
-            </div>
+            {currentPermission && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Permission Level
+                </label>
+                <div className="relative">
+                  <button
+                    onClick={() =>
+                      setShowPermissionDropdown(!showPermissionDropdown)
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 flex items-center justify-between text-left"
+                    disabled={isLoading}
+                  >
+                    <div className="flex items-center">
+                      <currentPermission.icon
+                        className={`h-5 w-5 mr-3 ${currentPermission.color}`}
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {currentPermission.label}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {currentPermission.description}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronDownIcon
+                      className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${
+                        showPermissionDropdown ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {showPermissionDropdown && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setShowPermissionDropdown(false)}
+                      ></div>
+                      <div className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-20 animate-fade-in-down">
+                        {permissionLevels.map((level) => (
+                          <button
+                            key={level.value}
+                            onClick={() => {
+                              setPermissionLevel(level.value);
+                              setShowPermissionDropdown(false);
+                            }}
+                            className={`w-full px-4 py-3 flex items-center hover:bg-gray-50 transition-colors duration-200 ${
+                              permissionLevel === level.value ? "bg-red-50" : ""
+                            }`}
+                          >
+                            <level.icon
+                              className={`h-5 w-5 mr-3 ${level.color}`}
+                            />
+                            <div className="text-left flex-1">
+                              <p
+                                className={`font-medium ${
+                                  permissionLevel === level.value
+                                    ? "text-red-900"
+                                    : "text-gray-900"
+                                }`}
+                              >
+                                {level.label}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {level.description}
+                              </p>
+                            </div>
+                            {permissionLevel === level.value && (
+                              <CheckIcon className="h-5 w-5 text-red-600" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Share Button */}
             <button
@@ -515,34 +519,35 @@ const CollectionShare = () => {
                 !recipientId ||
                 !recipientEmail.trim()
               }
-              className="w-full py-3 px-4 rounded-lg text-white bg-red-800 hover:bg-red-900 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center"
+              className="w-full py-3 px-4 rounded-lg text-white bg-red-800 hover:bg-red-900 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center text-base"
             >
-              {isLoading ? (
+              {isLoading && !isVerifying ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                   Sharing Folder...
                 </>
               ) : (
                 <>
-                  <ShareIcon className="h-4 w-4 mr-2" />
+                  <ShareIcon className="h-5 w-5 mr-2" />
                   Share Folder Securely
                 </>
               )}
             </button>
-            {!recipientVerified && recipientEmail.trim() && (
-              <p className="text-xs text-amber-600 text-center">
-                Please verify the recipient before sharing
-              </p>
-            )}
           </div>
         </div>
 
         {/* Current Members */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+        <div
+          className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 animate-fade-in-up"
+          style={{ animationDelay: "100ms" }}
+        >
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-medium text-gray-900">
-              People with Access ({collectionMembers.length})
-            </h2>
+            <div className="flex items-center">
+              <UserGroupIcon className="h-6 w-6 text-gray-700 mr-3" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                People with Access ({collectionMembers.length + 1})
+              </h2>
+            </div>
             <button
               onClick={() => loadCollectionMembers(true)}
               disabled={isLoading}
@@ -558,69 +563,129 @@ const CollectionShare = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-800 mx-auto"></div>
               <p className="text-gray-500 mt-2">Loading members...</p>
             </div>
-          ) : collectionMembers.length === 0 ? (
-            <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-              <UserPlusIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 text-lg font-medium">
-                No one else has access yet
-              </p>
-              <p className="text-gray-400 text-sm">
-                Share this folder with others to start collaborating
-              </p>
-            </div>
           ) : (
             <div className="space-y-3">
-              {collectionMembers.map((member, index) => (
-                <div
-                  key={`${member.recipient_id}-${index}`}
-                  className={`flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors ${
-                    member._isLocal
-                      ? "border-green-200 bg-green-50"
-                      : "border-gray-200"
-                  }`}
-                >
+              {/* Owner */}
+              <div className="p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-lg">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 bg-red-100 rounded-full flex items-center justify-center">
-                      <span className="text-red-800 font-medium">
-                        {member.recipient_email.charAt(0).toUpperCase()}
-                      </span>
+                    <div className="h-10 w-10 bg-gradient-to-br from-red-600 to-red-800 rounded-full flex items-center justify-center text-white font-semibold">
+                      YOU
                     </div>
                     <div>
                       <div className="flex items-center space-x-2">
-                        <p className="font-medium text-gray-900">
-                          {member.recipient_email}
-                        </p>
-                        {member._isLocal && (
-                          <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                            Just shared
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-500 flex items-center">
-                        {getPermissionIcon(member.permission_level)}
-                        <span className="ml-1">
-                          {getPermissionDisplayName(member.permission_level)}
+                        <p className="font-medium text-gray-900">You</p>
+                        <span className="text-xs font-medium px-2 py-0.5 bg-red-100 text-red-800 rounded-full">
+                          Owner
                         </span>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        {currentUserEmail}
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() =>
-                      handleRemoveMember(
-                        member.recipient_id,
-                        member.recipient_email,
-                      )
-                    }
-                    disabled={isLoading}
-                    className="text-gray-400 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50"
-                    title="Remove access"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
+                  <div className="text-sm text-gray-500">Full control</div>
                 </div>
-              ))}
+              </div>
+
+              {collectionMembers.length > 0
+                ? collectionMembers.map((member) => {
+                    const memberPermission =
+                      permissionLevels.find(
+                        (p) => p.value === member.permission_level,
+                      ) || permissionLevels[0];
+                    return (
+                      <div
+                        key={member.recipient_id}
+                        className={`p-4 bg-white border rounded-lg hover:shadow-sm transition-all duration-200 ${
+                          member._isLocal
+                            ? "border-green-300 bg-green-50"
+                            : "border-gray-200"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-700 font-semibold">
+                              {member.recipient_email.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <p className="font-medium text-gray-900">
+                                  {member.recipient_email}
+                                </p>
+                                {member._isLocal && (
+                                  <span className="text-xs font-medium px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
+                                    Just added
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-500">
+                                Shared {formatTimeAgo(member.shared_at)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <div className="text-right">
+                              <div className="flex items-center justify-end text-sm">
+                                <memberPermission.icon
+                                  className={`h-4 w-4 mr-1 ${memberPermission.color}`}
+                                />
+                                <span className="text-gray-700">
+                                  {memberPermission.label}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() =>
+                                handleRemoveMember(
+                                  member.recipient_id,
+                                  member.recipient_email,
+                                )
+                              }
+                              disabled={isLoading}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                              title="Remove access"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                : !isLoading && (
+                    <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                      <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-500 text-lg font-medium">
+                        No one else has access yet
+                      </p>
+                      <p className="text-gray-400 text-sm">
+                        Share this folder to start collaborating
+                      </p>
+                    </div>
+                  )}
             </div>
           )}
+        </div>
+
+        {/* Security Notice */}
+        <div
+          className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200 animate-fade-in-up"
+          style={{ animationDelay: "200ms" }}
+        >
+          <div className="flex">
+            <LockClosedIcon className="h-5 w-5 text-blue-600 flex-shrink-0" />
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800">
+                End-to-End Encryption
+              </h3>
+              <p className="text-sm text-blue-700 mt-1">
+                When you share this folder, the encryption key is securely
+                shared with the recipient using their public key. Only they can
+                decrypt and access the files.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Debug Section for Development */}
@@ -662,8 +727,6 @@ const CollectionShare = () => {
                   );
                   console.log("Auth Manager:", authManager);
                   console.log("User Lookup Manager:", userLookupManager);
-
-                  // Try to get local shares
                   try {
                     const localShares =
                       shareCollectionManager.getSharedCollectionsByCollectionId(
@@ -673,7 +736,6 @@ const CollectionShare = () => {
                   } catch (e) {
                     console.error("Error getting local shares:", e);
                   }
-
                   console.log("=== END DEBUG ===");
                 }}
                 className="mt-2 px-2 py-1 bg-yellow-200 hover:bg-yellow-300 text-yellow-800 rounded text-xs"
@@ -683,25 +745,6 @@ const CollectionShare = () => {
             </div>
           </div>
         )}
-
-        {/* Security Notice */}
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-start">
-            <div className="h-5 w-5 text-blue-400 mt-0.5 mr-3 flex-shrink-0">
-              🔒
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-blue-800">
-                End-to-End Encryption
-              </h3>
-              <p className="text-sm text-blue-700 mt-1">
-                All files in this folder are encrypted with your keys. When you
-                share, the folder key is securely encrypted with the recipient's
-                public key. Neither we nor anyone else can access your files.
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

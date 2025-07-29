@@ -18,18 +18,21 @@ import {
   ExclamationTriangleIcon,
   ArrowPathIcon,
   XMarkIcon,
+  LockClosedIcon,
+  ServerIcon,
+  ShieldCheckIcon,
+  InformationCircleIcon,
+  ChartBarIcon,
+  SparklesIcon,
+  DocumentDuplicateIcon,
+  FolderIcon,
 } from "@heroicons/react/24/outline";
 
 const FileDetails = () => {
   const navigate = useNavigate();
   const { fileId } = useParams();
 
-  const {
-    getFileManager,
-    downloadFileManager,
-    deleteFileManager,
-    listCollectionManager,
-  } = useFiles();
+  const { getFileManager, downloadFileManager, deleteFileManager } = useFiles();
   const { authManager } = useAuth();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -40,12 +43,10 @@ const FileDetails = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // NEW: Version history specific states
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const [versionError, setVersionError] = useState("");
   const [hasLoadedVersions, setHasLoadedVersions] = useState(false);
 
-  // Load file details
   const loadFileDetails = useCallback(
     async (forceRefresh = false) => {
       if (!getFileManager || !fileId) return;
@@ -54,14 +55,8 @@ const FileDetails = () => {
       setError("");
 
       try {
-        console.log("[FileDetails] Loading file details for:", fileId);
-        // Get file details
         const file = await getFileManager.getFileById(fileId, forceRefresh);
         setFileDetails(file);
-        console.log(
-          "[FileDetails] File details loaded:",
-          file.name || "[Encrypted]",
-        );
       } catch (err) {
         setError("Could not load file details");
         console.error("[FileDetails] Failed to load file details:", err);
@@ -72,13 +67,9 @@ const FileDetails = () => {
     [getFileManager, fileId],
   );
 
-  // NEW: Load version history separately with better error handling
   const loadVersionHistory = useCallback(
     async (forceRefresh = false) => {
       if (!fileDetails) {
-        console.log(
-          "[FileDetails] No file details available for version history",
-        );
         return;
       }
 
@@ -86,8 +77,6 @@ const FileDetails = () => {
       setVersionError("");
 
       try {
-        console.log("[FileDetails] Creating mock version history for:", fileId);
-
         // Since version history endpoint doesn't exist in backend, create mock from current file
         const mockVersion = {
           id: fileDetails.id,
@@ -101,22 +90,17 @@ const FileDetails = () => {
           created_at: fileDetails.created_at,
           _isDecrypted: fileDetails._isDecrypted,
           mime_type: fileDetails.mime_type,
+          modified_by: "You", // Mock data
+          isCurrent: true, // Mock data
         };
 
         setVersionHistory([mockVersion]);
         setHasLoadedVersions(true);
 
-        // Show informational message about version history not being implemented
         setVersionError(
           "Version history is not yet implemented in the backend. Showing current file version only.",
         );
-
-        console.log("[FileDetails] Mock version history created successfully");
       } catch (err) {
-        console.warn(
-          "[FileDetails] Failed to create mock version history:",
-          err,
-        );
         setVersionError(
           "Could not load version history. This feature is not yet available.",
         );
@@ -134,7 +118,6 @@ const FileDetails = () => {
     }
   }, [getFileManager, fileId, authManager, loadFileDetails]);
 
-  // NEW: Load version history when switching to versions tab
   useEffect(() => {
     if (
       activeTab === "versions" &&
@@ -152,7 +135,6 @@ const FileDetails = () => {
     fileId,
   ]);
 
-  // Handle file download
   const handleDownloadFile = async () => {
     if (!downloadFileManager || !fileDetails) return;
 
@@ -160,11 +142,9 @@ const FileDetails = () => {
     setError("");
 
     try {
-      console.log("[FileDetails] Starting download for:", fileId);
       await downloadFileManager.downloadFile(fileId, {
         saveToDisk: true,
       });
-      console.log("[FileDetails] Download completed successfully");
     } catch (err) {
       setError("Could not download file");
       console.error("[FileDetails] Failed to download file:", err);
@@ -173,12 +153,10 @@ const FileDetails = () => {
     }
   };
 
-  // Handle file deletion
   const handleDeleteFile = async () => {
     if (!deleteFileManager || !fileId) return;
 
     try {
-      console.log("[FileDetails] Deleting file:", fileId);
       await deleteFileManager.deleteFile(fileId, false); // Move to trash
       navigate(`/file-manager/collections/${fileDetails?.collection_id}`);
     } catch (err) {
@@ -188,23 +166,22 @@ const FileDetails = () => {
     setShowDeleteConfirm(false);
   };
 
-  // Get file icon
   const getFileIcon = () => {
-    if (!fileDetails) return <DocumentIcon className="h-8 w-8" />;
+    const iconClass = "h-8 w-8";
+    if (!fileDetails) return <DocumentIcon className={iconClass} />;
 
     const mimeType = fileDetails.mime_type || "";
     if (mimeType.startsWith("image/"))
-      return <PhotoIcon className="h-8 w-8 text-pink-600" />;
+      return <PhotoIcon className={`${iconClass} text-purple-600`} />;
     if (mimeType.startsWith("video/"))
-      return <PlayIcon className="h-8 w-8 text-purple-600" />;
+      return <PlayIcon className={`${iconClass} text-pink-600`} />;
     if (mimeType.startsWith("audio/"))
-      return <SpeakerWaveIcon className="h-8 w-8 text-green-600" />;
+      return <SpeakerWaveIcon className={`${iconClass} text-green-600`} />;
     if (mimeType.includes("pdf"))
-      return <DocumentIcon className="h-8 w-8 text-red-600" />;
-    return <DocumentIcon className="h-8 w-8 text-gray-600" />;
+      return <DocumentIcon className={`${iconClass} text-red-600`} />;
+    return <DocumentIcon className={`${iconClass} text-blue-600`} />;
   };
 
-  // Format file size
   const formatFileSize = (bytes) => {
     if (!bytes) return "0 B";
     const sizes = ["B", "KB", "MB", "GB"];
@@ -212,58 +189,51 @@ const FileDetails = () => {
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
   };
 
-  // Format date
   const formatDate = (dateString) => {
     if (!dateString || dateString === "0001-01-01T00:00:00Z") return "Unknown";
-    try {
-      return new Date(dateString).toLocaleString();
-    } catch {
-      return "Invalid Date";
-    }
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  // NEW: Get state color for version display
-  const getStateColor = (state) => {
-    switch (state) {
-      case "active":
-        return "bg-green-500";
-      case "archived":
-        return "bg-gray-500";
-      case "deleted":
-        return "bg-red-500";
-      case "pending":
-        return "bg-yellow-500";
-      default:
-        return "bg-gray-500";
-    }
+  const formatTimeAgo = (dateString) => {
+    if (!dateString || dateString === "0001-01-01T00:00:00Z")
+      return "a while ago";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+
+    if (diffInMinutes < 1) return "just now";
+    if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+    if (diffInMinutes < 1440)
+      return `${Math.floor(diffInMinutes / 60)} hours ago`;
+    if (diffInMinutes < 2880) return "Yesterday";
+    return `${Math.floor(diffInMinutes / 1440)} days ago`;
   };
 
-  // NEW: Get state label
   const getStateLabel = (state) => {
-    switch (state) {
-      case "active":
-        return "Active";
-      case "archived":
-        return "Archived";
-      case "deleted":
-        return "Deleted";
-      case "pending":
-        return "Pending";
-      default:
-        return state
-          ? state.charAt(0).toUpperCase() + state.slice(1)
-          : "Unknown";
-    }
+    return state ? state.charAt(0).toUpperCase() + state.slice(1) : "Unknown";
   };
+
+  const tabs = [
+    { id: "details", label: "Details", icon: InformationCircleIcon },
+    { id: "versions", label: "Version History", icon: ClockIcon },
+    { id: "activity", label: "Activity", icon: ChartBarIcon },
+  ];
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-subtle">
         <Navigation />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-800 mx-auto mb-4"></div>
+              <div className="h-8 w-8 spinner border-red-800 mx-auto mb-4"></div>
               <p className="text-gray-600">Loading file details...</p>
             </div>
           </div>
@@ -272,19 +242,20 @@ const FileDetails = () => {
     );
   }
 
-  if (!fileDetails) {
+  if (error && !fileDetails) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-subtle">
         <Navigation />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
             <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              File not found
+              File not found or could not be loaded
             </h3>
+            <p className="text-sm text-gray-600 mb-4">{error}</p>
             <button
               onClick={() => navigate("/file-manager")}
-              className="text-red-800 hover:text-red-900"
+              className="btn-secondary"
             >
               Back to Files
             </button>
@@ -294,18 +265,20 @@ const FileDetails = () => {
     );
   }
 
+  if (!fileDetails) return null; // Should be covered by error state, but for safety
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-subtle">
       <Navigation />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-8 animate-fade-in-down">
           <button
             onClick={() =>
               navigate(`/file-manager/collections/${fileDetails.collection_id}`)
             }
-            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"
+            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4 transition-colors duration-200"
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
             Back to Collection
@@ -313,38 +286,30 @@ const FileDetails = () => {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-gray-100">
+              <div className="h-14 w-14 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center">
                 {getFileIcon()}
               </div>
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900">
+                <h1 className="text-2xl font-bold text-gray-900 flex items-center">
                   {fileDetails.name || "Encrypted File"}
+                  {fileDetails._isDecrypted && (
+                    <CheckIcon className="h-5 w-5 text-green-600 ml-2" />
+                  )}
                 </h1>
                 <div className="flex items-center space-x-4 mt-1">
-                  <p className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-600">
                     {formatFileSize(
                       fileDetails.size ||
                         fileDetails.encrypted_file_size_in_bytes,
-                    )}{" "}
-                    • Modified {formatDate(fileDetails.modified_at)}
-                  </p>
-                  {/* NEW: Show decryption status */}
-                  {fileDetails._isDecrypted ? (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      <CheckIcon className="h-3 w-3 mr-1" />
-                      Decrypted
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                      <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
-                      Encrypted
-                    </span>
-                  )}
-                  {/* NEW: Show file state */}
-                  <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${getStateColor(fileDetails.state)}`}
-                  >
-                    {getStateLabel(fileDetails.state)}
+                    )}
+                  </span>
+                  <span className="text-sm text-gray-400">•</span>
+                  <span className="text-sm text-gray-600">
+                    Modified {formatTimeAgo(fileDetails.modified_at)}
+                  </span>
+                  <span className="text-sm text-gray-400">•</span>
+                  <span className="text-sm text-gray-600">
+                    v{fileDetails.version || 1}
                   </span>
                 </div>
               </div>
@@ -357,7 +322,7 @@ const FileDetails = () => {
                     `/file-manager/collections/${fileDetails.collection_id}/share`,
                   )
                 }
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                className="btn-secondary"
               >
                 <ShareIcon className="h-4 w-4 mr-2" />
                 Share
@@ -365,418 +330,281 @@ const FileDetails = () => {
               <button
                 onClick={handleDownloadFile}
                 disabled={isDownloading || !fileDetails._isDecrypted}
-                className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-800 hover:bg-red-900 disabled:bg-gray-400"
+                className="btn-primary"
               >
-                <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-                {isDownloading ? "Downloading..." : "Download"}
+                {isDownloading ? (
+                  <>
+                    <div className="h-4 w-4 spinner border-white mr-2"></div>
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                    Download
+                  </>
+                )}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Error Message */}
         {error && (
-          <div className="mb-6 p-3 rounded-lg bg-red-50 border border-red-200">
+          <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200">
             <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* File Preview/Details */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg border border-gray-200">
-              {/* Tabs */}
+            <div className="card animate-fade-in-up">
               <div className="border-b border-gray-200">
                 <nav className="-mb-px flex">
-                  <button
-                    onClick={() => setActiveTab("details")}
-                    className={`px-6 py-3 border-b-2 text-sm font-medium ${
-                      activeTab === "details"
-                        ? "border-red-800 text-red-800"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    Details
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("versions")}
-                    className={`px-6 py-3 border-b-2 text-sm font-medium ${
-                      activeTab === "versions"
-                        ? "border-red-800 text-red-800"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    Version History
-                    {versionHistory.length > 0 && (
-                      <span className="ml-2 px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
-                        {versionHistory.length}
-                      </span>
-                    )}
-                  </button>
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`px-6 py-3 border-b-2 text-sm font-medium flex items-center transition-all duration-200 ${
+                        activeTab === tab.id
+                          ? "border-red-700 text-red-800"
+                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      <tab.icon className="h-4 w-4 mr-2" />
+                      {tab.label}
+                    </button>
+                  ))}
                 </nav>
               </div>
 
               <div className="p-6">
-                {/* Details Tab */}
                 {activeTab === "details" && (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900 mb-4">
-                        File Information
-                      </h3>
-                      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <dt className="text-sm font-medium text-gray-500">
-                            Type
-                          </dt>
-                          <dd className="text-sm text-gray-900 mt-1">
-                            {fileDetails.mime_type || "Unknown"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-sm font-medium text-gray-500">
-                            Size
-                          </dt>
-                          <dd className="text-sm text-gray-900 mt-1">
-                            {formatFileSize(
-                              fileDetails.size ||
-                                fileDetails.encrypted_file_size_in_bytes,
-                            )}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-sm font-medium text-gray-500">
-                            Created
-                          </dt>
-                          <dd className="text-sm text-gray-900 mt-1">
-                            {formatDate(fileDetails.created_at)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-sm font-medium text-gray-500">
-                            Modified
-                          </dt>
-                          <dd className="text-sm text-gray-900 mt-1">
-                            {formatDate(fileDetails.modified_at)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-sm font-medium text-gray-500">
-                            Version
-                          </dt>
-                          <dd className="text-sm text-gray-900 mt-1">
-                            v{fileDetails.version || 1}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-sm font-medium text-gray-500">
-                            State
-                          </dt>
-                          <dd className="text-sm text-gray-900 mt-1 capitalize">
-                            {getStateLabel(fileDetails.state)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-sm font-medium text-gray-500">
-                            File ID
-                          </dt>
-                          <dd className="text-sm text-gray-900 mt-1 font-mono">
-                            {fileDetails.id}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-sm font-medium text-gray-500">
-                            Collection ID
-                          </dt>
-                          <dd className="text-sm text-gray-900 mt-1 font-mono">
-                            {fileDetails.collection_id}
-                          </dd>
-                        </div>
-                      </dl>
-                    </div>
+                  <div className="space-y-6 animate-fade-in">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
+                      <DocumentIcon className="h-5 w-5 mr-2 text-gray-600" />
+                      File Information
+                    </h3>
+                    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <dt className="text-sm font-medium text-gray-600">
+                          Type
+                        </dt>
+                        <dd className="text-sm text-gray-900 mt-1">
+                          {fileDetails.mime_type || "Unknown"}
+                        </dd>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <dt className="text-sm font-medium text-gray-600">
+                          Size
+                        </dt>
+                        <dd className="text-sm text-gray-900 mt-1">
+                          {formatFileSize(fileDetails.size)}
+                        </dd>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <dt className="text-sm font-medium text-gray-600">
+                          Created
+                        </dt>
+                        <dd className="text-sm text-gray-900 mt-1">
+                          {formatDate(fileDetails.created_at)}
+                        </dd>
+                      </div>
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <dt className="text-sm font-medium text-gray-600">
+                          Modified
+                        </dt>
+                        <dd className="text-sm text-gray-900 mt-1">
+                          {formatDate(fileDetails.modified_at)}
+                        </dd>
+                      </div>
+                    </dl>
 
-                    {/* NEW: Enhanced encryption status */}
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900 mb-4">
-                        Encryption Status
-                      </h3>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <span className="text-sm font-medium text-gray-700">
-                            Decrypted
-                          </span>
-                          <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              fileDetails._isDecrypted
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {fileDetails._isDecrypted ? (
-                              <>
-                                <CheckIcon className="h-3 w-3 mr-1" />
-                                Yes
-                              </>
-                            ) : (
-                              <>
-                                <XMarkIcon className="h-3 w-3 mr-1" />
-                                No
-                              </>
-                            )}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <span className="text-sm font-medium text-gray-700">
-                            File Key Available
-                          </span>
-                          <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              fileDetails._hasFileKey
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {fileDetails._hasFileKey ? (
-                              <>
-                                <CheckIcon className="h-3 w-3 mr-1" />
-                                Yes
-                              </>
-                            ) : (
-                              <>
-                                <ClockIcon className="h-3 w-3 mr-1" />
-                                Cached
-                              </>
-                            )}
-                          </span>
-                        </div>
-
-                        {fileDetails._decryptionError && (
-                          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p className="text-sm text-yellow-800">
-                              <strong>Decryption Error:</strong>{" "}
-                              {fileDetails._decryptionError}
-                            </p>
-                            <p className="text-xs text-yellow-700 mt-1">
-                              You may not have access to this file or the
-                              encryption keys may be missing.
+                    <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
+                      <LockClosedIcon className="h-5 w-5 mr-2 text-gray-600" />
+                      Encryption Status
+                    </h3>
+                    {fileDetails._isDecrypted ? (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-start">
+                          <CheckIcon className="h-5 w-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <h4 className="text-sm font-medium text-green-900">
+                              File is Encrypted and Decrypted
+                            </h4>
+                            <p className="text-sm text-green-700 mt-1">
+                              This file is protected with end-to-end encryption
+                              and has been successfully decrypted for viewing.
                             </p>
                           </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* NEW: Tombstone information if applicable */}
-                    {fileDetails._has_tombstone && (
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-900 mb-4">
-                          Tombstone Information
-                        </h3>
-                        <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                          <dl className="space-y-2">
-                            <div className="flex justify-between">
-                              <dt className="text-sm font-medium text-orange-800">
-                                Tombstone Version
-                              </dt>
-                              <dd className="text-sm text-orange-900">
-                                v{fileDetails.tombstone_version}
-                              </dd>
-                            </div>
-                            <div className="flex justify-between">
-                              <dt className="text-sm font-medium text-orange-800">
-                                Expiry Date
-                              </dt>
-                              <dd className="text-sm text-orange-900">
-                                {formatDate(fileDetails.tombstone_expiry)}
-                              </dd>
-                            </div>
-                            <div className="flex justify-between">
-                              <dt className="text-sm font-medium text-orange-800">
-                                Status
-                              </dt>
-                              <dd className="text-sm text-orange-900">
-                                {fileDetails._tombstone_expired
-                                  ? "Expired"
-                                  : "Active"}
-                              </dd>
-                            </div>
-                          </dl>
                         </div>
                       </div>
+                    ) : (
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div className="flex items-start">
+                          <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 mr-3 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <h4 className="text-sm font-medium text-yellow-900">
+                              File Not Decrypted
+                            </h4>
+                            <p className="text-sm text-yellow-700 mt-1">
+                              File content is currently encrypted. Decryption is
+                              required to download or view.
+                            </p>
+                            {fileDetails._decryptionError && (
+                              <p className="text-xs text-red-700 mt-2 font-medium">
+                                <strong>Error:</strong>{" "}
+                                {fileDetails._decryptionError}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
+                      <ServerIcon className="h-5 w-5 mr-2 text-gray-600" />
+                      Technical Details
+                    </h3>
+                    <dl className="space-y-2">
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <dt className="text-sm font-medium text-gray-600">
+                          File ID
+                        </dt>
+                        <dd className="text-sm text-gray-900 font-mono break-all">
+                          {fileDetails.id}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <dt className="text-sm font-medium text-gray-600">
+                          Collection ID
+                        </dt>
+                        <dd className="text-sm text-gray-900 font-mono break-all">
+                          {fileDetails.collection_id}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <dt className="text-sm font-medium text-gray-600">
+                          Version
+                        </dt>
+                        <dd className="text-sm text-gray-900">
+                          v{fileDetails.version || 1}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between py-2">
+                        <dt className="text-sm font-medium text-gray-600">
+                          State
+                        </dt>
+                        <dd>
+                          <span className="badge-success capitalize">
+                            {getStateLabel(fileDetails.state)}
+                          </span>
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                )}
+
+                {activeTab === "versions" && (
+                  <div className="animate-fade-in">
+                    {isLoadingVersions ? (
+                      <div className="text-center py-12">
+                        <div className="h-8 w-8 spinner border-red-800 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading versions...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-3">
+                          {versionHistory.map((version) => (
+                            <div
+                              key={version.id}
+                              className={`p-4 rounded-lg border transition-all duration-200 ${
+                                version.isCurrent
+                                  ? "border-red-200 bg-red-50"
+                                  : "border-gray-200 hover:shadow-sm"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                  <div className="flex-shrink-0">
+                                    <div
+                                      className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                                        version.isCurrent
+                                          ? "bg-gradient-to-br from-red-600 to-red-700"
+                                          : "bg-gray-200"
+                                      }`}
+                                    >
+                                      <span
+                                        className={`text-sm font-semibold ${
+                                          version.isCurrent
+                                            ? "text-white"
+                                            : "text-gray-700"
+                                        }`}
+                                      >
+                                        v{version.version}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center space-x-2">
+                                      <h4 className="text-sm font-medium text-gray-900">
+                                        {version.name || "[Encrypted]"}
+                                      </h4>
+                                      {version.isCurrent && (
+                                        <span className="badge-success">
+                                          Current
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                                      <span>
+                                        {formatFileSize(version.size)}
+                                      </span>
+                                      <span>•</span>
+                                      <span>
+                                        Modified by {version.modified_by}
+                                      </span>
+                                      <span>•</span>
+                                      <span>
+                                        {formatTimeAgo(version.modified_at)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {versionError && (
+                          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex">
+                              <InformationCircleIcon className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                              <div className="ml-3">
+                                <h4 className="text-sm font-medium text-blue-800">
+                                  Version Control
+                                </h4>
+                                <p className="text-sm text-blue-700 mt-1">
+                                  {versionError}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
 
-                {/* NEW: Enhanced Versions Tab */}
-                {activeTab === "versions" && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-gray-900">
-                        Version History
+                {activeTab === "activity" && (
+                  <div className="animate-fade-in">
+                    <div className="text-center py-12">
+                      <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-base font-medium text-gray-900 mb-2">
+                        Activity Log Coming Soon
                       </h3>
-                      <button
-                        onClick={() => loadVersionHistory(true)}
-                        disabled={isLoadingVersions}
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 rounded text-sm text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        <ArrowPathIcon
-                          className={`h-4 w-4 mr-1 ${isLoadingVersions ? "animate-spin" : ""}`}
-                        />
-                        Refresh
-                      </button>
+                      <p className="text-sm text-gray-600">
+                        Track all actions performed on this file
+                      </p>
                     </div>
-
-                    {/* Version History Information */}
-                    {versionError && (
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex">
-                          <div className="h-5 w-5 text-blue-400 mr-2 flex-shrink-0 mt-0.5">
-                            ℹ️
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-medium text-blue-800">
-                              Version History
-                            </h4>
-                            <p className="text-sm text-blue-700 mt-1">
-                              {versionError}
-                            </p>
-                            <p className="text-xs text-blue-600 mt-2">
-                              💡 The backend currently doesn't support the{" "}
-                              <code className="bg-blue-100 px-1 rounded">
-                                GET /files/{`{id}`}/versions
-                              </code>{" "}
-                              endpoint. Only the current version is shown.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Loading State */}
-                    {isLoadingVersions && (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="text-center">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-800 mx-auto mb-2"></div>
-                          <p className="text-sm text-gray-600">
-                            Loading version history...
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Version History Table */}
-                    {!isLoadingVersions &&
-                      versionHistory.length === 0 &&
-                      !versionError && (
-                        <div className="text-center py-8">
-                          <ClockIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                          <p className="text-gray-500">
-                            No version history available
-                          </p>
-                          <p className="text-sm text-gray-400 mt-1">
-                            This file may only have one version or version
-                            history is not enabled.
-                          </p>
-                        </div>
-                      )}
-
-                    {!isLoadingVersions && versionHistory.length > 0 && (
-                      <div>
-                        {versionError && versionHistory.length === 1 && (
-                          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <p className="text-sm text-blue-800">
-                              ℹ️ Showing current file information as a single
-                              version entry.
-                            </p>
-                          </div>
-                        )}
-
-                        <div className="overflow-hidden border border-gray-200 rounded-lg">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Version
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Name
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  State
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Size
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Modified
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Status
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {versionHistory.map((version, index) => (
-                                <tr
-                                  key={`${version.id}-${version.version}`}
-                                  className={index === 0 ? "bg-green-50" : ""}
-                                >
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    v{version.version}
-                                    {index === 0 && (
-                                      <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        Current
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                    {version.name || "[Unable to decrypt]"}
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap">
-                                    <span
-                                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${getStateColor(version.state)}`}
-                                    >
-                                      {getStateLabel(version.state)}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                    {formatFileSize(
-                                      version.size ||
-                                        version.encrypted_file_size_in_bytes,
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                    {formatDate(version.modified_at)}
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap">
-                                    <span
-                                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                        version._isDecrypted
-                                          ? "bg-green-100 text-green-800"
-                                          : "bg-red-100 text-red-800"
-                                      }`}
-                                    >
-                                      {version._isDecrypted ? (
-                                        <>
-                                          <CheckIcon className="h-3 w-3 mr-1" />
-                                          Decrypted
-                                        </>
-                                      ) : (
-                                        <>
-                                          <XMarkIcon className="h-3 w-3 mr-1" />
-                                          Encrypted
-                                        </>
-                                      )}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -784,107 +612,111 @@ const FileDetails = () => {
           </div>
 
           {/* Sidebar */}
-          <div>
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <div className="space-y-6">
+            <div
+              className="card p-6 animate-fade-in-up"
+              style={{ animationDelay: "100ms" }}
+            >
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 Actions
+                <SparklesIcon className="h-5 w-5 text-yellow-500 ml-2" />
               </h3>
               <div className="space-y-3">
                 <button
                   onClick={handleDownloadFile}
                   disabled={isDownloading || !fileDetails._isDecrypted}
-                  className="w-full inline-flex items-center justify-center px-4 py-2 rounded-lg text-white bg-red-800 hover:bg-red-900 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="w-full btn-primary"
                 >
                   <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
                   {isDownloading ? "Downloading..." : "Download"}
                 </button>
-
-                {!fileDetails._isDecrypted && (
-                  <p className="text-xs text-gray-500 text-center">
-                    File must be decrypted to download
-                  </p>
-                )}
-
                 <button
                   onClick={() =>
                     navigate(
                       `/file-manager/collections/${fileDetails.collection_id}/share`,
                     )
                   }
-                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50"
+                  className="w-full btn-secondary"
                 >
                   <ShareIcon className="h-4 w-4 mr-2" />
                   Share Collection
                 </button>
-
+                <button className="w-full btn-secondary" disabled>
+                  <DocumentDuplicateIcon className="h-4 w-4 mr-2" />
+                  Make a Copy
+                </button>
                 <hr className="my-3" />
-
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-red-300 rounded-lg text-red-700 bg-white hover:bg-red-50"
+                  className="w-full btn-danger"
                 >
                   <TrashIcon className="h-4 w-4 mr-2" />
-                  Delete
+                  Delete File
                 </button>
               </div>
+            </div>
 
-              {/* NEW: File metadata in sidebar */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">
-                  Quick Info
-                </h4>
-                <dl className="space-y-2">
-                  <div>
-                    <dt className="text-xs text-gray-500">File ID</dt>
-                    <dd className="text-xs text-gray-900 font-mono break-all">
-                      {fileDetails.id}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-gray-500">Encrypted Size</dt>
-                    <dd className="text-xs text-gray-900">
-                      {formatFileSize(
-                        fileDetails.encrypted_file_size_in_bytes || 0,
-                      )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-gray-500">Created</dt>
-                    <dd className="text-xs text-gray-900">
-                      {formatDate(fileDetails.created_at)}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
+            <div
+              className="card p-6 animate-fade-in-up"
+              style={{ animationDelay: "200ms" }}
+            >
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                Quick Info
+              </h3>
+              <dl className="space-y-3">
+                <div>
+                  <dt className="text-xs text-gray-600">Location</dt>
+                  <dd className="text-sm text-gray-900 mt-0.5 flex items-center">
+                    <FolderIcon className="h-4 w-4 mr-1 text-blue-600" />
+                    Collection
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-600">Encryption</dt>
+                  <dd className="text-sm text-gray-900 mt-0.5 flex items-center">
+                    <ShieldCheckIcon className="h-4 w-4 mr-1 text-green-600" />
+                    Protected
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-600">Encrypted Size</dt>
+                  <dd className="text-sm text-gray-900 mt-0.5">
+                    {formatFileSize(
+                      fileDetails.encrypted_file_size_in_bytes || 0,
+                    )}
+                  </dd>
+                </div>
+              </dl>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Delete File
-            </h3>
-            <p className="text-gray-700 mb-6">
-              Are you sure you want to delete "{fileDetails.name || "this file"}
-              "? The file will be moved to trash and permanently deleted after
-              30 days.
-            </p>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-scale-in">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Delete File
+              </h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Are you sure you want to delete "
+                {fileDetails.name || "this file"}"? The file will be moved to
+                trash and permanently deleted after 30 days.
+              </p>
+            </div>
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="btn-secondary"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleDeleteFile}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Delete
+              <button onClick={handleDeleteFile} className="btn-danger">
+                Delete File
               </button>
             </div>
           </div>
