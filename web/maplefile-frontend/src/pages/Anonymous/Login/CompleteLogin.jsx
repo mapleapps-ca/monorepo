@@ -1,5 +1,5 @@
 // File: monorepo/web/maplefile-frontend/src/pages/Anonymous/Login/CompleteLogin.jsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
 import { useServices } from "../../../services/Services";
 import {
@@ -9,12 +9,14 @@ import {
   ShieldCheckIcon,
   CheckIcon,
   ExclamationTriangleIcon,
-  InformationCircleIcon,
   KeyIcon,
   EyeIcon,
   EyeSlashIcon,
   UserIcon,
   ClockIcon,
+  ServerIcon,
+  GlobeAltIcon,
+  HeartIcon,
 } from "@heroicons/react/24/outline";
 
 const CompleteLogin = () => {
@@ -333,55 +335,42 @@ const CompleteLogin = () => {
     navigate("/login/request-ott");
   };
 
-  // Early return if verification data is not available (like developer version)
+  // Early return if verification data is not available
   if (!verificationData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-red-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h2>
-          <p className="text-gray-600">Loading verification data...</p>
+          <p className="text-gray-600">Preparing secure login...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-red-50 flex flex-col">
-      {/* Navigation */}
-      <nav className="bg-white/95 backdrop-blur-sm border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <Link to="/" className="flex items-center group">
-              <div className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-red-800 to-red-900 rounded-lg mr-3 group-hover:scale-105 transition-transform duration-200">
-                <LockClosedIcon className="h-6 w-6 text-white" />
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header */}
+      <div className="flex-shrink-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <Link to="/" className="inline-flex items-center space-x-3 group">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-800 rounded-xl opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-300"></div>
+              <div className="relative flex items-center justify-center h-10 w-10 bg-gradient-to-br from-red-700 to-red-800 rounded-xl shadow-md group-hover:shadow-lg transform group-hover:scale-105 transition-all duration-200">
+                <LockClosedIcon className="h-5 w-5 text-white" />
               </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-red-800 bg-clip-text text-transparent">
-                MapleFile
-              </span>
-            </Link>
-            <div className="flex items-center space-x-6">
-              <Link
-                to="/register"
-                className="text-base font-medium text-gray-700 hover:text-red-800 transition-colors duration-200"
-              >
-                Need an account?
-              </Link>
-              <Link
-                to="/recovery"
-                className="text-base font-medium text-gray-700 hover:text-red-800 transition-colors duration-200"
-              >
-                Forgot password?
-              </Link>
             </div>
-          </div>
+            <span className="text-xl font-bold text-gray-900 group-hover:text-red-800 transition-colors duration-200">
+              MapleFile
+            </span>
+          </Link>
         </div>
-      </nav>
+      </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
+        <div className="w-full max-w-md space-y-8 animate-fade-in-up">
           {/* Progress Indicator */}
-          <div className="flex items-center justify-center mb-8">
+          <div className="flex items-center justify-center">
             <div className="flex items-center space-x-4">
               <div className="flex items-center">
                 <div className="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full text-white text-sm font-bold">
@@ -402,7 +391,7 @@ const CompleteLogin = () => {
               </div>
               <div className="w-12 h-0.5 bg-green-500"></div>
               <div className="flex items-center">
-                <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-red-800 to-red-900 rounded-full text-white text-sm font-bold">
+                <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-red-700 to-red-800 rounded-full text-white text-sm font-bold shadow-lg">
                   3
                 </div>
                 <span className="ml-2 text-sm font-semibold text-gray-900">
@@ -413,92 +402,76 @@ const CompleteLogin = () => {
           </div>
 
           {/* Header */}
-          <div className="text-center animate-fade-in-up">
+          <div className="text-center">
             <div className="flex justify-center mb-6">
               <div className="relative">
-                <div className="flex items-center justify-center h-16 w-16 bg-gradient-to-br from-red-800 to-red-900 rounded-2xl shadow-lg animate-pulse">
-                  <UserIcon className="h-8 w-8 text-white" />
+                <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-800 rounded-2xl blur-2xl opacity-20 animate-pulse"></div>
+                <div className="relative h-16 w-16 bg-gradient-to-br from-red-600 to-red-800 rounded-2xl flex items-center justify-center shadow-xl">
+                  <KeyIcon className="h-8 w-8 text-white" />
                 </div>
-                <div className="absolute -inset-1 bg-gradient-to-r from-red-800 to-red-900 rounded-2xl blur opacity-20 animate-pulse"></div>
               </div>
             </div>
-            <h2 className="text-3xl font-black text-gray-900 mb-2">
-              Complete Secure Login
-            </h2>
-            <p className="text-gray-600 mb-2">
-              Enter your master password to decrypt your files and complete
-              login
+            <h1 className="text-3xl font-bold text-gray-900">
+              Unlock Your Account
+            </h1>
+            <p className="mt-2 text-gray-600">
+              Enter your master password to decrypt your data.
             </p>
-            <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-              <ShieldCheckIcon className="h-4 w-4 text-green-600" />
-              <span>All encryption happens locally in your browser</span>
-            </div>
           </div>
 
           {/* Form Card */}
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 animate-fade-in-up-delay">
+          <div
+            className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8"
+            style={{ animationDelay: "100ms" }}
+          >
             {/* Challenge Expired Message */}
             {challengeExpired && (
-              <div className="mb-6 p-6 rounded-lg bg-amber-50 border border-amber-200 animate-fade-in">
+              <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 animate-fade-in">
                 <div className="flex items-start">
-                  <ClockIcon className="h-6 w-6 text-amber-600 mr-3 flex-shrink-0 mt-1" />
+                  <ClockIcon className="h-5 w-5 text-amber-600 mr-3 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-amber-800 mb-2">
+                    <h3 className="text-sm font-semibold text-amber-800">
                       Security Code Expired
                     </h3>
-                    <p className="text-sm text-amber-700 mb-4">
-                      Your verification code has expired for security reasons.
-                      This is normal and helps protect your account.
+                    <p className="text-sm text-amber-700 mt-1 mb-3">
+                      Please go back to get a new one-time code.
                     </p>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <button
-                        onClick={() => navigate("/login/verify-ott")}
-                        className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
-                      >
-                        <ArrowLeftIcon className="mr-2 h-4 w-4" />
-                        Get New Code
-                      </button>
-                      <button
-                        onClick={handleStartOver}
-                        className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-amber-300 text-amber-700 text-sm font-medium rounded-lg hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
-                      >
-                        Start Over
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => navigate("/login/verify-ott")}
+                      className="inline-flex items-center justify-center px-3 py-1.5 bg-amber-600 text-white text-sm font-semibold rounded-md hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-200"
+                    >
+                      <ArrowLeftIcon className="mr-2 h-4 w-4" />
+                      Get New Code
+                    </button>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Error Message */}
-            {error && (
+            {error && !challengeExpired && (
               <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 animate-fade-in">
                 <div className="flex items-center">
                   <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
-                  <div>
-                    <h3 className="text-sm font-semibold text-red-800">
-                      Authentication Error
-                    </h3>
-                    <p className="text-sm text-red-700 mt-1">{error}</p>
-                  </div>
+                  <p className="text-sm text-red-700">{error}</p>
                 </div>
               </div>
             )}
 
             {/* User Display */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+            <div className="mb-6 p-3 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center">
-                <UserIcon className="h-5 w-5 text-gray-500 mr-3" />
+                <UserIcon className="h-5 w-5 text-gray-400 mr-3" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-700">
-                    Signing in as:
+                  <p className="text-xs font-medium text-gray-500">
+                    Signing in as
                   </p>
-                  <p className="text-sm text-gray-900 font-mono">{email}</p>
+                  <p className="text-sm text-gray-800 font-semibold">{email}</p>
                 </div>
                 <button
                   onClick={handleStartOver}
                   disabled={loading}
-                  className="text-sm text-red-600 hover:text-red-700 font-medium hover:underline transition-colors duration-200"
+                  className="text-sm text-red-600 hover:text-red-700 font-medium hover:underline disabled:text-gray-400 disabled:no-underline"
                 >
                   Change
                 </button>
@@ -510,42 +483,41 @@ const CompleteLogin = () => {
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-sm font-semibold text-gray-700 mb-2"
+                  className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Master Password
                 </label>
                 <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <KeyIcon className="h-5 w-5 text-gray-400" />
+                  </div>
                   <input
                     type={showPassword ? "text" : "password"}
                     id="password"
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
-                      // Clear error states when user starts typing
                       if (error) setError("");
                       if (challengeExpired) setChallengeExpired(false);
                     }}
                     placeholder="Enter your master password"
                     required
                     disabled={loading || challengeExpired}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed text-gray-900 placeholder-gray-500 pr-12"
+                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed text-gray-900 placeholder-gray-500"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    disabled={loading}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    disabled={loading || challengeExpired}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                   >
                     {showPassword ? (
-                      <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                      <EyeSlashIcon className="h-5 w-5" />
                     ) : (
-                      <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                      <EyeIcon className="h-5 w-5" />
                     )}
                   </button>
                 </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  This password decrypts your encryption keys locally
-                </p>
               </div>
 
               <div className="space-y-3">
@@ -560,120 +532,92 @@ const CompleteLogin = () => {
                     !verificationData ||
                     challengeExpired
                   }
-                  className="group w-full flex justify-center items-center py-3 px-4 border border-transparent text-base font-semibold rounded-lg text-white bg-gradient-to-r from-red-800 to-red-900 hover:from-red-900 hover:to-red-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="group w-full flex justify-center items-center py-3 px-4 border border-transparent text-base font-semibold rounded-lg text-white bg-gradient-to-r from-red-700 to-red-800 hover:from-red-800 hover:to-red-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   {loading ? (
                     <>
-                      <svg
-                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
+                      <div className="h-5 w-5 animate-spin border-white mr-3 border-2 border-r-transparent rounded-full"></div>
                       Decrypting & Signing In...
                     </>
                   ) : (
                     <>
-                      <KeyIcon className="mr-2 h-4 w-4" />
-                      Decrypt & Access Files
-                      <ArrowRightIcon className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform duration-200" />
+                      Decrypt & Access Account
+                      <ArrowRightIcon className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
                 </button>
-
                 <button
                   type="button"
                   onClick={handleBackToVerify}
                   disabled={loading}
-                  className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-all duration-200"
+                  className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   <ArrowLeftIcon className="mr-2 h-4 w-4" />
                   Back to Verification
                 </button>
               </div>
             </form>
+          </div>
 
-            {/* Security Info Section */}
-            <div className="mt-8 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
-              <h3 className="text-sm font-semibold text-blue-900 mb-3 flex items-center">
-                <InformationCircleIcon className="h-4 w-4 mr-2" />
-                Security Information
+          {/* Security Features */}
+          <div
+            className="grid grid-cols-2 gap-4 animate-fade-in-up"
+            style={{ animationDelay: "200ms" }}
+          >
+            <div className="bg-white rounded-xl border border-gray-100 p-4 text-center shadow-lg">
+              <ShieldCheckIcon className="h-8 w-8 text-green-600 mx-auto mb-2" />
+              <h3 className="text-sm font-medium text-gray-900">End-to-End</h3>
+              <p className="text-xs text-gray-600">Encrypted</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-4 text-center shadow-lg">
+              <KeyIcon className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+              <h3 className="text-sm font-medium text-gray-900">
+                Zero Knowledge
               </h3>
-              <ul className="text-sm text-blue-800 space-y-2">
-                <li className="flex items-start">
-                  <span className="text-blue-500 mr-2 mt-0.5">•</span>
-                  Your master password never leaves your device
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-500 mr-2 mt-0.5">•</span>
-                  All decryption happens locally in your browser
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-500 mr-2 mt-0.5">•</span>
-                  We cannot recover your password if you forget it
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-500 mr-2 mt-0.5">•</span>
-                  This ensures maximum privacy and security
-                </li>
-              </ul>
+              <p className="text-xs text-gray-600">Architecture</p>
             </div>
+          </div>
 
-            {/* Forgot Password Link */}
-            <div className="mt-6 text-center">
-              <Link
-                to="/recovery"
-                className="text-sm text-red-600 hover:text-red-700 font-medium hover:underline transition-colors duration-200"
-              >
-                Forgot your master password? Use account recovery
-              </Link>
-            </div>
+          {/* Help Links */}
+          <div
+            className="text-center space-x-4 animate-fade-in-up"
+            style={{ animationDelay: "300ms" }}
+          >
+            <Link
+              to="/recovery"
+              className="text-sm text-red-700 hover:text-red-800 font-medium"
+            >
+              Forgot your password?
+            </Link>
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-sm text-gray-500">
-            <p>&copy; 2025 MapleFile Inc. All rights reserved.</p>
-            <div className="mt-2 space-x-4">
-              <Link
-                to="#"
-                className="hover:text-gray-700 transition-colors duration-200"
-              >
-                Privacy Policy
-              </Link>
-              <Link
-                to="#"
-                className="hover:text-gray-700 transition-colors duration-200"
-              >
-                Terms of Service
-              </Link>
-              <Link
-                to="#"
-                className="hover:text-gray-700 transition-colors duration-200"
-              >
-                Support
-              </Link>
+      <div className="flex-shrink-0 border-t border-gray-200 bg-white/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-8 text-sm">
+            <div className="flex items-center space-x-2">
+              <ShieldCheckIcon className="h-4 w-4 text-green-600" />
+              <span className="text-gray-600">
+                ChaCha20-Poly1305 Encryption
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <ServerIcon className="h-4 w-4 text-blue-600" />
+              <span className="text-gray-600">Canadian Hosted</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <GlobeAltIcon className="h-4 w-4 text-purple-600" />
+              <span className="text-gray-600">Privacy First</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <HeartIcon className="h-4 w-4 text-red-600" />
+              <span className="text-gray-600">Made in Canada</span>
             </div>
           </div>
         </div>
-      </footer>
+      </div>
 
       {/* CSS Animations */}
       <style>{`
@@ -687,7 +631,6 @@ const CompleteLogin = () => {
             transform: translateY(0);
           }
         }
-
         @keyframes fade-in-up {
           from {
             opacity: 0;
@@ -698,17 +641,11 @@ const CompleteLogin = () => {
             transform: translateY(0);
           }
         }
-
         .animate-fade-in {
-          animation: fade-in 0.4s ease-out;
+          animation: fade-in 0.4s ease-out forwards;
         }
-
         .animate-fade-in-up {
-          animation: fade-in-up 0.6s ease-out;
-        }
-
-        .animate-fade-in-up-delay {
-          animation: fade-in-up 0.6s ease-out 0.2s both;
+          animation: fade-in-up 0.6s ease-out forwards;
         }
       `}</style>
     </div>
