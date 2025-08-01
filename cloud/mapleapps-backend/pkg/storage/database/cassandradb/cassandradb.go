@@ -3,6 +3,7 @@ package cassandradb
 import (
 	"fmt"
 	"log"
+	"net"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -27,15 +28,38 @@ func NewCassandraConnection(cfg *config.Configuration) (*gocql.Session, error) {
 	var err error
 
 	log.Printf("Starting Cassandra connection process...")
-	log.Printf("Target hosts: %v", dbConfig.Hosts)
+	log.Printf("Target (raw) hosts: %v", dbConfig.Hosts)
 	log.Printf("Target keyspace: %s", dbConfig.Keyspace)
+
+	// Resolve hostnames to IP addresses to support Docker container names.
+	resolvedHosts := make([]string, 0, len(dbConfig.Hosts))
+	for _, host := range dbConfig.Hosts {
+		// The following block of code will be used to resolve the dns of our
+		// other docker container to get the node's ip address.
+		ips, err := net.LookupIP(host)
+		if err != nil {
+			log.Printf("Warning: failed to lookup IP for host '%s': %v. This host will be skipped.", host, err)
+			continue
+		}
+		if len(ips) > 0 {
+			// Use the first resolved IP address.
+			ipStr := ips[0].String()
+			resolvedHosts = append(resolvedHosts, ipStr)
+			log.Printf("Resolved host '%s' to '%s'", host, ipStr)
+		}
+	}
+
+	if len(resolvedHosts) == 0 {
+		return nil, fmt.Errorf("failed to resolve any Cassandra hosts from the provided list: %v", dbConfig.Hosts)
+	}
+	log.Printf("Target (resolved) hosts: %v", resolvedHosts)
 
 	// Attempt connection with enhanced retry logic
 	for attempt := 1; attempt <= dbConfig.MaxRetryAttempts; attempt++ {
 		log.Printf("Cassandra connection attempt %d/%d", attempt, dbConfig.MaxRetryAttempts)
 
 		// Create cluster configuration with enhanced settings
-		cluster := gocql.NewCluster(dbConfig.Hosts...)
+		cluster := gocql.NewCluster(resolvedHosts...)
 
 		// Configure authentication if credentials are provided
 		if dbConfig.Username != "" && dbConfig.Password != "" {
